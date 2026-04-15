@@ -1,23 +1,24 @@
 mod addon_lock;
+mod apply;
 mod apply_policy;
 mod archive_io;
 mod entry_plan;
 mod execution;
 mod packing;
+mod planner;
 mod shared;
 mod target_resolution;
 #[cfg(test)]
 mod tests;
 
 use std::fs;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use zip::ZipArchive;
 
 use self::addon_lock::ExtractedAddonLock;
 pub use self::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
+pub use self::apply::unpack_bundle;
 use self::apply_policy::{
     apply_action_order, apply_group_order, build_cleanup_operations, cleanup_scope_for_entry,
     resource_policy_for_group,
@@ -33,6 +34,7 @@ use self::execution::{
     execute_apply_operations, file_contents_equal_to_bytes, rollback_or_report_apply_error,
 };
 pub use self::packing::{inspect_bundle, load_apply_mappings, pack_bundle};
+pub use self::planner::plan_bundle_apply;
 use self::shared::{
     BundleAddonSourceEntry, BundleAddonSourceIndex, join_segments, safe_file_part,
     safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name, zip_dir_options,
@@ -366,315 +368,4 @@ pub struct CharacterMappingOverride {
     pub target_account: Option<String>,
     pub target_server: String,
     pub target_character: String,
-}
-
-pub fn plan_bundle_apply(
-    bundle_path: &Path,
-    installation: &DetectedFlavorInstallation,
-    apply_mappings: &BundleApplyMappings,
-) -> AppResult<BundleApplyPlan> {
-    Ok(prepare_bundle_apply(bundle_path, installation, apply_mappings)?.plan)
-}
-
-fn prepare_bundle_apply(
-    bundle_path: &Path,
-    installation: &DetectedFlavorInstallation,
-    apply_mappings: &BundleApplyMappings,
-) -> AppResult<PreparedBundleApply> {
-    BundlePlanner {
-        bundle_path,
-        installation,
-        apply_mappings,
-    }
-    .prepare()
-}
-
-impl<'a> BundleReader<'a> {
-    fn new(bundle_path: &'a Path) -> Self {
-        Self { bundle_path }
-    }
-
-    fn inspect(&self) -> AppResult<BundleInspection> {
-        inspect_bundle(self.bundle_path)
-    }
-
-    fn read_for_apply(&self) -> AppResult<BundleReadModel> {
-        let inspection = self.inspect()?;
-
-        Ok(BundleReadModel {
-            inspection,
-            entry_names: collect_bundle_entry_names(self.bundle_path)?,
-        })
-    }
-}
-
-impl<'a> BundlePlanner<'a> {
-    fn prepare(&self) -> AppResult<PreparedBundleApply> {
-        let read_model = BundleReader::new(self.bundle_path).read_for_apply()?;
-        validate_target_compatibility(&read_model.inspection.manifest, self.installation)?;
-        let discovered_accounts = discover_local_accounts(self.installation)?;
-        let character_mappings =
-            build_character_mappings(&read_model.inspection.manifest, self.apply_mappings)?;
-        let selected_target_accounts = resolve_selected_target_accounts(
-            &read_model.inspection.manifest,
-            &discovered_accounts,
-            &character_mappings,
-            self.apply_mappings,
-        )?;
-        self.plan(
-            read_model,
-            discovered_accounts,
-            character_mappings,
-            selected_target_accounts,
-        )
-    }
-
-    fn plan(
-        &self,
-        read_model: BundleReadModel,
-        discovered_accounts: Vec<LocalWowAccount>,
-        character_mappings: Vec<CharacterMapping>,
-        selected_target_accounts: Vec<String>,
-    ) -> AppResult<PreparedBundleApply> {
-        let inspection = read_model.inspection;
-        let planned_entries = plan_extractable_entries(
-            &read_model.entry_names,
-            self.installation,
-            &inspection.manifest,
-            &character_mappings,
-            self.apply_mappings,
-            &selected_target_accounts,
-        )?;
-        let file = File::open(self.bundle_path)?;
-        let mut archive = ZipArchive::new(file)?;
-        let rewrite_options = LuaRewriteOptions {
-            rewrite_profile_keys: inspection.manifest.mapping.rewrite_profile_keys,
-            rewrite_identity_strings: inspection.manifest.mapping.rewrite_identity_strings,
-        };
-
-        let cleanup_operations =
-            build_cleanup_operations(&planned_entries, &inspection.manifest, self.installation)?;
-        let cleanup_roots = cleanup_operations
-            .iter()
-            .map(|operation| operation.destination.clone())
-            .collect::<Vec<_>>();
-        let mut execution_operations = Vec::new();
-        let mut summary = ApplyPlanSummary::default();
-        for cleanup in cleanup_operations {
-            summary.paths_to_remove += 1;
-            execution_operations.push(PreparedApplyOperation::from_cleanup(cleanup));
-        }
-
-        for entry in &planned_entries {
-            let policy = resource_policy_for_group(&inspection.manifest, entry.group);
-            let preserve = policy == ResourceApplyPolicy::Preserve;
-            let share = policy == ResourceApplyPolicy::Share;
-            let cleanup_root = cleanup_scope_for_entry(entry, self.installation)?;
-            let will_cleanup = cleanup_root
-                .as_ref()
-                .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
-            let source_bytes =
-                read_bundle_entry_bytes_from_archive(&mut archive, &entry.archive_name)?;
-            let rewritten_bytes = if preserve {
-                None
-            } else {
-                preview_lua_bytes_rewrite(
-                    Path::new(&entry.archive_name),
-                    &source_bytes,
-                    &entry.rewrites,
-                    rewrite_options,
-                )?
-            };
-            let rewrite_applied = rewritten_bytes.is_some();
-            let action = if preserve {
-                summary.files_to_preserve += 1;
-                ApplyAction::Preserve
-            } else if share && entry.destination.exists() {
-                summary.files_to_preserve += 1;
-                ApplyAction::Preserve
-            } else if will_cleanup {
-                summary.files_to_add += 1;
-                ApplyAction::Add
-            } else if !entry.destination.exists() {
-                summary.files_to_add += 1;
-                ApplyAction::Add
-            } else if rewritten_bytes.as_deref().map_or_else(
-                || file_contents_equal_to_bytes(&source_bytes, &entry.destination),
-                |bytes| file_contents_equal_to_bytes(bytes, &entry.destination),
-            )? {
-                summary.files_to_skip += 1;
-                ApplyAction::Skip
-            } else {
-                summary.files_to_replace += 1;
-                ApplyAction::Replace
-            };
-            if rewrite_applied {
-                summary.files_to_rewrite += 1;
-            }
-
-            execution_operations.push(PreparedApplyOperation::from_entry(
-                entry,
-                action,
-                rewrite_applied,
-            ));
-        }
-
-        execution_operations.sort_by(|left, right| {
-            apply_action_order(left.action)
-                .cmp(&apply_action_order(right.action))
-                .then_with(|| apply_group_order(left.group).cmp(&apply_group_order(right.group)))
-                .then_with(|| left.destination.cmp(&right.destination))
-                .then_with(|| left.archive_name.cmp(&right.archive_name))
-        });
-        let operations = execution_operations
-            .iter()
-            .map(PreparedApplyOperation::preview)
-            .collect::<Vec<_>>();
-
-        Ok(PreparedBundleApply {
-            plan: BundleApplyPlan {
-                bundle_path: self.bundle_path.to_path_buf(),
-                target_flavor_root: self.installation.flavor_root.clone(),
-                discovered_accounts,
-                selected_target_accounts,
-                character_mappings,
-                operations,
-                summary,
-                helper_strategy: HelperStrategy::NativeRust,
-                group_policies: ApplyGroupPolicies {
-                    addons: GroupPolicy {
-                        policy: inspection.manifest.apply.addons,
-                    },
-                    wtf_common: GroupPolicy {
-                        policy: inspection.manifest.apply.wtf_common,
-                    },
-                    wtf_characters: GroupPolicy {
-                        policy: inspection.manifest.apply.wtf_characters,
-                    },
-                    fonts: GroupPolicy {
-                        policy: inspection.manifest.apply.fonts,
-                    },
-                    interface_assets: GroupPolicy {
-                        policy: inspection.manifest.apply.interface_assets,
-                    },
-                    metadata: GroupPolicy {
-                        policy: ResourceApplyPolicy::Merge,
-                    },
-                },
-                manifest: inspection.manifest,
-            },
-            execution_operations,
-        })
-    }
-}
-
-pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
-    let prepared = prepare_bundle_apply(
-        &request.bundle_path,
-        &request.installation,
-        &request.apply_mappings,
-    )?;
-    let PreparedBundleApply {
-        plan,
-        execution_operations,
-    } = prepared;
-    if request.dry_run {
-        return Ok(UnpackedBundle {
-            bundle_path: request.bundle_path,
-            target_flavor_root: request.installation.flavor_root,
-            dry_run: true,
-            planned_files: plan.operations.len(),
-            written_files: 0,
-            rewritten_files: 0,
-            backup_path: None,
-            selected_target_accounts: plan.selected_target_accounts,
-            plan_summary: plan.summary,
-            character_mappings: plan.character_mappings,
-            manifest: plan.manifest,
-        });
-    }
-
-    let execution = BundleExecutor {
-        installation: &request.installation,
-        backup_output_path: request.backup_output_path.clone(),
-    }
-    .execute(&plan, &execution_operations)?;
-
-    Ok(UnpackedBundle {
-        bundle_path: request.bundle_path,
-        target_flavor_root: request.installation.flavor_root,
-        dry_run: false,
-        planned_files: plan.operations.len(),
-        written_files: execution.written_files,
-        rewritten_files: execution.rewritten_files,
-        backup_path: execution.backup_path,
-        selected_target_accounts: plan.selected_target_accounts,
-        plan_summary: plan.summary,
-        character_mappings: plan.character_mappings,
-        manifest: plan.manifest,
-    })
-}
-
-impl<'a> BundleExecutor<'a> {
-    fn execute(
-        &self,
-        plan: &BundleApplyPlan,
-        execution_operations: &[PreparedApplyOperation],
-    ) -> AppResult<BundleExecution> {
-        let backup_path = self.create_backup(plan)?;
-
-        match execute_apply_operations(&plan.bundle_path, execution_operations, &plan.manifest) {
-            Ok((written_files, rewritten_files)) => Ok(BundleExecution {
-                backup_path,
-                written_files,
-                rewritten_files,
-            }),
-            Err(error) => {
-                rollback_or_report_apply_error(error, backup_path.as_deref(), self.installation)
-            }
-        }
-    }
-
-    fn create_backup(&self, plan: &BundleApplyPlan) -> AppResult<Option<PathBuf>> {
-        if !plan.manifest.apply.create_backup {
-            return Ok(None);
-        }
-
-        let groups = backup_groups_for_manifest(&plan.manifest);
-        if groups.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(
-                create_backup(BackupRequest {
-                    installation: self.installation.clone(),
-                    output_path: self.backup_output_path.clone(),
-                    groups,
-                    label: Some("bundle-apply".to_string()),
-                })?
-                .archive_path,
-            ))
-        }
-    }
-}
-
-fn backup_groups_for_manifest(manifest: &BundleManifest) -> Vec<BackupGroup> {
-    let mut groups = Vec::new();
-
-    if !manifest.resources.addons.is_empty()
-        || manifest.resources.addon_lock
-        || !manifest.resources.addon_indexes.is_empty()
-    {
-        groups.push(BackupGroup::Addons);
-    }
-    if manifest.resources.wtf_common || !manifest.resources.wtf_characters.is_empty() {
-        groups.push(BackupGroup::Wtf);
-    }
-    if manifest.resources.fonts {
-        groups.push(BackupGroup::Fonts);
-    }
-    if !manifest.resources.interface_assets.is_empty() {
-        groups.push(BackupGroup::InterfaceAssets);
-    }
-
-    groups
 }
