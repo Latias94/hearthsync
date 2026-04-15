@@ -115,6 +115,37 @@ Apply a portable bundle to another installation safely.
 - bundle unpack preserves embedded addon metadata under `.hearthsync/bundles/<bundle-id>/` without overwriting active addon tracking
 - bundle addon plan/apply can read embedded addon locks directly from the archive and reuse the lock sync engine
 - bundle-local addon source archives allow cross-machine addon lock sync without requiring source-machine local paths
+- current bundle apply semantics are still merge-copy oriented and must be hardened before GUI work
+
+## M3.5 - Sync Semantics Hardening
+
+### Status
+
+Planned
+
+### Goal
+
+Make bundle and addon synchronization behavior explicit, previewable, and transaction-oriented.
+
+### Deliverables
+
+- resource-group apply policy model
+- manifest apply intent consumed by runtime behavior
+- logical plan model with add, replace, remove, skip, and rewrite operations
+- separated bundle reader, planner, and executor boundaries
+- operation-level backup and rollback for bundle apply
+- operation-level backup and rollback for addon lock apply
+- WTF file classification for account-root state, account SavedVariables, role SavedVariables, role state, and cache-like files
+- explicit `share` and `sync` semantics informed by NewBeeBox research
+
+### Exit Criteria
+
+- users can preview stale files that will be deleted before apply
+- `replace_addons`, `replace_fonts`, and `merge_wtf` are either enforced or replaced by a policy enum
+- bundle plan generation does not mutate target state
+- a failed bundle or addon lock apply rolls back the whole operation
+- core request/result types are stable enough to be consumed by a future `egui` frontend
+- `WTF/Account/SavedVariables` is not misclassified as a playable account
 
 ## M4 - Configuration Sync Engine
 
@@ -192,6 +223,9 @@ Prepare the core for a future `egui` frontend.
 
 - stable core APIs
 - machine-readable progress events
+- cancellation token model
+- task abstraction for long-running bundle/addon operations
+- provider/network abstraction that can later support async implementations
 - consistent error surfaces
 - improved test coverage
 
@@ -199,3 +233,4 @@ Prepare the core for a future `egui` frontend.
 
 - core logic is reusable without CLI assumptions
 - progress and result models are suitable for an `egui` frontend
+- CLI can run tasks synchronously while GUI can run the same task model on worker threads

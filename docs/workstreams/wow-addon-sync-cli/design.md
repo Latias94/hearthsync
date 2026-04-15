@@ -220,7 +220,13 @@ Rationale:
 - `WTF` needs merge or targeted replacement semantics, not a flat delete-and-copy
 - future GUI can expose the same behavior without inventing frontend-only rules
 
-### Decision 8: Abstract migration helpers behind engine capabilities
+### Decision 8: Stabilize sync semantics before GUI expansion
+
+The current prototype is useful, but GUI work should not start until the core has explicit resource-group apply policies, clean plan/execution boundaries, operation-level rollback semantics, and safer Lua rewrite rules.
+
+The workstream tracks this reset in `architecture-review.md`.
+
+### Decision 9: Abstract migration helpers behind engine capabilities
 
 The reference application appears to detect and use a local diff/migration helper when available,
 and falls back to another path when it is not.
@@ -237,6 +243,18 @@ Rationale:
 - keeps the core cross-platform and deterministic
 - avoids coupling the product to a proprietary local helper
 - still leaves room for future acceleration paths on platforms where helper tooling exists
+
+### Decision 10: Add a task boundary before adopting async runtime APIs
+
+NewBeeBox's generic mod module exposes task-like install flows with progress and cancellation. HearthSync should learn from that product shape, but the current Rust core is filesystem-heavy and still needs sync semantics cleanup first.
+
+Therefore:
+
+- core operations should become explicit tasks with progress events and cancellation tokens
+- CLI may run those tasks synchronously
+- a future `egui` frontend may run blocking tasks on worker threads
+- provider networking should sit behind traits so a later async implementation can replace the current blocking implementation
+- full async conversion should wait until resource-group policies and transaction semantics are stable
 
 ## Proposed Repository Layout
 
@@ -526,9 +544,11 @@ Sync planning and apply prefer index identity when it exists, then fall back to 
 
 ### Config Operations
 
-- `hearthsync config export`
-- `hearthsync config sync`
-- `hearthsync config preview`
+- planned: `hearthsync config export`
+- planned: `hearthsync config sync`
+- planned: `hearthsync config preview`
+
+There is no standalone `config` namespace in the current CLI. Current config previews are represented by `bundle plan` and bundle apply planning.
 
 ### Safety Operations
 
@@ -628,27 +648,44 @@ Research artifacts should be summarized in docs rather than committed as extract
 
 ## Implementation Strategy
 
-### Phase 1
+### Phase 1 - Foundation
 
 - establish CLI skeleton
 - implement installation scanning
 - implement bundle manifest model
 - implement backup checkpoint creation
 
-### Phase 2
+### Phase 2 - Prototype packaging and apply
 
 - implement bundle packing
 - implement bundle inspection
 - implement staged extraction and apply preview
 
-### Phase 3
+### Phase 3 - Addon and config workflows
 
 - implement addon install and update workflows
 - implement targeted config sync and Lua rewrites
 
-### Phase 4
+### Phase 4 - Sync semantics hardening
+
+- define resource-group apply policies
+- consume manifest apply intent during planning and execution
+- split bundle reader, planner, and executor boundaries
+- add delete operations for mirror/replace policies
+- make addon lock apply operation-level transactional
+
+### Phase 5 - Migration safety hardening
+
+- add Lua rewrite file allowlists
+- add encoding-aware rewrite IO
+- validate with representative real-world `SavedVariables`
+- add Windows to macOS scenario tests
+
+### Phase 6 - Task model and GUI readiness
 
 - harden rollback, reporting, and test coverage
+- introduce progress events and cancellation tokens
+- isolate provider/networking behind task-friendly traits
 - prepare stable core interfaces for `egui`
 
 ## Open Questions

@@ -62,7 +62,20 @@
 - [x] Implement `hearthsync bundle unpack`
 - [x] Unpack addon metadata sidecars without overwriting active addon tracking
 - [x] Implement `hearthsync bundle addon-plan` and `bundle addon-apply` shortcuts
-- [x] Implement `hearthsync config preview`
+- [ ] Decide whether standalone `hearthsync config preview` is still needed or whether `bundle plan` owns preview UX
+
+## Phase 5.5 - Sync Semantics Hardening
+
+- [ ] Define explicit resource-group policies: `merge`, `mirror`, `replace_selected`, and `preserve`
+- [ ] Consume or replace manifest apply flags such as `replace_addons`, `replace_fonts`, and `merge_wtf`
+- [ ] Add delete operations to plans for mirror and replace policies
+- [ ] Split bundle archive reading, planning, staging, rewriting, and execution boundaries
+- [ ] Ensure plan generation never mutates target state
+- [ ] Make bundle apply use one operation-level backup and rollback boundary
+- [ ] Make addon lock apply use one operation-level backup and rollback boundary
+- [ ] Classify WTF scopes as account-root files, account SavedVariables, role SavedVariables, role state, and cache-like files
+- [ ] Add NewBeeBox-style `share` and `sync` semantics as explicit policy choices or aliases
+- [ ] Fix account discovery so `WTF/Account/SavedVariables` is not treated as a playable account
 
 ## Phase 6 - Lua Rewrite Engine
 
@@ -70,6 +83,7 @@
 - [x] Implement character and server identity replacement
 - [ ] Add file-level rewrite opt-in rules
 - [ ] Add encoding-aware file read and write support
+- [ ] Add byte-safe replacement support for WTF files that are not valid UTF-8
 - [ ] Add regression tests with real-world samples
 - [x] Add account-level overwrite rules for common WTF resources
 
@@ -97,6 +111,9 @@
 - [x] Add rollback validation tests
 - [ ] Add archive compatibility tests
 - [ ] Add Windows to macOS migration scenario tests
+- [ ] Replace whole-file zip writes with streaming archive I/O for large WTF files
+- [ ] Introduce a core task model with progress events and cancellation tokens
+- [ ] Keep provider networking behind traits before considering full async runtime adoption
 - [ ] Add human-readable summary reports
 - [ ] Add documentation for future `egui` integration
 
