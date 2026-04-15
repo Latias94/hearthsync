@@ -490,6 +490,49 @@ TestDB = {
     }
 
     #[test]
+    fn preview_lua_bytes_rewrite_handles_real_world_like_invalid_utf8_payload() {
+        let payload = "AuctionatorDB = {\r\n[\"贫瘠之地\"] = \""
+            .as_bytes()
+            .iter()
+            .copied()
+            .chain([0xa1, b'G', b'v', b'e', b'r', b's', b'i', b'o', b'n', 0x02])
+            .chain(
+                "\",\r\n[\"profileKeys\"] = { [\"Examplemage - Illidan\"] = \"Default\" },\r\n}"
+                    .as_bytes()
+                    .iter()
+                    .copied(),
+            )
+            .collect::<Vec<_>>();
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+            &payload,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: false,
+            },
+        )
+        .expect("preview")
+        .expect("rewritten bytes");
+
+        assert!(
+            rewritten
+                .windows("贫瘠之地".as_bytes().len())
+                .any(|window| window == "贫瘠之地".as_bytes())
+        );
+        assert!(
+            rewritten
+                .windows(b"Targetmage - Stormrage".len())
+                .any(|window| window == b"Targetmage - Stormrage")
+        );
+        assert!(
+            rewritten.windows(10).any(
+                |window| window == [0xa1, b'G', b'v', b'e', b'r', b's', b'i', b'o', b'n', 0x02]
+            )
+        );
+    }
+
+    #[test]
     fn preview_lua_bytes_rewrite_supports_latin1_strings() {
         let rewritten = preview_lua_bytes_rewrite(
             Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),
