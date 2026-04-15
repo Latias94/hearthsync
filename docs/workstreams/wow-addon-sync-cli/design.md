@@ -389,6 +389,8 @@ interface_assets = true
 - `hearthsync addon index inspect`
 - `hearthsync addon index install`
 - `hearthsync addon index update`
+- `hearthsync addon lock inspect`
+- `hearthsync addon lock write`
 - `hearthsync addon search`
 - `hearthsync addon list`
 - `hearthsync addon install <source>`
@@ -411,6 +413,7 @@ This allows archives with an extra wrapper directory to be normalized into `Inte
 Installed addon packages are tracked per WoW installation in:
 
 - `Interface/AddOns/.hearthsync/addons.toml`
+- `Interface/AddOns/.hearthsync/lock.toml`
 
 This registry stores:
 
@@ -420,8 +423,17 @@ This registry stores:
 - optional `.toc` metadata such as title and version
 - install and update timestamps
 
+The derived lock file stores:
+
+- the tracked package source reference
+- optional metadata projected from custom addon indexes
+- addon directory names and recorded addon metadata
+- install and update timestamps
+- a deterministic `content_sha256` fingerprint of the installed files for drift detection and cross-machine verification
+
 `addon update` reuses the recorded source reference, refreshes the tracked addon directories, and creates an AddOns backup before mutation.
 `addon remove` resolves a tracked package by package id or addon directory name, removes its recorded addon directories, and deletes the local receipt file when the registry becomes empty.
+Successful addon mutations refresh the derived lock automatically, while `addon lock write` can rebuild it from the registry on demand.
 
 `CurseForge` is the second real provider in the system.
 Resolution rules in the current version:
@@ -465,8 +477,11 @@ Current commands:
 - `addon index inspect --file <index.toml>`
 - `addon index install --file <index.toml> --name <id-or-name>`
 - `addon index update --file <index.toml> [--name <id-or-name>]`
+- `addon lock inspect --install <wow-path>`
+- `addon lock write --install <wow-path>`
 
 The first version validates package ids, duplicate ids, source references, and optional flavor compatibility before delegating to the existing install/update pipeline.
+When index-based installs or updates succeed, curated package metadata is carried into the lock file so later GUI flows can present stable names, pinned versions, and source hashes without reopening the original index.
 
 ### Bundle Operations
 

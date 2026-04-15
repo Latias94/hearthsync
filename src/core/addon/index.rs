@@ -5,10 +5,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::core::addon::{
-    AddonSourceRef, InstallAddonRequest, InstalledAddonPackageResult, PreparedAddonPackage,
-    TrackedAddonPackage, UpdatedAddonPackageResult, install_addon, list_addons, load_registry,
-    prepare_package_from_source_ref_with_flavor, rollback_or_report_addon_error,
-    update_prepared_packages,
+    AddonPackageMetadata, AddonSourceRef, InstallAddonRequest, InstalledAddonPackageResult,
+    PreparedAddonPackage, TrackedAddonPackage, UpdatedAddonPackageResult, install_addon,
+    list_addons, load_registry, prepare_package_from_source_ref_with_flavor,
+    rollback_or_report_addon_error, update_prepared_packages,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
@@ -105,6 +105,7 @@ pub fn install_addon_from_index(
         dry_run: request.dry_run,
         backup_output_path: request.backup_output_path,
         replace_existing: request.replace_existing,
+        metadata: Some(metadata_from_index_package(&index, &package)),
     })?;
 
     Ok(AddonIndexInstallResult {
@@ -137,10 +138,11 @@ pub fn update_addons_from_index(
     let mut matched_packages = Vec::new();
     let mut used_package_ids = BTreeSet::new();
     for package in &selected_packages {
-        let prepared = prepare_package_from_source_ref_with_flavor(
+        let mut prepared = prepare_package_from_source_ref_with_flavor(
             &package.source,
             Some(request.installation.flavor),
         )?;
+        prepared.metadata = Some(metadata_from_index_package(&index, package));
         let matched = match_index_package_to_tracked_package(
             package,
             &prepared,
@@ -324,8 +326,28 @@ fn preview_updated_packages(
                 .iter()
                 .map(|addon| addon.addon.clone())
                 .collect(),
+            metadata: prepared
+                .metadata
+                .clone()
+                .or_else(|| matched.metadata.clone()),
         })
         .collect()
+}
+
+fn metadata_from_index_package(
+    index: &AddonIndex,
+    package: &AddonIndexPackage,
+) -> AddonPackageMetadata {
+    AddonPackageMetadata {
+        index_name: Some(index.name.clone()),
+        index_package_id: Some(package.id.clone()),
+        package_name: Some(package.name.clone()),
+        version: Some(package.version.clone()),
+        source_url: package.source_url.clone(),
+        website_url: package.website_url.clone(),
+        source_sha256: package.sha256.clone(),
+        supported_flavors: package.supported_flavors.clone(),
+    }
 }
 
 fn match_index_package_to_tracked_package(
@@ -559,6 +581,7 @@ mod tests {
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
             replace_existing: false,
+            metadata: None,
         })
         .expect("install details");
         install_addon(InstallAddonRequest {
@@ -567,6 +590,7 @@ mod tests {
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
             replace_existing: false,
+            metadata: None,
         })
         .expect("install omen");
 

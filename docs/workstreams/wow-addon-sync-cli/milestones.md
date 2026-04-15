@@ -171,6 +171,7 @@ Add direct addon install and update capabilities.
 - custom addon indexes support curated inspect/install/update workflows without requiring provider search access
 - CurseForge source resolution now filters files by the target WoW flavor through official version-type metadata
 - addon receipts are tracked in `Interface/AddOns/.hearthsync/addons.toml`
+- a derived addon lock is tracked in `Interface/AddOns/.hearthsync/lock.toml` with installed content hashes and curated index metadata
 - addon updates reuse the recorded source reference and refresh tracked addon directories
 - addon removal also cleans the receipt registry when the last tracked package is removed
 - richer provider-specific metadata is still pending

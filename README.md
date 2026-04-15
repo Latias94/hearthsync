@@ -87,6 +87,8 @@ Install from a custom addon index:
 cargo run -- addon index inspect --file .\addon-index.toml
 cargo run -- addon index install --install "E:\Games\World of Warcraft" --flavor retail --file .\addon-index.toml --name WeakAuras
 cargo run -- addon index update --install "E:\Games\World of Warcraft" --flavor retail --file .\addon-index.toml
+cargo run -- addon lock inspect --install "E:\Games\World of Warcraft" --flavor retail
+cargo run -- addon lock write --install "E:\Games\World of Warcraft" --flavor retail
 ```
 
 Create a portable bundle:
@@ -143,6 +145,24 @@ Supported `source.kind` values are the same source references used by the instal
 - `github_release`
 - `curseforge_mod`
 
+## Addon Lock File
+
+HearthSync now maintains a derived addon lock file at `Interface/AddOns/.hearthsync/lock.toml`.
+
+The lock file is generated from the tracked addon registry and records:
+
+- tracked package id and source reference
+- optional curated metadata from a custom addon index
+- installed addon directories and `.toc` metadata
+- install and update timestamps
+- a deterministic `content_sha256` fingerprint of the installed addon files
+
+It is refreshed automatically after successful addon install, update, remove, and index workflows.
+You can also inspect or regenerate it manually with:
+
+- `hearthsync addon lock inspect --install <wow-path> [--flavor <flavor>]`
+- `hearthsync addon lock write --install <wow-path> [--flavor <flavor>]`
+
 ## Safety Model
 
 Mutating workflows are designed around:
@@ -150,6 +170,7 @@ Mutating workflows are designed around:
 - staging archive extraction before writes
 - dry-run plans where available
 - automatic backup creation before apply/update/remove operations
+- automatic addon lock refresh after successful addon mutations
 - restore support for backup archives
 - path normalization and zip-slip protection
 - account/character mapping instead of blindly overwriting `WTF`

@@ -7,6 +7,7 @@ use crate::core::addon::index::{
     AddonIndexInstallRequest, AddonIndexUpdateRequest, inspect_addon_index,
     install_addon_from_index, update_addons_from_index,
 };
+use crate::core::addon::lock::{inspect_addon_lock, write_addon_lock};
 use crate::core::addon::{
     InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest, UpdateAddonRequest, install_addon,
     list_addons, remove_addons, search_addons, update_addons,
@@ -542,6 +543,58 @@ pub fn run() -> AppResult<()> {
                     })?;
                 }
             },
+            AddonCommands::Lock { command } => match command {
+                AddonLockCommands::Inspect { install, flavor } => {
+                    let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                    let inspection = inspect_addon_lock(&installation)?;
+                    render(cli.json, &inspection, |item| {
+                        let packages = item
+                            .lock
+                            .packages
+                            .iter()
+                            .map(|package| {
+                                format!(
+                                    "{} {} => {} ({})",
+                                    package.package_id,
+                                    package.version.as_deref().unwrap_or("unknown"),
+                                    package.addon_directories.join(", "),
+                                    package.content_sha256
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        format!(
+                            "Lock: {}\nGenerated: {}\nPackages: {}\n{}",
+                            item.lock_path.display(),
+                            item.lock.generated_at,
+                            item.package_count,
+                            if packages.is_empty() {
+                                "none".to_string()
+                            } else {
+                                packages
+                            }
+                        )
+                    })?;
+                }
+                AddonLockCommands::Write { install, flavor } => {
+                    let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                    let result = write_addon_lock(&installation)?;
+                    render(cli.json, &result, |item| {
+                        if item.removed {
+                            format!(
+                                "Removed addon lock: {}\nTracked packages: 0",
+                                item.lock_path.display()
+                            )
+                        } else {
+                            format!(
+                                "Wrote addon lock: {}\nTracked packages: {}",
+                                item.lock_path.display(),
+                                item.package_count
+                            )
+                        }
+                    })?;
+                }
+            },
             AddonCommands::Search {
                 install,
                 flavor,
@@ -635,6 +688,7 @@ pub fn run() -> AppResult<()> {
                     dry_run,
                     backup_output_path: backup_output,
                     replace_existing,
+                    metadata: None,
                 })?;
                 render(cli.json, &result, |item| {
                     let backup = item

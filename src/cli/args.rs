@@ -147,6 +147,11 @@ pub enum AddonCommands {
         #[command(subcommand)]
         command: AddonIndexCommands,
     },
+    #[command(about = "Inspect or regenerate the derived addon lock file")]
+    Lock {
+        #[command(subcommand)]
+        command: AddonLockCommands,
+    },
     Search {
         #[arg(long)]
         install: PathBuf,
@@ -244,6 +249,24 @@ pub enum AddonIndexCommands {
         dry_run: bool,
         #[arg(long, help = "Directory for automatic backups")]
         backup_output: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AddonLockCommands {
+    #[command(about = "Read the current addon lock file")]
+    Inspect {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+    },
+    #[command(about = "Regenerate the addon lock file from the addon registry")]
+    Write {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
     },
 }
 

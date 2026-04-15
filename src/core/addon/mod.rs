@@ -1,4 +1,5 @@
 pub mod index;
+pub mod lock;
 mod provider;
 
 use std::collections::BTreeSet;
@@ -36,6 +37,7 @@ pub struct InstallAddonRequest {
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,
+    pub metadata: Option<AddonPackageMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -107,6 +109,8 @@ pub struct TrackedAddonPackage {
     pub installed_at: String,
     pub updated_at: String,
     pub addons: Vec<TrackedAddon>,
+    #[serde(default)]
+    pub metadata: Option<AddonPackageMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -115,6 +119,26 @@ pub struct TrackedAddon {
     pub toc_file: Option<String>,
     pub title: Option<String>,
     pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AddonPackageMetadata {
+    #[serde(default)]
+    pub index_name: Option<String>,
+    #[serde(default)]
+    pub index_package_id: Option<String>,
+    #[serde(default)]
+    pub package_name: Option<String>,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub source_url: Option<String>,
+    #[serde(default)]
+    pub website_url: Option<String>,
+    #[serde(default)]
+    pub source_sha256: Option<String>,
+    #[serde(default)]
+    pub supported_flavors: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +161,7 @@ pub(crate) struct PreparedAddonPackage {
     pub(crate) source: AddonSourceRef,
     pub(crate) package_id: String,
     pub(crate) addons: Vec<PreparedAddonDirectory>,
+    pub(crate) metadata: Option<AddonPackageMetadata>,
     _stage_dir: TempDir,
 }
 
@@ -185,10 +210,11 @@ pub fn search_addons(request: SearchAddonRequest) -> AppResult<AddonSearchCatalo
 
 pub fn install_addon(request: InstallAddonRequest) -> AppResult<InstalledAddonPackageResult> {
     let registry_path = registry_path(&request.installation);
-    let prepared = prepare_package_from_source_input_with_flavor(
+    let mut prepared = prepare_package_from_source_input_with_flavor(
         &request.source,
         Some(request.installation.flavor),
     )?;
+    prepared.metadata = request.metadata;
     let files_to_write = prepared
         .addons
         .iter()
@@ -297,16 +323,24 @@ pub fn update_addons(request: UpdateAddonRequest) -> AppResult<UpdatedAddonPacka
             written_files: 0,
             updated_packages: prepared_packages
                 .into_iter()
-                .map(|package| TrackedAddonPackage {
-                    package_id: package.package_id,
-                    source: package.source,
-                    installed_at: String::new(),
-                    updated_at: String::new(),
-                    addons: package
-                        .addons
-                        .into_iter()
-                        .map(|addon| addon.addon)
-                        .collect(),
+                .zip(selected_packages.iter())
+                .map(|(package, selected)| {
+                    let metadata = package
+                        .metadata
+                        .clone()
+                        .or_else(|| selected.metadata.clone());
+                    TrackedAddonPackage {
+                        package_id: package.package_id,
+                        source: package.source,
+                        installed_at: selected.installed_at.clone(),
+                        updated_at: String::new(),
+                        addons: package
+                            .addons
+                            .into_iter()
+                            .map(|addon| addon.addon)
+                            .collect(),
+                        metadata,
+                    }
                 })
                 .collect(),
             backup_path: None,
@@ -446,6 +480,7 @@ fn install_prepared_package(
             .into_iter()
             .map(|addon| addon.addon)
             .collect(),
+        metadata: prepared.metadata,
     };
     registry.packages.push(package.clone());
     save_registry(installation, &registry)?;
@@ -493,6 +528,7 @@ pub(crate) fn update_prepared_packages(
                 .into_iter()
                 .map(|addon| addon.addon)
                 .collect(),
+            metadata: prepared_package.metadata.or(existing_package.metadata),
         };
         registry.packages.push(updated_package.clone());
         updated_packages.push(updated_package);
@@ -583,6 +619,7 @@ fn prepare_package_from_archive(
         source,
         package_id,
         addons,
+        metadata: None,
         _stage_dir: stage_dir,
     })
 }
@@ -828,12 +865,18 @@ fn save_registry(
         fs::create_dir_all(parent)?;
     }
     fs::write(path, toml::to_string_pretty(registry)?)?;
+    lock::sync_addon_lock_from_registry(installation, registry)?;
     Ok(())
 }
 
 fn cleanup_registry_storage(path: &Path) -> AppResult<()> {
     if path.exists() {
         fs::remove_file(path)?;
+    }
+
+    let lock_path = path.with_file_name("lock.toml");
+    if lock_path.exists() {
+        fs::remove_file(lock_path)?;
     }
 
     let Some(parent) = path.parent() else {
@@ -1061,6 +1104,7 @@ mod tests {
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
             replace_existing: false,
+            metadata: None,
         })
         .expect("install addon");
 
@@ -1106,6 +1150,7 @@ mod tests {
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
             replace_existing: false,
+            metadata: None,
         })
         .expect("install addon");
 
@@ -1180,6 +1225,7 @@ mod tests {
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
             replace_existing: false,
+            metadata: None,
         })
         .expect("install addon");
 
@@ -1224,6 +1270,7 @@ mod tests {
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
             replace_existing: false,
+            metadata: None,
         })
         .expect("install addon");
 
