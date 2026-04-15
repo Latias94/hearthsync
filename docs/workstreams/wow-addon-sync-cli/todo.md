@@ -74,7 +74,7 @@
 - [x] Add delete operations to plans for mirror and replace policies
 - [x] Introduce internal `BundleReader`, `BundlePlanner`, and `BundleExecutor` orchestration
 - [ ] Split bundle archive reading, planning, staging, rewriting, and execution boundaries
-- [ ] Move rewrite materialization out of bundle planning
+- [x] Move rewrite materialization out of bundle planning
 - [ ] Ensure plan generation never mutates target state
 - [ ] Make bundle apply use one operation-level backup and rollback boundary
 - [ ] Make addon lock apply use one operation-level backup and rollback boundary

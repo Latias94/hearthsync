@@ -19,7 +19,9 @@ use crate::core::addon::lock::{
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_backup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};
-use crate::core::lua_patch::{CharacterMapping, LuaRewriteOptions, rewrite_lua_file};
+use crate::core::lua_patch::{
+    CharacterMapping, LuaRewriteOptions, preview_lua_file_rewrite, rewrite_lua_file,
+};
 use crate::core::manifest::{BundleManifest, CharacterResource, ResourceApplyPolicy};
 
 const MANIFEST_ENTRY: &str = "manifest.toml";
@@ -108,6 +110,8 @@ pub struct ApplyOperation {
     pub target_character: Option<String>,
     pub rewrite_count: usize,
     pub rewrite_applied: bool,
+    #[serde(skip_serializing)]
+    pub rewrites: Vec<CharacterMapping>,
     #[serde(skip_serializing)]
     pub staged_path: PathBuf,
 }
@@ -566,6 +570,7 @@ impl<'a> BundlePlanner<'a> {
                 target_character: cleanup.target_character,
                 rewrite_count: 0,
                 rewrite_applied: false,
+                rewrites: Vec::new(),
                 staged_path: PathBuf::new(),
             })
             .collect::<Vec<_>>();
@@ -579,11 +584,12 @@ impl<'a> BundlePlanner<'a> {
             let will_cleanup = cleanup_root
                 .as_ref()
                 .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
-            let rewrite_applied = if preserve {
-                false
+            let rewritten_bytes = if preserve {
+                None
             } else {
-                rewrite_lua_file(&entry.staged_path, &entry.rewrites, rewrite_options)?
+                preview_lua_file_rewrite(&entry.staged_path, &entry.rewrites, rewrite_options)?
             };
+            let rewrite_applied = rewritten_bytes.is_some();
             let action = if preserve {
                 summary.files_to_preserve += 1;
                 ApplyAction::Preserve
@@ -593,7 +599,10 @@ impl<'a> BundlePlanner<'a> {
             } else if !entry.destination.exists() {
                 summary.files_to_add += 1;
                 ApplyAction::Add
-            } else if file_contents_equal(&entry.staged_path, &entry.destination)? {
+            } else if rewritten_bytes.as_deref().map_or_else(
+                || file_contents_equal(&entry.staged_path, &entry.destination),
+                |bytes| file_contents_equal_to_bytes(bytes, &entry.destination),
+            )? {
                 summary.files_to_skip += 1;
                 ApplyAction::Skip
             } else {
@@ -614,6 +623,7 @@ impl<'a> BundlePlanner<'a> {
                 target_character: entry.target_character.clone(),
                 rewrite_count: entry.rewrites.len(),
                 rewrite_applied,
+                rewrites: entry.rewrites.clone(),
                 staged_path: entry.staged_path.clone(),
             });
         }
@@ -1000,8 +1010,13 @@ fn policy_requires_cleanup(policy: ResourceApplyPolicy) -> bool {
 fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)> {
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
+    let rewrite_stage = tempdir()?;
+    let rewrite_options = LuaRewriteOptions {
+        rewrite_profile_keys: plan.manifest.mapping.rewrite_profile_keys,
+        rewrite_identity_strings: plan.manifest.mapping.rewrite_identity_strings,
+    };
 
-    for operation in &plan.operations {
+    for (operation_index, operation) in plan.operations.iter().enumerate() {
         if matches!(operation.action, ApplyAction::Skip | ApplyAction::Preserve) {
             continue;
         }
@@ -1014,7 +1029,17 @@ fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)>
         if let Some(parent) = operation.destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::copy(&operation.staged_path, &operation.destination)?;
+        let source_path = if operation.rewrite_applied {
+            materialize_rewritten_operation(
+                operation_index,
+                operation,
+                rewrite_stage.path(),
+                rewrite_options,
+            )?
+        } else {
+            operation.staged_path.clone()
+        };
+        fs::copy(source_path, &operation.destination)?;
         written_files += 1;
 
         if operation.rewrite_applied {
@@ -1023,6 +1048,28 @@ fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)>
     }
 
     Ok((written_files, rewritten_files))
+}
+
+fn materialize_rewritten_operation(
+    operation_index: usize,
+    operation: &ApplyOperation,
+    rewrite_stage_root: &Path,
+    rewrite_options: LuaRewriteOptions,
+) -> AppResult<PathBuf> {
+    let file_name = operation
+        .staged_path
+        .file_name()
+        .map(|name| name.to_owned())
+        .unwrap_or_else(|| format!("operation-{operation_index}").into());
+    let rewrite_path = rewrite_stage_root
+        .join(operation_index.to_string())
+        .join(file_name);
+    if let Some(parent) = rewrite_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(&operation.staged_path, &rewrite_path)?;
+    rewrite_lua_file(&rewrite_path, &operation.rewrites, rewrite_options)?;
+    Ok(rewrite_path)
 }
 
 fn remove_target_path(path: &Path) -> AppResult<()> {
@@ -1083,6 +1130,35 @@ fn file_contents_equal(left: &Path, right: &Path) -> AppResult<bool> {
         if left_buffer[..left_read] != right_buffer[..right_read] {
             return Ok(false);
         }
+    }
+}
+
+fn file_contents_equal_to_bytes(bytes: &[u8], right: &Path) -> AppResult<bool> {
+    if !right.exists() || !right.is_file() {
+        return Ok(false);
+    }
+
+    let right_metadata = fs::metadata(right)?;
+    if right_metadata.len() != bytes.len() as u64 {
+        return Ok(false);
+    }
+
+    let mut right_file = File::open(right)?;
+    let mut right_buffer = [0u8; 8192];
+    let mut offset = 0usize;
+
+    loop {
+        let right_read = right_file.read(&mut right_buffer)?;
+        if right_read == 0 {
+            return Ok(offset == bytes.len());
+        }
+        if offset + right_read > bytes.len() {
+            return Ok(false);
+        }
+        if bytes[offset..offset + right_read] != right_buffer[..right_read] {
+            return Ok(false);
+        }
+        offset += right_read;
     }
 }
 

@@ -54,6 +54,28 @@ pub fn rewrite_lua_file(
     Ok(true)
 }
 
+pub fn preview_lua_file_rewrite(
+    path: &Path,
+    mappings: &[CharacterMapping],
+    options: LuaRewriteOptions,
+) -> AppResult<Option<Vec<u8>>> {
+    if !should_rewrite_lua(path) || mappings.is_empty() {
+        return Ok(None);
+    }
+
+    let bytes = fs::read(path)?;
+    let Ok(content) = String::from_utf8(bytes) else {
+        return Ok(None);
+    };
+
+    let rewritten = rewrite_lua_text(&content, mappings, options);
+    if rewritten == content {
+        return Ok(None);
+    }
+
+    Ok(Some(rewritten.into_bytes()))
+}
+
 pub fn rewrite_lua_text(
     content: &str,
     mappings: &[CharacterMapping],
