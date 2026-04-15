@@ -102,6 +102,7 @@ pub struct BundleApplyPlan {
 #[derive(Debug, Clone, Serialize)]
 pub struct ApplyOperation {
     pub group: ApplyGroup,
+    pub wtf_scope: Option<WtfScope>,
     pub action: ApplyAction,
     pub archive_name: String,
     pub destination: PathBuf,
@@ -147,6 +148,18 @@ pub enum ApplyGroup {
     Fonts,
     InterfaceAssets,
     Metadata,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WtfScope {
+    GlobalConfig,
+    AccountRootFile,
+    AccountSavedVariables,
+    CharacterSavedVariables,
+    CharacterState,
+    CacheLike,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -200,6 +213,7 @@ struct PlannedEntry {
     destination: PathBuf,
     rewrites: Vec<CharacterMapping>,
     group: ApplyGroup,
+    wtf_scope: Option<WtfScope>,
     target_account: Option<String>,
     target_server: Option<String>,
     target_character: Option<String>,
@@ -562,6 +576,7 @@ impl<'a> BundlePlanner<'a> {
             .into_iter()
             .map(|cleanup| ApplyOperation {
                 group: cleanup.group,
+                wtf_scope: None,
                 action: ApplyAction::Remove,
                 archive_name: format!("[cleanup] {}", cleanup.destination.display()),
                 destination: cleanup.destination,
@@ -615,6 +630,7 @@ impl<'a> BundlePlanner<'a> {
 
             operations.push(ApplyOperation {
                 group: entry.group,
+                wtf_scope: entry.wtf_scope,
                 action,
                 archive_name: entry.archive_name.clone(),
                 destination: entry.destination.clone(),
@@ -925,29 +941,31 @@ fn cleanup_scope_for_entry(
             };
             Ok(Some(installation.addon_dir.join(component.as_os_str())))
         }
-        ApplyGroup::WtfCommon => {
-            if entry
-                .destination
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.eq_ignore_ascii_case("Config.wtf"))
-            {
-                return Ok(Some(installation.wtf_dir.join("Config.wtf")));
+        ApplyGroup::WtfCommon => match entry.wtf_scope.unwrap_or(WtfScope::Unknown) {
+            WtfScope::GlobalConfig => Ok(Some(installation.wtf_dir.join("Config.wtf"))),
+            WtfScope::AccountSavedVariables => {
+                let target_account = entry.target_account.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "wtf common cleanup root requires a target account".to_string(),
+                    )
+                })?;
+                Ok(Some(
+                    installation
+                        .wtf_dir
+                        .join("Account")
+                        .join(target_account)
+                        .join("SavedVariables"),
+                ))
             }
-
-            let target_account = entry.target_account.as_ref().ok_or_else(|| {
-                AppError::Validation(
-                    "wtf common cleanup root requires a target account".to_string(),
-                )
-            })?;
-            Ok(Some(
-                installation
-                    .wtf_dir
-                    .join("Account")
-                    .join(target_account)
-                    .join("SavedVariables"),
-            ))
-        }
+            WtfScope::AccountRootFile | WtfScope::CacheLike | WtfScope::Unknown => {
+                Ok(Some(entry.destination.clone()))
+            }
+            WtfScope::CharacterSavedVariables | WtfScope::CharacterState => {
+                Err(AppError::Validation(
+                    "character WTF scope cannot be used for common WTF cleanup".to_string(),
+                ))
+            }
+        },
         ApplyGroup::WtfCharacters => {
             let target_account = entry.target_account.as_ref().ok_or_else(|| {
                 AppError::Validation(
@@ -1183,6 +1201,24 @@ fn add_common_wtf_to_zip(zip: &mut ZipWriter<File>, wtf_dir: &Path) -> AppResult
 
         let account_name = entry.file_name().to_string_lossy().to_string();
         validate_plain_name("account", &account_name)?;
+        for account_entry in fs::read_dir(&account_dir)? {
+            let account_entry = account_entry?;
+            let account_path = account_entry.path();
+            if !account_path.is_file() {
+                continue;
+            }
+
+            let file_name = account_entry.file_name().to_string_lossy().to_string();
+            validate_plain_name("account WTF file", &file_name)?;
+            archived_files += add_path_to_zip(
+                zip,
+                &account_path,
+                &Path::new("wtf/common/accounts")
+                    .join(&account_name)
+                    .join(file_name),
+            )?;
+        }
+
         let saved_variables = account_dir.join("SavedVariables");
         if saved_variables.exists() {
             archived_files += add_path_to_zip(
@@ -1599,6 +1635,7 @@ fn map_bundle_entry_to_destination(
             ),
             rewrites: Vec::new(),
             group: ApplyGroup::Metadata,
+            wtf_scope: None,
             target_account: None,
             target_server: None,
             target_character: None,
@@ -1609,6 +1646,7 @@ fn map_bundle_entry_to_destination(
             destination: join_segments(&installation.addon_dir, rest),
             rewrites: Vec::new(),
             group: ApplyGroup::Addons,
+            wtf_scope: None,
             target_account: None,
             target_server: None,
             target_character: None,
@@ -1619,6 +1657,7 @@ fn map_bundle_entry_to_destination(
             destination: installation.wtf_dir.join("Config.wtf"),
             rewrites: Vec::new(),
             group: ApplyGroup::WtfCommon,
+            wtf_scope: Some(WtfScope::GlobalConfig),
             target_account: None,
             target_server: None,
             target_character: None,
@@ -1660,6 +1699,43 @@ fn map_bundle_entry_to_destination(
                         .cloned()
                         .collect::<Vec<_>>(),
                     group: ApplyGroup::WtfCommon,
+                    wtf_scope: Some(WtfScope::AccountSavedVariables),
+                    target_account: Some(target_account),
+                    target_server: None,
+                    target_character: None,
+                    staged_path: staged_path.clone(),
+                })
+                .collect())
+        }
+        ["wtf", "common", "accounts", source_account, rest @ ..] if !rest.is_empty() => {
+            let target_accounts = if !selected_target_accounts.is_empty() {
+                selected_target_accounts.to_vec()
+            } else {
+                vec![
+                    common_account_targets
+                        .get(*source_account)
+                        .cloned()
+                        .or_else(|| default_target_account.map(|item| item.to_string()))
+                        .unwrap_or_else(|| (*source_account).to_string()),
+                ]
+            };
+
+            Ok(target_accounts
+                .into_iter()
+                .map(|target_account| PlannedEntry {
+                    archive_name: archive_name.to_string(),
+                    destination: installation
+                        .wtf_dir
+                        .join("Account")
+                        .join(&target_account)
+                        .join(join_segments(Path::new(""), rest)),
+                    rewrites: character_mappings
+                        .iter()
+                        .filter(|mapping| mapping.target_account == target_account)
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    group: ApplyGroup::WtfCommon,
+                    wtf_scope: Some(classify_account_wtf_scope(rest)),
                     target_account: Some(target_account),
                     target_server: None,
                     target_character: None,
@@ -1698,6 +1774,7 @@ fn map_bundle_entry_to_destination(
                     .join(join_segments(Path::new(""), rest)),
                 rewrites: vec![mapping.clone()],
                 group: ApplyGroup::WtfCharacters,
+                wtf_scope: Some(classify_character_wtf_scope(rest)),
                 target_account: Some(mapping.target_account),
                 target_server: Some(mapping.target_server),
                 target_character: Some(mapping.target_character),
@@ -1709,6 +1786,7 @@ fn map_bundle_entry_to_destination(
             destination: join_segments(&installation.fonts_dir, rest),
             rewrites: Vec::new(),
             group: ApplyGroup::Fonts,
+            wtf_scope: None,
             target_account: None,
             target_server: None,
             target_character: None,
@@ -1719,6 +1797,7 @@ fn map_bundle_entry_to_destination(
             destination: join_segments(&installation.interface_dir, rest),
             rewrites: Vec::new(),
             group: ApplyGroup::InterfaceAssets,
+            wtf_scope: None,
             target_account: None,
             target_server: None,
             target_character: None,
@@ -1726,6 +1805,54 @@ fn map_bundle_entry_to_destination(
         }]),
         _ => Ok(Vec::new()),
     }
+}
+
+fn classify_account_wtf_scope(relative_segments: &[&str]) -> WtfScope {
+    if relative_segments.is_empty() {
+        return WtfScope::Unknown;
+    }
+
+    if is_saved_variables_segment(relative_segments[0]) {
+        WtfScope::AccountSavedVariables
+    } else if relative_segments
+        .last()
+        .is_some_and(|name| is_cache_like_wtf_file_name(name))
+    {
+        WtfScope::CacheLike
+    } else {
+        WtfScope::AccountRootFile
+    }
+}
+
+fn classify_character_wtf_scope(relative_segments: &[&str]) -> WtfScope {
+    if relative_segments.is_empty() {
+        return WtfScope::Unknown;
+    }
+
+    if is_saved_variables_segment(relative_segments[0]) {
+        WtfScope::CharacterSavedVariables
+    } else if relative_segments
+        .last()
+        .is_some_and(|name| is_cache_like_wtf_file_name(name))
+    {
+        WtfScope::CacheLike
+    } else {
+        WtfScope::CharacterState
+    }
+}
+
+fn is_saved_variables_segment(segment: &str) -> bool {
+    segment.eq_ignore_ascii_case("SavedVariables")
+}
+
+fn is_cache_like_wtf_file_name(file_name: &str) -> bool {
+    let file_name = file_name.to_ascii_lowercase();
+    matches!(
+        file_name.as_str(),
+        "bindings-cache.wtf" | "chat-cache.txt" | "config-cache.wtf" | "macros-cache.txt"
+    ) || file_name.ends_with("-cache.wtf")
+        || file_name.ends_with("-cache.txt")
+        || file_name.ends_with("-cache.old")
 }
 
 fn build_character_mappings(
@@ -2308,6 +2435,101 @@ mod tests {
             item.group == super::ApplyGroup::WtfCommon
                 && item.target_account.as_deref() == Some("ACC_A")
         }));
+    }
+
+    #[test]
+    fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let source_account_dir = source_installation.wtf_dir.join("Account").join("ACCOUNT");
+        let source_character_dir = source_account_dir.join("Illidan").join("Examplemage");
+
+        fs::write(
+            source_account_dir.join("account-settings.wtf"),
+            "account root",
+        )
+        .expect("account root file");
+        fs::write(source_account_dir.join("config-cache.wtf"), "account cache")
+            .expect("account cache file");
+        fs::create_dir_all(source_character_dir.join("SavedVariables"))
+            .expect("character saved variables");
+        fs::write(
+            source_character_dir.join("SavedVariables").join("Pawn.lua"),
+            "PawnDB = {}",
+        )
+        .expect("character saved variable");
+        fs::write(
+            source_character_dir.join("config-cache.wtf"),
+            "character cache",
+        )
+        .expect("character cache file");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest: sample_manifest(),
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let file = fs::File::open(&bundle_path).expect("bundle file");
+        let mut archive = ZipArchive::new(file).expect("zip archive");
+        assert!(
+            archive
+                .by_name("wtf/common/accounts/ACCOUNT/account-settings.wtf")
+                .is_ok()
+        );
+        assert!(
+            archive
+                .by_name("wtf/common/accounts/ACCOUNT/config-cache.wtf")
+                .is_ok()
+        );
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+
+        let scope_for = |archive_name: &str| {
+            plan.operations
+                .iter()
+                .find(|operation| operation.archive_name == archive_name)
+                .and_then(|operation| operation.wtf_scope)
+        };
+
+        assert_eq!(
+            scope_for("wtf/common/Config.wtf"),
+            Some(super::WtfScope::GlobalConfig)
+        );
+        assert_eq!(
+            scope_for("wtf/common/accounts/ACCOUNT/account-settings.wtf"),
+            Some(super::WtfScope::AccountRootFile)
+        );
+        assert_eq!(
+            scope_for("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+            Some(super::WtfScope::AccountSavedVariables)
+        );
+        assert_eq!(
+            scope_for("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),
+            Some(super::WtfScope::CharacterSavedVariables)
+        );
+        assert_eq!(
+            scope_for("wtf/characters/ACCOUNT/Illidan/Examplemage/AddOns.txt"),
+            Some(super::WtfScope::CharacterState)
+        );
+        assert_eq!(
+            scope_for("wtf/common/accounts/ACCOUNT/config-cache.wtf"),
+            Some(super::WtfScope::CacheLike)
+        );
+        assert_eq!(
+            scope_for("wtf/characters/ACCOUNT/Illidan/Examplemage/config-cache.wtf"),
+            Some(super::WtfScope::CacheLike)
+        );
     }
 
     #[test]

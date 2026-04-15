@@ -69,7 +69,7 @@
 - [x] Fix account discovery so `WTF/Account/SavedVariables` is not treated as a playable account
 - [x] Define explicit resource-group policies: `merge`, `mirror`, `replace_selected`, and `preserve`
 - [x] Consume or replace manifest apply flags such as `replace_addons`, `replace_fonts`, and `merge_wtf`
-- [ ] Classify WTF scopes as account-root files, account SavedVariables, role SavedVariables, role state, and cache-like files
+- [x] Classify WTF scopes as account-root files, account SavedVariables, role SavedVariables, role state, and cache-like files
 - [ ] Add NewBeeBox-style `share` and `sync` semantics as explicit policy choices or aliases
 - [x] Add delete operations to plans for mirror and replace policies
 - [x] Introduce internal `BundleReader`, `BundlePlanner`, and `BundleExecutor` orchestration
