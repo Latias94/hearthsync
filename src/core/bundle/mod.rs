@@ -117,6 +117,7 @@ pub struct ApplyPlanSummary {
     pub files_to_add: usize,
     pub files_to_replace: usize,
     pub files_to_skip: usize,
+    pub paths_to_remove: usize,
     pub files_to_preserve: usize,
     pub files_to_rewrite: usize,
 }
@@ -125,6 +126,7 @@ pub struct ApplyPlanSummary {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplyAction {
+    Remove,
     Add,
     Replace,
     Skip,
@@ -198,6 +200,15 @@ struct PlannedEntry {
     target_server: Option<String>,
     target_character: Option<String>,
     staged_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+struct PlannedCleanup {
+    group: ApplyGroup,
+    destination: PathBuf,
+    target_account: Option<String>,
+    target_server: Option<String>,
+    target_character: Option<String>,
 }
 
 struct PreparedBundleApply {
@@ -464,12 +475,37 @@ fn prepare_bundle_apply(
         rewrite_identity_strings: inspection.manifest.mapping.rewrite_identity_strings,
     };
 
-    let mut operations = Vec::new();
+    let cleanup_operations =
+        build_cleanup_operations(&planned_entries, &inspection.manifest, installation)?;
+    let cleanup_roots = cleanup_operations
+        .iter()
+        .map(|operation| operation.destination.clone())
+        .collect::<Vec<_>>();
+    let mut operations = cleanup_operations
+        .into_iter()
+        .map(|cleanup| ApplyOperation {
+            group: cleanup.group,
+            action: ApplyAction::Remove,
+            archive_name: format!("[cleanup] {}", cleanup.destination.display()),
+            destination: cleanup.destination,
+            target_account: cleanup.target_account,
+            target_server: cleanup.target_server,
+            target_character: cleanup.target_character,
+            rewrite_count: 0,
+            rewrite_applied: false,
+            staged_path: PathBuf::new(),
+        })
+        .collect::<Vec<_>>();
     let mut summary = ApplyPlanSummary::default();
+    summary.paths_to_remove = operations.len();
 
     for entry in &mut planned_entries {
         let policy = resource_policy_for_group(&inspection.manifest, entry.group);
         let preserve = policy == ResourceApplyPolicy::Preserve;
+        let cleanup_root = cleanup_scope_for_entry(entry, installation)?;
+        let will_cleanup = cleanup_root
+            .as_ref()
+            .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
         let rewrite_applied = if preserve {
             false
         } else {
@@ -478,6 +514,9 @@ fn prepare_bundle_apply(
         let action = if preserve {
             summary.files_to_preserve += 1;
             ApplyAction::Preserve
+        } else if will_cleanup {
+            summary.files_to_add += 1;
+            ApplyAction::Add
         } else if !entry.destination.exists() {
             summary.files_to_add += 1;
             ApplyAction::Add
@@ -739,6 +778,120 @@ fn prepare_operation_stage_files(
     Ok(())
 }
 
+fn build_cleanup_operations(
+    planned_entries: &[PlannedEntry],
+    manifest: &BundleManifest,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<Vec<PlannedCleanup>> {
+    let mut cleanup_roots = BTreeMap::<PathBuf, PlannedCleanup>::new();
+
+    for entry in planned_entries {
+        let policy = resource_policy_for_group(manifest, entry.group);
+        if !policy_requires_cleanup(policy) {
+            continue;
+        }
+
+        let Some(destination) = cleanup_scope_for_entry(entry, installation)? else {
+            continue;
+        };
+        if !destination.exists() {
+            continue;
+        }
+
+        cleanup_roots
+            .entry(destination.clone())
+            .or_insert_with(|| PlannedCleanup {
+                group: entry.group,
+                destination,
+                target_account: entry.target_account.clone(),
+                target_server: entry.target_server.clone(),
+                target_character: entry.target_character.clone(),
+            });
+    }
+
+    Ok(cleanup_roots.into_values().collect())
+}
+
+fn cleanup_scope_for_entry(
+    entry: &PlannedEntry,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<Option<PathBuf>> {
+    match entry.group {
+        ApplyGroup::Addons => {
+            let relative = entry
+                .destination
+                .strip_prefix(&installation.addon_dir)
+                .map_err(|error| AppError::Validation(error.to_string()))?;
+            let mut components = relative.components();
+            let Some(component) = components.next() else {
+                return Ok(None);
+            };
+            Ok(Some(installation.addon_dir.join(component.as_os_str())))
+        }
+        ApplyGroup::WtfCommon => {
+            if entry
+                .destination
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case("Config.wtf"))
+            {
+                return Ok(Some(installation.wtf_dir.join("Config.wtf")));
+            }
+
+            let target_account = entry.target_account.as_ref().ok_or_else(|| {
+                AppError::Validation(
+                    "wtf common cleanup root requires a target account".to_string(),
+                )
+            })?;
+            Ok(Some(
+                installation
+                    .wtf_dir
+                    .join("Account")
+                    .join(target_account)
+                    .join("SavedVariables"),
+            ))
+        }
+        ApplyGroup::WtfCharacters => {
+            let target_account = entry.target_account.as_ref().ok_or_else(|| {
+                AppError::Validation(
+                    "wtf character cleanup root requires a target account".to_string(),
+                )
+            })?;
+            let target_server = entry.target_server.as_ref().ok_or_else(|| {
+                AppError::Validation(
+                    "wtf character cleanup root requires a target server".to_string(),
+                )
+            })?;
+            let target_character = entry.target_character.as_ref().ok_or_else(|| {
+                AppError::Validation(
+                    "wtf character cleanup root requires a target character".to_string(),
+                )
+            })?;
+            Ok(Some(
+                installation
+                    .wtf_dir
+                    .join("Account")
+                    .join(target_account)
+                    .join(target_server)
+                    .join(target_character),
+            ))
+        }
+        ApplyGroup::Fonts => Ok(Some(installation.fonts_dir.clone())),
+        ApplyGroup::InterfaceAssets => {
+            let relative = entry
+                .destination
+                .strip_prefix(&installation.interface_dir)
+                .map_err(|error| AppError::Validation(error.to_string()))?;
+            let mut components = relative.components();
+            let Some(component) = components.next() else {
+                return Ok(None);
+            };
+            Ok(Some(installation.interface_dir.join(component.as_os_str())))
+        }
+        ApplyGroup::Metadata => Ok(None),
+    }
+}
+
 fn resource_policy_for_group(manifest: &BundleManifest, group: ApplyGroup) -> ResourceApplyPolicy {
     match group {
         ApplyGroup::Addons => manifest.apply.addons,
@@ -750,12 +903,24 @@ fn resource_policy_for_group(manifest: &BundleManifest, group: ApplyGroup) -> Re
     }
 }
 
+fn policy_requires_cleanup(policy: ResourceApplyPolicy) -> bool {
+    matches!(
+        policy,
+        ResourceApplyPolicy::Mirror | ResourceApplyPolicy::ReplaceSelected
+    )
+}
+
 fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)> {
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
 
     for operation in &plan.operations {
         if matches!(operation.action, ApplyAction::Skip | ApplyAction::Preserve) {
+            continue;
+        }
+
+        if operation.action == ApplyAction::Remove {
+            remove_target_path(&operation.destination)?;
             continue;
         }
 
@@ -771,6 +936,15 @@ fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)>
     }
 
     Ok((written_files, rewritten_files))
+}
+
+fn remove_target_path(path: &Path) -> AppResult<()> {
+    if path.is_dir() {
+        fs::remove_dir_all(path)?;
+    } else if path.exists() {
+        fs::remove_file(path)?;
+    }
+    Ok(())
 }
 
 fn rollback_or_report_apply_error<T>(
@@ -2354,6 +2528,71 @@ mod tests {
                 .exists()
         );
         assert!(!target_installation.wtf_dir.join("Config.wtf").exists());
+    }
+
+    #[test]
+    fn mirror_policy_removes_existing_addon_root_before_copy() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), true);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.apply.addons = ResourceApplyPolicy::Mirror;
+
+        fs::write(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Stale.lua"),
+            "print('stale')",
+        )
+        .expect("stale addon file");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+        assert!(plan.summary.paths_to_remove >= 1);
+        assert!(plan.operations.iter().any(|operation| {
+            operation.action == super::ApplyAction::Remove
+                && operation.destination == target_installation.addon_dir.join("WeakAuras")
+        }));
+
+        let result = unpack_bundle(UnpackBundleRequest {
+            bundle_path,
+            installation: target_installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(target.path().join("backups")),
+            apply_mappings: BundleApplyMappings::default(),
+        })
+        .expect("unpack bundle");
+
+        assert!(result.written_files > 0);
+        assert!(
+            !target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Stale.lua")
+                .exists()
+        );
+        assert!(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.toc")
+                .exists()
+        );
     }
 
     #[test]

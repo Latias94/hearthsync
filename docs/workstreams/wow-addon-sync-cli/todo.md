@@ -71,7 +71,7 @@
 - [x] Consume or replace manifest apply flags such as `replace_addons`, `replace_fonts`, and `merge_wtf`
 - [ ] Classify WTF scopes as account-root files, account SavedVariables, role SavedVariables, role state, and cache-like files
 - [ ] Add NewBeeBox-style `share` and `sync` semantics as explicit policy choices or aliases
-- [ ] Add delete operations to plans for mirror and replace policies
+- [x] Add delete operations to plans for mirror and replace policies
 - [ ] Split bundle archive reading, planning, staging, rewriting, and execution boundaries
 - [ ] Ensure plan generation never mutates target state
 - [ ] Make bundle apply use one operation-level backup and rollback boundary

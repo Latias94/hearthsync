@@ -283,11 +283,12 @@ pub fn run() -> AppResult<()> {
                         item.selected_target_accounts.join(", ")
                     };
                     format!(
-                        "Bundle: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}",
+                        "Bundle: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}",
                         item.bundle_path.display(),
                         item.target_flavor_root.display(),
                         accounts,
                         selected_accounts,
+                        item.summary.paths_to_remove,
                         item.summary.files_to_add,
                         item.summary.files_to_replace,
                         item.summary.files_to_skip,
@@ -387,11 +388,12 @@ pub fn run() -> AppResult<()> {
                     };
                     if item.dry_run {
                         format!(
-                            "Dry run only.\nBundle: {}\nTarget: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}\nBackup: {}",
+                            "Dry run only.\nBundle: {}\nTarget: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}\nBackup: {}",
                             item.bundle_path.display(),
                             item.target_flavor_root.display(),
                             item.planned_files,
                             selected_accounts,
+                            item.plan_summary.paths_to_remove,
                             item.plan_summary.files_to_add,
                             item.plan_summary.files_to_replace,
                             item.plan_summary.files_to_skip,
