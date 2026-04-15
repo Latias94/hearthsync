@@ -1,0 +1,7 @@
+AUCTIONATOR_CONFIG = {
+["__dbversion"] = 8,
+["RealmOne"] = "\xA1Gversion\x02",
+["profileKeys"] = {
+["Examplemage - Illidan"] = "Default",
+},
+}

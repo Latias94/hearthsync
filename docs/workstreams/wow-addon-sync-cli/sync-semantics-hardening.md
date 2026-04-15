@@ -94,13 +94,18 @@ Deliverables:
 
 ### R5 - Lua rewrite hardening
 
-Status: partial. Rewrite scope is now limited to explicit account and character `SavedVariables` Lua paths, byte-safe fallback now covers invalid UTF-8 and Latin-1-compatible payloads, and rewrite rules now require either explicit content signals or a small known-file rule set, but broader encoding-aware handling and real-world fixtures are still open.
+Status: partial. Rewrite scope is now limited to explicit account and character `SavedVariables` Lua paths, byte-safe fallback now covers invalid UTF-8 and Latin-1-compatible payloads, rewrite rules now require either explicit content signals or a small known-file rule set, and representative anonymized fixtures derived from local retail `SavedVariables` samples are now checked into tests. Broader encoding-aware handling beyond the current UTF-8 plus byte-safe fallback model is still open.
 
 Deliverables:
 
 - file-level allowlists
 - encoding-aware read and write behavior
 - representative fixtures from real-world WTF samples
+
+Current evidence:
+
+- checked-in fixtures now cover `MeetingStone.lua`, `EventsTracker.lua`, `SavedInstances.lua`, and an invalid UTF-8 `Auctionator.lua`-style payload
+- local retail scans currently justify the byte-safe fallback more strongly than a broader encoding abstraction
 
 Removals expected:
 
@@ -123,5 +128,5 @@ This hardening track is complete when:
 - preview planning is execution-independent
 - bundle apply and addon lock apply each have one rollback boundary
 - manifest runtime intent is materially enforced
-- rewrite scope is explicit and test-backed
+- rewrite scope is explicit, fixture-backed, and test-backed
 - the resulting core API is simple enough for a future `egui` frontend

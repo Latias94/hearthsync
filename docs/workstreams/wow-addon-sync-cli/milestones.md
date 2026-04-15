@@ -194,6 +194,7 @@ Handle account and character configuration migration reliably.
 - Lua rewrite now defaults unknown `SavedVariables` files to copy-only unless a rule signal matches
 - Lua rewrite now preserves non-text bytes around matched replacements and can rewrite some non-UTF-8 payloads without decoding the whole file
 - Known-file rewrite exceptions are now centralized in one explicit rule table instead of being scattered across ad hoc checks
+- Anonymized fixtures derived from local `MeetingStone.lua`, `EventsTracker.lua`, `SavedInstances.lua`, and invalid-UTF-8 `Auctionator.lua` samples are now checked into `lua_patch` tests
 - common `WTF` overwrite is account-selective instead of global-only
 - addon-specific rewrite plugins and richer encoding handling are still pending
 

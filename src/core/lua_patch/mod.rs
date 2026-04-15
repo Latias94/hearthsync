@@ -484,7 +484,10 @@ fn classify_lua_rewrite_target(path: &Path) -> Option<LuaRewriteTarget> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
 
     use super::{CharacterMapping, LuaRewriteOptions, preview_lua_bytes_rewrite, rewrite_lua_text};
 
@@ -535,6 +538,76 @@ TestDB = {
             target_server: "Stormrage".to_string(),
             target_character: "Targetmage".to_string(),
         }
+    }
+
+    fn testdata_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("core")
+            .join("lua_patch")
+            .join("testdata")
+            .join(name)
+    }
+
+    fn load_text_fixture_bytes(name: &str) -> Vec<u8> {
+        fs::read(testdata_path(name)).expect("fixture bytes")
+    }
+
+    fn load_escaped_byte_fixture(name: &str) -> Vec<u8> {
+        let fixture = fs::read_to_string(testdata_path(name)).expect("fixture text");
+        parse_escaped_bytes(&fixture)
+    }
+
+    fn parse_escaped_bytes(input: &str) -> Vec<u8> {
+        let bytes = input.as_bytes();
+        let mut output = Vec::with_capacity(bytes.len());
+        let mut index = 0usize;
+
+        while index < bytes.len() {
+            if bytes[index] != b'\\' {
+                output.push(bytes[index]);
+                index += 1;
+                continue;
+            }
+
+            let escape = bytes
+                .get(index + 1)
+                .copied()
+                .expect("escape marker should have a value");
+            match escape {
+                b'\\' => {
+                    output.push(b'\\');
+                    index += 2;
+                }
+                b'n' => {
+                    output.push(b'\n');
+                    index += 2;
+                }
+                b'r' => {
+                    output.push(b'\r');
+                    index += 2;
+                }
+                b't' => {
+                    output.push(b'\t');
+                    index += 2;
+                }
+                b'x' => {
+                    let hex = std::str::from_utf8(
+                        bytes
+                            .get(index + 2..index + 4)
+                            .expect("hex escape should include two digits"),
+                    )
+                    .expect("hex escape should be valid ascii");
+                    output.push(
+                        u8::from_str_radix(hex, 16).expect("hex escape should be valid byte"),
+                    );
+                    index += 4;
+                }
+                _ => panic!("unsupported fixture escape: \\{}", escape as char),
+            }
+        }
+
+        output
     }
 
     #[test]
@@ -619,23 +692,45 @@ TestDB = {
 
     #[test]
     fn preview_lua_bytes_rewrite_allows_known_identity_exact_rules_without_field_markers() {
-        for path in [
-            "wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua",
-            "wtf/common/accounts/ACCOUNT/SavedVariables/EventsTracker.lua",
-            "wtf/common/accounts/ACCOUNT/SavedVariables/SavedInstances.lua",
+        for (path, fixture) in [
+            (
+                "wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua",
+                "meetingstone_profilekeys.lua",
+            ),
+            (
+                "wtf/common/accounts/ACCOUNT/SavedVariables/EventsTracker.lua",
+                "eventstracker_character_keys.lua",
+            ),
+            (
+                "wtf/common/accounts/ACCOUNT/SavedVariables/SavedInstances.lua",
+                "savedinstances_toon_keys.lua",
+            ),
         ] {
+            let payload = load_text_fixture_bytes(fixture);
             let rewritten = preview_lua_bytes_rewrite(
                 Path::new(path),
-                br#"ExampleDB = { ["Examplemage - Illidan"] = {} }"#,
+                &payload,
                 &[sample_mapping()],
                 LuaRewriteOptions {
                     rewrite_profile_keys: false,
                     rewrite_identity_strings: true,
                 },
             )
-            .expect("preview");
+            .expect("preview")
+            .expect("rewritten bytes");
 
-            assert!(rewritten.is_some(), "{path} should be rewriteable");
+            assert!(
+                rewritten
+                    .windows(b"Targetmage - Stormrage".len())
+                    .any(|window| window == b"Targetmage - Stormrage"),
+                "{fixture} should contain the rewritten identity"
+            );
+            assert!(
+                !rewritten
+                    .windows(b"Examplemage - Illidan".len())
+                    .any(|window| window == b"Examplemage - Illidan"),
+                "{fixture} should not keep the source identity"
+            );
         }
     }
 
@@ -678,19 +773,8 @@ TestDB = {
     }
 
     #[test]
-    fn preview_lua_bytes_rewrite_handles_real_world_like_invalid_utf8_payload() {
-        let payload = "AuctionatorDB = {\r\n[\"贫瘠之地\"] = \""
-            .as_bytes()
-            .iter()
-            .copied()
-            .chain([0xa1, b'G', b'v', b'e', b'r', b's', b'i', b'o', b'n', 0x02])
-            .chain(
-                "\",\r\n[\"profileKeys\"] = { [\"Examplemage - Illidan\"] = \"Default\" },\r\n}"
-                    .as_bytes()
-                    .iter()
-                    .copied(),
-            )
-            .collect::<Vec<_>>();
+    fn preview_lua_bytes_rewrite_handles_real_world_fixture_invalid_utf8_payload() {
+        let payload = load_escaped_byte_fixture("auctionator_invalid_utf8.lua.escape");
         let rewritten = preview_lua_bytes_rewrite(
             Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Auctionator.lua"),
             &payload,
@@ -705,8 +789,8 @@ TestDB = {
 
         assert!(
             rewritten
-                .windows("贫瘠之地".as_bytes().len())
-                .any(|window| window == "贫瘠之地".as_bytes())
+                .windows(br#"["RealmOne"]"#.len())
+                .any(|window| window == br#"["RealmOne"]"#)
         );
         assert!(
             rewritten
