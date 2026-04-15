@@ -398,11 +398,13 @@ const LUA_REWRITE_RULES: &[LuaRewriteRule] = &[
     identity_exact_rule("bagsync.lua"),
     identity_exact_rule("details.lua"),
     identity_exact_rule("elvui.lua"),
+    identity_exact_rule("eventstracker.lua"),
     identity_exact_rule("exwindcore.lua"),
     identity_exact_rule("meetingstone.lua"),
     identity_exact_rule("newbeebox.lua"),
     identity_exact_rule("pawn.lua"),
     identity_exact_rule("rarity.lua"),
+    identity_exact_rule("savedinstances.lua"),
     identity_exact_rule("tinytooltip-remake.lua"),
     identity_exact_rule("weakauras.lua"),
     identity_exact_rule("weakaurasarchive.lua"),
@@ -616,19 +618,25 @@ TestDB = {
     }
 
     #[test]
-    fn preview_lua_bytes_rewrite_allows_known_identity_file_without_field_markers() {
-        let rewritten = preview_lua_bytes_rewrite(
-            Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua"),
-            br#"return "Examplemage - Illidan""#,
-            &[sample_mapping()],
-            LuaRewriteOptions {
-                rewrite_profile_keys: false,
-                rewrite_identity_strings: true,
-            },
-        )
-        .expect("preview");
+    fn preview_lua_bytes_rewrite_allows_known_identity_exact_rules_without_field_markers() {
+        for path in [
+            "wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua",
+            "wtf/common/accounts/ACCOUNT/SavedVariables/EventsTracker.lua",
+            "wtf/common/accounts/ACCOUNT/SavedVariables/SavedInstances.lua",
+        ] {
+            let rewritten = preview_lua_bytes_rewrite(
+                Path::new(path),
+                br#"ExampleDB = { ["Examplemage - Illidan"] = {} }"#,
+                &[sample_mapping()],
+                LuaRewriteOptions {
+                    rewrite_profile_keys: false,
+                    rewrite_identity_strings: true,
+                },
+            )
+            .expect("preview");
 
-        assert!(rewritten.is_some());
+            assert!(rewritten.is_some(), "{path} should be rewriteable");
+        }
     }
 
     #[test]

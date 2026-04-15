@@ -162,6 +162,7 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 - Lua rewrite now has a byte-safe fallback for invalid UTF-8 and Latin-1-compatible payloads, while broader encoding support is still pending.
 - A local scan of 400 retail `SavedVariables` Lua files found no UTF-16 BOM samples, no high-NUL text payloads, and one invalid UTF-8 file (`Auctionator.lua`).
 - Lua rewrite now requires either explicit content markers such as `profileKeys` / `realm` or a small known-file rule set such as `MeetingStone.lua`.
+- A targeted local scan also found `EventsTracker.lua` and `SavedInstances.lua` storing quoted character-realm keys without those generic markers, so they stay on the explicit rule list.
 
 ## M4 - Configuration Sync Engine
 
