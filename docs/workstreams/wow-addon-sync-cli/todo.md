@@ -3,7 +3,7 @@
 ## Current Focus
 
 The active priority is sync semantics hardening inside the existing CLI workstream.
-Before adding more CLI surface area or starting any `egui` work, the core must stabilize planning, execution, rollback, and manifest runtime semantics.
+Before adding more CLI surface area or starting any future frontend work, the core must stabilize planning, execution, rollback, and manifest runtime semantics.
 
 The current blocking sequence is:
 
@@ -100,7 +100,7 @@ The current blocking sequence is:
 - [x] Add file-level rewrite opt-in rules
 - [ ] Add encoding-aware file read and write support
 - [x] Add byte-safe replacement support for WTF files that are not valid UTF-8
-- [ ] Add regression tests with real-world samples
+- [x] Add regression tests with real-world samples
 - [x] Add account-level overwrite rules for common WTF resources
 
 ## Phase 7 - Addon Management
@@ -131,7 +131,7 @@ The current blocking sequence is:
 - [ ] Introduce a core task model with progress events and cancellation tokens
 - [ ] Keep provider networking behind traits before considering full async runtime adoption
 - [ ] Add human-readable summary reports
-- [ ] Add documentation for future `egui` integration
+- [ ] Add documentation for future frontend integration
 
 ## Nice-to-Have
 

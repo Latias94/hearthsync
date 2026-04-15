@@ -145,14 +145,14 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 - legacy `replace_addons`, `replace_fonts`, and `merge_wtf` flags are removed in favor of a policy enum
 - bundle plan generation does not mutate target state
 - a failed bundle or addon lock apply rolls back the whole operation
-- core request/result types are stable enough to be consumed by a future `egui` frontend
+- core request/result types are stable enough to be consumed by a future frontend
 - `WTF/Account/SavedVariables` is not misclassified as a playable account
 
 ### Current Notes
 
 - This milestone is now the active blocker for the rest of the `wow-addon-sync-cli` workstream.
 - New CLI surface area should only be added when it directly supports sync semantics hardening.
-- `egui` work must wait until planner/executor boundaries and operation-level rollback semantics are stable.
+- future frontend work must wait until planner/executor boundaries and operation-level rollback semantics are stable.
 - The expected refactor style is in-place simplification, including removal of obsolete prototype paths.
 - Bundle preview is now execution-independent and no longer depends on staged files in the public plan.
 - Bundle apply and addon lock apply both use a single backup and rollback boundary.
@@ -234,11 +234,11 @@ Add direct addon install and update capabilities.
 - addon removal also cleans the receipt registry when the last tracked package is removed
 - richer provider-specific metadata is still pending
 
-## M6 - Stabilization for GUI Reuse
+## M6 - Stabilization for Frontend Reuse
 
 ### Goal
 
-Prepare the core for a future `egui` frontend.
+Prepare the core for a future frontend.
 
 ### Deliverables
 
@@ -253,6 +253,6 @@ Prepare the core for a future `egui` frontend.
 ### Exit Criteria
 
 - core logic is reusable without CLI assumptions
-- progress and result models are suitable for an `egui` frontend
-- CLI can run tasks synchronously while GUI can run the same task model on worker threads
-- M3.5 sync semantics hardening is complete before GUI implementation begins
+- progress and result models are suitable for a future frontend
+- CLI can run tasks synchronously while a future frontend can run the same task model on worker threads
+- M3.5 sync semantics hardening is complete before frontend implementation begins

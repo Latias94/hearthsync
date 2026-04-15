@@ -9,7 +9,7 @@ Current execution focus: sync semantics hardening before GUI or broader feature 
 ## Problem Statement
 
 `hearthsync` is intended to become a cross-platform World of Warcraft addon and configuration sync tool.
-The first deliverable is a CLI. A future GUI will be built with `egui`, but the core logic must remain UI-agnostic.
+The first deliverable is a CLI. A future frontend may use any suitable UI shell, but the core logic must remain UI-agnostic.
 
 The tool must support:
 
@@ -24,7 +24,7 @@ The key requirement is that the product must understand WoW installations as str
 ## Goals
 
 - Build a Rust-first, cross-platform core that works on Windows and macOS
-- Separate engine logic from CLI and future GUI
+- Separate engine logic from CLI and future frontends
 - Support both individual addon operations and full setup bundles
 - Make configuration sync safe through backup, preview, and rollback
 - Define a bundle format we control instead of relying on undocumented third-party formats
@@ -32,7 +32,7 @@ The key requirement is that the product must understand WoW installations as str
 
 ## Non-Goals
 
-- Full GUI implementation in the first phase
+- Full frontend implementation in the first phase
 - Deep support for every third-party launcher format on day one
 - Live in-game integration
 - Cloud account sync in the first phase
@@ -99,13 +99,13 @@ Target modules:
 
 - `core`: WoW domain model, sync engine, bundle engine
 - `cli`: command parsing and human-readable output
-- `gui`: future `egui` frontend
+- `ui`: future frontend host
 
 Rationale:
 
 - keeps business logic reusable
 - avoids CLI-specific assumptions leaking into the engine
-- makes later GUI work cheaper
+- makes later frontend work cheaper
 
 ### Decision 2: Own the bundle format
 
@@ -224,7 +224,7 @@ Rationale:
 
 ### Decision 8: Stabilize sync semantics before GUI expansion
 
-The current prototype is useful, but GUI work should not start until the core has explicit resource-group apply policies, clean plan/execution boundaries, operation-level rollback semantics, and safer Lua rewrite rules.
+The current prototype is useful, but frontend work should not start until the core has explicit resource-group apply policies, clean plan/execution boundaries, operation-level rollback semantics, and safer Lua rewrite rules.
 
 The workstream tracks this reset in `architecture-review.md`.
 
@@ -254,7 +254,7 @@ Therefore:
 
 - core operations should become explicit tasks with progress events and cancellation tokens
 - CLI may run those tasks synchronously
-- a future `egui` frontend may run blocking tasks on worker threads
+- a future frontend may run blocking tasks on worker threads
 - provider networking should sit behind traits so a later async implementation can replace the current blocking implementation
 - full async conversion should wait until resource-group policies and transaction semantics are stable
 
@@ -427,7 +427,7 @@ fonts = "mirror"
 interface_assets = "mirror"
 ```
 
-In the current CLI, `character_mode = "prompt"` means the caller or future GUI must resolve the target mappings before `bundle plan` or `bundle unpack`.
+In the current CLI, `character_mode = "prompt"` means the caller or future frontend must resolve the target mappings before `bundle plan` or `bundle unpack`.
 The core no longer guesses character targets from source identity in `prompt` mode, and the CLI does not launch interactive prompts yet.
 
 Addon metadata is stored as sidecar data instead of overwriting the target machine's active addon registry:
@@ -560,7 +560,7 @@ Current commands:
 - `bundle addon-apply --bundle <bundle.zip> --install <wow-path> [--backup-output <dir>] [--replace-existing]`
 
 The first version validates package ids, duplicate ids, source references, and optional flavor compatibility before delegating to the existing install/update pipeline.
-When index-based installs or updates succeed, curated package metadata is carried into the lock file so later GUI flows can present stable names, pinned versions, and source hashes without reopening the original index.
+When index-based installs or updates succeed, curated package metadata is carried into the lock file so later frontend flows can present stable names, pinned versions, and source hashes without reopening the original index.
 Lock comparison prefers index package identity when available, then falls back to the tracked package id. Generated and install timestamps are intentionally ignored by diff/verify because they are expected to differ across machines.
 Sync planning and apply prefer index identity when it exists, then fall back to the normalized addon directory set. This avoids false add/remove churn when two machines install the same addon from archives with different file names.
 
@@ -712,12 +712,12 @@ Research artifacts should be summarized in docs rather than committed as extract
 - validate with representative real-world `SavedVariables`
 - add Windows to macOS scenario tests
 
-### Phase 6 - Task model and GUI readiness
+### Phase 6 - Task model and frontend readiness
 
 - harden rollback, reporting, and test coverage
 - introduce progress events and cancellation tokens
 - isolate provider/networking behind task-friendly traits
-- prepare stable core interfaces for `egui`
+- prepare stable core interfaces for future frontends
 
 ## Open Questions
 

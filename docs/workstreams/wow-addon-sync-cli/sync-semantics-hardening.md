@@ -129,4 +129,4 @@ This hardening track is complete when:
 - bundle apply and addon lock apply each have one rollback boundary
 - manifest runtime intent is materially enforced
 - rewrite scope is explicit, fixture-backed, and test-backed
-- the resulting core API is simple enough for a future `egui` frontend
+- the resulting core API is simple enough for a future frontend

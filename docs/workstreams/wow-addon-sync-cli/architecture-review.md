@@ -6,13 +6,13 @@ Date: 2026-04-15
 
 The repository now has a runnable prototype, but the next product risk is not missing CLI surface area. The next risk is unclear synchronization semantics.
 
-Before expanding into `egui`, HearthSync should stabilize the core contract for:
+Before expanding into a frontend, HearthSync should stabilize the core contract for:
 
 - what each resource group means during apply
 - which files may be removed, replaced, merged, or preserved
 - where transaction boundaries start and end
 - how Lua rewrites are scoped and validated
-- which APIs form the stable CLI/Core/GUI boundary
+- which APIs form the stable CLI/Core/frontend boundary
 
 ## Review Judgment
 
@@ -46,7 +46,7 @@ The strongest implication is that HearthSync should model behavior by resource s
 
 ### Decision 1: Core semantics before GUI
 
-Do not start `egui` work until bundle apply semantics, addon lock transaction behavior, and Lua rewrite policy are stable enough to expose as a long-lived core API.
+Do not start frontend work until bundle apply semantics, addon lock transaction behavior, and Lua rewrite policy are stable enough to expose as a long-lived core API.
 
 ### Decision 2: Resource groups need explicit apply policies
 
@@ -99,7 +99,7 @@ The right near-term boundary is a task model:
 - operation id
 - stable result and error reporting
 
-The CLI can run tasks synchronously. A future `egui` frontend can run the same blocking core task on a worker thread and receive progress events. Provider downloads can stay blocking behind this task boundary for now. A later async provider runtime can be introduced behind traits once cancellation, progress, and transaction semantics are stable.
+The CLI can run tasks synchronously. A future frontend can run the same blocking core task on a worker thread and receive progress events. Provider downloads can stay blocking behind this task boundary for now. A later async provider runtime can be introduced behind traits once cancellation, progress, and transaction semantics are stable.
 
 This avoids spreading an async runtime through filesystem-heavy code before the domain model is correct.
 
@@ -137,7 +137,7 @@ This avoids spreading an async runtime through filesystem-heavy code before the 
 - Add encoding-aware file operations.
 - Add representative real-world fixtures.
 
-### R6 - Task model and stable core API for GUI
+### R6 - Task model and stable core API for frontend reuse
 
 - Expose pure request/result structs from core.
 - Move CLI rendering out of core concerns.
