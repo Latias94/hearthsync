@@ -595,6 +595,7 @@ impl<'a> BundlePlanner<'a> {
         for entry in &mut planned_entries {
             let policy = resource_policy_for_group(&inspection.manifest, entry.group);
             let preserve = policy == ResourceApplyPolicy::Preserve;
+            let share = policy == ResourceApplyPolicy::Share;
             let cleanup_root = cleanup_scope_for_entry(entry, self.installation)?;
             let will_cleanup = cleanup_root
                 .as_ref()
@@ -606,6 +607,9 @@ impl<'a> BundlePlanner<'a> {
             };
             let rewrite_applied = rewritten_bytes.is_some();
             let action = if preserve {
+                summary.files_to_preserve += 1;
+                ApplyAction::Preserve
+            } else if share && entry.destination.exists() {
                 summary.files_to_preserve += 1;
                 ApplyAction::Preserve
             } else if will_cleanup {
@@ -1021,7 +1025,9 @@ fn resource_policy_for_group(manifest: &BundleManifest, group: ApplyGroup) -> Re
 fn policy_requires_cleanup(policy: ResourceApplyPolicy) -> bool {
     matches!(
         policy,
-        ResourceApplyPolicy::Mirror | ResourceApplyPolicy::ReplaceSelected
+        ResourceApplyPolicy::Sync
+            | ResourceApplyPolicy::Mirror
+            | ResourceApplyPolicy::ReplaceSelected
     )
 }
 
@@ -2916,6 +2922,76 @@ mod tests {
     }
 
     #[test]
+    fn share_policy_preserves_existing_target_files_and_adds_missing_files() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.apply.addons = ResourceApplyPolicy::Preserve;
+        manifest.apply.wtf_common = ResourceApplyPolicy::Share;
+        manifest.apply.wtf_characters = ResourceApplyPolicy::Preserve;
+        manifest.apply.fonts = ResourceApplyPolicy::Preserve;
+        manifest.apply.interface_assets = ResourceApplyPolicy::Preserve;
+
+        fs::write(
+            target_installation.wtf_dir.join("Config.wtf"),
+            "SET locale zhCN",
+        )
+        .expect("existing target config");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+        assert!(plan.operations.iter().any(|operation| {
+            operation.archive_name == "wtf/common/Config.wtf"
+                && operation.action == super::ApplyAction::Preserve
+        }));
+        assert!(plan.operations.iter().any(|operation| {
+            operation.archive_name == "wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"
+                && operation.action == super::ApplyAction::Add
+        }));
+
+        let result = unpack_bundle(UnpackBundleRequest {
+            bundle_path,
+            installation: target_installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(target.path().join("backups")),
+            apply_mappings: BundleApplyMappings::default(),
+        })
+        .expect("unpack bundle");
+
+        assert_eq!(
+            fs::read_to_string(target_installation.wtf_dir.join("Config.wtf"))
+                .expect("target config"),
+            "SET locale zhCN"
+        );
+        assert!(
+            target_installation
+                .wtf_dir
+                .join("Account")
+                .join("ACCOUNT")
+                .join("SavedVariables")
+                .join("Details.lua")
+                .exists()
+        );
+        assert!(result.plan_summary.files_to_preserve >= 1);
+        assert!(result.written_files >= 1);
+    }
+
+    #[test]
     fn mirror_policy_removes_existing_addon_root_before_copy() {
         let source = tempdir().expect("source temp dir");
         let target = tempdir().expect("target temp dir");
@@ -2964,6 +3040,70 @@ mod tests {
         .expect("unpack bundle");
 
         assert!(result.written_files > 0);
+        assert!(
+            !target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Stale.lua")
+                .exists()
+        );
+        assert!(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.toc")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn sync_policy_alias_removes_existing_addon_root_before_copy() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), true);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.apply.addons = ResourceApplyPolicy::Sync;
+
+        fs::write(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Stale.lua"),
+            "print('stale')",
+        )
+        .expect("stale addon file");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+        assert!(plan.summary.paths_to_remove >= 1);
+        assert!(plan.operations.iter().any(|operation| {
+            operation.action == super::ApplyAction::Remove
+                && operation.destination == target_installation.addon_dir.join("WeakAuras")
+        }));
+
+        unpack_bundle(UnpackBundleRequest {
+            bundle_path,
+            installation: target_installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(target.path().join("backups")),
+            apply_mappings: BundleApplyMappings::default(),
+        })
+        .expect("unpack bundle");
+
         assert!(
             !target_installation
                 .addon_dir

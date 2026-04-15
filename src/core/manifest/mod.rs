@@ -136,6 +136,8 @@ pub struct ApplyDefaults {
 #[serde(rename_all = "snake_case")]
 pub enum ResourceApplyPolicy {
     Merge,
+    Share,
+    Sync,
     Mirror,
     ReplaceSelected,
     Preserve,

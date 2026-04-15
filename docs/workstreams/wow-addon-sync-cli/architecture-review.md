@@ -120,6 +120,7 @@ This avoids spreading an async runtime through filesystem-heavy code before the 
 ### R3 - Resource-group sync semantics
 
 - Implement `merge`, `mirror`, `replace_selected`, and `preserve`.
+- Expose `share` as copy-missing-and-preserve-target and `sync` as delete-target-then-copy alias semantics.
 - Add delete operations to plans where policies allow stale file cleanup.
 - Make dangerous deletes visible in text and JSON previews.
 
