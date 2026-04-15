@@ -94,6 +94,8 @@ Deliverables:
 
 ### R5 - Lua rewrite hardening
 
+Status: partial. Rewrite scope is now limited to explicit account and character `SavedVariables` Lua paths, but encoding-aware and byte-safe handling is still open.
+
 Deliverables:
 
 - file-level allowlists

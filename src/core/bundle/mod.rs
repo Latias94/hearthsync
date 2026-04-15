@@ -1178,7 +1178,12 @@ fn materialize_rewritten_operation(
         archive,
         rewrite_stage_root,
     )?;
-    rewrite_lua_file(&rewrite_path, &operation.rewrites, rewrite_options)?;
+    rewrite_lua_file(
+        Path::new(&operation.archive_name),
+        &rewrite_path,
+        &operation.rewrites,
+        rewrite_options,
+    )?;
     Ok(rewrite_path)
 }
 
@@ -2475,6 +2480,7 @@ mod tests {
 
         assert!(archive.by_name("manifest.toml").is_ok());
         assert!(archive.by_name("addons/WeakAuras/WeakAuras.toc").is_ok());
+        assert!(archive.by_name("addons/WeakAuras/WeakAuras.lua").is_ok());
         assert!(archive.by_name("wtf/common/Config.wtf").is_ok());
         assert!(
             archive
@@ -2560,7 +2566,7 @@ mod tests {
         );
 
         let inspection = inspect_bundle(&result.bundle_path).expect("inspect bundle");
-        assert_eq!(inspection.entries.addons, 1);
+        assert_eq!(inspection.entries.addons, 2);
         assert_eq!(inspection.entries.fonts, 1);
     }
 
@@ -3052,6 +3058,7 @@ mod tests {
                 .join("TARGETACC")
                 .join("Stormrage")
                 .join("Targetmage")
+                .join("SavedVariables")
                 .join("Pawn.lua")
                 .exists()
         );
@@ -3075,11 +3082,22 @@ mod tests {
                 .join("TARGETACC")
                 .join("Stormrage")
                 .join("Targetmage")
+                .join("SavedVariables")
                 .join("Pawn.lua"),
         )
         .expect("character lua");
         assert!(character_lua.contains(r#""Targetmage""#));
         assert!(character_lua.contains(r#""Stormrage""#));
+
+        let addon_lua = fs::read_to_string(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.lua"),
+        )
+        .expect("addon lua");
+        assert!(addon_lua.contains("Examplemage - Illidan"));
+        assert!(!addon_lua.contains("Targetmage - Stormrage"));
     }
 
     #[test]
@@ -3706,6 +3724,18 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
                 "## Interface: 110000",
             )
             .expect("toc");
+            fs::write(
+                addon_dir.join("WeakAuras").join("WeakAuras.lua"),
+                r#"
+WeakAurasSaved = {
+  ["profileKeys"] = {
+    ["Examplemage - Illidan"] = "Default",
+  },
+  ["player"] = "Examplemage",
+}
+"#,
+            )
+            .expect("addon lua");
 
             fs::write(wtf_dir.join("Config.wtf"), "SET locale enUS").expect("config");
             fs::create_dir_all(
@@ -3741,6 +3771,15 @@ DetailsDB = {
                     .join("Examplemage"),
             )
             .expect("character");
+            fs::create_dir_all(
+                wtf_dir
+                    .join("Account")
+                    .join("ACCOUNT")
+                    .join("Illidan")
+                    .join("Examplemage")
+                    .join("SavedVariables"),
+            )
+            .expect("character saved variables");
             fs::write(
                 wtf_dir
                     .join("Account")
@@ -3757,6 +3796,7 @@ DetailsDB = {
                     .join("ACCOUNT")
                     .join("Illidan")
                     .join("Examplemage")
+                    .join("SavedVariables")
                     .join("Pawn.lua"),
                 r#"
 PawnOptions = {

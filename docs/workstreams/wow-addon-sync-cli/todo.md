@@ -97,7 +97,7 @@ The current blocking sequence is:
 
 - [x] Implement profile key detection and replacement
 - [x] Implement character and server identity replacement
-- [ ] Add file-level rewrite opt-in rules
+- [x] Add file-level rewrite opt-in rules
 - [ ] Add encoding-aware file read and write support
 - [ ] Add byte-safe replacement support for WTF files that are not valid UTF-8
 - [ ] Add regression tests with real-world samples

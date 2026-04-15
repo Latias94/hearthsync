@@ -32,11 +32,12 @@ pub struct LuaRewriteOptions {
 }
 
 pub fn rewrite_lua_file(
+    path_hint: &Path,
     path: &Path,
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> AppResult<bool> {
-    let Some(rewritten) = preview_lua_file_rewrite(path, mappings, options)? else {
+    let Some(rewritten) = preview_lua_file_rewrite(path_hint, path, mappings, options)? else {
         return Ok(false);
     };
 
@@ -45,12 +46,13 @@ pub fn rewrite_lua_file(
 }
 
 pub fn preview_lua_file_rewrite(
+    path_hint: &Path,
     path: &Path,
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> AppResult<Option<Vec<u8>>> {
     let bytes = fs::read(path)?;
-    preview_lua_bytes_rewrite(path, &bytes, mappings, options)
+    preview_lua_bytes_rewrite(path_hint, &bytes, mappings, options)
 }
 
 pub fn preview_lua_bytes_rewrite(
@@ -160,14 +162,71 @@ fn apply_replacements(content: &str, mut replacements: Vec<(String, String)>) ->
 }
 
 fn should_rewrite_lua(path: &Path) -> bool {
-    path.extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("lua"))
+    match classify_lua_rewrite_path(path) {
+        Some(LuaRewritePath::AccountSavedVariables | LuaRewritePath::CharacterSavedVariables) => {
+            true
+        }
+        None => false,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LuaRewritePath {
+    AccountSavedVariables,
+    CharacterSavedVariables,
+}
+
+fn classify_lua_rewrite_path(path: &Path) -> Option<LuaRewritePath> {
+    let file_name = path.file_name()?.to_str()?;
+    if !file_name.to_ascii_lowercase().ends_with(".lua") {
+        return None;
+    }
+
+    let segments = path
+        .components()
+        .filter_map(|component| component.as_os_str().to_str())
+        .map(|segment| segment.to_ascii_lowercase())
+        .collect::<Vec<_>>();
+
+    if segments.len() >= 6
+        && segments[segments.len() - 6] == "wtf"
+        && segments[segments.len() - 5] == "common"
+        && segments[segments.len() - 4] == "accounts"
+        && segments[segments.len() - 2] == "savedvariables"
+    {
+        return Some(LuaRewritePath::AccountSavedVariables);
+    }
+
+    if segments.len() >= 7
+        && segments[segments.len() - 7] == "wtf"
+        && segments[segments.len() - 6] == "characters"
+        && segments[segments.len() - 2] == "savedvariables"
+    {
+        return Some(LuaRewritePath::CharacterSavedVariables);
+    }
+
+    if segments.len() >= 4
+        && segments[segments.len() - 4] == "account"
+        && segments[segments.len() - 2] == "savedvariables"
+    {
+        return Some(LuaRewritePath::AccountSavedVariables);
+    }
+
+    if segments.len() >= 6
+        && segments[segments.len() - 6] == "account"
+        && segments[segments.len() - 2] == "savedvariables"
+    {
+        return Some(LuaRewritePath::CharacterSavedVariables);
+    }
+
+    None
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{CharacterMapping, LuaRewriteOptions, rewrite_lua_text};
+    use std::path::Path;
+
+    use super::{CharacterMapping, LuaRewriteOptions, preview_lua_bytes_rewrite, rewrite_lua_text};
 
     #[test]
     fn rewrite_lua_text_updates_profile_keys_and_identity_strings() {
@@ -205,5 +264,80 @@ TestDB = {
         assert!(output.contains("Default.Stormrage.Targetmage"));
         assert!(output.contains(r#"["playerName"] = "Targetmage""#));
         assert!(output.contains(r#"["realm"] = "Stormrage""#));
+    }
+
+    fn sample_mapping() -> CharacterMapping {
+        CharacterMapping {
+            source_account: Some("ACCOUNT".to_string()),
+            source_server: "Illidan".to_string(),
+            source_character: "Examplemage".to_string(),
+            target_account: "TARGET".to_string(),
+            target_server: "Stormrage".to_string(),
+            target_character: "Targetmage".to_string(),
+        }
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_allows_account_saved_variables() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+            br#"DetailsDB = { ["profileKeys"] = { ["Examplemage - Illidan"] = "Default" } }"#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_some());
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_allows_character_saved_variables() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),
+            br#"PawnOptions = { ["LastPlayerFullName"] = "Examplemage" }"#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: false,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_some());
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_rejects_addon_lua_paths() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("addons/WeakAuras/WeakAuras.lua"),
+            br#"WeakAurasSaved = { ["profileKeys"] = { ["Examplemage - Illidan"] = "Default" } }"#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_none());
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_rejects_account_root_lua_outside_saved_variables() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/common/accounts/ACCOUNT/account-settings.lua"),
+            br#"return "Examplemage""#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_none());
     }
 }
