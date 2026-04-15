@@ -61,12 +61,16 @@ pub fn preview_lua_bytes_rewrite(
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> AppResult<Option<Vec<u8>>> {
-    let rewrite_options = effective_lua_rewrite_options(path_hint, bytes, options);
-    if !should_rewrite_lua(path_hint) || mappings.is_empty() {
+    let Some(capabilities) = analyze_lua_rewrite_capabilities(path_hint, bytes) else {
         return Ok(None);
-    }
+    };
+    if mappings.is_empty() {
+        return Ok(None);
+    };
 
-    if !rewrite_options.rewrite_profile_keys && !rewrite_options.rewrite_identity_strings {
+    let rewrite_options = options.limit_to(capabilities);
+
+    if rewrite_options.is_disabled() {
         return Ok(None);
     }
 
@@ -302,49 +306,50 @@ fn replace_bytes(content: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
     rewritten
 }
 
-fn should_rewrite_lua(path: &Path) -> bool {
-    match classify_lua_rewrite_path(path) {
-        Some(LuaRewritePath::AccountSavedVariables | LuaRewritePath::CharacterSavedVariables) => {
-            true
-        }
-        None => false,
-    }
-}
-
-fn effective_lua_rewrite_options(
-    path: &Path,
-    bytes: &[u8],
-    options: LuaRewriteOptions,
-) -> LuaRewriteOptions {
-    let capabilities = allowed_lua_rewrite_capabilities(path, bytes);
-    LuaRewriteOptions {
-        rewrite_profile_keys: options.rewrite_profile_keys && capabilities.rewrite_profile_keys,
-        rewrite_identity_strings: options.rewrite_identity_strings
-            && capabilities.rewrite_identity_strings,
-    }
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 struct LuaRewriteCapabilities {
     rewrite_profile_keys: bool,
     rewrite_identity_strings: bool,
 }
 
-fn allowed_lua_rewrite_capabilities(path: &Path, bytes: &[u8]) -> LuaRewriteCapabilities {
-    if classify_lua_rewrite_path(path).is_none() {
-        return LuaRewriteCapabilities::default();
+impl LuaRewriteOptions {
+    fn limit_to(self, capabilities: LuaRewriteCapabilities) -> Self {
+        Self {
+            rewrite_profile_keys: self.rewrite_profile_keys && capabilities.rewrite_profile_keys,
+            rewrite_identity_strings: self.rewrite_identity_strings
+                && capabilities.rewrite_identity_strings,
+        }
     }
 
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(|name| name.to_ascii_lowercase())
-        .unwrap_or_default();
+    fn is_disabled(self) -> bool {
+        !self.rewrite_profile_keys && !self.rewrite_identity_strings
+    }
+}
 
+impl LuaRewriteCapabilities {
+    const IDENTITY_ONLY: Self = Self {
+        rewrite_profile_keys: false,
+        rewrite_identity_strings: true,
+    };
+
+    fn merge(self, other: Self) -> Self {
+        Self {
+            rewrite_profile_keys: self.rewrite_profile_keys || other.rewrite_profile_keys,
+            rewrite_identity_strings: self.rewrite_identity_strings
+                || other.rewrite_identity_strings,
+        }
+    }
+}
+
+fn analyze_lua_rewrite_capabilities(path: &Path, bytes: &[u8]) -> Option<LuaRewriteCapabilities> {
+    let target = classify_lua_rewrite_target(path)?;
+    Some(detect_lua_rewrite_signals(bytes).merge(matched_rule_capabilities(&target.file_name)))
+}
+
+fn detect_lua_rewrite_signals(bytes: &[u8]) -> LuaRewriteCapabilities {
     LuaRewriteCapabilities {
         rewrite_profile_keys: bytes_contain_any_ascii_marker(bytes, PROFILE_KEY_MARKERS),
-        rewrite_identity_strings: bytes_contain_any_ascii_marker(bytes, IDENTITY_FIELD_MARKERS)
-            || identity_rule_matches_file_name(&file_name),
+        rewrite_identity_strings: bytes_contain_any_ascii_marker(bytes, IDENTITY_FIELD_MARKERS),
     }
 }
 
@@ -353,24 +358,60 @@ const PROFILE_KEY_MARKERS: &[&[u8]] = &[b"profileKeys"];
 const IDENTITY_FIELD_MARKERS: &[&[u8]] =
     &[b"playerName", b"realm", b"LastPlayerFullName", b"LastRealm"];
 
-const IDENTITY_RULE_EXACT_FILES: &[&str] = &[
-    "auraupdater.lua",
-    "bagsync.lua",
-    "details.lua",
-    "elvui.lua",
-    "exwindcore.lua",
-    "meetingstone.lua",
-    "newbeebox.lua",
-    "pawn.lua",
-    "rarity.lua",
-    "tinytooltip-remake.lua",
-    "weakauras.lua",
-    "weakaurasarchive.lua",
-    "worldquesttracker.lua",
-    "zygorguidesviewer.lua",
-];
+#[derive(Debug, Clone, Copy)]
+struct LuaRewriteRule {
+    matcher: LuaRewriteRuleMatcher,
+    capabilities: LuaRewriteCapabilities,
+}
 
-const IDENTITY_RULE_PREFIXES: &[&str] = &["dbm-", "details_", "handynotes_"];
+impl LuaRewriteRule {
+    fn matches(self, file_name: &str) -> bool {
+        match self.matcher {
+            LuaRewriteRuleMatcher::Exact(expected) => file_name == expected,
+            LuaRewriteRuleMatcher::Prefix(prefix) => file_name.starts_with(prefix),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum LuaRewriteRuleMatcher {
+    Exact(&'static str),
+    Prefix(&'static str),
+}
+
+const fn identity_exact_rule(file_name: &'static str) -> LuaRewriteRule {
+    LuaRewriteRule {
+        matcher: LuaRewriteRuleMatcher::Exact(file_name),
+        capabilities: LuaRewriteCapabilities::IDENTITY_ONLY,
+    }
+}
+
+const fn identity_prefix_rule(prefix: &'static str) -> LuaRewriteRule {
+    LuaRewriteRule {
+        matcher: LuaRewriteRuleMatcher::Prefix(prefix),
+        capabilities: LuaRewriteCapabilities::IDENTITY_ONLY,
+    }
+}
+
+const LUA_REWRITE_RULES: &[LuaRewriteRule] = &[
+    identity_exact_rule("auraupdater.lua"),
+    identity_exact_rule("bagsync.lua"),
+    identity_exact_rule("details.lua"),
+    identity_exact_rule("elvui.lua"),
+    identity_exact_rule("exwindcore.lua"),
+    identity_exact_rule("meetingstone.lua"),
+    identity_exact_rule("newbeebox.lua"),
+    identity_exact_rule("pawn.lua"),
+    identity_exact_rule("rarity.lua"),
+    identity_exact_rule("tinytooltip-remake.lua"),
+    identity_exact_rule("weakauras.lua"),
+    identity_exact_rule("weakaurasarchive.lua"),
+    identity_exact_rule("worldquesttracker.lua"),
+    identity_exact_rule("zygorguidesviewer.lua"),
+    identity_prefix_rule("dbm-"),
+    identity_prefix_rule("details_"),
+    identity_prefix_rule("handynotes_"),
+];
 
 fn bytes_contain_any_ascii_marker(bytes: &[u8], markers: &[&[u8]]) -> bool {
     markers.iter().any(|marker| {
@@ -378,22 +419,24 @@ fn bytes_contain_any_ascii_marker(bytes: &[u8], markers: &[&[u8]]) -> bool {
     })
 }
 
-fn identity_rule_matches_file_name(file_name: &str) -> bool {
-    IDENTITY_RULE_EXACT_FILES.contains(&file_name)
-        || IDENTITY_RULE_PREFIXES
-            .iter()
-            .any(|prefix| file_name.starts_with(prefix))
+fn matched_rule_capabilities(file_name: &str) -> LuaRewriteCapabilities {
+    LUA_REWRITE_RULES
+        .iter()
+        .copied()
+        .filter(|rule| rule.matches(file_name))
+        .fold(LuaRewriteCapabilities::default(), |capabilities, rule| {
+            capabilities.merge(rule.capabilities)
+        })
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LuaRewritePath {
-    AccountSavedVariables,
-    CharacterSavedVariables,
+#[derive(Debug, Clone)]
+struct LuaRewriteTarget {
+    file_name: String,
 }
 
-fn classify_lua_rewrite_path(path: &Path) -> Option<LuaRewritePath> {
-    let file_name = path.file_name()?.to_str()?;
-    if !file_name.to_ascii_lowercase().ends_with(".lua") {
+fn classify_lua_rewrite_target(path: &Path) -> Option<LuaRewriteTarget> {
+    let file_name = path.file_name()?.to_str()?.to_ascii_lowercase();
+    if !file_name.ends_with(".lua") {
         return None;
     }
 
@@ -409,7 +452,7 @@ fn classify_lua_rewrite_path(path: &Path) -> Option<LuaRewritePath> {
         && segments[segments.len() - 4] == "accounts"
         && segments[segments.len() - 2] == "savedvariables"
     {
-        return Some(LuaRewritePath::AccountSavedVariables);
+        return Some(LuaRewriteTarget { file_name });
     }
 
     if segments.len() >= 7
@@ -417,21 +460,21 @@ fn classify_lua_rewrite_path(path: &Path) -> Option<LuaRewritePath> {
         && segments[segments.len() - 6] == "characters"
         && segments[segments.len() - 2] == "savedvariables"
     {
-        return Some(LuaRewritePath::CharacterSavedVariables);
+        return Some(LuaRewriteTarget { file_name });
     }
 
     if segments.len() >= 4
         && segments[segments.len() - 4] == "account"
         && segments[segments.len() - 2] == "savedvariables"
     {
-        return Some(LuaRewritePath::AccountSavedVariables);
+        return Some(LuaRewriteTarget { file_name });
     }
 
     if segments.len() >= 6
         && segments[segments.len() - 6] == "account"
         && segments[segments.len() - 2] == "savedvariables"
     {
-        return Some(LuaRewritePath::CharacterSavedVariables);
+        return Some(LuaRewriteTarget { file_name });
     }
 
     None
@@ -589,6 +632,22 @@ TestDB = {
     }
 
     #[test]
+    fn preview_lua_bytes_rewrite_allows_known_identity_prefix_rule_without_field_markers() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/DBM-Core.lua"),
+            br#"return "Examplemage - Illidan""#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: false,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_some());
+    }
+
+    #[test]
     fn preview_lua_bytes_rewrite_handles_invalid_utf8_payloads() {
         let rewritten = preview_lua_bytes_rewrite(
             Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
@@ -625,7 +684,7 @@ TestDB = {
             )
             .collect::<Vec<_>>();
         let rewritten = preview_lua_bytes_rewrite(
-            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Auctionator.lua"),
             &payload,
             &[sample_mapping()],
             LuaRewriteOptions {
