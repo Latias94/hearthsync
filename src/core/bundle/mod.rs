@@ -20,9 +20,11 @@ use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_bac
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};
 use crate::core::lua_patch::{
-    CharacterMapping, LuaRewriteOptions, preview_lua_file_rewrite, rewrite_lua_file,
+    CharacterMapping, LuaRewriteOptions, preview_lua_bytes_rewrite, rewrite_lua_file,
 };
-use crate::core::manifest::{BundleManifest, CharacterResource, ResourceApplyPolicy};
+use crate::core::manifest::{
+    BundleManifest, CharacterMappingMode, CharacterResource, ResourceApplyPolicy,
+};
 
 const MANIFEST_ENTRY: &str = "manifest.toml";
 const ADDON_LOCK_ENTRY: &str = "metadata/addons/lock.toml";
@@ -111,10 +113,12 @@ pub struct ApplyOperation {
     pub target_character: Option<String>,
     pub rewrite_count: usize,
     pub rewrite_applied: bool,
-    #[serde(skip_serializing)]
-    pub rewrites: Vec<CharacterMapping>,
-    #[serde(skip_serializing)]
-    pub staged_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+struct PreparedApplyOperation {
+    preview: ApplyOperation,
+    rewrites: Vec<CharacterMapping>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -217,7 +221,6 @@ struct PlannedEntry {
     target_account: Option<String>,
     target_server: Option<String>,
     target_character: Option<String>,
-    staged_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -231,7 +234,11 @@ struct PlannedCleanup {
 
 struct PreparedBundleApply {
     plan: BundleApplyPlan,
-    _stage_dir: TempDir,
+    execution_plan: BundleExecutionPlan,
+}
+
+struct BundleExecutionPlan {
+    operations: Vec<PreparedApplyOperation>,
 }
 
 struct BundleReader<'a> {
@@ -240,7 +247,7 @@ struct BundleReader<'a> {
 
 struct BundleReadModel {
     inspection: BundleInspection,
-    stage_dir: TempDir,
+    entry_names: Vec<String>,
 }
 
 struct BundlePlanner<'a> {
@@ -511,12 +518,10 @@ impl<'a> BundleReader<'a> {
 
     fn read_for_apply(&self) -> AppResult<BundleReadModel> {
         let inspection = self.inspect()?;
-        let stage_dir = tempdir()?;
-        extract_bundle_to_stage(self.bundle_path, stage_dir.path())?;
 
         Ok(BundleReadModel {
             inspection,
-            stage_dir,
+            entry_names: collect_bundle_entry_names(self.bundle_path)?,
         })
     }
 }
@@ -550,17 +555,16 @@ impl<'a> BundlePlanner<'a> {
         selected_target_accounts: Vec<String>,
     ) -> AppResult<PreparedBundleApply> {
         let inspection = read_model.inspection;
-        let stage_dir = read_model.stage_dir;
-        let mut planned_entries = plan_extractable_entries(
-            self.bundle_path,
-            stage_dir.path(),
+        let planned_entries = plan_extractable_entries(
+            &read_model.entry_names,
             self.installation,
             &inspection.manifest,
             &character_mappings,
             self.apply_mappings,
             &selected_target_accounts,
         )?;
-        prepare_operation_stage_files(&mut planned_entries, stage_dir.path())?;
+        let file = File::open(self.bundle_path)?;
+        let mut archive = ZipArchive::new(file)?;
         let rewrite_options = LuaRewriteOptions {
             rewrite_profile_keys: inspection.manifest.mapping.rewrite_profile_keys,
             rewrite_identity_strings: inspection.manifest.mapping.rewrite_identity_strings,
@@ -572,9 +576,10 @@ impl<'a> BundlePlanner<'a> {
             .iter()
             .map(|operation| operation.destination.clone())
             .collect::<Vec<_>>();
-        let mut operations = cleanup_operations
-            .into_iter()
-            .map(|cleanup| ApplyOperation {
+        let mut execution_operations = Vec::new();
+        let mut summary = ApplyPlanSummary::default();
+        for cleanup in cleanup_operations {
+            let operation = ApplyOperation {
                 group: cleanup.group,
                 wtf_scope: None,
                 action: ApplyAction::Remove,
@@ -585,14 +590,15 @@ impl<'a> BundlePlanner<'a> {
                 target_character: cleanup.target_character,
                 rewrite_count: 0,
                 rewrite_applied: false,
+            };
+            summary.paths_to_remove += 1;
+            execution_operations.push(PreparedApplyOperation {
+                preview: operation,
                 rewrites: Vec::new(),
-                staged_path: PathBuf::new(),
-            })
-            .collect::<Vec<_>>();
-        let mut summary = ApplyPlanSummary::default();
-        summary.paths_to_remove = operations.len();
+            });
+        }
 
-        for entry in &mut planned_entries {
+        for entry in &planned_entries {
             let policy = resource_policy_for_group(&inspection.manifest, entry.group);
             let preserve = policy == ResourceApplyPolicy::Preserve;
             let share = policy == ResourceApplyPolicy::Share;
@@ -600,10 +606,17 @@ impl<'a> BundlePlanner<'a> {
             let will_cleanup = cleanup_root
                 .as_ref()
                 .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
+            let source_bytes =
+                read_bundle_entry_bytes_from_archive(&mut archive, &entry.archive_name)?;
             let rewritten_bytes = if preserve {
                 None
             } else {
-                preview_lua_file_rewrite(&entry.staged_path, &entry.rewrites, rewrite_options)?
+                preview_lua_bytes_rewrite(
+                    Path::new(&entry.archive_name),
+                    &source_bytes,
+                    &entry.rewrites,
+                    rewrite_options,
+                )?
             };
             let rewrite_applied = rewritten_bytes.is_some();
             let action = if preserve {
@@ -619,7 +632,7 @@ impl<'a> BundlePlanner<'a> {
                 summary.files_to_add += 1;
                 ApplyAction::Add
             } else if rewritten_bytes.as_deref().map_or_else(
-                || file_contents_equal(&entry.staged_path, &entry.destination),
+                || file_contents_equal_to_bytes(&source_bytes, &entry.destination),
                 |bytes| file_contents_equal_to_bytes(bytes, &entry.destination),
             )? {
                 summary.files_to_skip += 1;
@@ -632,7 +645,7 @@ impl<'a> BundlePlanner<'a> {
                 summary.files_to_rewrite += 1;
             }
 
-            operations.push(ApplyOperation {
+            let operation = ApplyOperation {
                 group: entry.group,
                 wtf_scope: entry.wtf_scope,
                 action,
@@ -643,10 +656,27 @@ impl<'a> BundlePlanner<'a> {
                 target_character: entry.target_character.clone(),
                 rewrite_count: entry.rewrites.len(),
                 rewrite_applied,
+            };
+            execution_operations.push(PreparedApplyOperation {
+                preview: operation,
                 rewrites: entry.rewrites.clone(),
-                staged_path: entry.staged_path.clone(),
             });
         }
+
+        execution_operations.sort_by(|left, right| {
+            apply_action_order(left.preview.action)
+                .cmp(&apply_action_order(right.preview.action))
+                .then_with(|| {
+                    apply_group_order(left.preview.group)
+                        .cmp(&apply_group_order(right.preview.group))
+                })
+                .then_with(|| left.preview.destination.cmp(&right.preview.destination))
+                .then_with(|| left.preview.archive_name.cmp(&right.preview.archive_name))
+        });
+        let operations = execution_operations
+            .iter()
+            .map(|operation| operation.preview.clone())
+            .collect::<Vec<_>>();
 
         Ok(PreparedBundleApply {
             plan: BundleApplyPlan {
@@ -680,7 +710,9 @@ impl<'a> BundlePlanner<'a> {
                 },
                 manifest: inspection.manifest,
             },
-            _stage_dir: stage_dir,
+            execution_plan: BundleExecutionPlan {
+                operations: execution_operations,
+            },
         })
     }
 }
@@ -691,7 +723,10 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
         &request.installation,
         &request.apply_mappings,
     )?;
-    let plan = prepared.plan.clone();
+    let PreparedBundleApply {
+        plan,
+        execution_plan,
+    } = prepared;
     if request.dry_run {
         return Ok(UnpackedBundle {
             bundle_path: request.bundle_path,
@@ -712,7 +747,7 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
         installation: &request.installation,
         backup_output_path: request.backup_output_path.clone(),
     }
-    .execute(&plan)?;
+    .execute(&plan, &execution_plan)?;
 
     Ok(UnpackedBundle {
         bundle_path: request.bundle_path,
@@ -730,10 +765,14 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
 }
 
 impl<'a> BundleExecutor<'a> {
-    fn execute(&self, plan: &BundleApplyPlan) -> AppResult<BundleExecution> {
+    fn execute(
+        &self,
+        plan: &BundleApplyPlan,
+        execution_plan: &BundleExecutionPlan,
+    ) -> AppResult<BundleExecution> {
         let backup_path = self.create_backup(plan)?;
 
-        match execute_apply_operations(plan) {
+        match execute_apply_operations(&plan.bundle_path, execution_plan, &plan.manifest) {
             Ok((written_files, rewritten_files)) => Ok(BundleExecution {
                 backup_path,
                 written_files,
@@ -767,30 +806,53 @@ impl<'a> BundleExecutor<'a> {
     }
 }
 
-fn extract_bundle_to_stage(bundle_path: &Path, stage_root: &Path) -> AppResult<()> {
+fn collect_bundle_entry_names(bundle_path: &Path) -> AppResult<Vec<String>> {
     let file = File::open(bundle_path)?;
     let mut archive = ZipArchive::new(file)?;
+    let mut entry_names = Vec::new();
 
     for index in 0..archive.len() {
-        let mut entry = archive.by_index(index)?;
+        let entry = archive.by_index(index)?;
         if entry.is_dir() {
             continue;
         }
-
-        let entry_name = entry.name().to_string();
-        let segments = safe_zip_segments(&entry_name)?;
-        if segments.is_empty() {
-            continue;
-        }
-
-        let staged_path = join_segments(stage_root, &segments);
-        if let Some(parent) = staged_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let mut output = File::create(staged_path)?;
-        std::io::copy(&mut entry, &mut output)?;
+        entry_names.push(entry.name().to_string());
     }
 
+    Ok(entry_names)
+}
+
+fn read_bundle_entry_bytes_from_archive(
+    archive: &mut ZipArchive<File>,
+    archive_name: &str,
+) -> AppResult<Vec<u8>> {
+    let mut entry = archive
+        .by_name(archive_name)
+        .map_err(|_| AppError::NotFound(format!("bundle entry is missing: {archive_name}")))?;
+    let mut bytes = Vec::new();
+    entry.read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+fn extract_archive_entry_to_path(
+    archive: &mut ZipArchive<File>,
+    archive_name: &str,
+    destination: &Path,
+) -> AppResult<()> {
+    let segments = safe_zip_segments(archive_name)?;
+    if segments.is_empty() {
+        return Err(AppError::Validation(format!(
+            "bundle entry cannot be materialized because its path is empty: {archive_name}"
+        )));
+    }
+    let mut entry = archive
+        .by_name(archive_name)
+        .map_err(|_| AppError::NotFound(format!("bundle entry is missing: {archive_name}")))?;
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut output = File::create(destination)?;
+    std::io::copy(&mut entry, &mut output)?;
     Ok(())
 }
 
@@ -869,30 +931,6 @@ fn extract_bundle_addon_source_overrides(
     }
 
     Ok(source_overrides)
-}
-
-fn prepare_operation_stage_files(
-    planned_entries: &mut [PlannedEntry],
-    stage_root: &Path,
-) -> AppResult<()> {
-    let operation_root = stage_root.join("__operations");
-    fs::create_dir_all(&operation_root)?;
-
-    for (index, entry) in planned_entries.iter_mut().enumerate() {
-        let file_name = entry
-            .staged_path
-            .file_name()
-            .map(|name| name.to_owned())
-            .unwrap_or_else(|| format!("entry-{index}").into());
-        let operation_path = operation_root.join(index.to_string()).join(file_name);
-        if let Some(parent) = operation_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::copy(&entry.staged_path, &operation_path)?;
-        entry.staged_path = operation_path;
-    }
-
-    Ok(())
 }
 
 fn build_cleanup_operations(
@@ -1031,42 +1069,78 @@ fn policy_requires_cleanup(policy: ResourceApplyPolicy) -> bool {
     )
 }
 
-fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)> {
+fn apply_action_order(action: ApplyAction) -> u8 {
+    match action {
+        ApplyAction::Remove => 0,
+        ApplyAction::Add => 1,
+        ApplyAction::Replace => 2,
+        ApplyAction::Skip => 3,
+        ApplyAction::Preserve => 4,
+    }
+}
+
+fn apply_group_order(group: ApplyGroup) -> u8 {
+    match group {
+        ApplyGroup::Addons => 0,
+        ApplyGroup::InterfaceAssets => 1,
+        ApplyGroup::Fonts => 2,
+        ApplyGroup::WtfCommon => 3,
+        ApplyGroup::WtfCharacters => 4,
+        ApplyGroup::Metadata => 5,
+    }
+}
+
+fn execute_apply_operations(
+    bundle_path: &Path,
+    execution_plan: &BundleExecutionPlan,
+    manifest: &BundleManifest,
+) -> AppResult<(usize, usize)> {
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
     let rewrite_stage = tempdir()?;
+    let file = File::open(bundle_path)?;
+    let mut archive = ZipArchive::new(file)?;
     let rewrite_options = LuaRewriteOptions {
-        rewrite_profile_keys: plan.manifest.mapping.rewrite_profile_keys,
-        rewrite_identity_strings: plan.manifest.mapping.rewrite_identity_strings,
+        rewrite_profile_keys: manifest.mapping.rewrite_profile_keys,
+        rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
     };
 
-    for (operation_index, operation) in plan.operations.iter().enumerate() {
-        if matches!(operation.action, ApplyAction::Skip | ApplyAction::Preserve) {
+    for (operation_index, operation) in execution_plan.operations.iter().enumerate() {
+        if matches!(
+            operation.preview.action,
+            ApplyAction::Skip | ApplyAction::Preserve
+        ) {
             continue;
         }
 
-        if operation.action == ApplyAction::Remove {
-            remove_target_path(&operation.destination)?;
+        if operation.preview.action == ApplyAction::Remove {
+            remove_target_path(&operation.preview.destination)?;
             continue;
         }
 
-        if let Some(parent) = operation.destination.parent() {
+        if let Some(parent) = operation.preview.destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        let source_path = if operation.rewrite_applied {
+        let source_path = if operation.preview.rewrite_applied {
             materialize_rewritten_operation(
                 operation_index,
                 operation,
+                &mut archive,
                 rewrite_stage.path(),
                 rewrite_options,
             )?
         } else {
-            operation.staged_path.clone()
+            materialize_archive_operation(
+                operation_index,
+                &operation.preview.archive_name,
+                &mut archive,
+                rewrite_stage.path(),
+            )?
         };
-        fs::copy(source_path, &operation.destination)?;
+        fs::copy(source_path, &operation.preview.destination)?;
         written_files += 1;
 
-        if operation.rewrite_applied {
+        if operation.preview.rewrite_applied {
             rewritten_files += 1;
         }
     }
@@ -1076,24 +1150,34 @@ fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)>
 
 fn materialize_rewritten_operation(
     operation_index: usize,
-    operation: &ApplyOperation,
+    operation: &PreparedApplyOperation,
+    archive: &mut ZipArchive<File>,
     rewrite_stage_root: &Path,
     rewrite_options: LuaRewriteOptions,
 ) -> AppResult<PathBuf> {
-    let file_name = operation
-        .staged_path
+    let rewrite_path = materialize_archive_operation(
+        operation_index,
+        &operation.preview.archive_name,
+        archive,
+        rewrite_stage_root,
+    )?;
+    rewrite_lua_file(&rewrite_path, &operation.rewrites, rewrite_options)?;
+    Ok(rewrite_path)
+}
+
+fn materialize_archive_operation(
+    operation_index: usize,
+    archive_name: &str,
+    archive: &mut ZipArchive<File>,
+    stage_root: &Path,
+) -> AppResult<PathBuf> {
+    let file_name = Path::new(archive_name)
         .file_name()
         .map(|name| name.to_owned())
         .unwrap_or_else(|| format!("operation-{operation_index}").into());
-    let rewrite_path = rewrite_stage_root
-        .join(operation_index.to_string())
-        .join(file_name);
-    if let Some(parent) = rewrite_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::copy(&operation.staged_path, &rewrite_path)?;
-    rewrite_lua_file(&rewrite_path, &operation.rewrites, rewrite_options)?;
-    Ok(rewrite_path)
+    let stage_path = stage_root.join(operation_index.to_string()).join(file_name);
+    extract_archive_entry_to_path(archive, archive_name, &stage_path)?;
+    Ok(stage_path)
 }
 
 fn remove_target_path(path: &Path) -> AppResult<()> {
@@ -1123,37 +1207,6 @@ fn rollback_or_report_apply_error<T>(
         Err(rollback_error) => Err(AppError::Validation(format!(
             "bundle apply failed: {error}; rollback failed: {rollback_error}"
         ))),
-    }
-}
-
-fn file_contents_equal(left: &Path, right: &Path) -> AppResult<bool> {
-    if !right.exists() || !left.is_file() || !right.is_file() {
-        return Ok(false);
-    }
-
-    let left_metadata = fs::metadata(left)?;
-    let right_metadata = fs::metadata(right)?;
-    if left_metadata.len() != right_metadata.len() {
-        return Ok(false);
-    }
-
-    let mut left_file = File::open(left)?;
-    let mut right_file = File::open(right)?;
-    let mut left_buffer = [0u8; 8192];
-    let mut right_buffer = [0u8; 8192];
-
-    loop {
-        let left_read = left_file.read(&mut left_buffer)?;
-        let right_read = right_file.read(&mut right_buffer)?;
-        if left_read != right_read {
-            return Ok(false);
-        }
-        if left_read == 0 {
-            return Ok(true);
-        }
-        if left_buffer[..left_read] != right_buffer[..right_read] {
-            return Ok(false);
-        }
     }
 }
 
@@ -1566,16 +1619,13 @@ fn count_bundle_entries(archive: &mut ZipArchive<File>) -> AppResult<BundleEntry
 }
 
 fn plan_extractable_entries(
-    bundle_path: &Path,
-    stage_root: &Path,
+    entry_names: &[String],
     installation: &DetectedFlavorInstallation,
     manifest: &BundleManifest,
     character_mappings: &[CharacterMapping],
     apply_mappings: &BundleApplyMappings,
     selected_target_accounts: &[String],
 ) -> AppResult<Vec<PlannedEntry>> {
-    let file = File::open(bundle_path)?;
-    let mut archive = ZipArchive::new(file)?;
     let mut planned_entries = Vec::new();
     let common_account_targets = resolve_common_account_targets(
         manifest,
@@ -1584,22 +1634,15 @@ fn plan_extractable_entries(
         selected_target_accounts,
     )?;
 
-    for index in 0..archive.len() {
-        let file = archive.by_index(index)?;
-        if file.is_dir() {
-            continue;
-        }
-
-        let archive_name = file.name().to_string();
+    for archive_name in entry_names {
         let entries = map_bundle_entry_to_destination(
-            &archive_name,
+            archive_name,
             installation,
             manifest,
             character_mappings,
             &common_account_targets,
             apply_mappings.target_account.as_deref(),
             selected_target_accounts,
-            stage_root,
         )?;
 
         planned_entries.extend(entries);
@@ -1616,7 +1659,6 @@ fn map_bundle_entry_to_destination(
     common_account_targets: &BTreeMap<String, String>,
     default_target_account: Option<&str>,
     selected_target_accounts: &[String],
-    stage_root: &Path,
 ) -> AppResult<Vec<PlannedEntry>> {
     if archive_name == MANIFEST_ENTRY {
         return Ok(Vec::new());
@@ -1626,7 +1668,6 @@ fn map_bundle_entry_to_destination(
     if segments.is_empty() {
         return Ok(Vec::new());
     }
-    let staged_path = join_segments(stage_root, &segments);
 
     match segments.as_slice() {
         ["metadata", rest @ ..] if !rest.is_empty() => Ok(vec![PlannedEntry {
@@ -1645,7 +1686,6 @@ fn map_bundle_entry_to_destination(
             target_account: None,
             target_server: None,
             target_character: None,
-            staged_path,
         }]),
         ["addons", rest @ ..] if !rest.is_empty() => Ok(vec![PlannedEntry {
             archive_name: archive_name.to_string(),
@@ -1656,7 +1696,6 @@ fn map_bundle_entry_to_destination(
             target_account: None,
             target_server: None,
             target_character: None,
-            staged_path,
         }]),
         ["wtf", "common", "Config.wtf"] => Ok(vec![PlannedEntry {
             archive_name: archive_name.to_string(),
@@ -1667,7 +1706,6 @@ fn map_bundle_entry_to_destination(
             target_account: None,
             target_server: None,
             target_character: None,
-            staged_path,
         }]),
         [
             "wtf",
@@ -1709,7 +1747,6 @@ fn map_bundle_entry_to_destination(
                     target_account: Some(target_account),
                     target_server: None,
                     target_character: None,
-                    staged_path: staged_path.clone(),
                 })
                 .collect())
         }
@@ -1745,7 +1782,6 @@ fn map_bundle_entry_to_destination(
                     target_account: Some(target_account),
                     target_server: None,
                     target_character: None,
-                    staged_path: staged_path.clone(),
                 })
                 .collect())
         }
@@ -1784,7 +1820,6 @@ fn map_bundle_entry_to_destination(
                 target_account: Some(mapping.target_account),
                 target_server: Some(mapping.target_server),
                 target_character: Some(mapping.target_character),
-                staged_path,
             }])
         }
         ["fonts", rest @ ..] if !rest.is_empty() => Ok(vec![PlannedEntry {
@@ -1796,7 +1831,6 @@ fn map_bundle_entry_to_destination(
             target_account: None,
             target_server: None,
             target_character: None,
-            staged_path,
         }]),
         ["interface", rest @ ..] if !rest.is_empty() => Ok(vec![PlannedEntry {
             archive_name: archive_name.to_string(),
@@ -1807,7 +1841,6 @@ fn map_bundle_entry_to_destination(
             target_account: None,
             target_server: None,
             target_character: None,
-            staged_path,
         }]),
         _ => Ok(Vec::new()),
     }
@@ -1870,6 +1903,27 @@ fn build_character_mappings(
 
     for resource in &manifest.resources.wtf_characters {
         let source_account = resource.source_account.clone();
+        if manifest.mapping.character_mode == CharacterMappingMode::KeepOriginal {
+            let target_account = source_account.clone().ok_or_else(|| {
+                AppError::Validation(format!(
+                    "source account is required for keep_original character mapping on `{}/{}`",
+                    resource.source_server, resource.source_character
+                ))
+            })?;
+            validate_plain_name("target account", &target_account)?;
+            validate_plain_name("target server", &resource.source_server)?;
+            validate_plain_name("target character", &resource.source_character)?;
+            mappings.push(CharacterMapping {
+                source_account,
+                source_server: resource.source_server.clone(),
+                source_character: resource.source_character.clone(),
+                target_account,
+                target_server: resource.source_server.clone(),
+                target_character: resource.source_character.clone(),
+            });
+            continue;
+        }
+
         let override_mapping = resolve_mapping_override(resource, &apply_mappings.characters)?;
         let target_account = override_mapping
             .and_then(|item| item.target_account.clone())
@@ -1949,7 +2003,9 @@ fn resolve_selected_target_accounts(
         return Ok(selected);
     }
 
-    if let Some(target_account) = &apply_mappings.target_account {
+    if manifest.mapping.character_mode != CharacterMappingMode::KeepOriginal
+        && let Some(target_account) = &apply_mappings.target_account
+    {
         validate_plain_name("target account", target_account)?;
         return Ok(vec![target_account.clone()]);
     }
@@ -2441,6 +2497,131 @@ mod tests {
             item.group == super::ApplyGroup::WtfCommon
                 && item.target_account.as_deref() == Some("ACC_A")
         }));
+    }
+
+    #[test]
+    fn keep_original_character_mode_ignores_target_identity_overrides() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.mapping.character_mode = CharacterMappingMode::KeepOriginal;
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings {
+                target_account: Some("TARGETACC".to_string()),
+                target_server: Some("Stormrage".to_string()),
+                target_character: Some("Targetmage".to_string()),
+                ..BundleApplyMappings::default()
+            },
+        )
+        .expect("plan bundle");
+
+        assert_eq!(plan.selected_target_accounts, vec!["ACCOUNT".to_string()]);
+        assert_eq!(plan.character_mappings.len(), 1);
+        assert_eq!(plan.character_mappings[0].target_account, "ACCOUNT");
+        assert_eq!(plan.character_mappings[0].target_server, "Illidan");
+        assert_eq!(plan.character_mappings[0].target_character, "Examplemage");
+    }
+
+    #[test]
+    fn bundle_apply_plan_does_not_expose_execution_only_fields() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest: sample_manifest_with_rewrite(),
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+
+        let operations = serde_json::to_value(&plan)
+            .expect("serialize plan")
+            .get("operations")
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .expect("operations array");
+
+        assert!(!operations.is_empty());
+        assert!(
+            operations
+                .iter()
+                .all(|operation| operation.get("staged_path").is_none())
+        );
+        assert!(
+            operations
+                .iter()
+                .all(|operation| operation.get("rewrites").is_none())
+        );
+    }
+
+    #[test]
+    fn bundle_apply_plan_uses_explicit_resource_group_order() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest: sample_manifest(),
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+        let mut groups = Vec::new();
+        for operation in plan
+            .operations
+            .iter()
+            .filter(|operation| operation.action == super::ApplyAction::Add)
+        {
+            if groups.last().copied() != Some(operation.group) {
+                groups.push(operation.group);
+            }
+        }
+
+        assert_eq!(
+            groups,
+            vec![
+                super::ApplyGroup::Addons,
+                super::ApplyGroup::InterfaceAssets,
+                super::ApplyGroup::Fonts,
+                super::ApplyGroup::WtfCommon,
+                super::ApplyGroup::WtfCharacters,
+            ]
+        );
     }
 
     #[test]

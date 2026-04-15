@@ -105,7 +105,8 @@ Apply a portable bundle to another installation safely.
 
 ### Current Notes
 
-- staged extraction is implemented before plan generation and apply
+- bundle preview planning now reads archive metadata and entry bytes without staged extraction
+- execution materializes archive entries and Lua rewrites only when mutation is actually performed
 - automatic backup before mutation is implemented
 - automatic rollback on apply failure is implemented
 - `--dry-run` preview is implemented
@@ -121,7 +122,7 @@ Apply a portable bundle to another installation safely.
 
 ### Status
 
-Planned
+Active - blocking
 
 ### Goal
 
@@ -146,6 +147,15 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 - a failed bundle or addon lock apply rolls back the whole operation
 - core request/result types are stable enough to be consumed by a future `egui` frontend
 - `WTF/Account/SavedVariables` is not misclassified as a playable account
+
+### Current Notes
+
+- This milestone is now the active blocker for the rest of the `wow-addon-sync-cli` workstream.
+- New CLI surface area should only be added when it directly supports sync semantics hardening.
+- `egui` work must wait until planner/executor boundaries and operation-level rollback semantics are stable.
+- The expected refactor style is in-place simplification, including removal of obsolete prototype paths.
+- Bundle preview is now execution-independent and no longer depends on staged files in the public plan.
+- Bundle apply and addon lock apply both use a single backup and rollback boundary.
 
 ## M4 - Configuration Sync Engine
 
@@ -234,3 +244,4 @@ Prepare the core for a future `egui` frontend.
 - core logic is reusable without CLI assumptions
 - progress and result models are suitable for an `egui` frontend
 - CLI can run tasks synchronously while GUI can run the same task model on worker threads
+- M3.5 sync semantics hardening is complete before GUI implementation begins

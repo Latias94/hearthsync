@@ -4,6 +4,8 @@
 
 Draft v0.1
 
+Current execution focus: sync semantics hardening before GUI or broader feature expansion.
+
 ## Problem Statement
 
 `hearthsync` is intended to become a cross-platform World of Warcraft addon and configuration sync tool.
@@ -255,6 +257,18 @@ Therefore:
 - a future `egui` frontend may run blocking tasks on worker threads
 - provider networking should sit behind traits so a later async implementation can replace the current blocking implementation
 - full async conversion should wait until resource-group policies and transaction semantics are stable
+
+### Decision 11: Treat sync semantics hardening as a blocking in-stream refactor
+
+The current sync hardening effort should stay inside the existing `wow-addon-sync-cli` workstream.
+This is not optional cleanup after feature completion; it is part of finishing the CLI correctly.
+
+Implications:
+
+- keep `docs/workstreams/wow-addon-sync-cli/` as the source of truth
+- allow in-place refactors that remove obsolete prototype paths
+- defer non-essential CLI expansion until the sync engine boundary is stable
+- treat documentation updates and code removal as part of the same delivery stream
 
 ## Proposed Repository Layout
 
@@ -684,6 +698,7 @@ Research artifacts should be summarized in docs rather than committed as extract
 - define resource-group apply policies
 - consume manifest apply intent during planning and execution
 - split bundle reader, planner, and executor boundaries
+- introduce a pure preview-plan model that is independent from staged execution files
 - add delete operations for mirror/replace policies
 - make addon lock apply operation-level transactional
 
@@ -718,3 +733,14 @@ The first implementation target after documentation is:
 4. add backup checkpoint creation
 
 This creates the minimum safe base for later pack and apply flows.
+
+## Current Refactor Track
+
+The prototype has already crossed the threshold where more surface area is the main risk.
+The current delivery track is therefore a focused in-stream refactor:
+
+1. stabilize bundle planning as a pure preview boundary
+2. isolate execution-only staging and rewrite materialization
+3. make addon lock apply transactional across remove, update, and install work
+4. remove transitional code that keeps prototype semantics alive without product value
+5. keep the CLI operational while simplifying the core contracts

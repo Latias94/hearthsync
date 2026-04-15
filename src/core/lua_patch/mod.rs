@@ -36,21 +36,11 @@ pub fn rewrite_lua_file(
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> AppResult<bool> {
-    if !should_rewrite_lua(path) || mappings.is_empty() {
-        return Ok(false);
-    }
-
-    let bytes = fs::read(path)?;
-    let Ok(content) = String::from_utf8(bytes) else {
+    let Some(rewritten) = preview_lua_file_rewrite(path, mappings, options)? else {
         return Ok(false);
     };
 
-    let rewritten = rewrite_lua_text(&content, mappings, options);
-    if rewritten == content {
-        return Ok(false);
-    }
-
-    fs::write(path, rewritten.as_bytes())?;
+    fs::write(path, rewritten)?;
     Ok(true)
 }
 
@@ -59,12 +49,21 @@ pub fn preview_lua_file_rewrite(
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> AppResult<Option<Vec<u8>>> {
-    if !should_rewrite_lua(path) || mappings.is_empty() {
+    let bytes = fs::read(path)?;
+    preview_lua_bytes_rewrite(path, &bytes, mappings, options)
+}
+
+pub fn preview_lua_bytes_rewrite(
+    path_hint: &Path,
+    bytes: &[u8],
+    mappings: &[CharacterMapping],
+    options: LuaRewriteOptions,
+) -> AppResult<Option<Vec<u8>>> {
+    if !should_rewrite_lua(path_hint) || mappings.is_empty() {
         return Ok(None);
     }
 
-    let bytes = fs::read(path)?;
-    let Ok(content) = String::from_utf8(bytes) else {
+    let Ok(content) = String::from_utf8(bytes.to_vec()) else {
         return Ok(None);
     };
 

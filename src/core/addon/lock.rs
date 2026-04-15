@@ -10,10 +10,10 @@ use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
 
 use crate::core::addon::{
-    AddonInventory, AddonPackageMetadata, AddonRegistry, AddonSourceRef,
-    InstallPreparedAddonRequest, RemoveAddonRequest, TrackedAddon, TrackedAddonPackage,
-    install_prepared_addon, list_addons, load_registry, prepare_package_from_archive_with_source,
-    prepare_package_from_source_ref_with_flavor, remove_addons, rollback_or_report_addon_error,
+    AddonInventory, AddonPackageMetadata, AddonRegistry, AddonSourceRef, PreparedAddonPackage,
+    TrackedAddon, TrackedAddonPackage, install_prepared_package, list_addons, load_registry,
+    prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_flavor,
+    remove_selected_packages, rollback_or_report_addon_error, save_registry,
     update_prepared_packages,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
@@ -219,6 +219,30 @@ struct AddonLockPlanContext {
     actions: Vec<PlannedLockAction>,
 }
 
+#[derive(Debug)]
+struct PreparedAddonLockApply {
+    remove_packages: Vec<TrackedAddonPackage>,
+    update_current_packages: Vec<TrackedAddonPackage>,
+    update_prepared_packages: Vec<PreparedAddonPackage>,
+    install_prepared_packages: Vec<PreparedAddonPackage>,
+    metadata_actions: Vec<MetadataOnlyAddonLockAction>,
+}
+
+impl PreparedAddonLockApply {
+    fn is_empty(&self) -> bool {
+        self.remove_packages.is_empty()
+            && self.update_current_packages.is_empty()
+            && self.install_prepared_packages.is_empty()
+            && self.metadata_actions.is_empty()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct MetadataOnlyAddonLockAction {
+    current: TrackedAddonPackage,
+    expected: AddonLockPackage,
+}
+
 pub fn inspect_addon_lock(
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<AddonLockInspection> {
@@ -356,99 +380,29 @@ pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonL
         )));
     }
 
-    for action in plan
-        .actions
-        .iter()
-        .filter(|action| action.action.kind == AddonLockSyncActionKind::Remove)
-    {
-        let current = action.current.as_ref().ok_or_else(|| {
-            AppError::Validation("lock remove action is missing current package".to_string())
-        })?;
-        remove_addons(RemoveAddonRequest {
-            installation: request.installation.clone(),
-            name: current.package_id.clone(),
-            dry_run: false,
-            backup_output_path: request.backup_output_path.clone(),
-        })?;
-    }
-
-    let update_actions = plan
-        .actions
-        .iter()
-        .filter(|action| action.action.kind == AddonLockSyncActionKind::Update)
-        .collect::<Vec<_>>();
-    if !update_actions.is_empty() {
-        let mut selected_packages = Vec::new();
-        let mut prepared_packages = Vec::new();
-        for action in &update_actions {
-            let current = action.current.as_ref().ok_or_else(|| {
-                AppError::Validation("lock update action is missing current package".to_string())
-            })?;
-            let expected = action.expected.as_ref().ok_or_else(|| {
-                AppError::Validation("lock update action is missing expected package".to_string())
-            })?;
-            let mut prepared = prepare_expected_lock_package(
-                expected,
-                source_overrides
-                    .get(&action.action.comparison_key)
-                    .map(PathBuf::as_path),
-                request.installation.flavor,
-            )?;
-            prepared.metadata = Some(metadata_from_lock_package(expected));
-            selected_packages.push(current.clone());
-            prepared_packages.push(prepared);
-        }
-
-        let registry = load_registry(&request.installation)?;
-        let backup_path = Some(
+    let prepared = prepare_addon_lock_apply(&plan, &source_overrides, &request.installation)?;
+    let backup_path = if prepared.is_empty() {
+        None
+    } else {
+        Some(
             create_backup(BackupRequest {
                 installation: request.installation.clone(),
                 output_path: request.backup_output_path.clone(),
                 groups: vec![BackupGroup::Addons],
-                label: Some("addon-lock-apply-update".to_string()),
+                label: Some("addon-lock-apply".to_string()),
             })?
             .archive_path,
-        );
-        match update_prepared_packages(
-            &request.installation,
-            registry,
-            selected_packages,
-            prepared_packages,
-        ) {
-            Ok(_) => {}
-            Err(error) => {
-                return rollback_or_report_addon_error(
-                    error,
-                    backup_path.as_deref(),
-                    &request.installation,
-                );
-            }
-        }
-    }
+        )
+    };
 
-    for action in plan
-        .actions
-        .iter()
-        .filter(|action| action.action.kind == AddonLockSyncActionKind::Install)
+    if let Err(error) =
+        execute_prepared_addon_lock_apply(&request.installation, prepared, request.replace_existing)
     {
-        let expected = action.expected.as_ref().ok_or_else(|| {
-            AppError::Validation("lock install action is missing expected package".to_string())
-        })?;
-        let prepared = prepare_expected_lock_package(
-            expected,
-            source_overrides
-                .get(&action.action.comparison_key)
-                .map(PathBuf::as_path),
-            request.installation.flavor,
-        )?;
-        install_prepared_addon(InstallPreparedAddonRequest {
-            installation: request.installation.clone(),
-            prepared,
-            dry_run: false,
-            backup_output_path: request.backup_output_path.clone(),
-            replace_existing: request.replace_existing,
-            metadata: Some(metadata_from_lock_package(expected)),
-        })?;
+        return rollback_or_report_addon_error(
+            error,
+            backup_path.as_deref(),
+            &request.installation,
+        );
     }
 
     let verification = verify_addon_lock(&request.installation, Some(&plan.result.lock_path))?;
@@ -722,8 +676,8 @@ fn has_material_changes(changes: &[AddonLockFieldChange]) -> bool {
     })
 }
 
-fn metadata_from_lock_package(package: &AddonLockPackage) -> AddonPackageMetadata {
-    AddonPackageMetadata {
+fn metadata_from_lock_package(package: &AddonLockPackage) -> Option<AddonPackageMetadata> {
+    let metadata = AddonPackageMetadata {
         index_name: package.index_name.clone(),
         index_package_id: package.index_package_id.clone(),
         package_name: package.name.clone(),
@@ -732,7 +686,151 @@ fn metadata_from_lock_package(package: &AddonLockPackage) -> AddonPackageMetadat
         website_url: package.website_url.clone(),
         source_sha256: package.source_sha256.clone(),
         supported_flavors: Vec::new(),
+    };
+    (metadata != AddonPackageMetadata::default()).then_some(metadata)
+}
+
+fn prepare_addon_lock_apply(
+    plan: &AddonLockPlanContext,
+    source_overrides: &BTreeMap<String, PathBuf>,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<PreparedAddonLockApply> {
+    let mut remove_packages = Vec::new();
+    let mut update_current_packages = Vec::new();
+    let mut update_prepared_packages = Vec::new();
+    let mut install_prepared_packages = Vec::new();
+    let mut metadata_actions = Vec::new();
+
+    for action in &plan.actions {
+        match action.action.kind {
+            AddonLockSyncActionKind::Remove => {
+                let current = action.current.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "lock remove action is missing current package".to_string(),
+                    )
+                })?;
+                remove_packages.push(current.clone());
+            }
+            AddonLockSyncActionKind::Update => {
+                let current = action.current.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "lock update action is missing current package".to_string(),
+                    )
+                })?;
+                let expected = action.expected.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "lock update action is missing expected package".to_string(),
+                    )
+                })?;
+                let mut prepared = prepare_expected_lock_package(
+                    expected,
+                    source_overrides
+                        .get(&action.action.comparison_key)
+                        .map(PathBuf::as_path),
+                    installation.flavor,
+                )?;
+                prepared.metadata = metadata_from_lock_package(expected);
+                update_current_packages.push(current.clone());
+                update_prepared_packages.push(prepared);
+            }
+            AddonLockSyncActionKind::Install => {
+                let expected = action.expected.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "lock install action is missing expected package".to_string(),
+                    )
+                })?;
+                let mut prepared = prepare_expected_lock_package(
+                    expected,
+                    source_overrides
+                        .get(&action.action.comparison_key)
+                        .map(PathBuf::as_path),
+                    installation.flavor,
+                )?;
+                prepared.metadata = metadata_from_lock_package(expected);
+                install_prepared_packages.push(prepared);
+            }
+            AddonLockSyncActionKind::MetadataOnly => {
+                let current = action.current.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "lock metadata-only action is missing current package".to_string(),
+                    )
+                })?;
+                let expected = action.expected.as_ref().ok_or_else(|| {
+                    AppError::Validation(
+                        "lock metadata-only action is missing expected package".to_string(),
+                    )
+                })?;
+                metadata_actions.push(MetadataOnlyAddonLockAction {
+                    current: current.clone(),
+                    expected: expected.clone(),
+                });
+            }
+        }
     }
+
+    Ok(PreparedAddonLockApply {
+        remove_packages,
+        update_current_packages,
+        update_prepared_packages,
+        install_prepared_packages,
+        metadata_actions,
+    })
+}
+
+fn execute_prepared_addon_lock_apply(
+    installation: &DetectedFlavorInstallation,
+    prepared: PreparedAddonLockApply,
+    replace_existing: bool,
+) -> AppResult<()> {
+    if !prepared.remove_packages.is_empty() {
+        remove_selected_packages(installation, prepared.remove_packages)?;
+    }
+
+    if !prepared.update_current_packages.is_empty() {
+        let registry = load_registry(installation)?;
+        update_prepared_packages(
+            installation,
+            registry,
+            prepared.update_current_packages,
+            prepared.update_prepared_packages,
+        )?;
+    }
+
+    for prepared_package in prepared.install_prepared_packages {
+        install_prepared_package(installation, prepared_package, replace_existing)?;
+    }
+
+    if !prepared.metadata_actions.is_empty() {
+        apply_metadata_only_actions(installation, prepared.metadata_actions)?;
+    }
+
+    Ok(())
+}
+
+fn apply_metadata_only_actions(
+    installation: &DetectedFlavorInstallation,
+    actions: Vec<MetadataOnlyAddonLockAction>,
+) -> AppResult<()> {
+    let mut registry = load_registry(installation)?;
+    let timestamp = now_rfc3339()?;
+
+    for action in actions {
+        let package = registry
+            .packages
+            .iter_mut()
+            .find(|candidate| **candidate == action.current)
+            .ok_or_else(|| {
+                AppError::Validation(format!(
+                    "tracked package disappeared before metadata apply: {}",
+                    action.current.package_id
+                ))
+            })?;
+        package.package_id = action.expected.package_id.clone();
+        package.updated_at = timestamp.clone();
+        package.metadata = metadata_from_lock_package(&action.expected);
+    }
+
+    save_registry(installation, &registry)
 }
 
 fn lock_action_sort_key(kind: &AddonLockSyncActionKind) -> u8 {
@@ -1580,7 +1678,8 @@ mod tests {
         lock_path, plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
     };
     use crate::core::addon::{
-        AddonPackageMetadata, InstallAddonRequest, RemoveAddonRequest, install_addon, remove_addons,
+        AddonPackageMetadata, InstallAddonRequest, RemoveAddonRequest, install_addon, list_addons,
+        remove_addons,
     };
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 
@@ -1900,10 +1999,11 @@ addons = []
         assert_eq!(plan.remove_count, 1);
         assert_eq!(plan.blocked_count, 0);
 
+        let apply_backup_dir = temp.path().join("apply-backups");
         let result = apply_addon_lock_sync(AddonLockApplyRequest {
             installation: current_installation.clone(),
             lock_path: Some(desired_lock.clone()),
-            backup_output_path: Some(temp.path().join("apply-backups")),
+            backup_output_path: Some(apply_backup_dir.clone()),
             replace_existing: false,
             source_overrides: Vec::new(),
         })
@@ -1925,6 +2025,97 @@ addons = []
         );
         assert!(current_installation.addon_dir.join("BigWigs").exists());
         assert!(!current_installation.addon_dir.join("Omen").exists());
+        assert_eq!(count_backup_archives(&apply_backup_dir), 1);
+    }
+
+    #[test]
+    fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
+        let temp = tempdir().expect("temp dir");
+        let archive_path = temp.path().join("details-pack.zip");
+        create_addon_archive(
+            &archive_path,
+            &[(
+                "Details/Details.toc",
+                "## Interface: 110000\n## Version: 1.0.0\n",
+            )],
+        );
+
+        let desired_installation = create_fixture_installation(&temp.path().join("desired"));
+        install_addon(InstallAddonRequest {
+            installation: desired_installation.clone(),
+            source: archive_path.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("desired-backups")),
+            replace_existing: false,
+            metadata: Some(AddonPackageMetadata {
+                package_name: Some("Curated Details".to_string()),
+                version: Some("1.0.0-curated".to_string()),
+                source_url: Some("https://example.invalid/details".to_string()),
+                website_url: Some("https://example.invalid/details/site".to_string()),
+                ..AddonPackageMetadata::default()
+            }),
+        })
+        .expect("install desired details");
+        let desired_lock = write_addon_lock(&desired_installation)
+            .expect("write desired lock")
+            .lock_path;
+
+        let current_installation = create_fixture_installation(&temp.path().join("current"));
+        install_addon(InstallAddonRequest {
+            installation: current_installation.clone(),
+            source: archive_path.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("current-backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install current details");
+
+        let plan = plan_addon_lock_sync(&current_installation, Some(&desired_lock)).expect("plan");
+        assert_eq!(plan.install_count, 0);
+        assert_eq!(plan.update_count, 0);
+        assert_eq!(plan.remove_count, 0);
+        assert_eq!(plan.metadata_only_count, 1);
+
+        let apply_backup_dir = temp.path().join("metadata-apply-backups");
+        let result = apply_addon_lock_sync(AddonLockApplyRequest {
+            installation: current_installation.clone(),
+            lock_path: Some(desired_lock),
+            backup_output_path: Some(apply_backup_dir.clone()),
+            replace_existing: false,
+            source_overrides: Vec::new(),
+        })
+        .expect("apply metadata-only lock sync");
+
+        assert!(result.verification.matches);
+        assert_eq!(result.metadata_only_count, 1);
+        assert_eq!(count_backup_archives(&apply_backup_dir), 1);
+
+        let inventory = list_addons(&current_installation).expect("list addons");
+        let metadata = inventory.tracked_packages[0]
+            .metadata
+            .as_ref()
+            .expect("metadata");
+        assert_eq!(metadata.package_name.as_deref(), Some("Curated Details"));
+        assert_eq!(metadata.version.as_deref(), Some("1.0.0-curated"));
+        assert_eq!(
+            metadata.source_url.as_deref(),
+            Some("https://example.invalid/details")
+        );
+    }
+
+    fn count_backup_archives(path: &Path) -> usize {
+        fs::read_dir(path)
+            .expect("backup dir")
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+            })
+            .count()
     }
 
     fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {

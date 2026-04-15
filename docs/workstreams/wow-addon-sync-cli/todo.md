@@ -1,5 +1,16 @@
 # WoW Addon Sync CLI TODO
 
+## Current Focus
+
+The active priority is sync semantics hardening inside the existing CLI workstream.
+Before adding more CLI surface area or starting any `egui` work, the core must stabilize planning, execution, rollback, and manifest runtime semantics.
+
+The current blocking sequence is:
+
+1. remove remaining dead or duplicated transition paths after planner/executor stabilization
+2. finish manifest mapping intent cleanup in runtime behavior
+3. tighten Lua rewrite scope and encoding handling
+
 ## Phase 0 - Documentation and Alignment
 
 - [x] Define the workstream scope
@@ -73,11 +84,15 @@
 - [x] Add NewBeeBox-style `share` and `sync` semantics as explicit policy choices or aliases
 - [x] Add delete operations to plans for mirror and replace policies
 - [x] Introduce internal `BundleReader`, `BundlePlanner`, and `BundleExecutor` orchestration
-- [ ] Split bundle archive reading, planning, staging, rewriting, and execution boundaries
+- [x] Split bundle archive reading, planning, staging, rewriting, and execution boundaries
+- [x] Introduce a pure preview plan that does not depend on staged execution files
 - [x] Move rewrite materialization out of bundle planning
-- [ ] Ensure plan generation never mutates target state
-- [ ] Make bundle apply use one operation-level backup and rollback boundary
-- [ ] Make addon lock apply use one operation-level backup and rollback boundary
+- [x] Ensure plan generation never mutates target state
+- [x] Make bundle apply use one operation-level backup and rollback boundary
+- [x] Make addon lock apply use one operation-level backup and rollback boundary
+- [ ] Remove dead or duplicated transition paths after planner/executor boundaries are stable
+- [ ] Make manifest character mapping intent (`keep_original`, `explicit`, `prompt`) affect runtime behavior
+- [x] Align apply ordering with explicit resource-group ordering instead of archive iteration order
 
 ## Phase 6 - Lua Rewrite Engine
 

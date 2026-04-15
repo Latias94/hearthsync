@@ -459,7 +459,7 @@ pub fn remove_addons(request: RemoveAddonRequest) -> AppResult<RemovedAddonPacka
     }
 }
 
-fn install_prepared_package(
+pub(crate) fn install_prepared_package(
     installation: &DetectedFlavorInstallation,
     prepared: PreparedAddonPackage,
     replace_existing: bool,
@@ -562,7 +562,7 @@ pub(crate) fn update_prepared_packages(
     Ok((updated_packages, written_files))
 }
 
-fn remove_selected_packages(
+pub(crate) fn remove_selected_packages(
     installation: &DetectedFlavorInstallation,
     selected_packages: Vec<TrackedAddonPackage>,
 ) -> AppResult<bool> {
@@ -883,7 +883,7 @@ pub(crate) fn load_registry(installation: &DetectedFlavorInstallation) -> AppRes
     Ok(toml::from_str(&content)?)
 }
 
-fn save_registry(
+pub(crate) fn save_registry(
     installation: &DetectedFlavorInstallation,
     registry: &AddonRegistry,
 ) -> AppResult<()> {
