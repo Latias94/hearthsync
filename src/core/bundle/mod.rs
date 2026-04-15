@@ -11,7 +11,10 @@ use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::core::addon::lock::write_addon_lock;
+use crate::core::addon::lock::{
+    AddonLockApplyRequest, AddonLockApplyResult, AddonLockPlanResult, apply_addon_lock_sync,
+    plan_addon_lock_sync, write_addon_lock,
+};
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_backup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};
@@ -35,6 +38,28 @@ pub struct CreatedBundle {
     pub archive_path: PathBuf,
     pub archived_files: usize,
     pub manifest: BundleManifest,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleAddonLockPlan {
+    pub bundle_path: PathBuf,
+    pub embedded_lock_entry: String,
+    pub plan: AddonLockPlanResult,
+}
+
+#[derive(Debug, Clone)]
+pub struct BundleAddonLockApplyRequest {
+    pub bundle_path: PathBuf,
+    pub installation: DetectedFlavorInstallation,
+    pub backup_output_path: Option<PathBuf>,
+    pub replace_existing: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleAddonLockApply {
+    pub bundle_path: PathBuf,
+    pub embedded_lock_entry: String,
+    pub apply: AddonLockApplyResult,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -172,6 +197,11 @@ struct PlannedEntry {
 
 struct PreparedBundleApply {
     plan: BundleApplyPlan,
+    _stage_dir: TempDir,
+}
+
+struct ExtractedAddonLock {
+    lock_path: PathBuf,
     _stage_dir: TempDir,
 }
 
@@ -338,6 +368,41 @@ pub fn plan_bundle_apply(
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<BundleApplyPlan> {
     Ok(prepare_bundle_apply(bundle_path, installation, apply_mappings)?.plan)
+}
+
+pub fn plan_bundle_addon_lock(
+    bundle_path: &Path,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<BundleAddonLockPlan> {
+    let extracted = extract_embedded_addon_lock(bundle_path)?;
+    let mut plan = plan_addon_lock_sync(installation, Some(&extracted.lock_path))?;
+    plan.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
+
+    Ok(BundleAddonLockPlan {
+        bundle_path: bundle_path.to_path_buf(),
+        embedded_lock_entry: ADDON_LOCK_ENTRY.to_string(),
+        plan,
+    })
+}
+
+pub fn apply_bundle_addon_lock(
+    request: BundleAddonLockApplyRequest,
+) -> AppResult<BundleAddonLockApply> {
+    let extracted = extract_embedded_addon_lock(&request.bundle_path)?;
+    let mut apply = apply_addon_lock_sync(AddonLockApplyRequest {
+        installation: request.installation,
+        lock_path: Some(extracted.lock_path.clone()),
+        backup_output_path: request.backup_output_path,
+        replace_existing: request.replace_existing,
+    })?;
+    apply.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
+    apply.verification.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
+
+    Ok(BundleAddonLockApply {
+        bundle_path: request.bundle_path,
+        embedded_lock_entry: ADDON_LOCK_ENTRY.to_string(),
+        apply,
+    })
 }
 
 fn prepare_bundle_apply(
@@ -530,6 +595,25 @@ fn extract_bundle_to_stage(bundle_path: &Path, stage_root: &Path) -> AppResult<(
     }
 
     Ok(())
+}
+
+fn extract_embedded_addon_lock(bundle_path: &Path) -> AppResult<ExtractedAddonLock> {
+    let file = File::open(bundle_path)?;
+    let mut archive = ZipArchive::new(file)?;
+    let mut lock_entry = archive.by_name(ADDON_LOCK_ENTRY).map_err(|_| {
+        AppError::NotFound(format!(
+            "bundle does not contain embedded addon lock `{ADDON_LOCK_ENTRY}`"
+        ))
+    })?;
+    let stage_dir = tempdir()?;
+    let lock_path = stage_dir.path().join("lock.toml");
+    let mut output = File::create(&lock_path)?;
+    std::io::copy(&mut lock_entry, &mut output)?;
+
+    Ok(ExtractedAddonLock {
+        lock_path,
+        _stage_dir: stage_dir,
+    })
 }
 
 fn prepare_operation_stage_files(
@@ -1492,7 +1576,8 @@ mod tests {
     use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
     use super::{
-        BundleApplyMappings, PackBundleRequest, UnpackBundleRequest, inspect_bundle, pack_bundle,
+        BundleAddonLockApplyRequest, BundleApplyMappings, PackBundleRequest, UnpackBundleRequest,
+        apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
         plan_bundle_apply, unpack_bundle,
     };
     use crate::core::addon::{InstallAddonRequest, install_addon};
@@ -2074,6 +2159,28 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
                 .join("addons")
                 .join("indexes")
                 .join("addon-index.toml")
+                .exists()
+        );
+
+        let addon_plan =
+            plan_bundle_addon_lock(&bundle.archive_path, &target_installation).expect("addon plan");
+        assert_eq!(addon_plan.plan.install_count, 1);
+        assert_eq!(addon_plan.plan.update_count, 0);
+        assert_eq!(addon_plan.plan.remove_count, 0);
+
+        let addon_apply = apply_bundle_addon_lock(BundleAddonLockApplyRequest {
+            bundle_path: bundle.archive_path,
+            installation: target_installation.clone(),
+            backup_output_path: Some(target.path().join("addon-backups")),
+            replace_existing: false,
+        })
+        .expect("addon apply");
+        assert!(addon_apply.apply.verification.matches);
+        assert!(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.toc")
                 .exists()
         );
     }

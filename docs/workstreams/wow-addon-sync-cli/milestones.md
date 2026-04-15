@@ -113,6 +113,7 @@ Apply a portable bundle to another installation safely.
 - account-level target selection is now a confirmed product requirement from reference research
 - `bundle plan` and `ApplyPlan` are implemented
 - bundle unpack preserves embedded addon metadata under `.hearthsync/bundles/<bundle-id>/` without overwriting active addon tracking
+- bundle addon plan/apply can read embedded addon locks directly from the archive and reuse the lock sync engine
 
 ## M4 - Configuration Sync Engine
 

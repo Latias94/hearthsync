@@ -20,8 +20,9 @@ use crate::core::backup::{
     restore_backup_selection,
 };
 use crate::core::bundle::{
-    BundleApplyMappings, PackBundleRequest, UnpackBundleRequest, inspect_bundle,
-    load_apply_mappings, pack_bundle, plan_bundle_apply, unpack_bundle,
+    BundleAddonLockApplyRequest, BundleApplyMappings, PackBundleRequest, UnpackBundleRequest,
+    apply_bundle_addon_lock, inspect_bundle, load_apply_mappings, pack_bundle,
+    plan_bundle_addon_lock, plan_bundle_apply, unpack_bundle,
 };
 use crate::core::error::AppResult;
 use crate::core::install::{inspect_installation, resolve_installation, scan_installations};
@@ -409,6 +410,67 @@ pub fn run() -> AppResult<()> {
                             backup
                         )
                     }
+                })?;
+            }
+            BundleCommands::AddonPlan {
+                bundle,
+                install,
+                flavor,
+            } => {
+                let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                let result = plan_bundle_addon_lock(&bundle, &installation)?;
+                render(cli.json, &result, |item| {
+                    render_addon_lock_plan_summary(
+                        &format!("Bundle: {}", item.bundle_path.display()),
+                        &item.plan,
+                    )
+                })?;
+            }
+            BundleCommands::AddonApply {
+                bundle,
+                install,
+                flavor,
+                backup_output,
+                replace_existing,
+            } => {
+                let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                let result = apply_bundle_addon_lock(BundleAddonLockApplyRequest {
+                    bundle_path: bundle,
+                    installation,
+                    backup_output_path: backup_output,
+                    replace_existing,
+                })?;
+                render(cli.json, &result, |item| {
+                    let mut lines = vec![
+                        format!("Bundle: {}", item.bundle_path.display()),
+                        format!("Embedded lock: {}", item.embedded_lock_entry),
+                        format!("Installation: {}", item.apply.installation_root.display()),
+                        format!(
+                            "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
+                            item.apply.install_count,
+                            item.apply.update_count,
+                            item.apply.remove_count,
+                            item.apply.metadata_only_count,
+                            item.apply.unchanged_count
+                        ),
+                    ];
+                    if !item.apply.untracked_addons.is_empty() {
+                        lines.push(format!(
+                            "Untracked addon directories remain: {}",
+                            item.apply.untracked_addons.join(", ")
+                        ));
+                    }
+                    lines.push(if item.apply.verification.matches {
+                        "Verification: matches".to_string()
+                    } else {
+                        format!(
+                            "Verification: drift remains ({} changed, {} added, {} removed)",
+                            item.apply.verification.diff.changed_packages.len(),
+                            item.apply.verification.diff.added_packages.len(),
+                            item.apply.verification.diff.removed_packages.len()
+                        )
+                    });
+                    lines.join("\n")
                 })?;
             }
         },
@@ -1161,6 +1223,63 @@ fn merge_apply_mapping_overrides(
     if all_accounts {
         apply_mappings.all_accounts = true;
     }
+}
+
+fn render_addon_lock_plan_summary(
+    header: &str,
+    item: &crate::core::addon::lock::AddonLockPlanResult,
+) -> String {
+    let mut lines = vec![
+        header.to_string(),
+        format!("Embedded/lock path: {}", item.lock_path.display()),
+        format!("Installation: {}", item.installation_root.display()),
+        format!(
+            "Summary: {} install, {} update, {} remove, {} metadata-only, {} unchanged, {} blocked",
+            item.install_count,
+            item.update_count,
+            item.remove_count,
+            item.metadata_only_count,
+            item.unchanged_count,
+            item.blocked_count
+        ),
+    ];
+
+    if !item.untracked_addons.is_empty() {
+        lines.push(format!(
+            "Untracked addon directories: {}",
+            item.untracked_addons.join(", ")
+        ));
+    }
+
+    if item.actions.is_empty() {
+        lines.push("No sync actions required.".to_string());
+        return lines.join("\n");
+    }
+
+    lines.push("Actions:".to_string());
+    for action in &item.actions {
+        let reason = if action.reasons.is_empty() {
+            "no details".to_string()
+        } else {
+            action.reasons.join("; ")
+        };
+        let mut suffix = String::new();
+        if action.requires_replace_existing {
+            suffix.push_str(" | requires --replace-existing");
+        }
+        if !action.blocked_reasons.is_empty() {
+            suffix.push_str(&format!(
+                " | blocked: {}",
+                action.blocked_reasons.join("; ")
+            ));
+        }
+        lines.push(format!(
+            "- {:?}: {} ({}){}",
+            action.kind, action.package_id, reason, suffix
+        ));
+    }
+
+    lines.join("\n")
 }
 
 fn render<T, F>(json: bool, value: &T, text_renderer: F) -> AppResult<()>

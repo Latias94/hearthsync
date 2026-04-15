@@ -60,6 +60,7 @@
 - [x] Apply character WTF resources
 - [x] Implement `hearthsync bundle unpack`
 - [x] Unpack addon metadata sidecars without overwriting active addon tracking
+- [x] Implement `hearthsync bundle addon-plan` and `bundle addon-apply` shortcuts
 - [x] Implement `hearthsync config preview`
 
 ## Phase 6 - Lua Rewrite Engine

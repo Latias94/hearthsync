@@ -386,6 +386,7 @@ Addon metadata is stored as sidecar data instead of overwriting the target machi
 - `metadata/addons/indexes/*.toml` contains curated addon indexes referenced by the manifest
 - unpack writes these files to `Interface/AddOns/.hearthsync/bundles/<bundle-id>/...`
 - users can then run `addon lock plan/apply --file <sidecar-lock>` explicitly
+- `bundle addon-plan` and `bundle addon-apply` can read `metadata/addons/lock.toml` directly from the archive when users only want the addon sync plan
 
 ## CLI Surface Proposal
 
@@ -501,6 +502,8 @@ Current commands:
 - `addon lock diff --left-file <lock-a.toml> --right-file <lock-b.toml>`
 - `addon lock plan --install <wow-path> [--file <lock.toml>]`
 - `addon lock apply --install <wow-path> [--file <lock.toml>] [--replace-existing]`
+- `bundle addon-plan --bundle <bundle.zip> --install <wow-path>`
+- `bundle addon-apply --bundle <bundle.zip> --install <wow-path> [--backup-output <dir>] [--replace-existing]`
 
 The first version validates package ids, duplicate ids, source references, and optional flavor compatibility before delegating to the existing install/update pipeline.
 When index-based installs or updates succeed, curated package metadata is carried into the lock file so later GUI flows can present stable names, pinned versions, and source hashes without reopening the original index.
@@ -512,6 +515,8 @@ Sync planning and apply prefer index identity when it exists, then fall back to 
 - `hearthsync bundle pack`
 - `hearthsync bundle inspect <bundle>`
 - `hearthsync bundle apply <bundle>`
+- `hearthsync bundle addon-plan`
+- `hearthsync bundle addon-apply`
 
 ### Config Operations
 
@@ -579,6 +584,8 @@ Recommended apply order:
 5. character WTF
 6. post-apply rewrites
 7. optional explicit addon lock plan/apply from embedded sidecar metadata
+
+`bundle addon-plan` and `bundle addon-apply` are shortcut workflows for step 7. They extract only `metadata/addons/lock.toml` into a temporary workspace and reuse the addon lock sync engine, so the target machine must be able to resolve the lock's source references. Local archive paths captured from the source machine are therefore not portable yet unless the user makes those archives available at equivalent paths or updates the lock/index source references.
 
 ## Cross-Platform Concerns
 

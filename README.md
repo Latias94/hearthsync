@@ -108,6 +108,15 @@ addon_indexes = [".\\addon-index.toml"]
 
 When present, HearthSync embeds the refreshed addon lock at `metadata/addons/lock.toml` and addon indexes under `metadata/addons/indexes/`.
 Unpacking writes those files as sidecar metadata under `Interface/AddOns/.hearthsync/bundles/<bundle-id>/` so users can run `addon lock plan/apply --file <sidecar-lock>` explicitly without silently replacing local addon tracking.
+For convenience, bundles can also be used directly as addon sync inputs:
+
+```powershell
+cargo run -- bundle addon-plan --bundle .\my-ui.zip --install "E:\Games\World of Warcraft" --flavor retail
+cargo run -- bundle addon-apply --bundle .\my-ui.zip --install "E:\Games\World of Warcraft" --flavor retail --backup-output .\backups --replace-existing
+```
+
+These commands read `metadata/addons/lock.toml` from the bundle without unpacking sidecar files first.
+The referenced addon sources must still be reachable on the target machine; for example, source-machine local archive paths need to be shared or copied until bundle-local addon sources are implemented.
 
 Preview and unpack a bundle:
 

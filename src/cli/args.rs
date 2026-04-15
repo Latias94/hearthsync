@@ -138,6 +138,26 @@ pub enum BundleCommands {
         #[arg(long)]
         all_accounts: bool,
     },
+    AddonPlan {
+        #[arg(long)]
+        bundle: PathBuf,
+        #[arg(long)]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+    },
+    AddonApply {
+        #[arg(long)]
+        bundle: PathBuf,
+        #[arg(long)]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(long)]
+        backup_output: Option<PathBuf>,
+        #[arg(long)]
+        replace_existing: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
