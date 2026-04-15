@@ -386,6 +386,9 @@ interface_assets = true
 
 ### Addon Operations
 
+- `hearthsync addon index inspect`
+- `hearthsync addon index install`
+- `hearthsync addon index update`
 - `hearthsync addon search`
 - `hearthsync addon list`
 - `hearthsync addon install <source>`
@@ -437,6 +440,33 @@ Resolution rules in the current version:
 - `github:owner/repo@tag` resolves a specific release tag
 - `github:owner/repo#asset.zip` selects an explicit asset when a release contains multiple zip files
 - if a release contains multiple zip assets and no asset is specified, the command fails with a clear disambiguation error
+
+### Custom Addon Index v1
+
+Custom indexes are local TOML files for curated addon lists.
+They are intentionally provider-neutral and store source references using the same serialized `AddonSourceRef` model as the addon registry.
+
+Example:
+
+```toml
+schema_version = 1
+name = "Example Raid UI"
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+version = "5.0.0"
+source = { kind = "github_release", owner = "WeakAuras", repo = "WeakAuras2", tag = "5.0.0", asset_name = "WeakAuras-5.0.0.zip" }
+supported_flavors = ["retail"]
+```
+
+Current commands:
+
+- `addon index inspect --file <index.toml>`
+- `addon index install --file <index.toml> --name <id-or-name>`
+- `addon index update --file <index.toml> [--name <id-or-name>]`
+
+The first version validates package ids, duplicate ids, source references, and optional flavor compatibility before delegating to the existing install/update pipeline.
 
 ### Bundle Operations
 

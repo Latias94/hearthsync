@@ -27,10 +27,12 @@ pub enum AddonSourceRef {
     HttpArchive {
         url: String,
     },
+    #[serde(rename = "curseforge_mod", alias = "curse_forge_mod")]
     CurseForgeMod {
         mod_id: u32,
         file_id: Option<u32>,
     },
+    #[serde(rename = "github_release", alias = "git_hub_release")]
     GitHubRelease {
         owner: String,
         repo: String,
@@ -724,6 +726,8 @@ struct CurseForgeFileIndex {
 
 #[cfg(test)]
 mod tests {
+    use serde::{Deserialize, Serialize};
+
     use super::{
         AddonSourceRef, CurseForgeFile, CurseForgeGameVersionType, CurseForgeSortableGameVersion,
         GitHubRelease, GitHubReleaseAsset, parse_curseforge_source, parse_github_source,
@@ -731,6 +735,73 @@ mod tests {
         validate_curseforge_file,
     };
     use crate::core::install::WowFlavor;
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct AddonSourceFixture {
+        source: AddonSourceRef,
+    }
+
+    #[test]
+    fn addon_source_ref_uses_canonical_provider_kind_names() {
+        let github = AddonSourceFixture {
+            source: AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: None,
+                asset_name: None,
+            },
+        };
+        let curseforge = AddonSourceFixture {
+            source: AddonSourceRef::CurseForgeMod {
+                mod_id: 12345,
+                file_id: None,
+            },
+        };
+
+        assert!(
+            toml::to_string(&github)
+                .expect("github source toml")
+                .contains("kind = \"github_release\"")
+        );
+        assert!(
+            toml::to_string(&curseforge)
+                .expect("curseforge source toml")
+                .contains("kind = \"curseforge_mod\"")
+        );
+    }
+
+    #[test]
+    fn addon_source_ref_accepts_legacy_provider_kind_names() {
+        let github: AddonSourceFixture = toml::from_str(
+            r#"
+source = { kind = "git_hub_release", owner = "owner", repo = "repo" }
+"#,
+        )
+        .expect("legacy github source");
+        let curseforge: AddonSourceFixture = toml::from_str(
+            r#"
+source = { kind = "curse_forge_mod", mod_id = 12345 }
+"#,
+        )
+        .expect("legacy curseforge source");
+
+        assert_eq!(
+            github.source,
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: None,
+                asset_name: None,
+            }
+        );
+        assert_eq!(
+            curseforge.source,
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 12345,
+                file_id: None,
+            }
+        );
+    }
 
     #[test]
     fn parse_curseforge_source_with_explicit_file() {

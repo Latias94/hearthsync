@@ -81,6 +81,14 @@ cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retai
 cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retail --source "curseforge:12345@67890"
 ```
 
+Install from a custom addon index:
+
+```powershell
+cargo run -- addon index inspect --file .\addon-index.toml
+cargo run -- addon index install --install "E:\Games\World of Warcraft" --flavor retail --file .\addon-index.toml --name WeakAuras
+cargo run -- addon index update --install "E:\Games\World of Warcraft" --flavor retail --file .\addon-index.toml
+```
+
 Create a portable bundle:
 
 ```powershell
@@ -106,6 +114,34 @@ HearthSync currently supports:
 
 CurseForge access requires an official CurseForge REST API key in `HEARTHSYNC_CURSEFORGE_API_KEY`.
 HearthSync does not re-host CurseForge files; it resolves metadata and downloads through the provider API.
+
+## Custom Addon Index
+
+Custom indexes let users, guilds, or maintainers publish a curated list of addon sources without depending on a third-party search API.
+
+Example:
+
+```toml
+schema_version = 1
+name = "Example Raid UI"
+description = "Pinned addon sources for a raid team"
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+version = "5.0.0"
+source = { kind = "github_release", owner = "WeakAuras", repo = "WeakAuras2", tag = "5.0.0", asset_name = "WeakAuras-5.0.0.zip" }
+website_url = "https://github.com/WeakAuras/WeakAuras2"
+addon_directories = ["WeakAuras", "WeakAurasOptions"]
+supported_flavors = ["retail"]
+```
+
+Supported `source.kind` values are the same source references used by the install command:
+
+- `local_archive`
+- `http_archive`
+- `github_release`
+- `curseforge_mod`
 
 ## Safety Model
 

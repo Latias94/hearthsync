@@ -3,6 +3,10 @@ mod args;
 use clap::Parser;
 use serde::Serialize;
 
+use crate::core::addon::index::{
+    AddonIndexInstallRequest, AddonIndexUpdateRequest, inspect_addon_index,
+    install_addon_from_index, update_addons_from_index,
+};
 use crate::core::addon::{
     InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest, UpdateAddonRequest, install_addon,
     list_addons, remove_addons, search_addons, update_addons,
@@ -403,6 +407,141 @@ pub fn run() -> AppResult<()> {
             }
         },
         Commands::Addon { command } => match command {
+            AddonCommands::Index { command } => match command {
+                AddonIndexCommands::Inspect { file } => {
+                    let inspection = inspect_addon_index(&file)?;
+                    render(cli.json, &inspection, |item| {
+                        let packages = item
+                            .index
+                            .packages
+                            .iter()
+                            .map(|package| {
+                                format!(
+                                    "{} {} => {}",
+                                    package.id,
+                                    package.version,
+                                    package.source.display_name()
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        format!(
+                            "Index: {}\nName: {}\nPackages: {}\n{}",
+                            item.index_path.display(),
+                            item.index.name,
+                            item.package_count,
+                            if packages.is_empty() {
+                                "none".to_string()
+                            } else {
+                                packages
+                            }
+                        )
+                    })?;
+                }
+                AddonIndexCommands::Install {
+                    install,
+                    flavor,
+                    file,
+                    name,
+                    dry_run,
+                    backup_output,
+                    replace_existing,
+                } => {
+                    let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                    let result = install_addon_from_index(AddonIndexInstallRequest {
+                        installation,
+                        index_path: file,
+                        name,
+                        dry_run,
+                        backup_output_path: backup_output,
+                        replace_existing,
+                    })?;
+                    render(cli.json, &result, |item| {
+                        let backup = item
+                            .install
+                            .backup_path
+                            .as_ref()
+                            .map(|path| path.display().to_string())
+                            .unwrap_or_else(|| "none".to_string());
+                        let addons = item
+                            .install
+                            .addons
+                            .iter()
+                            .map(|addon| addon.directory_name.clone())
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        if item.install.dry_run {
+                            format!(
+                                "Dry run only.\nIndex: {}\nPackage: {} {}\nAddons: {}\nFiles to write: {}\nBackup: {}",
+                                item.index_path.display(),
+                                item.package.id,
+                                item.package.version,
+                                addons,
+                                item.install.files_to_write,
+                                backup
+                            )
+                        } else {
+                            format!(
+                                "Installed index package: {} {}\nIndex: {}\nAddons: {}\nWritten files: {}\nBackup: {}",
+                                item.package.id,
+                                item.package.version,
+                                item.index_path.display(),
+                                addons,
+                                item.install.written_files,
+                                backup
+                            )
+                        }
+                    })?;
+                }
+                AddonIndexCommands::Update {
+                    install,
+                    flavor,
+                    file,
+                    name,
+                    dry_run,
+                    backup_output,
+                } => {
+                    let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                    let result = update_addons_from_index(AddonIndexUpdateRequest {
+                        installation,
+                        index_path: file,
+                        name,
+                        dry_run,
+                        backup_output_path: backup_output,
+                    })?;
+                    render(cli.json, &result, |item| {
+                        let backup = item
+                            .update
+                            .backup_path
+                            .as_ref()
+                            .map(|path| path.display().to_string())
+                            .unwrap_or_else(|| "none".to_string());
+                        let packages = item
+                            .selected_packages
+                            .iter()
+                            .map(|package| format!("{} {}", package.id, package.version))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        if item.update.dry_run {
+                            format!(
+                                "Dry run only.\nIndex: {}\nPackages: {}\nFiles to write: {}\nBackup: {}",
+                                item.index_path.display(),
+                                packages,
+                                item.update.files_to_write,
+                                backup
+                            )
+                        } else {
+                            format!(
+                                "Updated index packages: {}\nIndex: {}\nWritten files: {}\nBackup: {}",
+                                packages,
+                                item.index_path.display(),
+                                item.update.written_files,
+                                backup
+                            )
+                        }
+                    })?;
+                }
+            },
             AddonCommands::Search {
                 install,
                 flavor,

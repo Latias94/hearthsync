@@ -77,6 +77,7 @@
 - [x] Implement addon removal flow
 - [x] Implement addon search flow
 - [x] Implement CurseForge flavor-aware file selection
+- [x] Implement custom addon index inspect/install/update
 - [x] Implement `hearthsync addon list`
 - [x] Implement `hearthsync addon search`
 - [x] Implement `hearthsync addon install`

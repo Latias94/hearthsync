@@ -1,3 +1,4 @@
+pub mod index;
 mod provider;
 
 use std::collections::BTreeSet;
@@ -117,7 +118,7 @@ pub struct TrackedAddon {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct AddonRegistry {
+pub(crate) struct AddonRegistry {
     schema_version: u32,
     packages: Vec<TrackedAddonPackage>,
 }
@@ -132,18 +133,18 @@ impl Default for AddonRegistry {
 }
 
 #[derive(Debug)]
-struct PreparedAddonPackage {
-    source: AddonSourceRef,
-    package_id: String,
-    addons: Vec<PreparedAddonDirectory>,
+pub(crate) struct PreparedAddonPackage {
+    pub(crate) source: AddonSourceRef,
+    pub(crate) package_id: String,
+    pub(crate) addons: Vec<PreparedAddonDirectory>,
     _stage_dir: TempDir,
 }
 
 #[derive(Debug, Clone)]
-struct PreparedAddonDirectory {
-    addon: TrackedAddon,
+pub(crate) struct PreparedAddonDirectory {
+    pub(crate) addon: TrackedAddon,
     stage_path: PathBuf,
-    file_count: usize,
+    pub(crate) file_count: usize,
 }
 
 pub fn list_addons(installation: &DetectedFlavorInstallation) -> AppResult<AddonInventory> {
@@ -452,7 +453,7 @@ fn install_prepared_package(
     Ok((package, written_files))
 }
 
-fn update_prepared_packages(
+pub(crate) fn update_prepared_packages(
     installation: &DetectedFlavorInstallation,
     mut registry: AddonRegistry,
     selected_packages: Vec<TrackedAddonPackage>,
@@ -543,7 +544,7 @@ fn prepare_package_from_source_input_with_flavor(
     )
 }
 
-fn prepare_package_from_source_ref_with_flavor(
+pub(crate) fn prepare_package_from_source_ref_with_flavor(
     source: &AddonSourceRef,
     target_flavor: Option<crate::core::install::WowFlavor>,
 ) -> AppResult<PreparedAddonPackage> {
@@ -803,7 +804,7 @@ fn remove_path(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-fn load_registry(installation: &DetectedFlavorInstallation) -> AppResult<AddonRegistry> {
+pub(crate) fn load_registry(installation: &DetectedFlavorInstallation) -> AppResult<AddonRegistry> {
     let path = registry_path(installation);
     if !path.exists() {
         return Ok(AddonRegistry::default());
@@ -914,7 +915,7 @@ fn select_packages_for_update(
     }
 }
 
-fn rollback_or_report_addon_error<T>(
+pub(crate) fn rollback_or_report_addon_error<T>(
     error: AppError,
     backup_path: Option<&Path>,
     installation: &DetectedFlavorInstallation,

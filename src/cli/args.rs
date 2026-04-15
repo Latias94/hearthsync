@@ -142,6 +142,11 @@ pub enum BundleCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum AddonCommands {
+    #[command(about = "Inspect, install, or update addons from a curated TOML index")]
+    Index {
+        #[command(subcommand)]
+        command: AddonIndexCommands,
+    },
     Search {
         #[arg(long)]
         install: PathBuf,
@@ -197,6 +202,47 @@ pub enum AddonCommands {
         #[arg(long)]
         dry_run: bool,
         #[arg(long)]
+        backup_output: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AddonIndexCommands {
+    #[command(about = "Validate and summarize a curated addon index")]
+    Inspect {
+        #[arg(long, help = "Path to the addon index TOML file")]
+        file: PathBuf,
+    },
+    #[command(about = "Install one package from a curated addon index")]
+    Install {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(long, help = "Path to the addon index TOML file")]
+        file: PathBuf,
+        #[arg(long, help = "Package id or package name from the index")]
+        name: String,
+        #[arg(long, help = "Preview changes without writing files")]
+        dry_run: bool,
+        #[arg(long, help = "Directory for automatic backups")]
+        backup_output: Option<PathBuf>,
+        #[arg(long, help = "Replace existing addon directories instead of failing")]
+        replace_existing: bool,
+    },
+    #[command(about = "Update indexed packages already tracked in the addon registry")]
+    Update {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(long, help = "Path to the addon index TOML file")]
+        file: PathBuf,
+        #[arg(long, help = "Optional package id or package name from the index")]
+        name: Option<String>,
+        #[arg(long, help = "Preview changes without writing files")]
+        dry_run: bool,
+        #[arg(long, help = "Directory for automatic backups")]
         backup_output: Option<PathBuf>,
     },
 }

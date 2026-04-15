@@ -168,6 +168,7 @@ Add direct addon install and update capabilities.
 
 - `addon search`, `addon list`, `addon install`, `addon update`, and `addon remove` are implemented
 - the first source abstraction supports local zip archives, direct `http/https` zip downloads, `GitHub Releases`, and `CurseForge` shortcut sources
+- custom addon indexes support curated inspect/install/update workflows without requiring provider search access
 - CurseForge source resolution now filters files by the target WoW flavor through official version-type metadata
 - addon receipts are tracked in `Interface/AddOns/.hearthsync/addons.toml`
 - addon updates reuse the recorded source reference and refresh tracked addon directories
