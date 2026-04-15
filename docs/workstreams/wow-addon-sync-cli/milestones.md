@@ -76,6 +76,7 @@ Export a portable WoW setup bundle from a local installation.
 - `bundle pack` is implemented
 - `bundle inspect` is implemented
 - normalized archive layout is covered by automated tests
+- bundle archives can embed addon lock and addon index sidecar metadata
 - include and exclude glob filters are still pending
 
 ## M3 - Portable Bundle Apply
@@ -111,6 +112,7 @@ Apply a portable bundle to another installation safely.
 - explicit target remapping is implemented through CLI flags and a mapping file
 - account-level target selection is now a confirmed product requirement from reference research
 - `bundle plan` and `ApplyPlan` are implemented
+- bundle unpack preserves embedded addon metadata under `.hearthsync/bundles/<bundle-id>/` without overwriting active addon tracking
 
 ## M4 - Configuration Sync Engine
 

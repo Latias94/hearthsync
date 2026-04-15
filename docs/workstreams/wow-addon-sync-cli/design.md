@@ -115,6 +115,8 @@ Proposed archive layout:
 bundle.zip
   manifest.toml
   addons/
+  metadata/addons/lock.toml
+  metadata/addons/indexes/
   wtf/common/
   wtf/characters/<character_key>/
   fonts/
@@ -370,11 +372,20 @@ rewrite_character_identity = true
 
 [resources]
 addons = true
+addon_lock = true
+addon_indexes = ["addon-index.toml"]
 wtf_common = true
 wtf_characters = true
 fonts = true
 interface_assets = true
 ```
+
+Addon metadata is stored as sidecar data instead of overwriting the target machine's active addon registry:
+
+- `metadata/addons/lock.toml` contains the refreshed addon lock from the source installation
+- `metadata/addons/indexes/*.toml` contains curated addon indexes referenced by the manifest
+- unpack writes these files to `Interface/AddOns/.hearthsync/bundles/<bundle-id>/...`
+- users can then run `addon lock plan/apply --file <sidecar-lock>` explicitly
 
 ## CLI Surface Proposal
 
@@ -533,6 +544,7 @@ Sync planning and apply prefer index identity when it exists, then fall back to 
 
 - selecting one installation
 - selecting content groups to include
+- embedding the source addon lock and curated addon index files as metadata
 - selecting one or more characters
 - include and exclude globs
 - optional pruning of cache and backup files
@@ -566,6 +578,7 @@ Recommended apply order:
 4. common WTF
 5. character WTF
 6. post-apply rewrites
+7. optional explicit addon lock plan/apply from embedded sidecar metadata
 
 ## Cross-Platform Concerns
 

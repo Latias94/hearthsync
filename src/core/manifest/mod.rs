@@ -40,11 +40,21 @@ impl BundleManifest {
             && self.resources.wtf_characters.is_empty()
             && !self.resources.fonts
             && self.resources.interface_assets.is_empty()
+            && !self.resources.addon_lock
+            && self.resources.addon_indexes.is_empty()
         {
             return Err(AppError::Validation(
                 "resources must include at least one addon, config group, font, or interface asset"
                     .to_string(),
             ));
+        }
+
+        for addon_index in &self.resources.addon_indexes {
+            if addon_index.trim().is_empty() {
+                return Err(AppError::Validation(
+                    "resources.addon_indexes must not contain empty paths".to_string(),
+                ));
+            }
         }
 
         if self.mapping.character_mode == CharacterMappingMode::Explicit
@@ -82,6 +92,10 @@ pub struct BundleResources {
     pub wtf_characters: Vec<CharacterResource>,
     pub fonts: bool,
     pub interface_assets: Vec<String>,
+    #[serde(default)]
+    pub addon_lock: bool,
+    #[serde(default)]
+    pub addon_indexes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,6 +160,8 @@ pub fn example_manifest() -> AppResult<String> {
             }],
             fonts: false,
             interface_assets: vec!["SharedXML".to_string()],
+            addon_lock: false,
+            addon_indexes: Vec::new(),
         },
         mapping: MappingRules {
             character_mode: CharacterMappingMode::Explicit,

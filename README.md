@@ -98,6 +98,17 @@ cargo run -- manifest example > manifest.toml
 cargo run -- bundle pack --install "E:\Games\World of Warcraft" --flavor retail --manifest .\manifest.toml --output .\my-ui.zip
 ```
 
+Bundle manifests can also include addon state metadata:
+
+```toml
+[resources]
+addon_lock = true
+addon_indexes = [".\\addon-index.toml"]
+```
+
+When present, HearthSync embeds the refreshed addon lock at `metadata/addons/lock.toml` and addon indexes under `metadata/addons/indexes/`.
+Unpacking writes those files as sidecar metadata under `Interface/AddOns/.hearthsync/bundles/<bundle-id>/` so users can run `addon lock plan/apply --file <sidecar-lock>` explicitly without silently replacing local addon tracking.
+
 Preview and unpack a bundle:
 
 ```powershell

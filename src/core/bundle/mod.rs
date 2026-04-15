@@ -11,6 +11,7 @@ use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
+use crate::core::addon::lock::write_addon_lock;
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_backup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};
@@ -18,12 +19,15 @@ use crate::core::lua_patch::{CharacterMapping, LuaRewriteOptions, rewrite_lua_fi
 use crate::core::manifest::{BundleManifest, CharacterResource};
 
 const MANIFEST_ENTRY: &str = "manifest.toml";
+const ADDON_LOCK_ENTRY: &str = "metadata/addons/lock.toml";
+const ADDON_INDEX_ENTRY_ROOT: &str = "metadata/addons/indexes";
 
 #[derive(Debug, Clone)]
 pub struct PackBundleRequest {
     pub installation: DetectedFlavorInstallation,
     pub manifest: BundleManifest,
     pub output_path: Option<PathBuf>,
+    pub manifest_base_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -122,6 +126,7 @@ pub struct ApplyGroupPolicies {
     pub wtf_characters: GroupPolicy,
     pub fonts: GroupPolicy,
     pub interface_assets: GroupPolicy,
+    pub metadata: GroupPolicy,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -231,6 +236,32 @@ pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
             )));
         }
         archived_files += add_path_to_zip(&mut zip, &source, &Path::new("addons").join(addon))?;
+    }
+
+    if request.manifest.resources.addon_lock {
+        let lock_result = write_addon_lock(&request.installation)?;
+        if lock_result.removed {
+            return Err(AppError::Validation(
+                "cannot embed addon lock because no tracked addon packages were found".to_string(),
+            ));
+        }
+        archived_files += add_path_to_zip(
+            &mut zip,
+            &lock_result.lock_path,
+            Path::new(ADDON_LOCK_ENTRY),
+        )?;
+    }
+
+    let addon_index_paths = resolve_addon_index_paths(
+        &request.manifest.resources.addon_indexes,
+        request.manifest_base_dir.as_deref(),
+    )?;
+    for (file_name, source_path) in addon_index_paths {
+        archived_files += add_path_to_zip(
+            &mut zip,
+            &source_path,
+            &Path::new(ADDON_INDEX_ENTRY_ROOT).join(file_name),
+        )?;
     }
 
     if request.manifest.resources.wtf_common {
@@ -395,6 +426,9 @@ fn prepare_bundle_apply(
                 },
                 fonts: GroupPolicy { mode: "merge_copy" },
                 interface_assets: GroupPolicy { mode: "merge_copy" },
+                metadata: GroupPolicy {
+                    mode: "bundle_sidecar",
+                },
             },
             manifest: inspection.manifest,
         },
@@ -633,6 +667,54 @@ fn add_common_wtf_to_zip(zip: &mut ZipWriter<File>, wtf_dir: &Path) -> AppResult
     Ok(archived_files)
 }
 
+fn resolve_addon_index_paths(
+    addon_indexes: &[String],
+    manifest_base_dir: Option<&Path>,
+) -> AppResult<Vec<(String, PathBuf)>> {
+    let mut resolved = Vec::new();
+    let mut file_names = Vec::new();
+
+    for addon_index in addon_indexes {
+        let reference = Path::new(addon_index);
+        let source_path = if reference.is_absolute() {
+            reference.to_path_buf()
+        } else if let Some(base_dir) = manifest_base_dir {
+            base_dir.join(reference)
+        } else {
+            std::env::current_dir()?.join(reference)
+        };
+
+        if !source_path.is_file() {
+            return Err(AppError::NotFound(format!(
+                "addon index file does not exist: {}",
+                source_path.display()
+            )));
+        }
+
+        let file_name = source_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| !name.trim().is_empty())
+            .ok_or_else(|| {
+                AppError::Validation(format!(
+                    "addon index file has no usable file name: {}",
+                    source_path.display()
+                ))
+            })?
+            .to_string();
+        validate_plain_name("addon index file", &file_name)?;
+        if file_names.iter().any(|item| item == &file_name) {
+            return Err(AppError::Validation(format!(
+                "duplicate addon index file name in bundle metadata: {file_name}"
+            )));
+        }
+        file_names.push(file_name.clone());
+        resolved.push((file_name, source_path));
+    }
+
+    Ok(resolved)
+}
+
 fn add_character_wtf_to_zip(
     zip: &mut ZipWriter<File>,
     wtf_dir: &Path,
@@ -779,7 +861,7 @@ fn count_bundle_entries(archive: &mut ZipArchive<File>) -> AppResult<BundleEntry
 
         counts.total_files += 1;
         let name = file.name();
-        if name == MANIFEST_ENTRY {
+        if name == MANIFEST_ENTRY || name.starts_with("metadata/") {
             counts.metadata += 1;
         } else if name.starts_with("addons/") {
             counts.addons += 1;
@@ -826,6 +908,7 @@ fn plan_extractable_entries(
         let entries = map_bundle_entry_to_destination(
             &archive_name,
             installation,
+            manifest,
             character_mappings,
             &common_account_targets,
             apply_mappings.target_account.as_deref(),
@@ -842,6 +925,7 @@ fn plan_extractable_entries(
 fn map_bundle_entry_to_destination(
     archive_name: &str,
     installation: &DetectedFlavorInstallation,
+    manifest: &BundleManifest,
     character_mappings: &[CharacterMapping],
     common_account_targets: &BTreeMap<String, String>,
     default_target_account: Option<&str>,
@@ -859,6 +943,23 @@ fn map_bundle_entry_to_destination(
     let staged_path = join_segments(stage_root, &segments);
 
     match segments.as_slice() {
+        ["metadata", rest @ ..] if !rest.is_empty() => Ok(vec![PlannedEntry {
+            archive_name: archive_name.to_string(),
+            destination: join_segments(
+                &installation
+                    .addon_dir
+                    .join(".hearthsync")
+                    .join("bundles")
+                    .join(safe_file_part(&manifest.package.id)),
+                rest,
+            ),
+            rewrites: Vec::new(),
+            group: ApplyGroup::Metadata,
+            target_account: None,
+            target_server: None,
+            target_character: None,
+            staged_path,
+        }]),
         ["addons", rest @ ..] if !rest.is_empty() => Ok(vec![PlannedEntry {
             archive_name: archive_name.to_string(),
             destination: join_segments(&installation.addon_dir, rest),
@@ -1246,7 +1347,10 @@ fn validate_target_compatibility(
 fn backup_groups_for_manifest(manifest: &BundleManifest) -> Vec<BackupGroup> {
     let mut groups = Vec::new();
 
-    if !manifest.resources.addons.is_empty() {
+    if !manifest.resources.addons.is_empty()
+        || manifest.resources.addon_lock
+        || !manifest.resources.addon_indexes.is_empty()
+    {
         groups.push(BackupGroup::Addons);
     }
     if manifest.resources.wtf_common || !manifest.resources.wtf_characters.is_empty() {
@@ -1381,14 +1485,17 @@ fn zip_dir_options() -> SimpleFileOptions {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::io::Write;
 
     use tempfile::tempdir;
-    use zip::ZipArchive;
+    use zip::write::SimpleFileOptions;
+    use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
     use super::{
         BundleApplyMappings, PackBundleRequest, UnpackBundleRequest, inspect_bundle, pack_bundle,
         plan_bundle_apply, unpack_bundle,
     };
+    use crate::core::addon::{InstallAddonRequest, install_addon};
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::manifest::{
         ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
@@ -1405,6 +1512,7 @@ mod tests {
             installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1442,6 +1550,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1532,6 +1641,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1566,6 +1676,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1599,6 +1710,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest_with_rewrite(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1695,6 +1807,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1768,6 +1881,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1843,6 +1957,7 @@ mod tests {
             installation: source_installation,
             manifest: sample_manifest(),
             output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
         })
         .expect("pack bundle");
 
@@ -1864,6 +1979,101 @@ mod tests {
                 .addon_dir
                 .join("WeakAuras")
                 .join("WeakAuras.toc")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn pack_bundle_embeds_addon_lock_and_indexes_as_sidecar_metadata() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), false);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let archive_path = source.path().join("WeakAuras.zip");
+        let index_path = source.path().join("addon-index.toml");
+
+        create_addon_archive(
+            &archive_path,
+            &[(
+                "WeakAuras/WeakAuras.toc",
+                "## Interface: 110000\n## Version: 1.0.0\n",
+            )],
+        );
+        install_addon(InstallAddonRequest {
+            installation: source_installation.clone(),
+            source: archive_path.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(source.path().join("backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install tracked addon");
+        fs::write(
+            &index_path,
+            r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+version = "1.0.0"
+source = { kind = "local_archive", path = "WeakAuras.zip" }
+"#,
+        )
+        .expect("index");
+
+        let mut manifest = sample_manifest();
+        manifest.resources.addons = Vec::new();
+        manifest.resources.wtf_common = false;
+        manifest.resources.wtf_characters = Vec::new();
+        manifest.resources.fonts = false;
+        manifest.resources.interface_assets = Vec::new();
+        manifest.resources.addon_lock = true;
+        manifest.resources.addon_indexes = vec!["addon-index.toml".to_string()];
+        manifest.mapping.character_mode = CharacterMappingMode::KeepOriginal;
+
+        let bundle = pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: Some(source.path().to_path_buf()),
+        })
+        .expect("pack bundle");
+
+        let file = fs::File::open(&bundle.archive_path).expect("bundle file");
+        let mut archive = ZipArchive::new(file).expect("zip archive");
+        assert!(archive.by_name("metadata/addons/lock.toml").is_ok());
+        assert!(
+            archive
+                .by_name("metadata/addons/indexes/addon-index.toml")
+                .is_ok()
+        );
+
+        let inspection = inspect_bundle(&bundle.archive_path).expect("inspect bundle");
+        assert_eq!(inspection.entries.metadata, 3);
+
+        unpack_bundle(UnpackBundleRequest {
+            bundle_path,
+            installation: target_installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(target.path().join("backups")),
+            apply_mappings: BundleApplyMappings::default(),
+        })
+        .expect("unpack bundle");
+
+        let sidecar_root = target_installation
+            .addon_dir
+            .join(".hearthsync")
+            .join("bundles")
+            .join("test-ui");
+        assert!(sidecar_root.join("addons").join("lock.toml").exists());
+        assert!(
+            sidecar_root
+                .join("addons")
+                .join("indexes")
+                .join("addon-index.toml")
                 .exists()
         );
     }
@@ -1972,6 +2182,20 @@ PawnOptions = {
         }
     }
 
+    fn create_addon_archive(path: &std::path::Path, entries: &[(&str, &str)]) {
+        let file = fs::File::create(path).expect("archive file");
+        let mut zip = ZipWriter::new(file);
+        for (name, content) in entries {
+            zip.start_file(
+                name.replace('\\', "/"),
+                SimpleFileOptions::default().compression_method(CompressionMethod::Deflated),
+            )
+            .expect("start file");
+            zip.write_all(content.as_bytes()).expect("write file");
+        }
+        zip.finish().expect("finish zip");
+    }
+
     fn sample_manifest() -> BundleManifest {
         BundleManifest {
             schema_version: 1,
@@ -1998,6 +2222,8 @@ PawnOptions = {
                 }],
                 fonts: true,
                 interface_assets: vec!["SharedXML".to_string()],
+                addon_lock: false,
+                addon_indexes: Vec::new(),
             },
             mapping: MappingRules {
                 character_mode: CharacterMappingMode::Explicit,

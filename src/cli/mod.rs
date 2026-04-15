@@ -178,11 +178,13 @@ pub fn run() -> AppResult<()> {
                 output,
             } => {
                 let installation = resolve_installation(&install, flavor.map(Into::into))?;
+                let manifest_base_dir = manifest.parent().map(|path| path.to_path_buf());
                 let manifest = load_manifest(&manifest)?;
                 let bundle = pack_bundle(PackBundleRequest {
                     installation,
                     manifest,
                     output_path: output,
+                    manifest_base_dir,
                 })?;
                 render(cli.json, &bundle, |item| {
                     format!(

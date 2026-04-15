@@ -45,6 +45,7 @@
 - [x] Exclude obvious cache and transient files by default
 - [x] Implement `hearthsync bundle pack`
 - [x] Implement `hearthsync bundle inspect`
+- [x] Embed addon lock and addon index sidecar metadata in bundles
 
 ## Phase 5 - Bundle Apply
 
@@ -58,6 +59,7 @@
 - [x] Apply common WTF resources
 - [x] Apply character WTF resources
 - [x] Implement `hearthsync bundle unpack`
+- [x] Unpack addon metadata sidecars without overwriting active addon tracking
 - [x] Implement `hearthsync config preview`
 
 ## Phase 6 - Lua Rewrite Engine
