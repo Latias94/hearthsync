@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -10,9 +10,12 @@ use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
 
 use crate::core::addon::{
-    AddonPackageMetadata, AddonRegistry, AddonSourceRef, TrackedAddon, TrackedAddonPackage,
-    load_registry,
+    AddonInventory, AddonPackageMetadata, AddonRegistry, AddonSourceRef, InstallAddonRequest,
+    RemoveAddonRequest, TrackedAddon, TrackedAddonPackage, install_addon, list_addons,
+    load_registry, prepare_package_from_source_ref_with_flavor, remove_addons,
+    rollback_or_report_addon_error, update_prepared_packages,
 };
+use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -124,6 +127,78 @@ pub struct AddonLockPackageDirectoryIssue {
     pub missing_addon_directories: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonLockSyncActionKind {
+    Install,
+    Update,
+    Remove,
+    MetadataOnly,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockSyncAction {
+    pub kind: AddonLockSyncActionKind,
+    pub comparison_key: String,
+    pub package_id: String,
+    pub name: Option<String>,
+    pub addon_directories: Vec<String>,
+    pub source: Option<AddonSourceRef>,
+    pub reasons: Vec<String>,
+    pub blocked_reasons: Vec<String>,
+    pub requires_replace_existing: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockPlanResult {
+    pub lock_path: PathBuf,
+    pub installation_root: PathBuf,
+    pub install_count: usize,
+    pub update_count: usize,
+    pub remove_count: usize,
+    pub metadata_only_count: usize,
+    pub unchanged_count: usize,
+    pub blocked_count: usize,
+    pub untracked_addons: Vec<String>,
+    pub actions: Vec<AddonLockSyncAction>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AddonLockApplyRequest {
+    pub installation: DetectedFlavorInstallation,
+    pub lock_path: Option<PathBuf>,
+    pub backup_output_path: Option<PathBuf>,
+    pub replace_existing: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockApplyResult {
+    pub lock_path: PathBuf,
+    pub installation_root: PathBuf,
+    pub install_count: usize,
+    pub update_count: usize,
+    pub remove_count: usize,
+    pub metadata_only_count: usize,
+    pub unchanged_count: usize,
+    pub blocked_count: usize,
+    pub untracked_addons: Vec<String>,
+    pub actions: Vec<AddonLockSyncAction>,
+    pub verification: AddonLockVerifyResult,
+}
+
+#[derive(Debug, Clone)]
+struct PlannedLockAction {
+    action: AddonLockSyncAction,
+    expected: Option<AddonLockPackage>,
+    current: Option<TrackedAddonPackage>,
+}
+
+#[derive(Debug, Clone)]
+struct AddonLockPlanContext {
+    result: AddonLockPlanResult,
+    actions: Vec<PlannedLockAction>,
+}
+
 pub fn inspect_addon_lock(
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<AddonLockInspection> {
@@ -191,6 +266,160 @@ pub fn verify_addon_lock(
         missing_addon_directories,
         diff,
         matches,
+    })
+}
+
+pub fn plan_addon_lock_sync(
+    installation: &DetectedFlavorInstallation,
+    expected_lock_path: Option<&Path>,
+) -> AppResult<AddonLockPlanResult> {
+    Ok(build_addon_lock_plan(installation, expected_lock_path)?.result)
+}
+
+pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
+    let plan = build_addon_lock_plan(&request.installation, request.lock_path.as_deref())?;
+    let blocked_actions = plan
+        .actions
+        .iter()
+        .filter(|action| !action.action.blocked_reasons.is_empty())
+        .collect::<Vec<_>>();
+    if !blocked_actions.is_empty() {
+        return Err(AppError::Validation(format!(
+            "cannot apply addon lock because some actions are blocked: {}",
+            blocked_actions
+                .iter()
+                .map(|action| {
+                    format!(
+                        "{} ({})",
+                        action.action.package_id,
+                        action.action.blocked_reasons.join("; ")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        )));
+    }
+
+    let replace_required = plan
+        .actions
+        .iter()
+        .filter(|action| {
+            action.action.requires_replace_existing
+                && matches!(
+                    action.action.kind,
+                    AddonLockSyncActionKind::Install | AddonLockSyncActionKind::Update
+                )
+        })
+        .collect::<Vec<_>>();
+    if !request.replace_existing && !replace_required.is_empty() {
+        return Err(AppError::Validation(format!(
+            "lock apply needs `--replace-existing` for packages: {}",
+            replace_required
+                .iter()
+                .map(|action| action.action.package_id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )));
+    }
+
+    for action in plan
+        .actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::Remove)
+    {
+        let current = action.current.as_ref().ok_or_else(|| {
+            AppError::Validation("lock remove action is missing current package".to_string())
+        })?;
+        remove_addons(RemoveAddonRequest {
+            installation: request.installation.clone(),
+            name: current.package_id.clone(),
+            dry_run: false,
+            backup_output_path: request.backup_output_path.clone(),
+        })?;
+    }
+
+    let update_actions = plan
+        .actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::Update)
+        .collect::<Vec<_>>();
+    if !update_actions.is_empty() {
+        let mut selected_packages = Vec::new();
+        let mut prepared_packages = Vec::new();
+        for action in &update_actions {
+            let current = action.current.as_ref().ok_or_else(|| {
+                AppError::Validation("lock update action is missing current package".to_string())
+            })?;
+            let expected = action.expected.as_ref().ok_or_else(|| {
+                AppError::Validation("lock update action is missing expected package".to_string())
+            })?;
+            let mut prepared = prepare_package_from_source_ref_with_flavor(
+                &expected.source,
+                Some(request.installation.flavor),
+            )?;
+            prepared.metadata = Some(metadata_from_lock_package(expected));
+            selected_packages.push(current.clone());
+            prepared_packages.push(prepared);
+        }
+
+        let registry = load_registry(&request.installation)?;
+        let backup_path = Some(
+            create_backup(BackupRequest {
+                installation: request.installation.clone(),
+                output_path: request.backup_output_path.clone(),
+                groups: vec![BackupGroup::Addons],
+                label: Some("addon-lock-apply-update".to_string()),
+            })?
+            .archive_path,
+        );
+        match update_prepared_packages(
+            &request.installation,
+            registry,
+            selected_packages,
+            prepared_packages,
+        ) {
+            Ok(_) => {}
+            Err(error) => {
+                return rollback_or_report_addon_error(
+                    error,
+                    backup_path.as_deref(),
+                    &request.installation,
+                );
+            }
+        }
+    }
+
+    for action in plan
+        .actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::Install)
+    {
+        let expected = action.expected.as_ref().ok_or_else(|| {
+            AppError::Validation("lock install action is missing expected package".to_string())
+        })?;
+        install_addon(InstallAddonRequest {
+            installation: request.installation.clone(),
+            source: expected.source.display_name(),
+            dry_run: false,
+            backup_output_path: request.backup_output_path.clone(),
+            replace_existing: request.replace_existing,
+            metadata: Some(metadata_from_lock_package(expected)),
+        })?;
+    }
+
+    let verification = verify_addon_lock(&request.installation, Some(&plan.result.lock_path))?;
+    Ok(AddonLockApplyResult {
+        lock_path: plan.result.lock_path,
+        installation_root: plan.result.installation_root,
+        install_count: plan.result.install_count,
+        update_count: plan.result.update_count,
+        remove_count: plan.result.remove_count,
+        metadata_only_count: plan.result.metadata_only_count,
+        unchanged_count: plan.result.unchanged_count,
+        blocked_count: plan.result.blocked_count,
+        untracked_addons: verification.untracked_addons.clone(),
+        actions: plan.result.actions,
+        verification,
     })
 }
 
@@ -281,6 +510,403 @@ fn build_lock_package(
         updated_at: package.updated_at.clone(),
         addon_directories,
         addons,
+    })
+}
+
+fn expected_package_map(lock: &AddonLock) -> AppResult<BTreeMap<String, AddonLockPackage>> {
+    let mut map = BTreeMap::new();
+    for package in &lock.packages {
+        let key = comparison_key(
+            &package.package_id,
+            package.index_name.as_deref(),
+            package.index_package_id.as_deref(),
+            &package.addon_directories,
+        );
+        if map.insert(key.clone(), package.clone()).is_some() {
+            return Err(AppError::Validation(format!(
+                "duplicate expected lock comparison key: {key}"
+            )));
+        }
+    }
+    Ok(map)
+}
+
+fn current_package_map(
+    inventory: &AddonInventory,
+) -> AppResult<BTreeMap<String, TrackedAddonPackage>> {
+    let mut map = BTreeMap::new();
+    for package in &inventory.tracked_packages {
+        let metadata = package.metadata.as_ref();
+        let key = comparison_key(
+            &package.package_id,
+            metadata.and_then(|value| value.index_name.as_deref()),
+            metadata.and_then(|value| value.index_package_id.as_deref()),
+            &package
+                .addons
+                .iter()
+                .map(|addon| addon.directory_name.clone())
+                .collect::<Vec<_>>(),
+        );
+        if map.insert(key.clone(), package.clone()).is_some() {
+            return Err(AppError::Validation(format!(
+                "duplicate current package comparison key: {key}"
+            )));
+        }
+    }
+    Ok(map)
+}
+
+fn missing_directory_map(
+    issues: &[AddonLockPackageDirectoryIssue],
+) -> BTreeMap<String, Vec<String>> {
+    issues
+        .iter()
+        .map(|issue| {
+            (
+                issue.comparison_key.clone(),
+                issue.missing_addon_directories.clone(),
+            )
+        })
+        .collect()
+}
+
+fn tracked_directory_owner_map(inventory: &AddonInventory) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::new();
+    for package in &inventory.tracked_packages {
+        let metadata = package.metadata.as_ref();
+        let key = comparison_key(
+            &package.package_id,
+            metadata.and_then(|value| value.index_name.as_deref()),
+            metadata.and_then(|value| value.index_package_id.as_deref()),
+            &package
+                .addons
+                .iter()
+                .map(|addon| addon.directory_name.clone())
+                .collect::<Vec<_>>(),
+        );
+        for addon in &package.addons {
+            map.insert(addon.directory_name.to_ascii_lowercase(), key.clone());
+        }
+    }
+    map
+}
+
+fn freed_directory_set(
+    current_packages: &BTreeMap<String, TrackedAddonPackage>,
+    remove_keys: &BTreeSet<String>,
+    update_keys: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let mut freed = BTreeSet::new();
+    for key in remove_keys.iter().chain(update_keys.iter()) {
+        if let Some(package) = current_packages.get(key) {
+            for addon in &package.addons {
+                freed.insert(addon.directory_name.to_ascii_lowercase());
+            }
+        }
+    }
+    freed
+}
+
+fn preflight_source_ref(source: &AddonSourceRef) -> Vec<String> {
+    match source {
+        AddonSourceRef::LocalArchive { path } if !path.is_file() => {
+            vec![format!(
+                "local archive is not available: {}",
+                path.display()
+            )]
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn directory_conflicts(
+    comparison_key: &str,
+    addon_directories: &[String],
+    occupied_by_tracked: &BTreeMap<String, String>,
+    freed_directories: &BTreeSet<String>,
+    untracked_addons: &BTreeSet<String>,
+) -> (Vec<String>, bool) {
+    let mut blocked_reasons = Vec::new();
+    let mut requires_replace_existing = false;
+
+    for addon_directory in addon_directories {
+        let normalized = addon_directory.to_ascii_lowercase();
+        if untracked_addons.contains(&normalized) {
+            requires_replace_existing = true;
+        }
+
+        let Some(owner_key) = occupied_by_tracked.get(&normalized) else {
+            continue;
+        };
+        if owner_key == comparison_key || freed_directories.contains(&normalized) {
+            continue;
+        }
+
+        blocked_reasons.push(format!(
+            "addon directory `{}` is owned by tracked package `{}`",
+            addon_directory, owner_key
+        ));
+    }
+
+    (blocked_reasons, requires_replace_existing)
+}
+
+fn has_material_changes(changes: &[AddonLockFieldChange]) -> bool {
+    changes.iter().any(|change| {
+        matches!(
+            change.field.as_str(),
+            "source" | "content_sha256" | "addon_directories"
+        )
+    })
+}
+
+fn metadata_from_lock_package(package: &AddonLockPackage) -> AddonPackageMetadata {
+    AddonPackageMetadata {
+        index_name: package.index_name.clone(),
+        index_package_id: package.index_package_id.clone(),
+        package_name: package.name.clone(),
+        version: package.version.clone(),
+        source_url: package.source_url.clone(),
+        website_url: package.website_url.clone(),
+        source_sha256: package.source_sha256.clone(),
+        supported_flavors: Vec::new(),
+    }
+}
+
+fn lock_action_sort_key(kind: &AddonLockSyncActionKind) -> u8 {
+    match kind {
+        AddonLockSyncActionKind::Remove => 0,
+        AddonLockSyncActionKind::Update => 1,
+        AddonLockSyncActionKind::Install => 2,
+        AddonLockSyncActionKind::MetadataOnly => 3,
+    }
+}
+
+fn build_addon_lock_plan(
+    installation: &DetectedFlavorInstallation,
+    expected_lock_path: Option<&Path>,
+) -> AppResult<AddonLockPlanContext> {
+    let lock_path = expected_lock_path
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| lock_path(installation));
+    let expected_lock = read_addon_lock(&lock_path)?;
+    let inventory = list_addons(installation)?;
+    let current_snapshots = inventory
+        .tracked_packages
+        .iter()
+        .map(|package| snapshot_from_tracked_package(installation, package))
+        .collect::<Vec<_>>();
+    let missing_addon_directories = current_snapshots
+        .iter()
+        .filter_map(|(snapshot, missing)| {
+            (!missing.is_empty()).then_some(AddonLockPackageDirectoryIssue {
+                comparison_key: snapshot.comparison_key.clone(),
+                package_id: snapshot.package_id.clone(),
+                missing_addon_directories: missing.clone(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let current_snapshot_values = current_snapshots
+        .iter()
+        .map(|(snapshot, _)| snapshot.clone())
+        .collect::<Vec<_>>();
+    let diff = compare_lock_snapshots(
+        &lock_path.display().to_string(),
+        &lock_snapshots(&expected_lock)?,
+        &installation.flavor_root.display().to_string(),
+        &current_snapshot_values,
+    )?;
+
+    let expected_packages = expected_package_map(&expected_lock)?;
+    let current_packages = current_package_map(&inventory)?;
+    let remove_keys = diff
+        .added_packages
+        .iter()
+        .map(|package| package.comparison_key.clone())
+        .collect::<BTreeSet<_>>();
+    let mut update_keys = BTreeSet::new();
+    let missing_map = missing_directory_map(&missing_addon_directories);
+    for package in &diff.changed_packages {
+        let has_missing = missing_map.contains_key(&package.comparison_key);
+        if has_missing || has_material_changes(&package.changes) {
+            update_keys.insert(package.comparison_key.clone());
+        }
+    }
+
+    let occupied_by_tracked = tracked_directory_owner_map(&inventory);
+    let freed_directories = freed_directory_set(&current_packages, &remove_keys, &update_keys);
+    let untracked_addons = inventory
+        .untracked_addons
+        .iter()
+        .map(|name| name.to_ascii_lowercase())
+        .collect::<BTreeSet<_>>();
+
+    let mut actions = Vec::new();
+    for package in &diff.removed_packages {
+        let expected = expected_packages
+            .get(&package.comparison_key)
+            .cloned()
+            .ok_or_else(|| AppError::Validation("expected lock package missing".to_string()))?;
+        let blocked_reasons = preflight_source_ref(&expected.source);
+        let (conflict_reasons, requires_replace_existing) = directory_conflicts(
+            &package.comparison_key,
+            &package.addon_directories,
+            &occupied_by_tracked,
+            &freed_directories,
+            &untracked_addons,
+        );
+        actions.push(PlannedLockAction {
+            action: AddonLockSyncAction {
+                kind: AddonLockSyncActionKind::Install,
+                comparison_key: package.comparison_key.clone(),
+                package_id: expected.package_id.clone(),
+                name: expected.name.clone(),
+                addon_directories: expected.addon_directories.clone(),
+                source: Some(expected.source.clone()),
+                reasons: vec!["package is missing from the current installation".to_string()],
+                blocked_reasons: blocked_reasons
+                    .into_iter()
+                    .chain(conflict_reasons.into_iter())
+                    .collect(),
+                requires_replace_existing,
+            },
+            expected: Some(expected),
+            current: None,
+        });
+    }
+
+    for package in &diff.added_packages {
+        let current = current_packages
+            .get(&package.comparison_key)
+            .cloned()
+            .ok_or_else(|| AppError::Validation("current tracked package missing".to_string()))?;
+        actions.push(PlannedLockAction {
+            action: AddonLockSyncAction {
+                kind: AddonLockSyncActionKind::Remove,
+                comparison_key: package.comparison_key.clone(),
+                package_id: current.package_id.clone(),
+                name: package.name.clone(),
+                addon_directories: package.addon_directories.clone(),
+                source: Some(current.source.clone()),
+                reasons: vec!["package is not present in the expected lock".to_string()],
+                blocked_reasons: Vec::new(),
+                requires_replace_existing: false,
+            },
+            expected: None,
+            current: Some(current),
+        });
+    }
+
+    for package in &diff.changed_packages {
+        let expected = expected_packages
+            .get(&package.comparison_key)
+            .cloned()
+            .ok_or_else(|| AppError::Validation("expected lock package missing".to_string()))?;
+        let current = current_packages
+            .get(&package.comparison_key)
+            .cloned()
+            .ok_or_else(|| AppError::Validation("current tracked package missing".to_string()))?;
+        let has_missing = missing_map
+            .get(&package.comparison_key)
+            .map(|item| !item.is_empty())
+            .unwrap_or(false);
+        let physical_change = has_missing || has_material_changes(&package.changes);
+        let kind = if physical_change {
+            AddonLockSyncActionKind::Update
+        } else {
+            AddonLockSyncActionKind::MetadataOnly
+        };
+        let mut reasons = package
+            .changes
+            .iter()
+            .map(|change| format!("{} differs", change.field))
+            .collect::<Vec<_>>();
+        if let Some(missing) = missing_map.get(&package.comparison_key) {
+            if !missing.is_empty() {
+                reasons.push(format!(
+                    "tracked addon directories are missing: {}",
+                    missing.join(", ")
+                ));
+            }
+        }
+        let blocked_reasons = if kind == AddonLockSyncActionKind::Update {
+            preflight_source_ref(&expected.source)
+        } else {
+            Vec::new()
+        };
+        let (conflict_reasons, requires_replace_existing) =
+            if kind == AddonLockSyncActionKind::Update {
+                directory_conflicts(
+                    &package.comparison_key,
+                    &expected.addon_directories,
+                    &occupied_by_tracked,
+                    &freed_directories,
+                    &untracked_addons,
+                )
+            } else {
+                (Vec::new(), false)
+            };
+        actions.push(PlannedLockAction {
+            action: AddonLockSyncAction {
+                kind,
+                comparison_key: package.comparison_key.clone(),
+                package_id: expected.package_id.clone(),
+                name: expected.name.clone(),
+                addon_directories: expected.addon_directories.clone(),
+                source: Some(expected.source.clone()),
+                reasons,
+                blocked_reasons: blocked_reasons
+                    .into_iter()
+                    .chain(conflict_reasons.into_iter())
+                    .collect(),
+                requires_replace_existing,
+            },
+            expected: Some(expected),
+            current: Some(current),
+        });
+    }
+
+    actions.sort_by(|left, right| {
+        lock_action_sort_key(&left.action.kind)
+            .cmp(&lock_action_sort_key(&right.action.kind))
+            .then_with(|| left.action.comparison_key.cmp(&right.action.comparison_key))
+    });
+
+    let install_count = actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::Install)
+        .count();
+    let update_count = actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::Update)
+        .count();
+    let remove_count = actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::Remove)
+        .count();
+    let metadata_only_count = actions
+        .iter()
+        .filter(|action| action.action.kind == AddonLockSyncActionKind::MetadataOnly)
+        .count();
+    let blocked_count = actions
+        .iter()
+        .filter(|action| !action.action.blocked_reasons.is_empty())
+        .count();
+
+    Ok(AddonLockPlanContext {
+        result: AddonLockPlanResult {
+            lock_path,
+            installation_root: installation.flavor_root.clone(),
+            install_count,
+            update_count,
+            remove_count,
+            metadata_only_count,
+            unchanged_count: diff.unchanged_packages,
+            blocked_count,
+            untracked_addons: inventory.untracked_addons,
+            actions: actions.iter().map(|action| action.action.clone()).collect(),
+        },
+        actions,
     })
 }
 
@@ -463,6 +1089,7 @@ fn validate_addon_lock(lock: &AddonLock) -> AppResult<()> {
             &package.package_id,
             package.index_name.as_deref(),
             package.index_package_id.as_deref(),
+            &package.addon_directories,
         );
         if !comparison_keys.insert(comparison_key.clone()) {
             return Err(AppError::Validation(format!(
@@ -576,6 +1203,7 @@ fn snapshot_from_lock_package(package: &AddonLockPackage) -> AddonLockPackageSna
             &package.package_id,
             package.index_name.as_deref(),
             package.index_package_id.as_deref(),
+            &package.addon_directories,
         ),
         package_id: package.package_id.clone(),
         index_name: package.index_name.clone(),
@@ -621,6 +1249,7 @@ fn snapshot_from_tracked_package(
                 &package.package_id,
                 metadata.and_then(|value| value.index_name.as_deref()),
                 metadata.and_then(|value| value.index_package_id.as_deref()),
+                &addon_directories,
             ),
             package_id: package.package_id.clone(),
             index_name: metadata.and_then(|value| value.index_name.clone()),
@@ -721,6 +1350,7 @@ fn comparison_key(
     package_id: &str,
     index_name: Option<&str>,
     index_package_id: Option<&str>,
+    addon_directories: &[String],
 ) -> String {
     let index_name = index_name.map(str::trim).filter(|value| !value.is_empty());
     let index_package_id = index_package_id
@@ -731,7 +1361,20 @@ fn comparison_key(
             format!("index:{index_name}:{index_package_id}")
         }
         (None, Some(index_package_id)) => format!("index:{index_package_id}"),
-        _ => format!("package:{package_id}"),
+        _ => {
+            let mut normalized = addon_directories
+                .iter()
+                .map(|item| item.trim().to_ascii_lowercase())
+                .filter(|item| !item.is_empty())
+                .collect::<Vec<_>>();
+            normalized.sort();
+            normalized.dedup();
+            if normalized.is_empty() {
+                format!("package:{package_id}")
+            } else {
+                format!("addons:{}", normalized.join("+"))
+            }
+        }
     }
 }
 
@@ -751,7 +1394,8 @@ mod tests {
     use zip::write::SimpleFileOptions;
 
     use super::{
-        diff_addon_locks, inspect_addon_lock, lock_path, verify_addon_lock, write_addon_lock,
+        AddonLockApplyRequest, apply_addon_lock_sync, diff_addon_locks, inspect_addon_lock,
+        lock_path, plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
     };
     use crate::core::addon::{
         AddonPackageMetadata, InstallAddonRequest, RemoveAddonRequest, install_addon, remove_addons,
@@ -987,6 +1631,117 @@ addons = []
                 .iter()
                 .any(|change| change.field == "content_sha256")
         );
+    }
+
+    #[test]
+    fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
+        let temp = tempdir().expect("temp dir");
+        let source_root = temp.path().join("sources");
+        fs::create_dir_all(&source_root).expect("source root");
+
+        let details_v1 = source_root.join("details-v1.zip");
+        let details_v2 = source_root.join("details-v2.zip");
+        let omen = source_root.join("omen.zip");
+        let bigwigs = source_root.join("bigwigs.zip");
+        create_addon_archive(
+            &details_v1,
+            &[(
+                "Details/Details.toc",
+                "## Interface: 110000\n## Version: 1.0.0\n",
+            )],
+        );
+        create_addon_archive(
+            &details_v2,
+            &[(
+                "Details/Details.toc",
+                "## Interface: 110000\n## Version: 2.0.0\n",
+            )],
+        );
+        create_addon_archive(
+            &omen,
+            &[("Omen/Omen.toc", "## Interface: 110000\n## Version: 1.0.0\n")],
+        );
+        create_addon_archive(
+            &bigwigs,
+            &[(
+                "BigWigs/BigWigs.toc",
+                "## Interface: 110000\n## Version: 1.0.0\n",
+            )],
+        );
+
+        let desired_installation = create_fixture_installation(&temp.path().join("desired"));
+        install_addon(InstallAddonRequest {
+            installation: desired_installation.clone(),
+            source: details_v2.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("desired-backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install desired details");
+        install_addon(InstallAddonRequest {
+            installation: desired_installation.clone(),
+            source: bigwigs.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("desired-backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install desired bigwigs");
+        let desired_lock = write_addon_lock(&desired_installation)
+            .expect("write desired lock")
+            .lock_path;
+
+        let current_installation = create_fixture_installation(&temp.path().join("current"));
+        install_addon(InstallAddonRequest {
+            installation: current_installation.clone(),
+            source: details_v1.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("current-backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install current details");
+        install_addon(InstallAddonRequest {
+            installation: current_installation.clone(),
+            source: omen.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("current-backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install current omen");
+
+        let plan = plan_addon_lock_sync(&current_installation, Some(&desired_lock)).expect("plan");
+        assert_eq!(plan.install_count, 1);
+        assert_eq!(plan.update_count, 1);
+        assert_eq!(plan.remove_count, 1);
+        assert_eq!(plan.blocked_count, 0);
+
+        let result = apply_addon_lock_sync(AddonLockApplyRequest {
+            installation: current_installation.clone(),
+            lock_path: Some(desired_lock.clone()),
+            backup_output_path: Some(temp.path().join("apply-backups")),
+            replace_existing: false,
+        })
+        .expect("apply lock sync");
+
+        assert!(result.verification.matches);
+        assert_eq!(result.install_count, 1);
+        assert_eq!(result.update_count, 1);
+        assert_eq!(result.remove_count, 1);
+        assert!(
+            fs::read_to_string(
+                current_installation
+                    .addon_dir
+                    .join("Details")
+                    .join("Details.toc")
+            )
+            .expect("details toc")
+            .contains("2.0.0")
+        );
+        assert!(current_installation.addon_dir.join("BigWigs").exists());
+        assert!(!current_installation.addon_dir.join("Omen").exists());
     }
 
     fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {

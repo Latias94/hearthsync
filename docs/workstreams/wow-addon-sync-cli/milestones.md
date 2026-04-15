@@ -173,6 +173,7 @@ Add direct addon install and update capabilities.
 - addon receipts are tracked in `Interface/AddOns/.hearthsync/addons.toml`
 - a derived addon lock is tracked in `Interface/AddOns/.hearthsync/lock.toml` with installed content hashes and curated index metadata
 - addon lock diff/verify can detect cross-machine differences, local content drift, missing tracked directories, and untracked addon directories
+- addon lock plan/apply can turn a lock file into concrete install/update/remove actions for another machine
 - addon updates reuse the recorded source reference and refresh tracked addon directories
 - addon removal also cleans the receipt registry when the last tracked package is removed
 - richer provider-specific metadata is still pending

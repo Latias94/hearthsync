@@ -147,7 +147,7 @@ pub enum AddonCommands {
         #[command(subcommand)]
         command: AddonIndexCommands,
     },
-    #[command(about = "Inspect or regenerate the derived addon lock file")]
+    #[command(about = "Inspect, compare, plan, or apply addon locks")]
     Lock {
         #[command(subcommand)]
         command: AddonLockCommands,
@@ -286,6 +286,37 @@ pub enum AddonLockCommands {
             help = "Optional addon lock TOML file; defaults to Interface/AddOns/.hearthsync/lock.toml"
         )]
         file: Option<PathBuf>,
+    },
+    #[command(about = "Build a sync plan from an addon lock file")]
+    Plan {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(
+            long,
+            help = "Optional addon lock TOML file; defaults to Interface/AddOns/.hearthsync/lock.toml"
+        )]
+        file: Option<PathBuf>,
+    },
+    #[command(about = "Apply an addon lock sync plan to the current installation")]
+    Apply {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(
+            long,
+            help = "Optional addon lock TOML file; defaults to Interface/AddOns/.hearthsync/lock.toml"
+        )]
+        file: Option<PathBuf>,
+        #[arg(long, help = "Directory for automatic backups")]
+        backup_output: Option<PathBuf>,
+        #[arg(
+            long,
+            help = "Allow overwriting conflicting untracked addon directories"
+        )]
+        replace_existing: bool,
     },
 }
 

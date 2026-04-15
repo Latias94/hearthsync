@@ -164,9 +164,13 @@ You can also inspect or regenerate it manually with:
 - `hearthsync addon lock write --install <wow-path> [--flavor <flavor>]`
 - `hearthsync addon lock verify --install <wow-path> [--flavor <flavor>] [--file <lock.toml>]`
 - `hearthsync addon lock diff --left-file <lock-a.toml> --right-file <lock-b.toml>`
+- `hearthsync addon lock plan --install <wow-path> [--flavor <flavor>] [--file <lock.toml>]`
+- `hearthsync addon lock apply --install <wow-path> [--flavor <flavor>] [--file <lock.toml>] [--backup-output <dir>]`
 
 `verify` compares the lock against the current installation and reports changed package hashes, missing tracked addon directories, unexpected tracked packages, and untracked addon directories.
 `diff` compares two lock files, which is useful when checking whether a Windows and macOS install are carrying the same addon set.
+`plan` translates the lock into concrete install/update/remove actions against the current installation.
+`apply` executes that sync plan; when untracked addon directories conflict with the desired lock, pass `--replace-existing` explicitly.
 
 ## Safety Model
 

@@ -393,6 +393,8 @@ interface_assets = true
 - `hearthsync addon lock write`
 - `hearthsync addon lock verify`
 - `hearthsync addon lock diff`
+- `hearthsync addon lock plan`
+- `hearthsync addon lock apply`
 - `hearthsync addon search`
 - `hearthsync addon list`
 - `hearthsync addon install <source>`
@@ -438,6 +440,7 @@ The derived lock file stores:
 Successful addon mutations refresh the derived lock automatically, while `addon lock write` can rebuild it from the registry on demand.
 `addon lock verify` compares a lock file against the current installation and reports content-hash drift, missing tracked addon directories, unexpected tracked packages, and untracked addon directories.
 `addon lock diff` compares two lock files directly for cross-machine checks.
+`addon lock plan` translates the lock into install/update/remove actions, while `addon lock apply` executes that plan against the current installation.
 
 `CurseForge` is the second real provider in the system.
 Resolution rules in the current version:
@@ -485,10 +488,13 @@ Current commands:
 - `addon lock write --install <wow-path>`
 - `addon lock verify --install <wow-path> [--file <lock.toml>]`
 - `addon lock diff --left-file <lock-a.toml> --right-file <lock-b.toml>`
+- `addon lock plan --install <wow-path> [--file <lock.toml>]`
+- `addon lock apply --install <wow-path> [--file <lock.toml>] [--replace-existing]`
 
 The first version validates package ids, duplicate ids, source references, and optional flavor compatibility before delegating to the existing install/update pipeline.
 When index-based installs or updates succeed, curated package metadata is carried into the lock file so later GUI flows can present stable names, pinned versions, and source hashes without reopening the original index.
 Lock comparison prefers index package identity when available, then falls back to the tracked package id. Generated and install timestamps are intentionally ignored by diff/verify because they are expected to differ across machines.
+Sync planning and apply prefer index identity when it exists, then fall back to the normalized addon directory set. This avoids false add/remove churn when two machines install the same addon from archives with different file names.
 
 ### Bundle Operations
 
