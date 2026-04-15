@@ -1,0 +1,26 @@
+[package]
+name = "hearthsync"
+version = "0.1.0"
+edition = "2024"
+authors = ["Mingzhen Zhuang <superfrankie621@gmail.com>"]
+description = "Cross-platform World of Warcraft addon and configuration sync tooling"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Latias94/hearthsync"
+readme = "README.md"
+keywords = ["wow", "addons", "sync", "backup", "cli"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+clap = { version = "4.5.38", features = ["derive"] }
+directories = "5.0.1"
+reqwest = { version = "0.12.15", default-features = false, features = ["blocking", "rustls-tls"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tempfile = "3.20.0"
+thiserror = "2.0.12"
+time = { version = "0.3.41", features = ["formatting", "macros"] }
+toml = "0.8.22"
+walkdir = "2.5.0"
+zip = { version = "2.4.1", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
