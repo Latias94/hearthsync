@@ -4,7 +4,7 @@ use std::io::Read;
 use tempfile::tempdir;
 use zip::ZipArchive;
 
-use super::archive_io::extract_archive_entry_to_path;
+use super::archive_read::extract_archive_entry_to_path;
 use super::*;
 use crate::core::lua_patch::rewrite_lua_file;
 

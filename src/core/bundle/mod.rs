@@ -2,7 +2,8 @@ mod addon_lock;
 mod apply;
 mod apply_model;
 mod apply_policy;
-mod archive_io;
+mod archive_read;
+mod archive_write;
 mod entry_plan;
 mod execution;
 mod packing;
@@ -26,11 +27,14 @@ use self::apply_policy::{
     apply_action_order, apply_group_order, build_cleanup_operations, cleanup_scope_for_entry,
     resource_policy_for_group,
 };
-use self::archive_io::{
+use self::archive_read::{
+    collect_bundle_entry_names, count_bundle_entries, extract_embedded_addon_lock,
+    read_bundle_entry_bytes_from_archive, read_manifest_from_archive,
+};
+use self::archive_write::{
     add_bundle_addon_sources_to_zip, add_character_wtf_to_zip, add_common_wtf_to_zip,
-    add_path_to_zip, collect_bundle_entry_names, count_bundle_entries, extract_embedded_addon_lock,
-    read_bundle_entry_bytes_from_archive, read_generated_addon_lock, read_manifest_from_archive,
-    resolve_addon_index_paths, resolve_character_account, write_toml_to_zip,
+    add_path_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
+    resolve_character_account, write_toml_to_zip,
 };
 use self::entry_plan::plan_extractable_entries;
 use self::execution::{
