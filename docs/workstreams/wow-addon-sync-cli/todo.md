@@ -79,6 +79,7 @@
 - [x] Implement CurseForge flavor-aware file selection
 - [x] Implement custom addon index inspect/install/update
 - [x] Implement derived addon lock inspect/write workflow
+- [x] Implement addon lock diff/verify workflow
 - [x] Implement `hearthsync addon list`
 - [x] Implement `hearthsync addon search`
 - [x] Implement `hearthsync addon install`

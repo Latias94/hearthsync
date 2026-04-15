@@ -268,6 +268,25 @@ pub enum AddonLockCommands {
         #[arg(long, value_enum)]
         flavor: Option<FlavorArg>,
     },
+    #[command(about = "Compare two addon lock files")]
+    Diff {
+        #[arg(long, help = "Left addon lock TOML file")]
+        left_file: PathBuf,
+        #[arg(long, help = "Right addon lock TOML file")]
+        right_file: PathBuf,
+    },
+    #[command(about = "Verify the current installation against an addon lock file")]
+    Verify {
+        #[arg(long, help = "World of Warcraft installation or product root")]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(
+            long,
+            help = "Optional addon lock TOML file; defaults to Interface/AddOns/.hearthsync/lock.toml"
+        )]
+        file: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug, Subcommand)]

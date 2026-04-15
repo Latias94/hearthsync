@@ -391,6 +391,8 @@ interface_assets = true
 - `hearthsync addon index update`
 - `hearthsync addon lock inspect`
 - `hearthsync addon lock write`
+- `hearthsync addon lock verify`
+- `hearthsync addon lock diff`
 - `hearthsync addon search`
 - `hearthsync addon list`
 - `hearthsync addon install <source>`
@@ -434,6 +436,8 @@ The derived lock file stores:
 `addon update` reuses the recorded source reference, refreshes the tracked addon directories, and creates an AddOns backup before mutation.
 `addon remove` resolves a tracked package by package id or addon directory name, removes its recorded addon directories, and deletes the local receipt file when the registry becomes empty.
 Successful addon mutations refresh the derived lock automatically, while `addon lock write` can rebuild it from the registry on demand.
+`addon lock verify` compares a lock file against the current installation and reports content-hash drift, missing tracked addon directories, unexpected tracked packages, and untracked addon directories.
+`addon lock diff` compares two lock files directly for cross-machine checks.
 
 `CurseForge` is the second real provider in the system.
 Resolution rules in the current version:
@@ -479,9 +483,12 @@ Current commands:
 - `addon index update --file <index.toml> [--name <id-or-name>]`
 - `addon lock inspect --install <wow-path>`
 - `addon lock write --install <wow-path>`
+- `addon lock verify --install <wow-path> [--file <lock.toml>]`
+- `addon lock diff --left-file <lock-a.toml> --right-file <lock-b.toml>`
 
 The first version validates package ids, duplicate ids, source references, and optional flavor compatibility before delegating to the existing install/update pipeline.
 When index-based installs or updates succeed, curated package metadata is carried into the lock file so later GUI flows can present stable names, pinned versions, and source hashes without reopening the original index.
+Lock comparison prefers index package identity when available, then falls back to the tracked package id. Generated and install timestamps are intentionally ignored by diff/verify because they are expected to differ across machines.
 
 ### Bundle Operations
 
