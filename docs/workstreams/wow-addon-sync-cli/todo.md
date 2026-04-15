@@ -99,7 +99,7 @@ The current blocking sequence is:
 - [x] Implement character and server identity replacement
 - [x] Add file-level rewrite opt-in rules
 - [ ] Add encoding-aware file read and write support
-- [ ] Add byte-safe replacement support for WTF files that are not valid UTF-8
+- [x] Add byte-safe replacement support for WTF files that are not valid UTF-8
 - [ ] Add regression tests with real-world samples
 - [x] Add account-level overwrite rules for common WTF resources
 

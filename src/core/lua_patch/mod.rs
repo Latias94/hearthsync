@@ -65,16 +65,24 @@ pub fn preview_lua_bytes_rewrite(
         return Ok(None);
     }
 
-    let Ok(content) = String::from_utf8(bytes.to_vec()) else {
-        return Ok(None);
-    };
-
-    let rewritten = rewrite_lua_text(&content, mappings, options);
-    if rewritten == content {
+    let replacements = build_text_replacements(mappings, options);
+    if replacements.is_empty() {
         return Ok(None);
     }
 
-    Ok(Some(rewritten.into_bytes()))
+    if let Ok(content) = std::str::from_utf8(bytes) {
+        let rewritten = rewrite_lua_text(content, mappings, options);
+        if rewritten != content {
+            return Ok(Some(rewritten.into_bytes()));
+        }
+    }
+
+    let rewritten = apply_byte_replacements(bytes, build_byte_replacements(&replacements));
+    if rewritten == bytes {
+        return Ok(None);
+    }
+
+    Ok(Some(rewritten))
 }
 
 pub fn rewrite_lua_text(
@@ -82,8 +90,14 @@ pub fn rewrite_lua_text(
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> String {
-    let mut replacements = Vec::new();
+    apply_replacements(content, build_text_replacements(mappings, options))
+}
 
+fn build_text_replacements(
+    mappings: &[CharacterMapping],
+    options: LuaRewriteOptions,
+) -> Vec<(String, String)> {
+    let mut replacements = Vec::new();
     for mapping in mappings {
         if options.rewrite_profile_keys {
             push_replacement(
@@ -125,7 +139,7 @@ pub fn rewrite_lua_text(
         }
     }
 
-    apply_replacements(content, replacements)
+    replacements
 }
 
 fn push_replacement(replacements: &mut Vec<(String, String)>, from: String, to: String) {
@@ -159,6 +173,118 @@ fn apply_replacements(content: &str, mut replacements: Vec<(String, String)>) ->
     }
 
     staged
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum LuaTextEncoding {
+    Utf8,
+    Latin1,
+}
+
+fn build_byte_replacements(replacements: &[(String, String)]) -> Vec<(Vec<u8>, Vec<u8>)> {
+    let mut encoded = Vec::new();
+
+    for (from, to) in replacements {
+        for encoding in [LuaTextEncoding::Utf8, LuaTextEncoding::Latin1] {
+            let Some(from_bytes) = encode_text_for_rewrite(from, encoding) else {
+                continue;
+            };
+            let Some(to_bytes) = encode_text_for_rewrite(to, encoding) else {
+                continue;
+            };
+            if from_bytes != to_bytes {
+                encoded.push((from_bytes, to_bytes));
+            }
+        }
+    }
+
+    encoded.sort_by(|left, right| {
+        right
+            .0
+            .len()
+            .cmp(&left.0.len())
+            .then_with(|| left.0.cmp(&right.0))
+            .then_with(|| left.1.cmp(&right.1))
+    });
+    encoded.dedup();
+    encoded
+}
+
+fn encode_text_for_rewrite(text: &str, encoding: LuaTextEncoding) -> Option<Vec<u8>> {
+    match encoding {
+        LuaTextEncoding::Utf8 => Some(text.as_bytes().to_vec()),
+        LuaTextEncoding::Latin1 => text.chars().map(latin1_char_to_byte).collect(),
+    }
+}
+
+fn latin1_char_to_byte(ch: char) -> Option<u8> {
+    let codepoint = ch as u32;
+    if codepoint <= u8::MAX as u32 {
+        Some(codepoint as u8)
+    } else {
+        None
+    }
+}
+
+fn apply_byte_replacements(content: &[u8], mut replacements: Vec<(Vec<u8>, Vec<u8>)>) -> Vec<u8> {
+    if replacements.is_empty() {
+        return content.to_vec();
+    }
+
+    replacements.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
+
+    let mut staged = content.to_vec();
+    let mut placeholders = Vec::new();
+
+    for (index, (from, to)) in replacements.into_iter().enumerate() {
+        if from.is_empty()
+            || !staged
+                .windows(from.len())
+                .any(|window| window == from.as_slice())
+        {
+            continue;
+        }
+
+        let placeholder = unique_byte_placeholder(&staged, index);
+        staged = replace_bytes(&staged, &from, &placeholder);
+        placeholders.push((placeholder, to));
+    }
+
+    for (placeholder, to) in placeholders {
+        staged = replace_bytes(&staged, &placeholder, &to);
+    }
+
+    staged
+}
+
+fn unique_byte_placeholder(content: &[u8], index: usize) -> Vec<u8> {
+    let mut placeholder = format!("__HEARTHSYNC_REWRITE_{index}__").into_bytes();
+    while content
+        .windows(placeholder.len())
+        .any(|window| window == placeholder.as_slice())
+    {
+        placeholder.push(b'_');
+    }
+    placeholder
+}
+
+fn replace_bytes(content: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+    if from.is_empty() {
+        return content.to_vec();
+    }
+
+    let mut rewritten = Vec::with_capacity(content.len());
+    let mut index = 0usize;
+    while index < content.len() {
+        if index + from.len() <= content.len() && &content[index..index + from.len()] == from {
+            rewritten.extend_from_slice(to);
+            index += from.len();
+        } else {
+            rewritten.push(content[index]);
+            index += 1;
+        }
+    }
+    rewritten
 }
 
 fn should_rewrite_lua(path: &Path) -> bool {
@@ -339,5 +465,60 @@ TestDB = {
         .expect("preview");
 
         assert!(rewritten.is_none());
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_handles_invalid_utf8_payloads() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+            b"prefix\xff\"Examplemage - Illidan\"\xffsuffix",
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: false,
+            },
+        )
+        .expect("preview")
+        .expect("rewritten bytes");
+
+        assert_eq!(rewritten[6], 0xff);
+        assert!(
+            rewritten
+                .windows(b"Targetmage - Stormrage".len())
+                .any(|window| { window == b"Targetmage - Stormrage" })
+        );
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_supports_latin1_strings() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),
+            b"PawnOptions = { [\"LastPlayerFullName\"] = \"Ren\xe9e\" }",
+            &[CharacterMapping {
+                source_account: Some("ACCOUNT".to_string()),
+                source_server: "Illidan".to_string(),
+                source_character: "Renée".to_string(),
+                target_account: "TARGET".to_string(),
+                target_server: "Illidan".to_string(),
+                target_character: "Zoë".to_string(),
+            }],
+            LuaRewriteOptions {
+                rewrite_profile_keys: false,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview")
+        .expect("rewritten bytes");
+
+        assert!(
+            rewritten
+                .windows(b"Zo\xeb".len())
+                .any(|window| window == b"Zo\xeb")
+        );
+        assert!(
+            !rewritten
+                .windows(b"Ren\xe9e".len())
+                .any(|window| window == b"Ren\xe9e")
+        );
     }
 }
