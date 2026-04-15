@@ -216,6 +216,32 @@ struct PreparedBundleApply {
     _stage_dir: TempDir,
 }
 
+struct BundleReader<'a> {
+    bundle_path: &'a Path,
+}
+
+struct BundleReadModel {
+    inspection: BundleInspection,
+    stage_dir: TempDir,
+}
+
+struct BundlePlanner<'a> {
+    bundle_path: &'a Path,
+    installation: &'a DetectedFlavorInstallation,
+    apply_mappings: &'a BundleApplyMappings,
+}
+
+struct BundleExecution {
+    backup_path: Option<PathBuf>,
+    written_files: usize,
+    rewritten_files: usize,
+}
+
+struct BundleExecutor<'a> {
+    installation: &'a DetectedFlavorInstallation,
+    backup_output_path: Option<PathBuf>,
+}
+
 struct ExtractedAddonLock {
     lock_path: PathBuf,
     source_overrides: Vec<AddonLockSourceOverride>,
@@ -448,137 +474,185 @@ fn prepare_bundle_apply(
     installation: &DetectedFlavorInstallation,
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<PreparedBundleApply> {
-    let inspection = inspect_bundle(bundle_path)?;
-    validate_target_compatibility(&inspection.manifest, installation)?;
-    let discovered_accounts = discover_local_accounts(installation)?;
-    let character_mappings = build_character_mappings(&inspection.manifest, apply_mappings)?;
-    let selected_target_accounts = resolve_selected_target_accounts(
-        &inspection.manifest,
-        &discovered_accounts,
-        &character_mappings,
-        apply_mappings,
-    )?;
-    let stage_dir = tempdir()?;
-    extract_bundle_to_stage(bundle_path, stage_dir.path())?;
-    let mut planned_entries = plan_extractable_entries(
+    BundlePlanner {
         bundle_path,
-        stage_dir.path(),
         installation,
-        &inspection.manifest,
-        &character_mappings,
         apply_mappings,
-        &selected_target_accounts,
-    )?;
-    prepare_operation_stage_files(&mut planned_entries, stage_dir.path())?;
-    let rewrite_options = LuaRewriteOptions {
-        rewrite_profile_keys: inspection.manifest.mapping.rewrite_profile_keys,
-        rewrite_identity_strings: inspection.manifest.mapping.rewrite_identity_strings,
-    };
+    }
+    .prepare()
+}
 
-    let cleanup_operations =
-        build_cleanup_operations(&planned_entries, &inspection.manifest, installation)?;
-    let cleanup_roots = cleanup_operations
-        .iter()
-        .map(|operation| operation.destination.clone())
-        .collect::<Vec<_>>();
-    let mut operations = cleanup_operations
-        .into_iter()
-        .map(|cleanup| ApplyOperation {
-            group: cleanup.group,
-            action: ApplyAction::Remove,
-            archive_name: format!("[cleanup] {}", cleanup.destination.display()),
-            destination: cleanup.destination,
-            target_account: cleanup.target_account,
-            target_server: cleanup.target_server,
-            target_character: cleanup.target_character,
-            rewrite_count: 0,
-            rewrite_applied: false,
-            staged_path: PathBuf::new(),
-        })
-        .collect::<Vec<_>>();
-    let mut summary = ApplyPlanSummary::default();
-    summary.paths_to_remove = operations.len();
-
-    for entry in &mut planned_entries {
-        let policy = resource_policy_for_group(&inspection.manifest, entry.group);
-        let preserve = policy == ResourceApplyPolicy::Preserve;
-        let cleanup_root = cleanup_scope_for_entry(entry, installation)?;
-        let will_cleanup = cleanup_root
-            .as_ref()
-            .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
-        let rewrite_applied = if preserve {
-            false
-        } else {
-            rewrite_lua_file(&entry.staged_path, &entry.rewrites, rewrite_options)?
-        };
-        let action = if preserve {
-            summary.files_to_preserve += 1;
-            ApplyAction::Preserve
-        } else if will_cleanup {
-            summary.files_to_add += 1;
-            ApplyAction::Add
-        } else if !entry.destination.exists() {
-            summary.files_to_add += 1;
-            ApplyAction::Add
-        } else if file_contents_equal(&entry.staged_path, &entry.destination)? {
-            summary.files_to_skip += 1;
-            ApplyAction::Skip
-        } else {
-            summary.files_to_replace += 1;
-            ApplyAction::Replace
-        };
-        if rewrite_applied {
-            summary.files_to_rewrite += 1;
-        }
-
-        operations.push(ApplyOperation {
-            group: entry.group,
-            action,
-            archive_name: entry.archive_name.clone(),
-            destination: entry.destination.clone(),
-            target_account: entry.target_account.clone(),
-            target_server: entry.target_server.clone(),
-            target_character: entry.target_character.clone(),
-            rewrite_count: entry.rewrites.len(),
-            rewrite_applied,
-            staged_path: entry.staged_path.clone(),
-        });
+impl<'a> BundleReader<'a> {
+    fn new(bundle_path: &'a Path) -> Self {
+        Self { bundle_path }
     }
 
-    Ok(PreparedBundleApply {
-        plan: BundleApplyPlan {
-            bundle_path: bundle_path.to_path_buf(),
-            target_flavor_root: installation.flavor_root.clone(),
+    fn inspect(&self) -> AppResult<BundleInspection> {
+        inspect_bundle(self.bundle_path)
+    }
+
+    fn read_for_apply(&self) -> AppResult<BundleReadModel> {
+        let inspection = self.inspect()?;
+        let stage_dir = tempdir()?;
+        extract_bundle_to_stage(self.bundle_path, stage_dir.path())?;
+
+        Ok(BundleReadModel {
+            inspection,
+            stage_dir,
+        })
+    }
+}
+
+impl<'a> BundlePlanner<'a> {
+    fn prepare(&self) -> AppResult<PreparedBundleApply> {
+        let read_model = BundleReader::new(self.bundle_path).read_for_apply()?;
+        validate_target_compatibility(&read_model.inspection.manifest, self.installation)?;
+        let discovered_accounts = discover_local_accounts(self.installation)?;
+        let character_mappings =
+            build_character_mappings(&read_model.inspection.manifest, self.apply_mappings)?;
+        let selected_target_accounts = resolve_selected_target_accounts(
+            &read_model.inspection.manifest,
+            &discovered_accounts,
+            &character_mappings,
+            self.apply_mappings,
+        )?;
+        self.plan(
+            read_model,
             discovered_accounts,
-            selected_target_accounts,
             character_mappings,
-            operations,
-            summary,
-            helper_strategy: HelperStrategy::NativeRust,
-            group_policies: ApplyGroupPolicies {
-                addons: GroupPolicy {
-                    policy: inspection.manifest.apply.addons,
+            selected_target_accounts,
+        )
+    }
+
+    fn plan(
+        &self,
+        read_model: BundleReadModel,
+        discovered_accounts: Vec<LocalWowAccount>,
+        character_mappings: Vec<CharacterMapping>,
+        selected_target_accounts: Vec<String>,
+    ) -> AppResult<PreparedBundleApply> {
+        let inspection = read_model.inspection;
+        let stage_dir = read_model.stage_dir;
+        let mut planned_entries = plan_extractable_entries(
+            self.bundle_path,
+            stage_dir.path(),
+            self.installation,
+            &inspection.manifest,
+            &character_mappings,
+            self.apply_mappings,
+            &selected_target_accounts,
+        )?;
+        prepare_operation_stage_files(&mut planned_entries, stage_dir.path())?;
+        let rewrite_options = LuaRewriteOptions {
+            rewrite_profile_keys: inspection.manifest.mapping.rewrite_profile_keys,
+            rewrite_identity_strings: inspection.manifest.mapping.rewrite_identity_strings,
+        };
+
+        let cleanup_operations =
+            build_cleanup_operations(&planned_entries, &inspection.manifest, self.installation)?;
+        let cleanup_roots = cleanup_operations
+            .iter()
+            .map(|operation| operation.destination.clone())
+            .collect::<Vec<_>>();
+        let mut operations = cleanup_operations
+            .into_iter()
+            .map(|cleanup| ApplyOperation {
+                group: cleanup.group,
+                action: ApplyAction::Remove,
+                archive_name: format!("[cleanup] {}", cleanup.destination.display()),
+                destination: cleanup.destination,
+                target_account: cleanup.target_account,
+                target_server: cleanup.target_server,
+                target_character: cleanup.target_character,
+                rewrite_count: 0,
+                rewrite_applied: false,
+                staged_path: PathBuf::new(),
+            })
+            .collect::<Vec<_>>();
+        let mut summary = ApplyPlanSummary::default();
+        summary.paths_to_remove = operations.len();
+
+        for entry in &mut planned_entries {
+            let policy = resource_policy_for_group(&inspection.manifest, entry.group);
+            let preserve = policy == ResourceApplyPolicy::Preserve;
+            let cleanup_root = cleanup_scope_for_entry(entry, self.installation)?;
+            let will_cleanup = cleanup_root
+                .as_ref()
+                .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
+            let rewrite_applied = if preserve {
+                false
+            } else {
+                rewrite_lua_file(&entry.staged_path, &entry.rewrites, rewrite_options)?
+            };
+            let action = if preserve {
+                summary.files_to_preserve += 1;
+                ApplyAction::Preserve
+            } else if will_cleanup {
+                summary.files_to_add += 1;
+                ApplyAction::Add
+            } else if !entry.destination.exists() {
+                summary.files_to_add += 1;
+                ApplyAction::Add
+            } else if file_contents_equal(&entry.staged_path, &entry.destination)? {
+                summary.files_to_skip += 1;
+                ApplyAction::Skip
+            } else {
+                summary.files_to_replace += 1;
+                ApplyAction::Replace
+            };
+            if rewrite_applied {
+                summary.files_to_rewrite += 1;
+            }
+
+            operations.push(ApplyOperation {
+                group: entry.group,
+                action,
+                archive_name: entry.archive_name.clone(),
+                destination: entry.destination.clone(),
+                target_account: entry.target_account.clone(),
+                target_server: entry.target_server.clone(),
+                target_character: entry.target_character.clone(),
+                rewrite_count: entry.rewrites.len(),
+                rewrite_applied,
+                staged_path: entry.staged_path.clone(),
+            });
+        }
+
+        Ok(PreparedBundleApply {
+            plan: BundleApplyPlan {
+                bundle_path: self.bundle_path.to_path_buf(),
+                target_flavor_root: self.installation.flavor_root.clone(),
+                discovered_accounts,
+                selected_target_accounts,
+                character_mappings,
+                operations,
+                summary,
+                helper_strategy: HelperStrategy::NativeRust,
+                group_policies: ApplyGroupPolicies {
+                    addons: GroupPolicy {
+                        policy: inspection.manifest.apply.addons,
+                    },
+                    wtf_common: GroupPolicy {
+                        policy: inspection.manifest.apply.wtf_common,
+                    },
+                    wtf_characters: GroupPolicy {
+                        policy: inspection.manifest.apply.wtf_characters,
+                    },
+                    fonts: GroupPolicy {
+                        policy: inspection.manifest.apply.fonts,
+                    },
+                    interface_assets: GroupPolicy {
+                        policy: inspection.manifest.apply.interface_assets,
+                    },
+                    metadata: GroupPolicy {
+                        policy: ResourceApplyPolicy::Merge,
+                    },
                 },
-                wtf_common: GroupPolicy {
-                    policy: inspection.manifest.apply.wtf_common,
-                },
-                wtf_characters: GroupPolicy {
-                    policy: inspection.manifest.apply.wtf_characters,
-                },
-                fonts: GroupPolicy {
-                    policy: inspection.manifest.apply.fonts,
-                },
-                interface_assets: GroupPolicy {
-                    policy: inspection.manifest.apply.interface_assets,
-                },
-                metadata: GroupPolicy {
-                    policy: ResourceApplyPolicy::Merge,
-                },
+                manifest: inspection.manifest,
             },
-            manifest: inspection.manifest,
-        },
-        _stage_dir: stage_dir,
-    })
+            _stage_dir: stage_dir,
+        })
+    }
 }
 
 pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
@@ -604,50 +678,63 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
         });
     }
 
-    let backup_path = if plan.manifest.apply.create_backup {
-        let groups = backup_groups_for_manifest(&plan.manifest);
-        if groups.is_empty() {
-            None
-        } else {
-            Some(
-                create_backup(BackupRequest {
-                    installation: request.installation.clone(),
-                    output_path: request.backup_output_path,
-                    groups,
-                    label: Some("bundle-apply".to_string()),
-                })?
-                .archive_path,
-            )
-        }
-    } else {
-        None
-    };
-
-    let execution = execute_apply_operations(&plan);
-    let (written_files, rewritten_files) = match execution {
-        Ok(result) => result,
-        Err(error) => {
-            return rollback_or_report_apply_error(
-                error,
-                backup_path.as_deref(),
-                &request.installation,
-            );
-        }
-    };
+    let execution = BundleExecutor {
+        installation: &request.installation,
+        backup_output_path: request.backup_output_path.clone(),
+    }
+    .execute(&plan)?;
 
     Ok(UnpackedBundle {
         bundle_path: request.bundle_path,
         target_flavor_root: request.installation.flavor_root,
         dry_run: false,
         planned_files: plan.operations.len(),
-        written_files,
-        rewritten_files,
-        backup_path,
+        written_files: execution.written_files,
+        rewritten_files: execution.rewritten_files,
+        backup_path: execution.backup_path,
         selected_target_accounts: plan.selected_target_accounts,
         plan_summary: plan.summary,
         character_mappings: plan.character_mappings,
         manifest: plan.manifest,
     })
+}
+
+impl<'a> BundleExecutor<'a> {
+    fn execute(&self, plan: &BundleApplyPlan) -> AppResult<BundleExecution> {
+        let backup_path = self.create_backup(plan)?;
+
+        match execute_apply_operations(plan) {
+            Ok((written_files, rewritten_files)) => Ok(BundleExecution {
+                backup_path,
+                written_files,
+                rewritten_files,
+            }),
+            Err(error) => {
+                rollback_or_report_apply_error(error, backup_path.as_deref(), self.installation)
+            }
+        }
+    }
+
+    fn create_backup(&self, plan: &BundleApplyPlan) -> AppResult<Option<PathBuf>> {
+        if !plan.manifest.apply.create_backup {
+            return Ok(None);
+        }
+
+        let groups = backup_groups_for_manifest(&plan.manifest);
+        if groups.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(
+                create_backup(BackupRequest {
+                    installation: self.installation.clone(),
+                    output_path: self.backup_output_path.clone(),
+                    groups,
+                    label: Some("bundle-apply".to_string()),
+                })?
+                .archive_path,
+            ))
+        }
+    }
 }
 
 fn extract_bundle_to_stage(bundle_path: &Path, stage_root: &Path) -> AppResult<()> {
