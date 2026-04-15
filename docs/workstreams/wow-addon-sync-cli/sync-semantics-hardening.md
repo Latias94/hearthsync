@@ -83,7 +83,7 @@ Removals expected:
 
 ### R4 - Manifest runtime semantics cleanup
 
-Status: partial. `keep_original` now bypasses global target identity overrides, but the remaining manifest intent cleanup is still open.
+Status: complete. `keep_original` ignores target overrides, while `explicit` and `prompt` now require caller-resolved target identities instead of silently falling back to source names.
 
 Deliverables:
 

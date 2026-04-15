@@ -57,12 +57,19 @@ impl BundleManifest {
             }
         }
 
-        if self.mapping.character_mode == CharacterMappingMode::Explicit
-            && self.resources.wtf_characters.is_empty()
+        if matches!(
+            self.mapping.character_mode,
+            CharacterMappingMode::Explicit | CharacterMappingMode::Prompt
+        ) && self.resources.wtf_characters.is_empty()
         {
-            return Err(AppError::Validation(
-                "explicit character mapping requires at least one wtf_characters entry".to_string(),
-            ));
+            let mode = match self.mapping.character_mode {
+                CharacterMappingMode::Explicit => "explicit",
+                CharacterMappingMode::Prompt => "prompt",
+                CharacterMappingMode::KeepOriginal => "keep_original",
+            };
+            return Err(AppError::Validation(format!(
+                "{mode} character mapping requires at least one wtf_characters entry"
+            )));
         }
 
         Ok(())
@@ -177,7 +184,7 @@ pub fn example_manifest() -> AppResult<String> {
             addon_indexes: Vec::new(),
         },
         mapping: MappingRules {
-            character_mode: CharacterMappingMode::Explicit,
+            character_mode: CharacterMappingMode::Prompt,
             rewrite_profile_keys: true,
             rewrite_identity_strings: true,
             allow_cross_platform: true,
@@ -203,12 +210,67 @@ pub fn load_manifest(path: &Path) -> AppResult<BundleManifest> {
 #[cfg(test)]
 mod tests {
     use super::example_manifest;
-    use crate::core::manifest::BundleManifest;
+    use crate::core::install::WowFlavor;
+    use crate::core::manifest::{
+        ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, MappingRules,
+        PackageMetadata, ResourceApplyPolicy, SourceInstallation,
+    };
 
     #[test]
     fn example_manifest_is_valid() {
         let manifest = example_manifest().expect("example");
         let parsed: BundleManifest = toml::from_str(&manifest).expect("parse");
         parsed.validate().expect("validate");
+    }
+
+    #[test]
+    fn prompt_character_mode_requires_character_resources() {
+        let manifest = BundleManifest {
+            schema_version: 1,
+            package: PackageMetadata {
+                id: "empty".to_string(),
+                name: "Empty".to_string(),
+                created_by: "test".to_string(),
+                description: None,
+            },
+            source: SourceInstallation {
+                flavor: WowFlavor::Retail,
+                platform: None,
+                exported_at: None,
+                supported_targets: vec![WowFlavor::Retail],
+            },
+            resources: BundleResources {
+                addons: vec!["WeakAuras".to_string()],
+                wtf_common: false,
+                wtf_characters: Vec::new(),
+                fonts: false,
+                interface_assets: Vec::new(),
+                addon_lock: false,
+                addon_indexes: Vec::new(),
+            },
+            mapping: MappingRules {
+                character_mode: CharacterMappingMode::Prompt,
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: true,
+                allow_cross_platform: true,
+            },
+            apply: ApplyDefaults {
+                create_backup: true,
+                addons: ResourceApplyPolicy::Merge,
+                wtf_common: ResourceApplyPolicy::Merge,
+                wtf_characters: ResourceApplyPolicy::Merge,
+                fonts: ResourceApplyPolicy::Merge,
+                interface_assets: ResourceApplyPolicy::Merge,
+            },
+        };
+
+        let error = manifest
+            .validate()
+            .expect_err("prompt mode should require character resources");
+        assert!(
+            error
+                .to_string()
+                .contains("prompt character mapping requires")
+        );
     }
 }

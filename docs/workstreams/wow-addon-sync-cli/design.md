@@ -427,6 +427,9 @@ fonts = "mirror"
 interface_assets = "mirror"
 ```
 
+In the current CLI, `character_mode = "prompt"` means the caller or future GUI must resolve the target mappings before `bundle plan` or `bundle unpack`.
+The core no longer guesses character targets from source identity in `prompt` mode, and the CLI does not launch interactive prompts yet.
+
 Addon metadata is stored as sidecar data instead of overwriting the target machine's active addon registry:
 
 - `metadata/addons/lock.toml` contains the refreshed addon lock from the source installation

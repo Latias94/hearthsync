@@ -1899,81 +1899,181 @@ fn build_character_mappings(
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<Vec<CharacterMapping>> {
     let single_character_bundle = manifest.resources.wtf_characters.len() == 1;
+    validate_character_mapping_inputs(
+        manifest.mapping.character_mode,
+        apply_mappings,
+        single_character_bundle,
+    )?;
     let mut mappings = Vec::new();
 
     for resource in &manifest.resources.wtf_characters {
         let source_account = resource.source_account.clone();
-        if manifest.mapping.character_mode == CharacterMappingMode::KeepOriginal {
-            let target_account = source_account.clone().ok_or_else(|| {
-                AppError::Validation(format!(
-                    "source account is required for keep_original character mapping on `{}/{}`",
-                    resource.source_server, resource.source_character
-                ))
-            })?;
-            validate_plain_name("target account", &target_account)?;
-            validate_plain_name("target server", &resource.source_server)?;
-            validate_plain_name("target character", &resource.source_character)?;
-            mappings.push(CharacterMapping {
-                source_account,
-                source_server: resource.source_server.clone(),
-                source_character: resource.source_character.clone(),
-                target_account,
-                target_server: resource.source_server.clone(),
-                target_character: resource.source_character.clone(),
-            });
-            continue;
-        }
+        let mapping = match manifest.mapping.character_mode {
+            CharacterMappingMode::KeepOriginal => {
+                build_keep_original_character_mapping(resource, source_account)?
+            }
+            CharacterMappingMode::Explicit | CharacterMappingMode::Prompt => {
+                build_resolved_character_mapping(
+                    manifest.mapping.character_mode,
+                    resource,
+                    source_account,
+                    apply_mappings,
+                    single_character_bundle,
+                )?
+            }
+        };
 
-        let override_mapping = resolve_mapping_override(resource, &apply_mappings.characters)?;
-        let target_account = override_mapping
-            .and_then(|item| item.target_account.clone())
-            .or_else(|| apply_mappings.target_account.clone())
-            .or_else(|| source_account.clone())
-            .ok_or_else(|| {
-                AppError::Validation(format!(
-                    "target account is required for `{}/{}`
-because the source account is unknown",
-                    resource.source_server, resource.source_character
-                ))
-            })?;
-
-        let target_server = override_mapping
-            .map(|item| item.target_server.clone())
-            .or_else(|| {
-                if single_character_bundle {
-                    apply_mappings.target_server.clone()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| resource.source_server.clone());
-
-        let target_character = override_mapping
-            .map(|item| item.target_character.clone())
-            .or_else(|| {
-                if single_character_bundle {
-                    apply_mappings.target_character.clone()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| resource.source_character.clone());
-
-        validate_plain_name("target account", &target_account)?;
-        validate_plain_name("target server", &target_server)?;
-        validate_plain_name("target character", &target_character)?;
-
-        mappings.push(CharacterMapping {
-            source_account,
-            source_server: resource.source_server.clone(),
-            source_character: resource.source_character.clone(),
-            target_account,
-            target_server,
-            target_character,
-        });
+        mappings.push(mapping);
     }
 
     Ok(mappings)
+}
+
+fn validate_character_mapping_inputs(
+    character_mode: CharacterMappingMode,
+    apply_mappings: &BundleApplyMappings,
+    single_character_bundle: bool,
+) -> AppResult<()> {
+    if matches!(
+        character_mode,
+        CharacterMappingMode::Explicit | CharacterMappingMode::Prompt
+    ) && !single_character_bundle
+        && (apply_mappings.target_server.is_some() || apply_mappings.target_character.is_some())
+    {
+        return Err(AppError::Validation(
+            "global target_server/target_character overrides are only supported when the bundle contains exactly one character; use `--mapping-file` for multi-character explicit mappings.".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+fn build_keep_original_character_mapping(
+    resource: &CharacterResource,
+    source_account: Option<String>,
+) -> AppResult<CharacterMapping> {
+    let target_account = source_account.clone().ok_or_else(|| {
+        AppError::Validation(format!(
+            "source account is required for keep_original character mapping on `{}/{}`",
+            resource.source_server, resource.source_character
+        ))
+    })?;
+    validate_plain_name("target account", &target_account)?;
+    validate_plain_name("target server", &resource.source_server)?;
+    validate_plain_name("target character", &resource.source_character)?;
+
+    Ok(CharacterMapping {
+        source_account,
+        source_server: resource.source_server.clone(),
+        source_character: resource.source_character.clone(),
+        target_account,
+        target_server: resource.source_server.clone(),
+        target_character: resource.source_character.clone(),
+    })
+}
+
+fn build_resolved_character_mapping(
+    character_mode: CharacterMappingMode,
+    resource: &CharacterResource,
+    source_account: Option<String>,
+    apply_mappings: &BundleApplyMappings,
+    single_character_bundle: bool,
+) -> AppResult<CharacterMapping> {
+    let override_mapping = resolve_mapping_override(resource, &apply_mappings.characters)?;
+    let target_account = override_mapping
+        .and_then(|item| item.target_account.clone())
+        .or_else(|| apply_mappings.target_account.clone());
+    let target_server = override_mapping
+        .map(|item| item.target_server.clone())
+        .or_else(|| {
+            if single_character_bundle {
+                apply_mappings.target_server.clone()
+            } else {
+                None
+            }
+        });
+    let target_character = override_mapping
+        .map(|item| item.target_character.clone())
+        .or_else(|| {
+            if single_character_bundle {
+                apply_mappings.target_character.clone()
+            } else {
+                None
+            }
+        });
+
+    let mut missing_fields = Vec::new();
+    if target_account.is_none() {
+        missing_fields.push("target_account");
+    }
+    if target_server.is_none() {
+        missing_fields.push("target_server");
+    }
+    if target_character.is_none() {
+        missing_fields.push("target_character");
+    }
+
+    if !missing_fields.is_empty() {
+        return Err(AppError::Validation(
+            format_character_mapping_resolution_error(
+                character_mode,
+                resource,
+                single_character_bundle,
+                &missing_fields,
+            ),
+        ));
+    }
+
+    let target_account = target_account.expect("validated target account");
+    let target_server = target_server.expect("validated target server");
+    let target_character = target_character.expect("validated target character");
+
+    validate_plain_name("target account", &target_account)?;
+    validate_plain_name("target server", &target_server)?;
+    validate_plain_name("target character", &target_character)?;
+
+    Ok(CharacterMapping {
+        source_account,
+        source_server: resource.source_server.clone(),
+        source_character: resource.source_character.clone(),
+        target_account,
+        target_server,
+        target_character,
+    })
+}
+
+fn format_character_mapping_resolution_error(
+    character_mode: CharacterMappingMode,
+    resource: &CharacterResource,
+    single_character_bundle: bool,
+    missing_fields: &[&str],
+) -> String {
+    let mode_message = match character_mode {
+        CharacterMappingMode::KeepOriginal => "keep_original should not require target identity",
+        CharacterMappingMode::Explicit => {
+            "explicit character mode requires a fully resolved target identity"
+        }
+        CharacterMappingMode::Prompt => {
+            "prompt character mode requires caller-provided target identity because the current CLI does not prompt automatically"
+        }
+    };
+    let resolution = if single_character_bundle {
+        "Provide `--target-account`, `--target-server`, and `--target-character`, or use `--mapping-file`."
+    } else {
+        "Provide per-character mappings with `--mapping-file`."
+    };
+    let hint = resource
+        .target_hint
+        .as_deref()
+        .map(|hint| format!(" Hint: {hint}."))
+        .unwrap_or_default();
+
+    format!(
+        "{mode_message} for `{}/{}` (missing: {}). {resolution}{hint}",
+        resource.source_server,
+        resource.source_character,
+        missing_fields.join(", "),
+    )
 }
 
 fn resolve_selected_target_accounts(
@@ -2537,6 +2637,132 @@ mod tests {
     }
 
     #[test]
+    fn explicit_character_mode_requires_resolved_target_identity() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.mapping.character_mode = CharacterMappingMode::Explicit;
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let error = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect_err("explicit mode should require a resolved target identity");
+
+        assert!(
+            error
+                .to_string()
+                .contains("explicit character mode requires a fully resolved target identity")
+        );
+        assert!(error.to_string().contains("--mapping-file"));
+    }
+
+    #[test]
+    fn prompt_character_mode_requires_resolved_target_identity() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.mapping.character_mode = CharacterMappingMode::Prompt;
+        manifest.resources.wtf_characters[0].target_hint = Some("Map to your main".to_string());
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let error = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect_err("prompt mode should require caller-provided mappings");
+
+        assert!(
+            error
+                .to_string()
+                .contains("current CLI does not prompt automatically")
+        );
+        assert!(error.to_string().contains("Map to your main"));
+    }
+
+    #[test]
+    fn multi_character_explicit_mode_rejects_global_target_identity_overrides() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.mapping.character_mode = CharacterMappingMode::Explicit;
+        manifest.resources.wtf_characters.push(CharacterResource {
+            source_account: Some("ACCOUNT".to_string()),
+            source_server: "Illidan".to_string(),
+            source_character: "Altmage".to_string(),
+            target_hint: None,
+        });
+        fs::create_dir_all(
+            source_installation
+                .wtf_dir
+                .join("Account")
+                .join("ACCOUNT")
+                .join("Illidan")
+                .join("Altmage"),
+        )
+        .expect("alt character");
+        fs::write(
+            source_installation
+                .wtf_dir
+                .join("Account")
+                .join("ACCOUNT")
+                .join("Illidan")
+                .join("Altmage")
+                .join("AddOns.txt"),
+            "Altmage",
+        )
+        .expect("alt addons");
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let error = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings {
+                target_server: Some("Stormrage".to_string()),
+                target_character: Some("Targetmage".to_string()),
+                ..BundleApplyMappings::default()
+            },
+        )
+        .expect_err("multi-character explicit mode should reject global target identity");
+
+        assert!(error.to_string().contains("exactly one character"));
+        assert!(error.to_string().contains("--mapping-file"));
+    }
+
+    #[test]
     fn bundle_apply_plan_does_not_expose_execution_only_fields() {
         let source = tempdir().expect("source temp dir");
         let target = tempdir().expect("target temp dir");
@@ -2764,10 +2990,12 @@ mod tests {
         let source_installation = create_fixture_installation(source.path(), true);
         let target_installation = create_fixture_installation(target.path(), false);
         let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest_with_rewrite();
+        manifest.mapping.character_mode = CharacterMappingMode::Explicit;
 
         pack_bundle(PackBundleRequest {
             installation: source_installation,
-            manifest: sample_manifest_with_rewrite(),
+            manifest,
             output_path: Some(bundle_path.clone()),
             manifest_base_dir: None,
         })
@@ -3587,7 +3815,7 @@ PawnOptions = {
                 addon_indexes: Vec::new(),
             },
             mapping: MappingRules {
-                character_mode: CharacterMappingMode::Explicit,
+                character_mode: CharacterMappingMode::KeepOriginal,
                 rewrite_profile_keys: false,
                 rewrite_identity_strings: false,
                 allow_cross_platform: true,
