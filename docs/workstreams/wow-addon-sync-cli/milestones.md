@@ -141,7 +141,7 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 ### Exit Criteria
 
 - users can preview stale files that will be deleted before apply
-- `replace_addons`, `replace_fonts`, and `merge_wtf` are either enforced or replaced by a policy enum
+- legacy `replace_addons`, `replace_fonts`, and `merge_wtf` flags are removed in favor of a policy enum
 - bundle plan generation does not mutate target state
 - a failed bundle or addon lock apply rolls back the whole operation
 - core request/result types are stable enough to be consumed by a future `egui` frontend

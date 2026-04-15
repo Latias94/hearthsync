@@ -20,7 +20,7 @@ use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_bac
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};
 use crate::core::lua_patch::{CharacterMapping, LuaRewriteOptions, rewrite_lua_file};
-use crate::core::manifest::{BundleManifest, CharacterResource};
+use crate::core::manifest::{BundleManifest, CharacterResource, ResourceApplyPolicy};
 
 const MANIFEST_ENTRY: &str = "manifest.toml";
 const ADDON_LOCK_ENTRY: &str = "metadata/addons/lock.toml";
@@ -117,6 +117,7 @@ pub struct ApplyPlanSummary {
     pub files_to_add: usize,
     pub files_to_replace: usize,
     pub files_to_skip: usize,
+    pub files_to_preserve: usize,
     pub files_to_rewrite: usize,
 }
 
@@ -127,6 +128,7 @@ pub enum ApplyAction {
     Add,
     Replace,
     Skip,
+    Preserve,
 }
 
 #[allow(dead_code)]
@@ -159,7 +161,7 @@ pub struct ApplyGroupPolicies {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupPolicy {
-    pub mode: &'static str,
+    pub policy: ResourceApplyPolicy,
 }
 
 #[derive(Debug, Clone)]
@@ -466,9 +468,17 @@ fn prepare_bundle_apply(
     let mut summary = ApplyPlanSummary::default();
 
     for entry in &mut planned_entries {
-        let rewrite_applied =
-            rewrite_lua_file(&entry.staged_path, &entry.rewrites, rewrite_options)?;
-        let action = if !entry.destination.exists() {
+        let policy = resource_policy_for_group(&inspection.manifest, entry.group);
+        let preserve = policy == ResourceApplyPolicy::Preserve;
+        let rewrite_applied = if preserve {
+            false
+        } else {
+            rewrite_lua_file(&entry.staged_path, &entry.rewrites, rewrite_options)?
+        };
+        let action = if preserve {
+            summary.files_to_preserve += 1;
+            ApplyAction::Preserve
+        } else if !entry.destination.exists() {
             summary.files_to_add += 1;
             ApplyAction::Add
         } else if file_contents_equal(&entry.staged_path, &entry.destination)? {
@@ -507,17 +517,23 @@ fn prepare_bundle_apply(
             summary,
             helper_strategy: HelperStrategy::NativeRust,
             group_policies: ApplyGroupPolicies {
-                addons: GroupPolicy { mode: "merge_copy" },
+                addons: GroupPolicy {
+                    policy: inspection.manifest.apply.addons,
+                },
                 wtf_common: GroupPolicy {
-                    mode: "selected_accounts_merge",
+                    policy: inspection.manifest.apply.wtf_common,
                 },
                 wtf_characters: GroupPolicy {
-                    mode: "explicit_mapping_merge",
+                    policy: inspection.manifest.apply.wtf_characters,
                 },
-                fonts: GroupPolicy { mode: "merge_copy" },
-                interface_assets: GroupPolicy { mode: "merge_copy" },
+                fonts: GroupPolicy {
+                    policy: inspection.manifest.apply.fonts,
+                },
+                interface_assets: GroupPolicy {
+                    policy: inspection.manifest.apply.interface_assets,
+                },
                 metadata: GroupPolicy {
-                    mode: "bundle_sidecar",
+                    policy: ResourceApplyPolicy::Merge,
                 },
             },
             manifest: inspection.manifest,
@@ -723,12 +739,23 @@ fn prepare_operation_stage_files(
     Ok(())
 }
 
+fn resource_policy_for_group(manifest: &BundleManifest, group: ApplyGroup) -> ResourceApplyPolicy {
+    match group {
+        ApplyGroup::Addons => manifest.apply.addons,
+        ApplyGroup::WtfCommon => manifest.apply.wtf_common,
+        ApplyGroup::WtfCharacters => manifest.apply.wtf_characters,
+        ApplyGroup::Fonts => manifest.apply.fonts,
+        ApplyGroup::InterfaceAssets => manifest.apply.interface_assets,
+        ApplyGroup::Metadata => ResourceApplyPolicy::Merge,
+    }
+}
+
 fn execute_apply_operations(plan: &BundleApplyPlan) -> AppResult<(usize, usize)> {
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
 
     for operation in &plan.operations {
-        if operation.action == ApplyAction::Skip {
+        if matches!(operation.action, ApplyAction::Skip | ApplyAction::Preserve) {
             continue;
         }
 
@@ -1781,7 +1808,7 @@ mod tests {
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::manifest::{
         ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
-        MappingRules, PackageMetadata, SourceInstallation,
+        MappingRules, PackageMetadata, ResourceApplyPolicy, SourceInstallation,
     };
 
     #[test]
@@ -1973,6 +2000,10 @@ mod tests {
         assert_eq!(plan.summary.files_to_replace, 0);
         assert!(plan.summary.files_to_skip > 0);
         assert_eq!(plan.summary.files_to_skip, plan.operations.len());
+        assert_eq!(
+            plan.group_policies.addons.policy,
+            ResourceApplyPolicy::Merge
+        );
         assert!(
             plan.operations
                 .iter()
@@ -2266,6 +2297,66 @@ mod tests {
     }
 
     #[test]
+    fn preserve_policy_plans_without_writing_files() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let source_installation = create_fixture_installation(source.path(), true);
+        let target_installation = create_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("bundle.zip");
+        let mut manifest = sample_manifest();
+        manifest.apply.addons = ResourceApplyPolicy::Preserve;
+        manifest.apply.wtf_common = ResourceApplyPolicy::Preserve;
+        manifest.apply.wtf_characters = ResourceApplyPolicy::Preserve;
+        manifest.apply.fonts = ResourceApplyPolicy::Preserve;
+        manifest.apply.interface_assets = ResourceApplyPolicy::Preserve;
+
+        pack_bundle(PackBundleRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+        let plan = plan_bundle_apply(
+            &bundle_path,
+            &target_installation,
+            &BundleApplyMappings::default(),
+        )
+        .expect("plan bundle");
+        assert!(plan.summary.files_to_preserve > 0);
+        assert_eq!(plan.summary.files_to_add, 0);
+        assert_eq!(plan.summary.files_to_replace, 0);
+        assert_eq!(plan.summary.files_to_skip, 0);
+        assert_eq!(plan.summary.files_to_preserve, plan.operations.len());
+        assert!(
+            plan.operations
+                .iter()
+                .all(|operation| operation.action == super::ApplyAction::Preserve)
+        );
+
+        let result = unpack_bundle(UnpackBundleRequest {
+            bundle_path,
+            installation: target_installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(target.path().join("backups")),
+            apply_mappings: BundleApplyMappings::default(),
+        })
+        .expect("unpack bundle");
+
+        assert_eq!(result.written_files, 0);
+        assert_eq!(result.plan_summary.files_to_preserve, result.planned_files);
+        assert!(
+            !target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.toc")
+                .exists()
+        );
+        assert!(!target_installation.wtf_dir.join("Config.wtf").exists());
+    }
+
+    #[test]
     fn pack_bundle_embeds_addon_lock_and_indexes_as_sidecar_metadata() {
         let source = tempdir().expect("source temp dir");
         let target = tempdir().expect("target temp dir");
@@ -2315,6 +2406,7 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
         manifest.resources.addon_lock = true;
         manifest.resources.addon_indexes = vec!["addon-index.toml".to_string()];
         manifest.mapping.character_mode = CharacterMappingMode::KeepOriginal;
+        manifest.apply.addons = ResourceApplyPolicy::Mirror;
 
         let bundle = pack_bundle(PackBundleRequest {
             installation: source_installation,
@@ -2341,6 +2433,10 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
 
         let inspection = inspect_bundle(&bundle.archive_path).expect("inspect bundle");
         assert_eq!(inspection.entries.metadata, 5);
+        assert_eq!(
+            inspection.manifest.apply.addons,
+            ResourceApplyPolicy::Mirror
+        );
         fs::remove_file(&archive_path).expect("remove original addon source");
 
         unpack_bundle(UnpackBundleRequest {
@@ -2553,9 +2649,11 @@ PawnOptions = {
             },
             apply: ApplyDefaults {
                 create_backup: true,
-                replace_addons: false,
-                replace_fonts: false,
-                merge_wtf: true,
+                addons: ResourceApplyPolicy::Merge,
+                wtf_common: ResourceApplyPolicy::Merge,
+                wtf_characters: ResourceApplyPolicy::Merge,
+                fonts: ResourceApplyPolicy::Merge,
+                interface_assets: ResourceApplyPolicy::Merge,
             },
         }
     }

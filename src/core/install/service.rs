@@ -105,6 +105,10 @@ pub fn discover_local_accounts(
         }
 
         let account_name = entry.file_name().to_string_lossy().to_string();
+        if is_reserved_account_entry(&account_name) {
+            continue;
+        }
+
         let saved_variables_dir = account_dir.join("SavedVariables");
         let mut characters = Vec::new();
 
@@ -151,6 +155,10 @@ pub fn discover_local_accounts(
 
     accounts.sort_by(|left, right| left.account_name.cmp(&right.account_name));
     Ok(accounts)
+}
+
+fn is_reserved_account_entry(name: &str) -> bool {
+    name.eq_ignore_ascii_case("SavedVariables")
 }
 
 fn candidate_product_roots() -> Vec<PathBuf> {
@@ -452,6 +460,13 @@ mod tests {
             flavor_root
                 .join("WTF")
                 .join("Account")
+                .join("SavedVariables"),
+        )
+        .expect("global saved variables");
+        fs::create_dir_all(
+            flavor_root
+                .join("WTF")
+                .join("Account")
                 .join("ACC1")
                 .join("SavedVariables"),
         )
@@ -478,6 +493,11 @@ mod tests {
 
         assert_eq!(accounts.len(), 1);
         assert_eq!(accounts[0].account_name, "ACC1");
+        assert!(
+            accounts[0]
+                .saved_variables_dir
+                .ends_with(Path::new("ACC1").join("SavedVariables"))
+        );
         assert_eq!(accounts[0].characters.len(), 1);
         assert_eq!(accounts[0].characters[0].server, "Illidan");
         assert_eq!(accounts[0].characters[0].character, "Mageone");

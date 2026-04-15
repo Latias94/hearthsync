@@ -66,16 +66,16 @@
 
 ## Phase 5.5 - Sync Semantics Hardening
 
-- [ ] Define explicit resource-group policies: `merge`, `mirror`, `replace_selected`, and `preserve`
-- [ ] Consume or replace manifest apply flags such as `replace_addons`, `replace_fonts`, and `merge_wtf`
+- [x] Fix account discovery so `WTF/Account/SavedVariables` is not treated as a playable account
+- [x] Define explicit resource-group policies: `merge`, `mirror`, `replace_selected`, and `preserve`
+- [x] Consume or replace manifest apply flags such as `replace_addons`, `replace_fonts`, and `merge_wtf`
+- [ ] Classify WTF scopes as account-root files, account SavedVariables, role SavedVariables, role state, and cache-like files
+- [ ] Add NewBeeBox-style `share` and `sync` semantics as explicit policy choices or aliases
 - [ ] Add delete operations to plans for mirror and replace policies
 - [ ] Split bundle archive reading, planning, staging, rewriting, and execution boundaries
 - [ ] Ensure plan generation never mutates target state
 - [ ] Make bundle apply use one operation-level backup and rollback boundary
 - [ ] Make addon lock apply use one operation-level backup and rollback boundary
-- [ ] Classify WTF scopes as account-root files, account SavedVariables, role SavedVariables, role state, and cache-like files
-- [ ] Add NewBeeBox-style `share` and `sync` semantics as explicit policy choices or aliases
-- [ ] Fix account discovery so `WTF/Account/SavedVariables` is not treated as a playable account
 
 ## Phase 6 - Lua Rewrite Engine
 

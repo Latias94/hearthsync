@@ -125,9 +125,20 @@ pub enum CharacterMappingMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApplyDefaults {
     pub create_backup: bool,
-    pub replace_addons: bool,
-    pub replace_fonts: bool,
-    pub merge_wtf: bool,
+    pub addons: ResourceApplyPolicy,
+    pub wtf_common: ResourceApplyPolicy,
+    pub wtf_characters: ResourceApplyPolicy,
+    pub fonts: ResourceApplyPolicy,
+    pub interface_assets: ResourceApplyPolicy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResourceApplyPolicy {
+    Merge,
+    Mirror,
+    ReplaceSelected,
+    Preserve,
 }
 
 pub fn example_manifest() -> AppResult<String> {
@@ -171,9 +182,11 @@ pub fn example_manifest() -> AppResult<String> {
         },
         apply: ApplyDefaults {
             create_backup: true,
-            replace_addons: false,
-            replace_fonts: false,
-            merge_wtf: true,
+            addons: ResourceApplyPolicy::Merge,
+            wtf_common: ResourceApplyPolicy::Merge,
+            wtf_characters: ResourceApplyPolicy::Merge,
+            fonts: ResourceApplyPolicy::Merge,
+            interface_assets: ResourceApplyPolicy::Merge,
         },
     })
     .map_err(Into::into)

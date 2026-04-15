@@ -372,32 +372,45 @@ These findings strengthen the case for a two-stage `WTF` apply model in `hearths
 `manifest.toml` example:
 
 ```toml
-bundle_version = 1
-bundle_name = "Rurutia Retail Setup"
-source_platform = "windows"
-source_flavor = "retail"
+schema_version = 1
 
-[apply_defaults]
-backup_before_apply = true
-replace_addons = true
-replace_fonts = true
-replace_interface_assets = true
-merge_wtf_common = true
-merge_wtf_character = true
+[package]
+id = "rurutia-retail-setup"
+name = "Rurutia Retail Setup"
+created_by = "hearthsync"
+description = "Portable UI setup for personal migration."
 
-[mapping_rules]
-character_mapping = "prompt"
-rewrite_profile_keys = true
-rewrite_character_identity = true
+[source]
+flavor = "retail"
+platform = "windows"
+supported_targets = ["retail"]
 
 [resources]
-addons = true
+addons = ["WeakAuras", "Details"]
+wtf_common = true
+fonts = true
+interface_assets = ["SharedXML"]
 addon_lock = true
 addon_indexes = ["addon-index.toml"]
-wtf_common = true
-wtf_characters = true
-fonts = true
-interface_assets = true
+
+[[resources.wtf_characters]]
+source_account = "ACCOUNT_NAME"
+source_server = "Illidan"
+source_character = "Examplemage"
+
+[mapping]
+character_mode = "prompt"
+rewrite_profile_keys = true
+rewrite_identity_strings = true
+allow_cross_platform = true
+
+[apply]
+create_backup = true
+addons = "mirror"
+wtf_common = "merge"
+wtf_characters = "replace_selected"
+fonts = "mirror"
+interface_assets = "mirror"
 ```
 
 Addon metadata is stored as sidecar data instead of overwriting the target machine's active addon registry:

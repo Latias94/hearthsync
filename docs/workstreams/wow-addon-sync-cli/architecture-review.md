@@ -57,7 +57,7 @@ Every resource group should have a declared and enforced policy:
 - `replace_selected`: replace only explicitly selected files or directories
 - `preserve`: preview only, never mutate
 
-The current manifest flags such as `replace_addons`, `replace_fonts`, and `merge_wtf` should either be consumed directly or replaced by a clearer policy enum. Keeping declared intent that is ignored by execution is not acceptable.
+The previous manifest flags such as `replace_addons`, `replace_fonts`, and `merge_wtf` should stay removed in favor of a clearer policy enum. Keeping declared intent that is ignored by execution is not acceptable.
 
 ### Decision 3: Plan and execution must separate
 
