@@ -46,6 +46,7 @@
 - [x] Implement `hearthsync bundle pack`
 - [x] Implement `hearthsync bundle inspect`
 - [x] Embed addon lock and addon index sidecar metadata in bundles
+- [x] Embed bundle-local addon source archives for lock-driven sync
 
 ## Phase 5 - Bundle Apply
 

@@ -116,6 +116,8 @@ bundle.zip
   manifest.toml
   addons/
   metadata/addons/lock.toml
+  metadata/addons/sources.toml
+  metadata/addons/sources/
   metadata/addons/indexes/
   wtf/common/
   wtf/characters/<character_key>/
@@ -383,10 +385,14 @@ interface_assets = true
 Addon metadata is stored as sidecar data instead of overwriting the target machine's active addon registry:
 
 - `metadata/addons/lock.toml` contains the refreshed addon lock from the source installation
+- `metadata/addons/sources.toml` maps lock comparison keys to bundle-local package source archives
+- `metadata/addons/sources/*.zip` stores source-machine installed addon content as package archives for portable personal migration
 - `metadata/addons/indexes/*.toml` contains curated addon indexes referenced by the manifest
 - unpack writes these files to `Interface/AddOns/.hearthsync/bundles/<bundle-id>/...`
-- users can then run `addon lock plan/apply --file <sidecar-lock>` explicitly
-- `bundle addon-plan` and `bundle addon-apply` can read `metadata/addons/lock.toml` directly from the archive when users only want the addon sync plan
+- users can then run `addon lock plan/apply --file <sidecar-lock>` explicitly; the sibling `sources.toml` is discovered automatically
+- `bundle addon-plan` and `bundle addon-apply` can read `metadata/addons/lock.toml` and use bundle-local sources directly from the archive when users only want the addon sync plan
+
+Bundle-local addon source archives are intended for personal cross-machine migration. Publicly sharing bundles that contain addon package files is treated as mod distribution and must respect each mod author's license and the hosting platform's terms.
 
 ## CLI Surface Proposal
 
@@ -550,6 +556,7 @@ Sync planning and apply prefer index identity when it exists, then fall back to 
 - selecting one installation
 - selecting content groups to include
 - embedding the source addon lock and curated addon index files as metadata
+- embedding bundle-local addon source archives for lock-driven personal migration
 - selecting one or more characters
 - include and exclude globs
 - optional pruning of cache and backup files
@@ -585,7 +592,7 @@ Recommended apply order:
 6. post-apply rewrites
 7. optional explicit addon lock plan/apply from embedded sidecar metadata
 
-`bundle addon-plan` and `bundle addon-apply` are shortcut workflows for step 7. They extract only `metadata/addons/lock.toml` into a temporary workspace and reuse the addon lock sync engine, so the target machine must be able to resolve the lock's source references. Local archive paths captured from the source machine are therefore not portable yet unless the user makes those archives available at equivalent paths or updates the lock/index source references.
+`bundle addon-plan` and `bundle addon-apply` are shortcut workflows for step 7. They extract `metadata/addons/lock.toml` plus `metadata/addons/sources/` into a temporary workspace and reuse the addon lock sync engine. Bundle-local source archives act as transport fallbacks when the original source reference is not reachable on the target machine, while the installed registry still records the original source reference for attribution and future provider-based updates.
 
 ## Cross-Platform Concerns
 

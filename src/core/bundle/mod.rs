@@ -12,8 +12,9 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::core::addon::lock::{
-    AddonLockApplyRequest, AddonLockApplyResult, AddonLockPlanResult, apply_addon_lock_sync,
-    plan_addon_lock_sync, write_addon_lock,
+    AddonLock, AddonLockApplyRequest, AddonLockApplyResult, AddonLockPackage, AddonLockPlanResult,
+    AddonLockSourceOverride, addon_lock_package_comparison_key, apply_addon_lock_sync,
+    plan_addon_lock_sync_with_source_overrides, write_addon_lock,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_backup};
 use crate::core::error::{AppError, AppResult};
@@ -24,6 +25,8 @@ use crate::core::manifest::{BundleManifest, CharacterResource};
 const MANIFEST_ENTRY: &str = "manifest.toml";
 const ADDON_LOCK_ENTRY: &str = "metadata/addons/lock.toml";
 const ADDON_INDEX_ENTRY_ROOT: &str = "metadata/addons/indexes";
+const ADDON_SOURCE_INDEX_ENTRY: &str = "metadata/addons/sources.toml";
+const ADDON_SOURCE_ENTRY_ROOT: &str = "metadata/addons/sources";
 
 #[derive(Debug, Clone)]
 pub struct PackBundleRequest {
@@ -202,7 +205,23 @@ struct PreparedBundleApply {
 
 struct ExtractedAddonLock {
     lock_path: PathBuf,
+    source_overrides: Vec<AddonLockSourceOverride>,
     _stage_dir: TempDir,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BundleAddonSourceIndex {
+    schema_version: u32,
+    sources: Vec<BundleAddonSourceEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BundleAddonSourceEntry {
+    comparison_key: String,
+    package_id: String,
+    path: String,
+    content_sha256: String,
+    addon_directories: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -275,11 +294,12 @@ pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
                 "cannot embed addon lock because no tracked addon packages were found".to_string(),
             ));
         }
-        archived_files += add_path_to_zip(
-            &mut zip,
-            &lock_result.lock_path,
-            Path::new(ADDON_LOCK_ENTRY),
-        )?;
+        let lock = read_generated_addon_lock(&lock_result.lock_path)?;
+        let source_index =
+            add_bundle_addon_sources_to_zip(&mut zip, &request.installation, &lock.packages)?;
+        archived_files += source_index.sources.len();
+        archived_files += write_toml_to_zip(&mut zip, ADDON_SOURCE_INDEX_ENTRY, &source_index)?;
+        archived_files += write_toml_to_zip(&mut zip, ADDON_LOCK_ENTRY, &lock)?;
     }
 
     let addon_index_paths = resolve_addon_index_paths(
@@ -375,7 +395,11 @@ pub fn plan_bundle_addon_lock(
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<BundleAddonLockPlan> {
     let extracted = extract_embedded_addon_lock(bundle_path)?;
-    let mut plan = plan_addon_lock_sync(installation, Some(&extracted.lock_path))?;
+    let mut plan = plan_addon_lock_sync_with_source_overrides(
+        installation,
+        Some(&extracted.lock_path),
+        &extracted.source_overrides,
+    )?;
     plan.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
 
     Ok(BundleAddonLockPlan {
@@ -394,6 +418,7 @@ pub fn apply_bundle_addon_lock(
         lock_path: Some(extracted.lock_path.clone()),
         backup_output_path: request.backup_output_path,
         replace_existing: request.replace_existing,
+        source_overrides: extracted.source_overrides,
     })?;
     apply.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
     apply.verification.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
@@ -600,20 +625,78 @@ fn extract_bundle_to_stage(bundle_path: &Path, stage_root: &Path) -> AppResult<(
 fn extract_embedded_addon_lock(bundle_path: &Path) -> AppResult<ExtractedAddonLock> {
     let file = File::open(bundle_path)?;
     let mut archive = ZipArchive::new(file)?;
-    let mut lock_entry = archive.by_name(ADDON_LOCK_ENTRY).map_err(|_| {
-        AppError::NotFound(format!(
-            "bundle does not contain embedded addon lock `{ADDON_LOCK_ENTRY}`"
-        ))
-    })?;
     let stage_dir = tempdir()?;
     let lock_path = stage_dir.path().join("lock.toml");
-    let mut output = File::create(&lock_path)?;
-    std::io::copy(&mut lock_entry, &mut output)?;
+    {
+        let mut lock_entry = archive.by_name(ADDON_LOCK_ENTRY).map_err(|_| {
+            AppError::NotFound(format!(
+                "bundle does not contain embedded addon lock `{ADDON_LOCK_ENTRY}`"
+            ))
+        })?;
+        let mut output = File::create(&lock_path)?;
+        std::io::copy(&mut lock_entry, &mut output)?;
+    }
+
+    let source_overrides = extract_bundle_addon_source_overrides(&mut archive, stage_dir.path())?;
 
     Ok(ExtractedAddonLock {
         lock_path,
+        source_overrides,
         _stage_dir: stage_dir,
     })
+}
+
+fn extract_bundle_addon_source_overrides(
+    archive: &mut ZipArchive<File>,
+    stage_root: &Path,
+) -> AppResult<Vec<AddonLockSourceOverride>> {
+    let source_index = match archive.by_name(ADDON_SOURCE_INDEX_ENTRY) {
+        Ok(mut entry) => {
+            let mut content = String::new();
+            entry.read_to_string(&mut content)?;
+            toml::from_str::<BundleAddonSourceIndex>(&content)?
+        }
+        Err(zip::result::ZipError::FileNotFound) => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+
+    if source_index.schema_version != 1 {
+        return Err(AppError::Validation(format!(
+            "unsupported bundle addon source index schema version: {}",
+            source_index.schema_version
+        )));
+    }
+
+    let mut source_overrides = Vec::new();
+    for source in source_index.sources {
+        let segments = safe_zip_segments(&source.path)?;
+        if segments.first().copied() != Some("sources") || segments.len() < 2 {
+            return Err(AppError::Validation(format!(
+                "bundle addon source path must be under `sources/`: {}",
+                source.path
+            )));
+        }
+
+        let archive_entry_name = format!("metadata/addons/{}", segments.join("/"));
+        let mut source_entry = archive.by_name(&archive_entry_name).map_err(|_| {
+            AppError::NotFound(format!(
+                "bundle addon source archive is missing: {archive_entry_name}"
+            ))
+        })?;
+        let extracted_path = join_segments(stage_root, &segments);
+        if let Some(parent) = extracted_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut output = File::create(&extracted_path)?;
+        std::io::copy(&mut source_entry, &mut output)?;
+
+        source_overrides.push(AddonLockSourceOverride {
+            comparison_key: source.comparison_key,
+            archive_path: extracted_path,
+        });
+    }
+
+    Ok(source_overrides)
 }
 
 fn prepare_operation_stage_files(
@@ -799,6 +882,109 @@ fn resolve_addon_index_paths(
     Ok(resolved)
 }
 
+fn read_generated_addon_lock(path: &Path) -> AppResult<AddonLock> {
+    let content = fs::read_to_string(path)?;
+    Ok(toml::from_str(&content)?)
+}
+
+fn add_bundle_addon_sources_to_zip(
+    zip: &mut ZipWriter<File>,
+    installation: &DetectedFlavorInstallation,
+    packages: &[AddonLockPackage],
+) -> AppResult<BundleAddonSourceIndex> {
+    let source_stage = tempdir()?;
+    let mut entries = Vec::new();
+    let mut used_file_names = Vec::new();
+    let mut packages = packages.iter().collect::<Vec<_>>();
+    packages.sort_by(|left, right| {
+        addon_lock_package_comparison_key(left).cmp(&addon_lock_package_comparison_key(right))
+    });
+
+    for (index, package) in packages.into_iter().enumerate() {
+        let comparison_key = addon_lock_package_comparison_key(package);
+        let file_name = unique_bundle_source_archive_name(
+            &comparison_key,
+            &package.package_id,
+            index,
+            &mut used_file_names,
+        );
+        let source_archive_path = source_stage.path().join(&file_name);
+        write_addon_package_source_archive(&source_archive_path, installation, package)?;
+        let relative_source_path = format!("sources/{file_name}");
+        let bundle_entry_path = Path::new(ADDON_SOURCE_ENTRY_ROOT).join(&file_name);
+        add_path_to_zip(zip, &source_archive_path, &bundle_entry_path)?;
+
+        entries.push(BundleAddonSourceEntry {
+            comparison_key,
+            package_id: package.package_id.clone(),
+            path: relative_source_path,
+            content_sha256: package.content_sha256.clone(),
+            addon_directories: package.addon_directories.clone(),
+        });
+    }
+
+    Ok(BundleAddonSourceIndex {
+        schema_version: 1,
+        sources: entries,
+    })
+}
+
+fn unique_bundle_source_archive_name(
+    comparison_key: &str,
+    package_id: &str,
+    index: usize,
+    used_file_names: &mut Vec<String>,
+) -> String {
+    let mut base = safe_file_part(comparison_key);
+    if base.is_empty() {
+        base = safe_file_part(package_id);
+    }
+    if base.is_empty() {
+        base = format!("package-{index}");
+    }
+
+    let mut candidate = format!("{base}.zip");
+    let mut suffix = 2usize;
+    while used_file_names.iter().any(|item| item == &candidate) {
+        candidate = format!("{base}-{suffix}.zip");
+        suffix += 1;
+    }
+    used_file_names.push(candidate.clone());
+    candidate
+}
+
+fn write_addon_package_source_archive(
+    archive_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    package: &AddonLockPackage,
+) -> AppResult<()> {
+    let file = File::create(archive_path)?;
+    let mut zip = ZipWriter::new(file);
+    let mut archived_files = 0usize;
+
+    for addon_directory in &package.addon_directories {
+        validate_plain_name("addon", addon_directory)?;
+        let source = installation.addon_dir.join(addon_directory);
+        if !source.is_dir() {
+            return Err(AppError::NotFound(format!(
+                "tracked addon directory does not exist: {}",
+                source.display()
+            )));
+        }
+        archived_files += add_path_to_zip(&mut zip, &source, Path::new(addon_directory))?;
+    }
+
+    zip.finish()?;
+    if archived_files == 0 {
+        return Err(AppError::Validation(format!(
+            "tracked package `{}` does not contain any addon files",
+            package.package_id
+        )));
+    }
+
+    Ok(())
+}
+
 fn add_character_wtf_to_zip(
     zip: &mut ZipWriter<File>,
     wtf_dir: &Path,
@@ -925,6 +1111,16 @@ fn write_file_to_zip(
     zip.start_file(to_zip_path(archive_path), zip_file_options())?;
     zip.write_all(&buffer)?;
     Ok(())
+}
+
+fn write_toml_to_zip<T: Serialize>(
+    zip: &mut ZipWriter<File>,
+    archive_path: &str,
+    value: &T,
+) -> AppResult<usize> {
+    zip.start_file(archive_path, zip_file_options())?;
+    zip.write_all(toml::to_string_pretty(value)?.as_bytes())?;
+    Ok(1)
 }
 
 fn read_manifest_from_archive(archive: &mut ZipArchive<File>) -> AppResult<BundleManifest> {
@@ -1580,6 +1776,7 @@ mod tests {
         apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
         plan_bundle_apply, unpack_bundle,
     };
+    use crate::core::addon::lock::plan_addon_lock_sync;
     use crate::core::addon::{InstallAddonRequest, install_addon};
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::manifest::{
@@ -2130,6 +2327,12 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
         let file = fs::File::open(&bundle.archive_path).expect("bundle file");
         let mut archive = ZipArchive::new(file).expect("zip archive");
         assert!(archive.by_name("metadata/addons/lock.toml").is_ok());
+        assert!(archive.by_name("metadata/addons/sources.toml").is_ok());
+        assert!(
+            archive
+                .by_name("metadata/addons/sources/addons-weakauras.zip")
+                .is_ok()
+        );
         assert!(
             archive
                 .by_name("metadata/addons/indexes/addon-index.toml")
@@ -2137,7 +2340,8 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
         );
 
         let inspection = inspect_bundle(&bundle.archive_path).expect("inspect bundle");
-        assert_eq!(inspection.entries.metadata, 3);
+        assert_eq!(inspection.entries.metadata, 5);
+        fs::remove_file(&archive_path).expect("remove original addon source");
 
         unpack_bundle(UnpackBundleRequest {
             bundle_path,
@@ -2162,11 +2366,20 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
                 .exists()
         );
 
+        let sidecar_plan = plan_addon_lock_sync(
+            &target_installation,
+            Some(&sidecar_root.join("addons").join("lock.toml")),
+        )
+        .expect("sidecar addon plan");
+        assert_eq!(sidecar_plan.install_count, 1);
+        assert_eq!(sidecar_plan.blocked_count, 0);
+
         let addon_plan =
             plan_bundle_addon_lock(&bundle.archive_path, &target_installation).expect("addon plan");
         assert_eq!(addon_plan.plan.install_count, 1);
         assert_eq!(addon_plan.plan.update_count, 0);
         assert_eq!(addon_plan.plan.remove_count, 0);
+        assert_eq!(addon_plan.plan.blocked_count, 0);
 
         let addon_apply = apply_bundle_addon_lock(BundleAddonLockApplyRequest {
             bundle_path: bundle.archive_path,

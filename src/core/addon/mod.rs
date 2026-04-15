@@ -40,6 +40,16 @@ pub struct InstallAddonRequest {
     pub metadata: Option<AddonPackageMetadata>,
 }
 
+#[derive(Debug)]
+pub(crate) struct InstallPreparedAddonRequest {
+    pub(crate) installation: DetectedFlavorInstallation,
+    pub(crate) prepared: PreparedAddonPackage,
+    pub(crate) dry_run: bool,
+    pub(crate) backup_output_path: Option<PathBuf>,
+    pub(crate) replace_existing: bool,
+    pub(crate) metadata: Option<AddonPackageMetadata>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct InstalledAddonPackageResult {
     pub dry_run: bool,
@@ -209,11 +219,25 @@ pub fn search_addons(request: SearchAddonRequest) -> AppResult<AddonSearchCatalo
 }
 
 pub fn install_addon(request: InstallAddonRequest) -> AppResult<InstalledAddonPackageResult> {
-    let registry_path = registry_path(&request.installation);
-    let mut prepared = prepare_package_from_source_input_with_flavor(
+    let prepared = prepare_package_from_source_input_with_flavor(
         &request.source,
         Some(request.installation.flavor),
     )?;
+    install_prepared_addon(InstallPreparedAddonRequest {
+        installation: request.installation,
+        prepared,
+        dry_run: request.dry_run,
+        backup_output_path: request.backup_output_path,
+        replace_existing: request.replace_existing,
+        metadata: request.metadata,
+    })
+}
+
+pub(crate) fn install_prepared_addon(
+    request: InstallPreparedAddonRequest,
+) -> AppResult<InstalledAddonPackageResult> {
+    let registry_path = registry_path(&request.installation);
+    let mut prepared = request.prepared;
     prepared.metadata = request.metadata;
     let files_to_write = prepared
         .addons
@@ -595,6 +619,14 @@ pub(crate) fn prepare_package_from_source_ref_with_flavor(
         &materialized.archive_path,
         stage_dir,
     )
+}
+
+pub(crate) fn prepare_package_from_archive_with_source(
+    source: AddonSourceRef,
+    archive_path: &Path,
+) -> AppResult<PreparedAddonPackage> {
+    let stage_dir = tempdir()?;
+    prepare_package_from_archive(source, archive_path, stage_dir)
 }
 
 fn prepare_package_from_archive(

@@ -106,8 +106,8 @@ addon_lock = true
 addon_indexes = [".\\addon-index.toml"]
 ```
 
-When present, HearthSync embeds the refreshed addon lock at `metadata/addons/lock.toml` and addon indexes under `metadata/addons/indexes/`.
-Unpacking writes those files as sidecar metadata under `Interface/AddOns/.hearthsync/bundles/<bundle-id>/` so users can run `addon lock plan/apply --file <sidecar-lock>` explicitly without silently replacing local addon tracking.
+When present, HearthSync embeds the refreshed addon lock at `metadata/addons/lock.toml`, package source archives under `metadata/addons/sources/`, a source map at `metadata/addons/sources.toml`, and addon indexes under `metadata/addons/indexes/`.
+Unpacking writes those files as sidecar metadata under `Interface/AddOns/.hearthsync/bundles/<bundle-id>/` so users can run `addon lock plan/apply --file <sidecar-lock>` explicitly without silently replacing local addon tracking; the sidecar `sources.toml` is detected automatically.
 For convenience, bundles can also be used directly as addon sync inputs:
 
 ```powershell
@@ -116,7 +116,7 @@ cargo run -- bundle addon-apply --bundle .\my-ui.zip --install "E:\Games\World o
 ```
 
 These commands read `metadata/addons/lock.toml` from the bundle without unpacking sidecar files first.
-The referenced addon sources must still be reachable on the target machine; for example, source-machine local archive paths need to be shared or copied until bundle-local addon sources are implemented.
+If the lock points to a source-machine local archive path, the direct bundle commands use the embedded package archive as a transport fallback, while keeping the original source reference in the target registry for attribution and future provider-based updates.
 
 Preview and unpack a bundle:
 
@@ -236,6 +236,7 @@ cargo test
 
 HearthSync is intended to be a user-side sync and management tool, not a third-party mod redistribution platform.
 Provider-hosted mods should remain attributed to their original projects and downloaded through official provider APIs or user-provided sources.
+Bundles that include `metadata/addons/sources/` contain addon package files and should be treated as personal migration backups unless the mod authors' licenses and platform terms allow redistribution.
 
 ## License
 

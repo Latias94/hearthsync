@@ -10,10 +10,11 @@ use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
 
 use crate::core::addon::{
-    AddonInventory, AddonPackageMetadata, AddonRegistry, AddonSourceRef, InstallAddonRequest,
-    RemoveAddonRequest, TrackedAddon, TrackedAddonPackage, install_addon, list_addons,
-    load_registry, prepare_package_from_source_ref_with_flavor, remove_addons,
-    rollback_or_report_addon_error, update_prepared_packages,
+    AddonInventory, AddonPackageMetadata, AddonRegistry, AddonSourceRef,
+    InstallPreparedAddonRequest, RemoveAddonRequest, TrackedAddon, TrackedAddonPackage,
+    install_prepared_addon, list_addons, load_registry, prepare_package_from_archive_with_source,
+    prepare_package_from_source_ref_with_flavor, remove_addons, rollback_or_report_addon_error,
+    update_prepared_packages,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
@@ -169,6 +170,25 @@ pub struct AddonLockApplyRequest {
     pub lock_path: Option<PathBuf>,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,
+    pub source_overrides: Vec<AddonLockSourceOverride>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AddonLockSourceOverride {
+    pub comparison_key: String,
+    pub archive_path: PathBuf,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct AddonLockSidecarSourceIndex {
+    schema_version: u32,
+    sources: Vec<AddonLockSidecarSourceEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct AddonLockSidecarSourceEntry {
+    comparison_key: String,
+    path: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -273,11 +293,25 @@ pub fn plan_addon_lock_sync(
     installation: &DetectedFlavorInstallation,
     expected_lock_path: Option<&Path>,
 ) -> AppResult<AddonLockPlanResult> {
-    Ok(build_addon_lock_plan(installation, expected_lock_path)?.result)
+    plan_addon_lock_sync_with_source_overrides(installation, expected_lock_path, &[])
+}
+
+pub fn plan_addon_lock_sync_with_source_overrides(
+    installation: &DetectedFlavorInstallation,
+    expected_lock_path: Option<&Path>,
+    source_overrides: &[AddonLockSourceOverride],
+) -> AppResult<AddonLockPlanResult> {
+    Ok(build_addon_lock_plan(installation, expected_lock_path, source_overrides)?.result)
 }
 
 pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
-    let plan = build_addon_lock_plan(&request.installation, request.lock_path.as_deref())?;
+    let plan = build_addon_lock_plan(
+        &request.installation,
+        request.lock_path.as_deref(),
+        &request.source_overrides,
+    )?;
+    let source_overrides =
+        resolved_source_override_map(&plan.result.lock_path, &request.source_overrides)?;
     let blocked_actions = plan
         .actions
         .iter()
@@ -353,9 +387,12 @@ pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonL
             let expected = action.expected.as_ref().ok_or_else(|| {
                 AppError::Validation("lock update action is missing expected package".to_string())
             })?;
-            let mut prepared = prepare_package_from_source_ref_with_flavor(
-                &expected.source,
-                Some(request.installation.flavor),
+            let mut prepared = prepare_expected_lock_package(
+                expected,
+                source_overrides
+                    .get(&action.action.comparison_key)
+                    .map(PathBuf::as_path),
+                request.installation.flavor,
             )?;
             prepared.metadata = Some(metadata_from_lock_package(expected));
             selected_packages.push(current.clone());
@@ -397,9 +434,16 @@ pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonL
         let expected = action.expected.as_ref().ok_or_else(|| {
             AppError::Validation("lock install action is missing expected package".to_string())
         })?;
-        install_addon(InstallAddonRequest {
+        let prepared = prepare_expected_lock_package(
+            expected,
+            source_overrides
+                .get(&action.action.comparison_key)
+                .map(PathBuf::as_path),
+            request.installation.flavor,
+        )?;
+        install_prepared_addon(InstallPreparedAddonRequest {
             installation: request.installation.clone(),
-            source: expected.source.display_name(),
+            prepared,
             dry_run: false,
             backup_output_path: request.backup_output_path.clone(),
             replace_existing: request.replace_existing,
@@ -619,6 +663,24 @@ fn preflight_source_ref(source: &AddonSourceRef) -> Vec<String> {
     }
 }
 
+fn preflight_expected_source(
+    comparison_key: &str,
+    source: &AddonSourceRef,
+    source_overrides: &BTreeMap<String, PathBuf>,
+) -> Vec<String> {
+    if let Some(path) = source_overrides.get(comparison_key) {
+        if path.is_file() {
+            return Vec::new();
+        }
+        return vec![format!(
+            "bundle addon source archive is not available: {}",
+            path.display()
+        )];
+    }
+
+    preflight_source_ref(source)
+}
+
 fn directory_conflicts(
     comparison_key: &str,
     addon_directories: &[String],
@@ -685,10 +747,12 @@ fn lock_action_sort_key(kind: &AddonLockSyncActionKind) -> u8 {
 fn build_addon_lock_plan(
     installation: &DetectedFlavorInstallation,
     expected_lock_path: Option<&Path>,
+    source_overrides: &[AddonLockSourceOverride],
 ) -> AppResult<AddonLockPlanContext> {
     let lock_path = expected_lock_path
         .map(Path::to_path_buf)
         .unwrap_or_else(|| lock_path(installation));
+    let source_overrides = resolved_source_override_map(&lock_path, source_overrides)?;
     let expected_lock = read_addon_lock(&lock_path)?;
     let inventory = list_addons(installation)?;
     let current_snapshots = inventory
@@ -747,7 +811,8 @@ fn build_addon_lock_plan(
             .get(&package.comparison_key)
             .cloned()
             .ok_or_else(|| AppError::Validation("expected lock package missing".to_string()))?;
-        let blocked_reasons = preflight_source_ref(&expected.source);
+        let blocked_reasons =
+            preflight_expected_source(&package.comparison_key, &expected.source, &source_overrides);
         let (conflict_reasons, requires_replace_existing) = directory_conflicts(
             &package.comparison_key,
             &package.addon_directories,
@@ -830,7 +895,7 @@ fn build_addon_lock_plan(
             }
         }
         let blocked_reasons = if kind == AddonLockSyncActionKind::Update {
-            preflight_source_ref(&expected.source)
+            preflight_expected_source(&package.comparison_key, &expected.source, &source_overrides)
         } else {
             Vec::new()
         };
@@ -908,6 +973,114 @@ fn build_addon_lock_plan(
         },
         actions,
     })
+}
+
+fn resolved_source_override_map(
+    lock_path: &Path,
+    source_overrides: &[AddonLockSourceOverride],
+) -> AppResult<BTreeMap<String, PathBuf>> {
+    let mut map = load_sidecar_source_overrides(lock_path)?;
+    let mut explicit_keys = BTreeSet::new();
+    for source_override in source_overrides {
+        if source_override.comparison_key.trim().is_empty() {
+            return Err(AppError::Validation(
+                "addon lock source override comparison key must not be empty".to_string(),
+            ));
+        }
+        if !explicit_keys.insert(source_override.comparison_key.clone()) {
+            return Err(AppError::Validation(format!(
+                "duplicate addon lock source override for `{}`",
+                source_override.comparison_key
+            )));
+        }
+        map.insert(
+            source_override.comparison_key.clone(),
+            source_override.archive_path.clone(),
+        );
+    }
+    Ok(map)
+}
+
+fn load_sidecar_source_overrides(lock_path: &Path) -> AppResult<BTreeMap<String, PathBuf>> {
+    let Some(lock_dir) = lock_path.parent() else {
+        return Ok(BTreeMap::new());
+    };
+    let source_index_path = lock_dir.join("sources.toml");
+    if !source_index_path.is_file() {
+        return Ok(BTreeMap::new());
+    }
+
+    let content = fs::read_to_string(&source_index_path)?;
+    let source_index = toml::from_str::<AddonLockSidecarSourceIndex>(&content)?;
+    if source_index.schema_version != 1 {
+        return Err(AppError::Validation(format!(
+            "unsupported addon lock source index schema version: {}",
+            source_index.schema_version
+        )));
+    }
+
+    let mut map = BTreeMap::new();
+    for source in source_index.sources {
+        if source.comparison_key.trim().is_empty() {
+            return Err(AppError::Validation(format!(
+                "addon lock source index `{}` contains an empty comparison key",
+                source_index_path.display()
+            )));
+        }
+        let segments = safe_sidecar_source_segments(&source.path)?;
+        let archive_path = join_sidecar_source_segments(lock_dir, &segments);
+        if map
+            .insert(source.comparison_key.clone(), archive_path)
+            .is_some()
+        {
+            return Err(AppError::Validation(format!(
+                "duplicate addon lock source index entry for `{}`",
+                source.comparison_key
+            )));
+        }
+    }
+
+    Ok(map)
+}
+
+fn safe_sidecar_source_segments(path: &str) -> AppResult<Vec<&str>> {
+    let mut segments = Vec::new();
+    for segment in path.split('/') {
+        if segment.is_empty() {
+            continue;
+        }
+        if segment == "." || segment == ".." || segment.contains('\\') {
+            return Err(AppError::Validation(format!(
+                "unsafe addon lock source path: `{path}`"
+            )));
+        }
+        segments.push(segment);
+    }
+    if segments.first().copied() != Some("sources") || segments.len() < 2 {
+        return Err(AppError::Validation(format!(
+            "addon lock source path must be under `sources/`: {path}"
+        )));
+    }
+    Ok(segments)
+}
+
+fn join_sidecar_source_segments(root: &Path, segments: &[&str]) -> PathBuf {
+    let mut path = root.to_path_buf();
+    for segment in segments {
+        path.push(segment);
+    }
+    path
+}
+
+fn prepare_expected_lock_package(
+    expected: &AddonLockPackage,
+    source_override_path: Option<&Path>,
+    target_flavor: crate::core::install::WowFlavor,
+) -> AppResult<crate::core::addon::PreparedAddonPackage> {
+    match source_override_path {
+        Some(path) => prepare_package_from_archive_with_source(expected.source.clone(), path),
+        None => prepare_package_from_source_ref_with_flavor(&expected.source, Some(target_flavor)),
+    }
 }
 
 fn read_addon_lock(path: &Path) -> AppResult<AddonLock> {
@@ -1378,6 +1551,15 @@ fn comparison_key(
     }
 }
 
+pub(crate) fn addon_lock_package_comparison_key(package: &AddonLockPackage) -> String {
+    comparison_key(
+        &package.package_id,
+        package.index_name.as_deref(),
+        package.index_package_id.as_deref(),
+        &package.addon_directories,
+    )
+}
+
 fn left_label(path: &Path) -> String {
     path.display().to_string()
 }
@@ -1723,6 +1905,7 @@ addons = []
             lock_path: Some(desired_lock.clone()),
             backup_output_path: Some(temp.path().join("apply-backups")),
             replace_existing: false,
+            source_overrides: Vec::new(),
         })
         .expect("apply lock sync");
 

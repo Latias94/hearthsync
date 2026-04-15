@@ -890,6 +890,7 @@ pub fn run() -> AppResult<()> {
                         lock_path: file,
                         backup_output_path: backup_output,
                         replace_existing,
+                        source_overrides: Vec::new(),
                     })?;
                     render(cli.json, &result, |item| {
                         let mut lines = vec![
