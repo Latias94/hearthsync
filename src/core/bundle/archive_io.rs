@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::io::{Read, Write};
 
 use tempfile::tempdir;

@@ -1,22 +1,23 @@
+mod addon_lock;
 mod apply_policy;
 mod archive_io;
 mod entry_plan;
 mod execution;
+mod packing;
+mod shared;
 mod target_resolution;
 #[cfg(test)]
 mod tests;
 
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tempfile::TempDir;
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
-use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipArchive, ZipWriter};
+use zip::ZipArchive;
 
+use self::addon_lock::ExtractedAddonLock;
+pub use self::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
 use self::apply_policy::{
     apply_action_order, apply_group_order, build_cleanup_operations, cleanup_scope_for_entry,
     resource_policy_for_group,
@@ -31,13 +32,18 @@ use self::entry_plan::plan_extractable_entries;
 use self::execution::{
     execute_apply_operations, file_contents_equal_to_bytes, rollback_or_report_apply_error,
 };
+pub use self::packing::{inspect_bundle, load_apply_mappings, pack_bundle};
+use self::shared::{
+    BundleAddonSourceEntry, BundleAddonSourceIndex, join_segments, safe_file_part,
+    safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name, zip_dir_options,
+    zip_file_options,
+};
 use self::target_resolution::{
     build_character_mappings, resolve_selected_target_accounts, validate_target_compatibility,
 };
 use crate::core::addon::lock::{
-    AddonLock, AddonLockApplyRequest, AddonLockApplyResult, AddonLockPackage, AddonLockPlanResult,
-    AddonLockSourceOverride, addon_lock_package_comparison_key, apply_addon_lock_sync,
-    plan_addon_lock_sync_with_source_overrides, write_addon_lock,
+    AddonLock, AddonLockApplyResult, AddonLockPackage, AddonLockPlanResult,
+    AddonLockSourceOverride, addon_lock_package_comparison_key, write_addon_lock,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup, restore_backup};
 use crate::core::error::{AppError, AppResult};
@@ -339,27 +345,6 @@ struct BundleExecutor<'a> {
     backup_output_path: Option<PathBuf>,
 }
 
-struct ExtractedAddonLock {
-    lock_path: PathBuf,
-    source_overrides: Vec<AddonLockSourceOverride>,
-    _stage_dir: TempDir,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BundleAddonSourceIndex {
-    schema_version: u32,
-    sources: Vec<BundleAddonSourceEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BundleAddonSourceEntry {
-    comparison_key: String,
-    package_id: String,
-    path: String,
-    content_sha256: String,
-    addon_directories: Vec<String>,
-}
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BundleApplyMappings {
     pub target_account: Option<String>,
@@ -383,187 +368,12 @@ pub struct CharacterMappingOverride {
     pub target_character: String,
 }
 
-pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
-    request.manifest.validate()?;
-
-    if request.manifest.source.flavor != request.installation.flavor {
-        return Err(AppError::Validation(format!(
-            "manifest source flavor `{}` does not match installation flavor `{}`",
-            request.manifest.source.flavor.as_str(),
-            request.installation.flavor.as_str()
-        )));
-    }
-
-    let timestamp = now_rfc3339()?;
-    request.manifest.source.exported_at = Some(timestamp.clone());
-    request.manifest.source.platform = Some(request.installation.platform);
-
-    let archive_path = resolve_bundle_output_path(
-        request.output_path.as_deref(),
-        &request.manifest,
-        &timestamp,
-    )?;
-    if let Some(parent) = archive_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let file = File::create(&archive_path)?;
-    let mut zip = ZipWriter::new(file);
-    let mut archived_files = 0usize;
-
-    for addon in &request.manifest.resources.addons {
-        validate_plain_name("addon", addon)?;
-        let source = request.installation.addon_dir.join(addon);
-        if !source.exists() {
-            return Err(AppError::NotFound(format!(
-                "addon does not exist: {}",
-                source.display()
-            )));
-        }
-        archived_files += add_path_to_zip(&mut zip, &source, &Path::new("addons").join(addon))?;
-    }
-
-    if request.manifest.resources.addon_lock {
-        let lock_result = write_addon_lock(&request.installation)?;
-        if lock_result.removed {
-            return Err(AppError::Validation(
-                "cannot embed addon lock because no tracked addon packages were found".to_string(),
-            ));
-        }
-        let lock = read_generated_addon_lock(&lock_result.lock_path)?;
-        let source_index =
-            add_bundle_addon_sources_to_zip(&mut zip, &request.installation, &lock.packages)?;
-        archived_files += source_index.sources.len();
-        archived_files += write_toml_to_zip(&mut zip, ADDON_SOURCE_INDEX_ENTRY, &source_index)?;
-        archived_files += write_toml_to_zip(&mut zip, ADDON_LOCK_ENTRY, &lock)?;
-    }
-
-    let addon_index_paths = resolve_addon_index_paths(
-        &request.manifest.resources.addon_indexes,
-        request.manifest_base_dir.as_deref(),
-    )?;
-    for (file_name, source_path) in addon_index_paths {
-        archived_files += add_path_to_zip(
-            &mut zip,
-            &source_path,
-            &Path::new(ADDON_INDEX_ENTRY_ROOT).join(file_name),
-        )?;
-    }
-
-    if request.manifest.resources.wtf_common {
-        archived_files += add_common_wtf_to_zip(&mut zip, &request.installation.wtf_dir)?;
-    }
-
-    for character in &mut request.manifest.resources.wtf_characters {
-        let resolved_account = resolve_character_account(&request.installation.wtf_dir, character)?;
-        character.source_account = Some(resolved_account.clone());
-        archived_files += add_character_wtf_to_zip(
-            &mut zip,
-            &request.installation.wtf_dir,
-            character,
-            &resolved_account,
-        )?;
-    }
-
-    zip.start_file(MANIFEST_ENTRY, zip_file_options())?;
-    zip.write_all(toml::to_string_pretty(&request.manifest)?.as_bytes())?;
-    archived_files += 1;
-
-    if request.manifest.resources.fonts {
-        archived_files += add_path_to_zip(
-            &mut zip,
-            &request.installation.fonts_dir,
-            Path::new("fonts"),
-        )?;
-    }
-
-    for asset in &request.manifest.resources.interface_assets {
-        validate_plain_name("interface asset", asset)?;
-        let source = request.installation.interface_dir.join(asset);
-        if !source.exists() {
-            return Err(AppError::NotFound(format!(
-                "interface asset does not exist: {}",
-                source.display()
-            )));
-        }
-        archived_files += add_path_to_zip(&mut zip, &source, &Path::new("interface").join(asset))?;
-    }
-
-    zip.finish()?;
-
-    Ok(CreatedBundle {
-        archive_path,
-        archived_files,
-        manifest: request.manifest,
-    })
-}
-
-pub fn inspect_bundle(path: &Path) -> AppResult<BundleInspection> {
-    let archive_path = path.to_path_buf();
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file)?;
-    let manifest = read_manifest_from_archive(&mut archive)?;
-    manifest.validate()?;
-    let entries = count_bundle_entries(&mut archive)?;
-
-    Ok(BundleInspection {
-        archive_path,
-        manifest,
-        entries,
-    })
-}
-
-pub fn load_apply_mappings(path: &Path) -> AppResult<BundleApplyMappings> {
-    let content = fs::read_to_string(path)?;
-    Ok(toml::from_str(&content)?)
-}
-
 pub fn plan_bundle_apply(
     bundle_path: &Path,
     installation: &DetectedFlavorInstallation,
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<BundleApplyPlan> {
     Ok(prepare_bundle_apply(bundle_path, installation, apply_mappings)?.plan)
-}
-
-pub fn plan_bundle_addon_lock(
-    bundle_path: &Path,
-    installation: &DetectedFlavorInstallation,
-) -> AppResult<BundleAddonLockPlan> {
-    let extracted = extract_embedded_addon_lock(bundle_path)?;
-    let mut plan = plan_addon_lock_sync_with_source_overrides(
-        installation,
-        Some(&extracted.lock_path),
-        &extracted.source_overrides,
-    )?;
-    plan.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
-
-    Ok(BundleAddonLockPlan {
-        bundle_path: bundle_path.to_path_buf(),
-        embedded_lock_entry: ADDON_LOCK_ENTRY.to_string(),
-        plan,
-    })
-}
-
-pub fn apply_bundle_addon_lock(
-    request: BundleAddonLockApplyRequest,
-) -> AppResult<BundleAddonLockApply> {
-    let extracted = extract_embedded_addon_lock(&request.bundle_path)?;
-    let mut apply = apply_addon_lock_sync(AddonLockApplyRequest {
-        installation: request.installation,
-        lock_path: Some(extracted.lock_path.clone()),
-        backup_output_path: request.backup_output_path,
-        replace_existing: request.replace_existing,
-        source_overrides: extracted.source_overrides,
-    })?;
-    apply.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
-    apply.verification.lock_path = PathBuf::from(ADDON_LOCK_ENTRY);
-
-    Ok(BundleAddonLockApply {
-        bundle_path: request.bundle_path,
-        embedded_lock_entry: ADDON_LOCK_ENTRY.to_string(),
-        apply,
-    })
 }
 
 fn prepare_bundle_apply(
@@ -867,120 +677,4 @@ fn backup_groups_for_manifest(manifest: &BundleManifest) -> Vec<BackupGroup> {
     }
 
     groups
-}
-
-fn resolve_bundle_output_path(
-    output_path: Option<&Path>,
-    manifest: &BundleManifest,
-    timestamp: &str,
-) -> AppResult<PathBuf> {
-    let file_name = format!(
-        "bundle-{}-{}.zip",
-        safe_file_part(&manifest.package.id),
-        compact_timestamp(timestamp)
-    );
-
-    match output_path {
-        Some(path) if path.extension().is_some_and(|extension| extension == "zip") => {
-            Ok(path.to_path_buf())
-        }
-        Some(path) => Ok(path.join(file_name)),
-        None => Ok(std::env::current_dir()?.join(file_name)),
-    }
-}
-
-fn validate_plain_name(kind: &str, value: &str) -> AppResult<()> {
-    if value.trim().is_empty()
-        || value.contains('/')
-        || value.contains('\\')
-        || value == "."
-        || value == ".."
-    {
-        return Err(AppError::Validation(format!(
-            "invalid {kind} name: `{value}`"
-        )));
-    }
-
-    Ok(())
-}
-
-fn safe_zip_segments(archive_name: &str) -> AppResult<Vec<&str>> {
-    let mut segments = Vec::new();
-    for segment in archive_name.split('/') {
-        if segment.is_empty() {
-            continue;
-        }
-
-        if segment == "." || segment == ".." || segment.contains('\\') {
-            return Err(AppError::Validation(format!(
-                "unsafe archive path: `{archive_name}`"
-            )));
-        }
-
-        segments.push(segment);
-    }
-
-    Ok(segments)
-}
-
-fn join_segments(root: &Path, segments: &[&str]) -> PathBuf {
-    let mut path = root.to_path_buf();
-    for segment in segments {
-        path.push(segment);
-    }
-    path
-}
-
-fn should_skip_path(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| {
-            name.eq_ignore_ascii_case(".DS_Store")
-                || name.eq_ignore_ascii_case("Thumbs.db")
-                || name.eq_ignore_ascii_case("desktop.ini")
-        })
-}
-
-fn now_rfc3339() -> AppResult<String> {
-    OffsetDateTime::now_utc()
-        .format(&Rfc3339)
-        .map_err(|error| AppError::Validation(error.to_string()))
-}
-
-fn compact_timestamp(timestamp: &str) -> String {
-    timestamp
-        .chars()
-        .filter(|char| char.is_ascii_alphanumeric())
-        .collect::<String>()
-}
-
-fn safe_file_part(value: &str) -> String {
-    let mut output = value
-        .chars()
-        .map(|char| {
-            if char.is_ascii_alphanumeric() || char == '-' || char == '_' {
-                char
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>();
-
-    while output.contains("--") {
-        output = output.replace("--", "-");
-    }
-
-    output.trim_matches('-').to_string()
-}
-
-fn to_zip_path(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
-}
-
-fn zip_file_options() -> SimpleFileOptions {
-    SimpleFileOptions::default().compression_method(CompressionMethod::Deflated)
-}
-
-fn zip_dir_options() -> SimpleFileOptions {
-    SimpleFileOptions::default().compression_method(CompressionMethod::Stored)
 }
