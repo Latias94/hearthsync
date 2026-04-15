@@ -61,17 +61,22 @@ pub fn preview_lua_bytes_rewrite(
     mappings: &[CharacterMapping],
     options: LuaRewriteOptions,
 ) -> AppResult<Option<Vec<u8>>> {
+    let rewrite_options = effective_lua_rewrite_options(path_hint, bytes, options);
     if !should_rewrite_lua(path_hint) || mappings.is_empty() {
         return Ok(None);
     }
 
-    let replacements = build_text_replacements(mappings, options);
+    if !rewrite_options.rewrite_profile_keys && !rewrite_options.rewrite_identity_strings {
+        return Ok(None);
+    }
+
+    let replacements = build_text_replacements(mappings, rewrite_options);
     if replacements.is_empty() {
         return Ok(None);
     }
 
     if let Ok(content) = std::str::from_utf8(bytes) {
-        let rewritten = rewrite_lua_text(content, mappings, options);
+        let rewritten = rewrite_lua_text(content, mappings, rewrite_options);
         if rewritten != content {
             return Ok(Some(rewritten.into_bytes()));
         }
@@ -124,6 +129,16 @@ fn build_text_replacements(
         }
 
         if options.rewrite_identity_strings {
+            let source_profile_key = mapping.source_profile_key();
+            let target_profile_key = mapping.target_profile_key();
+            for (prefix, suffix) in [("\"", "\""), ("'", "'"), ("[\"", "\"]"), ("['", "']")] {
+                push_replacement(
+                    &mut replacements,
+                    format!("{prefix}{source_profile_key}{suffix}"),
+                    format!("{prefix}{target_profile_key}{suffix}"),
+                );
+            }
+
             for (source, target) in [
                 (&mapping.source_character, &mapping.target_character),
                 (&mapping.source_server, &mapping.target_server),
@@ -294,6 +309,80 @@ fn should_rewrite_lua(path: &Path) -> bool {
         }
         None => false,
     }
+}
+
+fn effective_lua_rewrite_options(
+    path: &Path,
+    bytes: &[u8],
+    options: LuaRewriteOptions,
+) -> LuaRewriteOptions {
+    let capabilities = allowed_lua_rewrite_capabilities(path, bytes);
+    LuaRewriteOptions {
+        rewrite_profile_keys: options.rewrite_profile_keys && capabilities.rewrite_profile_keys,
+        rewrite_identity_strings: options.rewrite_identity_strings
+            && capabilities.rewrite_identity_strings,
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct LuaRewriteCapabilities {
+    rewrite_profile_keys: bool,
+    rewrite_identity_strings: bool,
+}
+
+fn allowed_lua_rewrite_capabilities(path: &Path, bytes: &[u8]) -> LuaRewriteCapabilities {
+    if classify_lua_rewrite_path(path).is_none() {
+        return LuaRewriteCapabilities::default();
+    }
+
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_ascii_lowercase())
+        .unwrap_or_default();
+
+    LuaRewriteCapabilities {
+        rewrite_profile_keys: bytes_contain_any_ascii_marker(bytes, PROFILE_KEY_MARKERS),
+        rewrite_identity_strings: bytes_contain_any_ascii_marker(bytes, IDENTITY_FIELD_MARKERS)
+            || identity_rule_matches_file_name(&file_name),
+    }
+}
+
+const PROFILE_KEY_MARKERS: &[&[u8]] = &[b"profileKeys"];
+
+const IDENTITY_FIELD_MARKERS: &[&[u8]] =
+    &[b"playerName", b"realm", b"LastPlayerFullName", b"LastRealm"];
+
+const IDENTITY_RULE_EXACT_FILES: &[&str] = &[
+    "auraupdater.lua",
+    "bagsync.lua",
+    "details.lua",
+    "elvui.lua",
+    "exwindcore.lua",
+    "meetingstone.lua",
+    "newbeebox.lua",
+    "pawn.lua",
+    "rarity.lua",
+    "tinytooltip-remake.lua",
+    "weakauras.lua",
+    "weakaurasarchive.lua",
+    "worldquesttracker.lua",
+    "zygorguidesviewer.lua",
+];
+
+const IDENTITY_RULE_PREFIXES: &[&str] = &["dbm-", "details_", "handynotes_"];
+
+fn bytes_contain_any_ascii_marker(bytes: &[u8], markers: &[&[u8]]) -> bool {
+    markers.iter().any(|marker| {
+        !marker.is_empty() && bytes.windows(marker.len()).any(|window| window == *marker)
+    })
+}
+
+fn identity_rule_matches_file_name(file_name: &str) -> bool {
+    IDENTITY_RULE_EXACT_FILES.contains(&file_name)
+        || IDENTITY_RULE_PREFIXES
+            .iter()
+            .any(|prefix| file_name.starts_with(prefix))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -468,10 +557,42 @@ TestDB = {
     }
 
     #[test]
+    fn preview_lua_bytes_rewrite_rejects_unknown_savedvariables_file_without_rule_signals() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/CustomAddon.lua"),
+            br#"return "Examplemage""#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: false,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_none());
+    }
+
+    #[test]
+    fn preview_lua_bytes_rewrite_allows_known_identity_file_without_field_markers() {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua"),
+            br#"return "Examplemage - Illidan""#,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: false,
+                rewrite_identity_strings: true,
+            },
+        )
+        .expect("preview");
+
+        assert!(rewritten.is_some());
+    }
+
+    #[test]
     fn preview_lua_bytes_rewrite_handles_invalid_utf8_payloads() {
         let rewritten = preview_lua_bytes_rewrite(
             Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
-            b"prefix\xff\"Examplemage - Illidan\"\xffsuffix",
+            b"prefix\xff[\"profileKeys\"]={ [\"Examplemage - Illidan\"] = \"Default\" }\xffsuffix",
             &[sample_mapping()],
             LuaRewriteOptions {
                 rewrite_profile_keys: true,

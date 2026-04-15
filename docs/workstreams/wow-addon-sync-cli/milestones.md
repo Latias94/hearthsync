@@ -161,6 +161,7 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 - Lua rewrite now only targets explicit account/character `SavedVariables` Lua files instead of every `.lua` payload in the bundle.
 - Lua rewrite now has a byte-safe fallback for invalid UTF-8 and Latin-1-compatible payloads, while broader encoding support is still pending.
 - A local scan of 400 retail `SavedVariables` Lua files found no UTF-16 BOM samples, no high-NUL text payloads, and one invalid UTF-8 file (`Auctionator.lua`).
+- Lua rewrite now requires either explicit content markers such as `profileKeys` / `realm` or a small known-file rule set such as `MeetingStone.lua`.
 
 ## M4 - Configuration Sync Engine
 
@@ -189,6 +190,7 @@ Handle account and character configuration migration reliably.
 
 - character-targeted import works for the current CLI through account/server/character remapping
 - Lua rewrite currently covers profile-key style identities and quoted character/server strings within explicit `SavedVariables` allowlist paths
+- Lua rewrite now defaults unknown `SavedVariables` files to copy-only unless a rule signal matches
 - Lua rewrite now preserves non-text bytes around matched replacements and can rewrite some non-UTF-8 payloads without decoding the whole file
 - common `WTF` overwrite is account-selective instead of global-only
 - addon-specific rewrite plugins and richer encoding handling are still pending
