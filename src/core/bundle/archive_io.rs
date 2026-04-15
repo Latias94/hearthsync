@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 
+use serde::Serialize;
 use tempfile::tempdir;
 use walkdir::WalkDir;
 use zip::{ZipArchive, ZipWriter};

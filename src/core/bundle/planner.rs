@@ -5,6 +5,21 @@ use zip::ZipArchive;
 
 use super::*;
 
+struct BundleReader<'a> {
+    bundle_path: &'a Path,
+}
+
+struct BundleReadModel {
+    inspection: BundleInspection,
+    entry_names: Vec<String>,
+}
+
+struct BundlePlanner<'a> {
+    bundle_path: &'a Path,
+    installation: &'a DetectedFlavorInstallation,
+    apply_mappings: &'a BundleApplyMappings,
+}
+
 pub fn plan_bundle_apply(
     bundle_path: &Path,
     installation: &DetectedFlavorInstallation,

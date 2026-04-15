@@ -1,6 +1,17 @@
 use super::planner::prepare_bundle_apply;
 use super::*;
 
+struct BundleExecution {
+    backup_path: Option<PathBuf>,
+    written_files: usize,
+    rewritten_files: usize,
+}
+
+struct BundleExecutor<'a> {
+    installation: &'a DetectedFlavorInstallation,
+    backup_output_path: Option<PathBuf>,
+}
+
 pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
     let prepared = prepare_bundle_apply(
         &request.bundle_path,
