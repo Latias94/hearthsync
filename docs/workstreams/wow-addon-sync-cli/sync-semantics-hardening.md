@@ -61,6 +61,7 @@ Deliverables:
 - staging moved behind execution
 - rewrite materialization only during execution
 - clearer `Reader -> Planner -> Executor` contracts
+- execution operations no longer wrap the public preview struct as an internal transport object
 
 Removals expected:
 

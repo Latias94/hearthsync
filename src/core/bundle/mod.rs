@@ -117,8 +117,63 @@ pub struct ApplyOperation {
 
 #[derive(Debug, Clone)]
 struct PreparedApplyOperation {
-    preview: ApplyOperation,
+    group: ApplyGroup,
+    wtf_scope: Option<WtfScope>,
+    action: ApplyAction,
+    archive_name: String,
+    destination: PathBuf,
+    target_account: Option<String>,
+    target_server: Option<String>,
+    target_character: Option<String>,
+    rewrite_applied: bool,
     rewrites: Vec<CharacterMapping>,
+}
+
+impl PreparedApplyOperation {
+    fn from_cleanup(cleanup: PlannedCleanup) -> Self {
+        Self {
+            group: cleanup.group,
+            wtf_scope: None,
+            action: ApplyAction::Remove,
+            archive_name: format!("[cleanup] {}", cleanup.destination.display()),
+            destination: cleanup.destination,
+            target_account: cleanup.target_account,
+            target_server: cleanup.target_server,
+            target_character: cleanup.target_character,
+            rewrite_applied: false,
+            rewrites: Vec::new(),
+        }
+    }
+
+    fn from_entry(entry: &PlannedEntry, action: ApplyAction, rewrite_applied: bool) -> Self {
+        Self {
+            group: entry.group,
+            wtf_scope: entry.wtf_scope,
+            action,
+            archive_name: entry.archive_name.clone(),
+            destination: entry.destination.clone(),
+            target_account: entry.target_account.clone(),
+            target_server: entry.target_server.clone(),
+            target_character: entry.target_character.clone(),
+            rewrite_applied,
+            rewrites: entry.rewrites.clone(),
+        }
+    }
+
+    fn preview(&self) -> ApplyOperation {
+        ApplyOperation {
+            group: self.group,
+            wtf_scope: self.wtf_scope,
+            action: self.action,
+            archive_name: self.archive_name.clone(),
+            destination: self.destination.clone(),
+            target_account: self.target_account.clone(),
+            target_server: self.target_server.clone(),
+            target_character: self.target_character.clone(),
+            rewrite_count: self.rewrites.len(),
+            rewrite_applied: self.rewrite_applied,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -234,11 +289,7 @@ struct PlannedCleanup {
 
 struct PreparedBundleApply {
     plan: BundleApplyPlan,
-    execution_plan: BundleExecutionPlan,
-}
-
-struct BundleExecutionPlan {
-    operations: Vec<PreparedApplyOperation>,
+    execution_operations: Vec<PreparedApplyOperation>,
 }
 
 struct BundleReader<'a> {
@@ -579,23 +630,8 @@ impl<'a> BundlePlanner<'a> {
         let mut execution_operations = Vec::new();
         let mut summary = ApplyPlanSummary::default();
         for cleanup in cleanup_operations {
-            let operation = ApplyOperation {
-                group: cleanup.group,
-                wtf_scope: None,
-                action: ApplyAction::Remove,
-                archive_name: format!("[cleanup] {}", cleanup.destination.display()),
-                destination: cleanup.destination,
-                target_account: cleanup.target_account,
-                target_server: cleanup.target_server,
-                target_character: cleanup.target_character,
-                rewrite_count: 0,
-                rewrite_applied: false,
-            };
             summary.paths_to_remove += 1;
-            execution_operations.push(PreparedApplyOperation {
-                preview: operation,
-                rewrites: Vec::new(),
-            });
+            execution_operations.push(PreparedApplyOperation::from_cleanup(cleanup));
         }
 
         for entry in &planned_entries {
@@ -645,37 +681,23 @@ impl<'a> BundlePlanner<'a> {
                 summary.files_to_rewrite += 1;
             }
 
-            let operation = ApplyOperation {
-                group: entry.group,
-                wtf_scope: entry.wtf_scope,
+            execution_operations.push(PreparedApplyOperation::from_entry(
+                entry,
                 action,
-                archive_name: entry.archive_name.clone(),
-                destination: entry.destination.clone(),
-                target_account: entry.target_account.clone(),
-                target_server: entry.target_server.clone(),
-                target_character: entry.target_character.clone(),
-                rewrite_count: entry.rewrites.len(),
                 rewrite_applied,
-            };
-            execution_operations.push(PreparedApplyOperation {
-                preview: operation,
-                rewrites: entry.rewrites.clone(),
-            });
+            ));
         }
 
         execution_operations.sort_by(|left, right| {
-            apply_action_order(left.preview.action)
-                .cmp(&apply_action_order(right.preview.action))
-                .then_with(|| {
-                    apply_group_order(left.preview.group)
-                        .cmp(&apply_group_order(right.preview.group))
-                })
-                .then_with(|| left.preview.destination.cmp(&right.preview.destination))
-                .then_with(|| left.preview.archive_name.cmp(&right.preview.archive_name))
+            apply_action_order(left.action)
+                .cmp(&apply_action_order(right.action))
+                .then_with(|| apply_group_order(left.group).cmp(&apply_group_order(right.group)))
+                .then_with(|| left.destination.cmp(&right.destination))
+                .then_with(|| left.archive_name.cmp(&right.archive_name))
         });
         let operations = execution_operations
             .iter()
-            .map(|operation| operation.preview.clone())
+            .map(PreparedApplyOperation::preview)
             .collect::<Vec<_>>();
 
         Ok(PreparedBundleApply {
@@ -710,9 +732,7 @@ impl<'a> BundlePlanner<'a> {
                 },
                 manifest: inspection.manifest,
             },
-            execution_plan: BundleExecutionPlan {
-                operations: execution_operations,
-            },
+            execution_operations,
         })
     }
 }
@@ -725,7 +745,7 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
     )?;
     let PreparedBundleApply {
         plan,
-        execution_plan,
+        execution_operations,
     } = prepared;
     if request.dry_run {
         return Ok(UnpackedBundle {
@@ -747,7 +767,7 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
         installation: &request.installation,
         backup_output_path: request.backup_output_path.clone(),
     }
-    .execute(&plan, &execution_plan)?;
+    .execute(&plan, &execution_operations)?;
 
     Ok(UnpackedBundle {
         bundle_path: request.bundle_path,
@@ -768,11 +788,11 @@ impl<'a> BundleExecutor<'a> {
     fn execute(
         &self,
         plan: &BundleApplyPlan,
-        execution_plan: &BundleExecutionPlan,
+        execution_operations: &[PreparedApplyOperation],
     ) -> AppResult<BundleExecution> {
         let backup_path = self.create_backup(plan)?;
 
-        match execute_apply_operations(&plan.bundle_path, execution_plan, &plan.manifest) {
+        match execute_apply_operations(&plan.bundle_path, execution_operations, &plan.manifest) {
             Ok((written_files, rewritten_files)) => Ok(BundleExecution {
                 backup_path,
                 written_files,
@@ -1092,7 +1112,7 @@ fn apply_group_order(group: ApplyGroup) -> u8 {
 
 fn execute_apply_operations(
     bundle_path: &Path,
-    execution_plan: &BundleExecutionPlan,
+    execution_operations: &[PreparedApplyOperation],
     manifest: &BundleManifest,
 ) -> AppResult<(usize, usize)> {
     let mut written_files = 0usize;
@@ -1105,23 +1125,20 @@ fn execute_apply_operations(
         rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
     };
 
-    for (operation_index, operation) in execution_plan.operations.iter().enumerate() {
-        if matches!(
-            operation.preview.action,
-            ApplyAction::Skip | ApplyAction::Preserve
-        ) {
+    for (operation_index, operation) in execution_operations.iter().enumerate() {
+        if matches!(operation.action, ApplyAction::Skip | ApplyAction::Preserve) {
             continue;
         }
 
-        if operation.preview.action == ApplyAction::Remove {
-            remove_target_path(&operation.preview.destination)?;
+        if operation.action == ApplyAction::Remove {
+            remove_target_path(&operation.destination)?;
             continue;
         }
 
-        if let Some(parent) = operation.preview.destination.parent() {
+        if let Some(parent) = operation.destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        let source_path = if operation.preview.rewrite_applied {
+        let source_path = if operation.rewrite_applied {
             materialize_rewritten_operation(
                 operation_index,
                 operation,
@@ -1132,15 +1149,15 @@ fn execute_apply_operations(
         } else {
             materialize_archive_operation(
                 operation_index,
-                &operation.preview.archive_name,
+                &operation.archive_name,
                 &mut archive,
                 rewrite_stage.path(),
             )?
         };
-        fs::copy(source_path, &operation.preview.destination)?;
+        fs::copy(source_path, &operation.destination)?;
         written_files += 1;
 
-        if operation.preview.rewrite_applied {
+        if operation.rewrite_applied {
             rewritten_files += 1;
         }
     }
@@ -1157,7 +1174,7 @@ fn materialize_rewritten_operation(
 ) -> AppResult<PathBuf> {
     let rewrite_path = materialize_archive_operation(
         operation_index,
-        &operation.preview.archive_name,
+        &operation.archive_name,
         archive,
         rewrite_stage_root,
     )?;
