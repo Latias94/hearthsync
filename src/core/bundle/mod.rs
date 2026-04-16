@@ -1,9 +1,9 @@
 mod addon_lock;
+mod addon_source_archive;
 mod apply;
 mod apply_model;
 mod apply_policy;
 mod archive_read;
-mod archive_write;
 mod character_mapping;
 mod entry_layout;
 mod entry_plan;
@@ -15,13 +15,18 @@ mod target_accounts;
 #[cfg(test)]
 mod tests;
 mod types;
+mod wtf_archive;
 mod wtf_scope;
+mod zip_write;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use self::addon_lock::ExtractedAddonLock;
 pub use self::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
+use self::addon_source_archive::{
+    add_bundle_addon_sources_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
+};
 pub use self::apply::unpack_bundle;
 use self::apply_model::{
     PlannedCleanup, PlannedEntry, PreparedApplyOperation, PreparedBundleApply,
@@ -33,11 +38,6 @@ use self::apply_policy::{
 use self::archive_read::{
     collect_bundle_entry_names, count_bundle_entries, extract_embedded_addon_lock,
     read_bundle_entry_bytes_from_archive, read_manifest_from_archive,
-};
-use self::archive_write::{
-    add_bundle_addon_sources_to_zip, add_character_wtf_to_zip, add_common_wtf_to_zip,
-    add_path_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
-    resolve_character_account, write_toml_to_zip,
 };
 use self::character_mapping::build_character_mappings;
 use self::entry_plan::plan_extractable_entries;
@@ -58,6 +58,10 @@ pub use self::types::{
     BundleApplyPlan, BundleEntryCounts, BundleInspection, CharacterMappingOverride, CreatedBundle,
     GroupPolicy, HelperStrategy, PackBundleRequest, UnpackBundleRequest, UnpackedBundle, WtfScope,
 };
+use self::wtf_archive::{
+    add_character_wtf_to_zip, add_common_wtf_to_zip, resolve_character_account,
+};
+use self::zip_write::{add_path_to_zip, write_toml_to_zip};
 use crate::core::addon::lock::{
     AddonLock, AddonLockPackage, AddonLockSourceOverride, addon_lock_package_comparison_key,
     write_addon_lock,
