@@ -5,6 +5,7 @@ mod apply_policy;
 mod archive_read;
 mod archive_write;
 mod character_mapping;
+mod entry_layout;
 mod entry_plan;
 mod execution;
 mod packing;
@@ -14,6 +15,7 @@ mod target_accounts;
 #[cfg(test)]
 mod tests;
 mod types;
+mod wtf_scope;
 
 use std::fs;
 use std::path::{Path, PathBuf};
