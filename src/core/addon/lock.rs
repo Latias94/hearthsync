@@ -1,4 +1,7 @@
 mod apply;
+mod apply_execute;
+mod apply_model;
+mod apply_prepare;
 mod plan;
 mod plan_actions;
 mod plan_model;
