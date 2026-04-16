@@ -1,4 +1,7 @@
 mod addon;
+mod addon_index;
+mod addon_lock;
+mod addon_manage;
 mod args;
 mod backup;
 mod bundle;
