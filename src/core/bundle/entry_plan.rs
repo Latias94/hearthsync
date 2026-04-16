@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use super::character_mapping::find_character_mapping;
+use super::character_mapping_match::find_character_mapping;
 use super::entry_layout::{BundleArchiveEntry, classify_bundle_archive_entry};
 use super::target_accounts::resolve_common_account_targets;
 use super::wtf_scope::{classify_account_wtf_scope, classify_character_wtf_scope};

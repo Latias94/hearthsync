@@ -5,6 +5,7 @@ mod apply_model;
 mod apply_policy;
 mod archive_read;
 mod character_mapping;
+mod character_mapping_match;
 mod entry_layout;
 mod entry_plan;
 mod execution;
