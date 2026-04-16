@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use super::target_resolution::{find_character_mapping, resolve_common_account_targets};
+use super::character_mapping::find_character_mapping;
+use super::target_accounts::resolve_common_account_targets;
 use super::*;
 
 pub(super) fn plan_extractable_entries(

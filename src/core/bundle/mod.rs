@@ -4,12 +4,13 @@ mod apply_model;
 mod apply_policy;
 mod archive_read;
 mod archive_write;
+mod character_mapping;
 mod entry_plan;
 mod execution;
 mod packing;
 mod planner;
 mod shared;
-mod target_resolution;
+mod target_accounts;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -36,6 +37,7 @@ use self::archive_write::{
     add_path_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
     resolve_character_account, write_toml_to_zip,
 };
+use self::character_mapping::build_character_mappings;
 use self::entry_plan::plan_extractable_entries;
 use self::execution::{
     execute_apply_operations, file_contents_equal_to_bytes, rollback_or_report_apply_error,
@@ -47,9 +49,7 @@ use self::shared::{
     safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name, zip_dir_options,
     zip_file_options,
 };
-use self::target_resolution::{
-    build_character_mappings, resolve_selected_target_accounts, validate_target_compatibility,
-};
+use self::target_accounts::{resolve_selected_target_accounts, validate_target_compatibility};
 pub use self::types::{
     ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
     BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,
