@@ -1,5 +1,8 @@
 mod apply;
 mod plan;
+mod plan_actions;
+mod plan_model;
+mod plan_support;
 mod source_resolution;
 mod storage;
 #[cfg(test)]
