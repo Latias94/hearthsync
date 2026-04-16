@@ -1,6 +1,7 @@
 mod execution;
 pub mod index;
 pub mod lock;
+mod mutation;
 mod package_prep;
 mod provider;
 mod registry;
@@ -22,7 +23,7 @@ use self::registry::registry_path;
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
-pub(crate) use self::execution::{
+pub(crate) use self::mutation::{
     install_prepared_package, remove_selected_packages, rollback_or_report_addon_error,
     update_prepared_packages,
 };
