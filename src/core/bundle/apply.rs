@@ -54,6 +54,20 @@ impl BundleApplyTaskContext {
         }
     }
 
+    fn backup_label(self) -> &'static str {
+        match self {
+            Self::BundleApply => "bundle-apply",
+            Self::ExternalPackageApply => "external-package-apply",
+        }
+    }
+
+    fn failure_label(self) -> &'static str {
+        match self {
+            Self::BundleApply => "bundle apply",
+            Self::ExternalPackageApply => "external-package apply",
+        }
+    }
+
     fn executing_message(self, operation_count: usize) -> String {
         match self {
             Self::BundleApply => {
@@ -307,9 +321,12 @@ impl<'a> BundleExecutor<'a> {
                 written_files,
                 rewritten_files,
             }),
-            Err(error) => {
-                rollback_or_report_apply_error(error, backup_path.as_deref(), self.installation)
-            }
+            Err(error) => rollback_or_report_apply_error(
+                error,
+                backup_path.as_deref(),
+                self.installation,
+                self.task_context.failure_label(),
+            ),
         }
     }
 
@@ -327,7 +344,7 @@ impl<'a> BundleExecutor<'a> {
                     installation: self.installation.clone(),
                     output_path: self.backup_output_path.clone(),
                     groups,
-                    label: Some("bundle-apply".to_string()),
+                    label: Some(self.task_context.backup_label().to_string()),
                 })?
                 .archive_path,
             ))

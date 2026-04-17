@@ -87,7 +87,6 @@ pub struct ApplyOperation {
     pub target_server: Option<String>,
     pub target_character: Option<String>,
     pub rewrite_count: usize,
-    pub rewrite_applied: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]

@@ -61,6 +61,7 @@ Current coverage: bundle apply and external-package apply now emit per-operation
 - [x] Introduce a reusable source-entry planning boundary shared by bundle archives and normalized external packages
 - [ ] Keep plan previews stable while deleting execution-only planning work
 - [ ] Document which data belongs only to execution preparation and must not leak into public plan payloads
+Current cleanup: public bundle apply operations no longer expose per-entry `rewrite_applied`; that flag now stays inside execution preparation only.
 
 ## Phase 6 - Safety Hardening
 

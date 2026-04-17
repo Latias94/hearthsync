@@ -114,6 +114,8 @@ It now has an internal logical-planning stage followed by execution preparation,
 plan path still reads bundle entry bytes, previews Lua rewrites, and compares candidate output
 with target files to preserve today’s preview semantics.
 That means dry-run performance and future GUI previews still depend on execution-shaped work.
+One concrete improvement is already in place: per-entry `rewrite_applied` no longer leaks through
+public apply operations and remains an execution-preparation concern only.
 
 ### 7. External-package bridge separation
 

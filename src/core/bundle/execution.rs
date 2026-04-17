@@ -168,6 +168,7 @@ pub(super) fn rollback_or_report_apply_error<T>(
     error: AppError,
     backup_path: Option<&Path>,
     installation: &DetectedFlavorInstallation,
+    operation_name: &str,
 ) -> AppResult<T> {
     let Some(backup_path) = backup_path else {
         return Err(error);
@@ -181,13 +182,13 @@ pub(super) fn rollback_or_report_apply_error<T>(
                 restored.restored_files
             ))),
             other => Err(AppError::Validation(format!(
-                "bundle apply failed and rollback restored `{}` ({} files): {other}",
+                "{operation_name} failed and rollback restored `{}` ({} files): {other}",
                 restored.archive_path.display(),
                 restored.restored_files
             ))),
         },
         Err(rollback_error) => Err(AppError::Validation(format!(
-            "bundle apply failed: {error}; rollback failed: {rollback_error}"
+            "{operation_name} failed: {error}; rollback failed: {rollback_error}"
         ))),
     }
 }

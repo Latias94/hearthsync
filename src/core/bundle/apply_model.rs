@@ -102,7 +102,6 @@ impl PreparedApplyOperation {
             target_server: self.target_server.clone(),
             target_character: self.target_character.clone(),
             rewrite_count: self.rewrites.len(),
-            rewrite_applied: self.rewrite_applied,
         }
     }
 }
