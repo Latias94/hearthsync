@@ -122,7 +122,7 @@ pub(super) fn handle_external_package_command(
                     item.selected_target_accounts.join(", ")
                 };
                 format!(
-                    "External package: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nWarnings: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}",
+                    "External package: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nWarnings: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}",
                     item.analysis.source_path.display(),
                     item.target_flavor_root.display(),
                     accounts,
@@ -136,7 +136,6 @@ pub(super) fn handle_external_package_command(
                     item.summary.files_to_replace,
                     item.summary.files_to_skip,
                     item.summary.files_to_preserve,
-                    item.summary.files_to_rewrite,
                     if item.character_mappings.is_empty() {
                         "none".to_string()
                     } else {
@@ -192,7 +191,7 @@ pub(super) fn handle_external_package_command(
                 };
                 if item.dry_run {
                     format!(
-                        "Dry run only.\nExternal package: {}\nTarget: {}\nWarnings: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}\nBackup: {}",
+                        "Dry run only.\nExternal package: {}\nTarget: {}\nWarnings: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}\nBackup: {}",
                         item.analysis.source_path.display(),
                         item.target_flavor_root.display(),
                         format_external_package_warnings(
@@ -206,7 +205,6 @@ pub(super) fn handle_external_package_command(
                         item.plan_summary.files_to_replace,
                         item.plan_summary.files_to_skip,
                         item.plan_summary.files_to_preserve,
-                        item.plan_summary.files_to_rewrite,
                         mapping_summary,
                         backup
                     )

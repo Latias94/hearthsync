@@ -234,10 +234,6 @@ where
                     ApplyAction::Replace
                 };
 
-                if rewrite_applied {
-                    summary.files_to_rewrite += 1;
-                }
-
                 let source_path = match action {
                     ApplyAction::Add | ApplyAction::Replace => {
                         source_for_entry(&entry.archive_name)?

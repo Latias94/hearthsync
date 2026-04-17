@@ -1630,6 +1630,11 @@ fn bundle_apply_plan_does_not_expose_execution_only_fields() {
     assert!(
         operations
             .iter()
+            .all(|operation| operation.get("rewrite_count").is_none())
+    );
+    assert!(
+        operations
+            .iter()
             .all(|operation| operation.get("rewrite_applied").is_none())
     );
 }

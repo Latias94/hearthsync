@@ -101,7 +101,6 @@ impl PreparedApplyOperation {
             target_account: self.target_account.clone(),
             target_server: self.target_server.clone(),
             target_character: self.target_character.clone(),
-            rewrite_count: self.rewrites.len(),
         }
     }
 }

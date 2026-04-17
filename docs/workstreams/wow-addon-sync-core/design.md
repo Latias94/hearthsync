@@ -65,7 +65,7 @@ Current architectural constraints:
 - provider networking is still direct and blocking inside core
 - backup restore is useful but not yet modeled as a transaction-safe restore pipeline
 - bundle planning now has an internal logical-planning and execution-preparation split, but public plan generation still reads source bytes and previews rewrites to keep today’s preview semantics
-- public bundle apply operations have started shedding execution-only detail; for example, per-entry `rewrite_applied` no longer leaks out of internal execution preparation
+- public bundle apply operations have started shedding execution-only detail; rewrite-related fields such as per-entry `rewrite_applied`, per-entry `rewrite_count`, and summary-level `files_to_rewrite` no longer leak out of internal execution preparation
 - direct external-package plan and apply now use a native normalized-source path, but bundle planning still keeps too much execution-shaped preparation internally
 - `core::app` facades are still mostly thin forwarders and do not yet own provider or runtime policy injection
 - account and character discovery still rely mostly on directory layout instead of richer role artifacts

@@ -133,7 +133,7 @@ Remove redundant normalization and repacking from direct external-package plan a
 
 - bundle archives and normalized external packages now share a reusable source-entry preparation boundary before execution
 - bundle planning now has an internal logical-planning stage and a later execution-preparation stage, even though public plan APIs still finalize stable preview actions today
-- public bundle apply operations no longer leak per-entry `rewrite_applied`; execution-only rewrite state stays internal while summary-level rewrite counts remain available
+- public bundle apply operations no longer leak rewrite-related execution detail such as per-entry `rewrite_applied` or `rewrite_count`, and public plan summaries no longer leak `files_to_rewrite`; execution-only rewrite state now stays internal while final apply results still report `rewritten_files`
 - direct external-package apply now reuses the same prepared-execution path as bundle apply instead of routing through a fake bundle apply entrypoint
 
 ## M4 - CLI Rewire onto Core Services

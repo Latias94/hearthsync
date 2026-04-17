@@ -86,7 +86,6 @@ pub struct ApplyOperation {
     pub target_account: Option<String>,
     pub target_server: Option<String>,
     pub target_character: Option<String>,
-    pub rewrite_count: usize,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -96,7 +95,6 @@ pub struct ApplyPlanSummary {
     pub files_to_skip: usize,
     pub paths_to_remove: usize,
     pub files_to_preserve: usize,
-    pub files_to_rewrite: usize,
 }
 
 #[allow(dead_code)]
