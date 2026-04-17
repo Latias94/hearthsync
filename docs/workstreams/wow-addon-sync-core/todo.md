@@ -36,6 +36,7 @@ The active sequence is:
 - [x] Introduce task wrappers for backup restore
 - [ ] Add finer-grained progress beyond phase-only events for long file-oriented operations
 - [ ] Add cancellation checks inside long-running execution loops instead of only between phases
+Current coverage: bundle apply and external-package apply now emit per-operation `executing` progress and honor cancellation inside the execution loop, but addon and backup flows still need the same treatment where it matters.
 
 ## Phase 3 - Provider and Infrastructure Ports
 
@@ -56,7 +57,7 @@ The active sequence is:
 
 ## Phase 5 - Planning and Execution Boundary
 
-- [ ] Split logical planning from execution-time byte reads and rewrite materialization
+- [x] Split logical planning from execution-time byte reads and rewrite materialization
 - [x] Introduce a reusable source-entry planning boundary shared by bundle archives and normalized external packages
 - [ ] Keep plan previews stable while deleting execution-only planning work
 - [ ] Document which data belongs only to execution preparation and must not leak into public plan payloads

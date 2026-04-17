@@ -9,11 +9,15 @@ use super::archive_read::extract_archive_entry_to_path;
 use super::*;
 use crate::core::lua_patch::rewrite_lua_file;
 
-pub(super) fn execute_apply_operations(
+pub(super) fn execute_apply_operations<TBeforeOperation>(
     source: &PreparedApplySource,
     execution_operations: &[PreparedApplyOperation],
     manifest: &BundleManifest,
-) -> AppResult<(usize, usize)> {
+    mut before_operation: TBeforeOperation,
+) -> AppResult<(usize, usize)>
+where
+    TBeforeOperation: FnMut(usize, usize, &PreparedApplyOperation) -> AppResult<()>,
+{
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
     let rewrite_stage = tempdir()?;
@@ -24,6 +28,8 @@ pub(super) fn execute_apply_operations(
     };
 
     for (operation_index, operation) in execution_operations.iter().enumerate() {
+        before_operation(operation_index, execution_operations.len(), operation)?;
+
         if matches!(operation.action, ApplyAction::Skip | ApplyAction::Preserve) {
             continue;
         }
@@ -168,11 +174,18 @@ pub(super) fn rollback_or_report_apply_error<T>(
     };
 
     match restore_backup(backup_path, installation) {
-        Ok(restored) => Err(AppError::Validation(format!(
-            "bundle apply failed and rollback restored `{}` ({} files): {error}",
-            restored.archive_path.display(),
-            restored.restored_files
-        ))),
+        Ok(restored) => match error {
+            AppError::Cancelled(message) => Err(AppError::Cancelled(format!(
+                "{message}; rollback restored `{}` ({} files)",
+                restored.archive_path.display(),
+                restored.restored_files
+            ))),
+            other => Err(AppError::Validation(format!(
+                "bundle apply failed and rollback restored `{}` ({} files): {other}",
+                restored.archive_path.display(),
+                restored.restored_files
+            ))),
+        },
         Err(rollback_error) => Err(AppError::Validation(format!(
             "bundle apply failed: {error}; rollback failed: {rollback_error}"
         ))),

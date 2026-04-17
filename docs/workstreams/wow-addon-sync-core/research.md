@@ -109,10 +109,11 @@ There is not yet a general analyzer that can turn arbitrary UI package layouts i
 
 ### 6. Planning purity gap
 
-Bundle planning is still not a clean logical phase.
-The current planner reads bundle entry bytes, previews Lua rewrites, and compares candidate output
-with target files during plan generation.
-That makes dry-run performance and future GUI previews depend on execution-shaped work.
+Bundle planning is no longer one undifferentiated phase.
+It now has an internal logical-planning stage followed by execution preparation, but the public
+plan path still reads bundle entry bytes, previews Lua rewrites, and compares candidate output
+with target files to preserve today’s preview semantics.
+That means dry-run performance and future GUI previews still depend on execution-shaped work.
 
 ### 7. External-package bridge separation
 

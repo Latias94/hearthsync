@@ -64,7 +64,7 @@ Current architectural constraints:
 - long-running operations do not yet share a stable task contract
 - provider networking is still direct and blocking inside core
 - backup restore is useful but not yet modeled as a transaction-safe restore pipeline
-- bundle planning still reads source bytes and previews rewrites during plan generation
+- bundle planning now has an internal logical-planning and execution-preparation split, but public plan generation still reads source bytes and previews rewrites to keep today’s preview semantics
 - direct external-package plan and apply now use a native normalized-source path, but bundle planning still keeps too much execution-shaped preparation internally
 - `core::app` facades are still mostly thin forwarders and do not yet own provider or runtime policy injection
 - account and character discovery still rely mostly on directory layout instead of richer role artifacts

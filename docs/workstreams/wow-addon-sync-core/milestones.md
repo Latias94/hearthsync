@@ -67,6 +67,11 @@ Define stable long-running operation boundaries for CLI and future desktop reuse
 - bundle and addon operations can be described as reusable tasks
 - provider access no longer requires direct HTTP client ownership in calling code
 
+### Current Notes
+
+- bundle apply and external-package apply now emit per-operation `executing` progress events instead of only one coarse execution-phase event
+- cancellation during bundle and external-package execution now aborts inside the operation loop instead of waiting for the next phase boundary, and successful rollback preserves cancelled semantics instead of rewriting them as validation errors
+
 ## M3 - Import Normalization and Restore Safety
 
 ### Status
@@ -127,6 +132,7 @@ Remove redundant normalization and repacking from direct external-package plan a
 ### Current Notes
 
 - bundle archives and normalized external packages now share a reusable source-entry preparation boundary before execution
+- bundle planning now has an internal logical-planning stage and a later execution-preparation stage, even though public plan APIs still finalize stable preview actions today
 - direct external-package apply now reuses the same prepared-execution path as bundle apply instead of routing through a fake bundle apply entrypoint
 
 ## M4 - CLI Rewire onto Core Services

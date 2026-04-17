@@ -65,6 +65,32 @@ impl BundleApplyTaskContext {
         }
     }
 
+    fn operation_message(
+        self,
+        operation_index: usize,
+        operation_count: usize,
+        operation: &PreparedApplyOperation,
+    ) -> String {
+        let action = match operation.action {
+            ApplyAction::Remove => "remove",
+            ApplyAction::Add => "add",
+            ApplyAction::Replace => "replace",
+            ApplyAction::Skip => "skip",
+            ApplyAction::Preserve => "preserve",
+        };
+        let target = match self {
+            Self::BundleApply => "bundle",
+            Self::ExternalPackageApply => "external package",
+        };
+
+        format!(
+            "Executing {target} operation {}/{}: {action} `{}`",
+            operation_index + 1,
+            operation_count,
+            operation.destination.display()
+        )
+    }
+
     fn completed_message(self, written_files: usize) -> String {
         match self {
             Self::BundleApply => {
@@ -254,7 +280,28 @@ impl<'a> BundleExecutor<'a> {
             TaskPhase::Executing,
         )?;
 
-        match execute_apply_operations(source, execution_operations, &plan.manifest) {
+        match execute_apply_operations(
+            source,
+            execution_operations,
+            &plan.manifest,
+            |operation_index, operation_count, operation| {
+                emit_task_progress(
+                    progress,
+                    self.task_context.task_kind(),
+                    TaskPhase::Executing,
+                    self.task_context.operation_message(
+                        operation_index,
+                        operation_count,
+                        operation,
+                    ),
+                );
+                ensure_task_not_cancelled(
+                    cancellation,
+                    self.task_context.task_kind(),
+                    TaskPhase::Executing,
+                )
+            },
+        ) {
             Ok((written_files, rewritten_files)) => Ok(BundleExecution {
                 backup_path,
                 written_files,
