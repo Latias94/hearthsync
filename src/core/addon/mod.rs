@@ -15,10 +15,17 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
-pub use self::execution::{install_addon, remove_addons, update_addons};
+pub use self::execution::{
+    install_addon, install_addon_task, remove_addons, remove_addons_task, update_addons,
+    update_addons_task,
+};
 use self::package_prep::find_primary_toc;
-pub use self::provider::AddonSourceRef;
-use self::provider::{AddonSearchResult, search_addons as search_provider_addons};
+use self::provider::AddonSearchRequest as ProviderAddonSearchRequest;
+pub use self::provider::{
+    AddonProvider, AddonProviderContext, AddonProviderOptions, AddonProviderRetryPolicy,
+    AddonSearchRequest, AddonSearchResult, AddonSourceRef, DefaultAddonProvider,
+    MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
+};
 use self::registry::registry_path;
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
@@ -210,8 +217,22 @@ pub fn list_addons(installation: &DetectedFlavorInstallation) -> AppResult<Addon
 }
 
 pub fn search_addons(request: SearchAddonRequest) -> AppResult<AddonSearchCatalog> {
-    let results =
-        search_provider_addons(&request.query, request.installation.flavor, request.limit)?;
+    let provider = DefaultAddonProvider::default();
+    search_addons_with_provider(&provider, request)
+}
+
+pub(crate) fn search_addons_with_provider<P>(
+    provider: &P,
+    request: SearchAddonRequest,
+) -> AppResult<AddonSearchCatalog>
+where
+    P: AddonProvider,
+{
+    let results = provider.search_addons(ProviderAddonSearchRequest {
+        query: &request.query,
+        flavor: request.installation.flavor,
+        limit: request.limit,
+    })?;
     Ok(AddonSearchCatalog {
         query: request.query,
         results,

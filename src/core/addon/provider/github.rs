@@ -1,26 +1,32 @@
-use reqwest::blocking::Client;
-use reqwest::header::{ACCEPT, HeaderMap, HeaderValue, USER_AGENT};
 use serde::Deserialize;
 
 use crate::core::error::{AppError, AppResult};
+
+use super::http::{HttpClient, HttpHeader, HttpRequest};
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const GITHUB_API_VERSION: &str = "2022-11-28";
 const GITHUB_ACCEPT: &str = "application/vnd.github+json";
 const USER_AGENT_VALUE: &str = "hearthsync/0.1.0";
 
-pub(super) fn fetch_github_release(
+pub(super) fn fetch_github_release_with_client(
+    client: &impl HttpClient,
     owner: &str,
     repo: &str,
     tag: Option<&str>,
 ) -> AppResult<GitHubRelease> {
-    let client = github_client()?;
     let url = match tag {
         Some(tag) => format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/releases/tags/{tag}"),
         None => format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/releases/latest"),
     };
-    let response = client.get(url).send()?.error_for_status()?;
-    Ok(serde_json::from_str(&response.text()?)?)
+    let response = client.get(HttpRequest::new(url).with_headers(github_headers()))?;
+    if !response.is_success() {
+        return Err(AppError::Validation(format!(
+            "GitHub request failed with HTTP status {}",
+            response.status_code
+        )));
+    }
+    Ok(serde_json::from_str(&response.body)?)
 }
 
 pub(super) fn select_github_release_asset<'a>(
@@ -66,16 +72,21 @@ pub(super) fn select_github_release_asset<'a>(
     }
 }
 
-fn github_client() -> AppResult<Client> {
-    let mut headers = HeaderMap::new();
-    headers.insert(ACCEPT, HeaderValue::from_static(GITHUB_ACCEPT));
-    headers.insert(USER_AGENT, HeaderValue::from_static(USER_AGENT_VALUE));
-    headers.insert(
-        "X-GitHub-Api-Version",
-        HeaderValue::from_static(GITHUB_API_VERSION),
-    );
-
-    Ok(Client::builder().default_headers(headers).build()?)
+pub(super) fn github_headers() -> Vec<HttpHeader> {
+    vec![
+        HttpHeader {
+            name: "Accept".to_string(),
+            value: GITHUB_ACCEPT.to_string(),
+        },
+        HttpHeader {
+            name: "User-Agent".to_string(),
+            value: USER_AGENT_VALUE.to_string(),
+        },
+        HttpHeader {
+            name: "X-GitHub-Api-Version".to_string(),
+            value: GITHUB_API_VERSION.to_string(),
+        },
+    ]
 }
 
 #[derive(Debug, Deserialize)]

@@ -11,4 +11,4 @@ pub use model::{
     BackupCatalog, BackupCatalogEntry, BackupGroup, BackupMetadata, BackupRequest, CreatedBackup,
     RestoreBackupRequest, RestoredBackup,
 };
-pub use storage::{list_backups, restore_backup_selection};
+pub use storage::{list_backups, restore_backup_selection, restore_backup_selection_task};

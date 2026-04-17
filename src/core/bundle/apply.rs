@@ -1,5 +1,9 @@
 use super::planner::prepare_bundle_apply;
 use super::*;
+use crate::core::task::{
+    CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
+    emit_task_progress, ensure_task_not_cancelled,
+};
 
 struct BundleExecution {
     backup_path: Option<PathBuf>,
@@ -7,25 +11,153 @@ struct BundleExecution {
     rewritten_files: usize,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum BundleApplyTaskContext {
+    BundleApply,
+    ExternalPackageApply,
+}
+
+impl BundleApplyTaskContext {
+    fn task_kind(self) -> TaskKind {
+        match self {
+            Self::BundleApply => TaskKind::BundleApply,
+            Self::ExternalPackageApply => TaskKind::ExternalPackageApply,
+        }
+    }
+
+    fn planning_message(self, operation_count: usize) -> String {
+        match self {
+            Self::BundleApply => {
+                format!("Prepared bundle apply plan with {operation_count} operation(s)")
+            }
+            Self::ExternalPackageApply => {
+                format!("Prepared external package apply plan with {operation_count} operation(s)")
+            }
+        }
+    }
+
+    fn dry_run_completed_message(self) -> &'static str {
+        match self {
+            Self::BundleApply => "Bundle dry run completed without filesystem writes",
+            Self::ExternalPackageApply => {
+                "External package dry run completed without filesystem writes"
+            }
+        }
+    }
+
+    fn backup_message(self) -> &'static str {
+        match self {
+            Self::BundleApply => "Creating backup checkpoint before bundle apply",
+            Self::ExternalPackageApply => {
+                "Creating backup checkpoint before external package apply"
+            }
+        }
+    }
+
+    fn executing_message(self, operation_count: usize) -> String {
+        match self {
+            Self::BundleApply => {
+                format!("Executing {operation_count} planned bundle operation(s)")
+            }
+            Self::ExternalPackageApply => {
+                format!("Executing {operation_count} planned external package operation(s)")
+            }
+        }
+    }
+
+    fn completed_message(self, written_files: usize) -> String {
+        match self {
+            Self::BundleApply => {
+                format!("Bundle apply completed with {written_files} written file(s)")
+            }
+            Self::ExternalPackageApply => {
+                format!("External package apply completed with {written_files} written file(s)")
+            }
+        }
+    }
+}
+
 struct BundleExecutor<'a> {
     installation: &'a DetectedFlavorInstallation,
     backup_output_path: Option<PathBuf>,
+    task_context: BundleApplyTaskContext,
 }
 
 pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
+    let cancellation = NeverCancel;
+    let mut progress = NoopProgressSink;
+    unpack_bundle_task(request, &cancellation, &mut progress)
+}
+
+pub fn unpack_bundle_task<TCancel, TProgress>(
+    request: UnpackBundleRequest,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<UnpackedBundle>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    let task_context = BundleApplyTaskContext::BundleApply;
+    emit_task_progress(
+        progress,
+        task_context.task_kind(),
+        TaskPhase::Preparing,
+        format!(
+            "Inspecting bundle `{}` for target `{}`",
+            request.bundle_path.display(),
+            request.installation.flavor_root.display()
+        ),
+    );
+    ensure_task_not_cancelled(cancellation, task_context.task_kind(), TaskPhase::Preparing)?;
+
     let prepared = prepare_bundle_apply(
         &request.bundle_path,
         &request.installation,
         &request.apply_mappings,
     )?;
+
+    execute_prepared_apply_with_context(
+        prepared,
+        request.installation,
+        request.dry_run,
+        request.backup_output_path,
+        cancellation,
+        progress,
+        task_context,
+    )
+}
+
+pub(super) fn execute_prepared_apply_with_context<TCancel, TProgress>(
+    prepared: PreparedBundleApply,
+    installation: DetectedFlavorInstallation,
+    dry_run: bool,
+    backup_output_path: Option<PathBuf>,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+    task_context: BundleApplyTaskContext,
+) -> AppResult<UnpackedBundle>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
     let PreparedBundleApply {
+        source,
         plan,
         execution_operations,
     } = prepared;
-    if request.dry_run {
-        return Ok(UnpackedBundle {
-            bundle_path: request.bundle_path,
-            target_flavor_root: request.installation.flavor_root,
+    emit_task_progress(
+        progress,
+        task_context.task_kind(),
+        TaskPhase::Planning,
+        task_context.planning_message(plan.operations.len()),
+    );
+    ensure_task_not_cancelled(cancellation, task_context.task_kind(), TaskPhase::Planning)?;
+
+    if dry_run {
+        let result = UnpackedBundle {
+            bundle_path: plan.bundle_path,
+            target_flavor_root: plan.target_flavor_root,
             dry_run: true,
             planned_files: plan.operations.len(),
             written_files: 0,
@@ -35,18 +167,32 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
             plan_summary: plan.summary,
             character_mappings: plan.character_mappings,
             manifest: plan.manifest,
-        });
+        };
+        emit_task_progress(
+            progress,
+            task_context.task_kind(),
+            TaskPhase::Completed,
+            task_context.dry_run_completed_message(),
+        );
+        return Ok(result);
     }
 
     let execution = BundleExecutor {
-        installation: &request.installation,
-        backup_output_path: request.backup_output_path.clone(),
+        installation: &installation,
+        backup_output_path,
+        task_context,
     }
-    .execute(&plan, &execution_operations)?;
+    .execute(
+        &source,
+        &plan,
+        &execution_operations,
+        cancellation,
+        progress,
+    )?;
 
-    Ok(UnpackedBundle {
-        bundle_path: request.bundle_path,
-        target_flavor_root: request.installation.flavor_root,
+    let result = UnpackedBundle {
+        bundle_path: plan.bundle_path,
+        target_flavor_root: plan.target_flavor_root,
         dry_run: false,
         planned_files: plan.operations.len(),
         written_files: execution.written_files,
@@ -56,18 +202,59 @@ pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> 
         plan_summary: plan.summary,
         character_mappings: plan.character_mappings,
         manifest: plan.manifest,
-    })
+    };
+    emit_task_progress(
+        progress,
+        task_context.task_kind(),
+        TaskPhase::Completed,
+        task_context.completed_message(result.written_files),
+    );
+    Ok(result)
 }
 
 impl<'a> BundleExecutor<'a> {
-    fn execute(
+    fn execute<TCancel, TProgress>(
         &self,
+        source: &PreparedApplySource,
         plan: &BundleApplyPlan,
         execution_operations: &[PreparedApplyOperation],
-    ) -> AppResult<BundleExecution> {
+        cancellation: &TCancel,
+        progress: &mut TProgress,
+    ) -> AppResult<BundleExecution>
+    where
+        TCancel: CancellationToken,
+        TProgress: TaskProgressSink,
+    {
+        if plan.manifest.apply.create_backup
+            && !backup_groups_for_manifest(&plan.manifest).is_empty()
+        {
+            emit_task_progress(
+                progress,
+                self.task_context.task_kind(),
+                TaskPhase::BackingUp,
+                self.task_context.backup_message(),
+            );
+            ensure_task_not_cancelled(
+                cancellation,
+                self.task_context.task_kind(),
+                TaskPhase::BackingUp,
+            )?;
+        }
         let backup_path = self.create_backup(plan)?;
+        emit_task_progress(
+            progress,
+            self.task_context.task_kind(),
+            TaskPhase::Executing,
+            self.task_context
+                .executing_message(execution_operations.len()),
+        );
+        ensure_task_not_cancelled(
+            cancellation,
+            self.task_context.task_kind(),
+            TaskPhase::Executing,
+        )?;
 
-        match execute_apply_operations(&plan.bundle_path, execution_operations, &plan.manifest) {
+        match execute_apply_operations(source, execution_operations, &plan.manifest) {
             Ok((written_files, rewritten_files)) => Ok(BundleExecution {
                 backup_path,
                 written_files,

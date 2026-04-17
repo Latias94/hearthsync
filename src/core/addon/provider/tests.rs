@@ -1,12 +1,21 @@
-use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 
-use super::AddonSourceRef;
+use serde::{Deserialize, Serialize};
+use tempfile::tempdir;
+use zip::CompressionMethod;
+use zip::ZipWriter;
+use zip::write::SimpleFileOptions;
+
 use super::curseforge::{
     CurseForgeFile, CurseForgeGameVersionType, CurseForgeSortableGameVersion,
     select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
 };
+use super::github::fetch_github_release_with_client;
 use super::github::{GitHubRelease, GitHubReleaseAsset, select_github_release_asset};
+use super::http::{HttpClient, HttpDownloadRequest, HttpRequest, HttpResponse};
 use super::parse::{parse_curseforge_source, parse_github_source};
+use super::{AddonProvider, AddonProviderContext, AddonSourceRef, DefaultAddonProvider};
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -138,6 +147,211 @@ fn parse_github_source_without_tag() {
             asset_name: None,
         }
     );
+}
+
+#[test]
+fn fetch_github_release_with_client_uses_http_port() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        requests: RefCell<Vec<HttpRequest>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            self.requests.borrow_mut().push(request);
+            Ok(HttpResponse {
+                status_code: 200,
+                body: r#"{"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#.to_string(),
+            })
+        }
+
+        fn download_to_path(&self, _request: HttpDownloadRequest) -> AppResult<()> {
+            panic!("download_to_path should not be called in this test")
+        }
+    }
+
+    let client = FakeHttpClient::default();
+    let release = fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3"))
+        .expect("release");
+
+    assert_eq!(release.assets.len(), 1);
+    let requests = client.requests.borrow();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        requests[0].url,
+        "https://api.github.com/repos/owner/repo/releases/tags/v1.2.3"
+    );
+    assert!(
+        requests[0]
+            .headers
+            .iter()
+            .any(|header| header.name == "Accept")
+    );
+    assert!(
+        requests[0]
+            .headers
+            .iter()
+            .any(|header| header.name == "User-Agent")
+    );
+    assert!(
+        requests[0]
+            .headers
+            .iter()
+            .any(|header| header.name == "X-GitHub-Api-Version")
+    );
+}
+
+#[test]
+fn default_addon_provider_accepts_injected_http_client() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        requests: RefCell<Vec<HttpRequest>>,
+        downloads: RefCell<Vec<HttpDownloadRequest>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            self.requests.borrow_mut().push(request);
+            Ok(HttpResponse {
+                status_code: 200,
+                body: r#"{"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#.to_string(),
+            })
+        }
+
+        fn download_to_path(&self, request: HttpDownloadRequest) -> AppResult<()> {
+            self.downloads.borrow_mut().push(request.clone());
+            let file = std::fs::File::create(&request.destination).expect("archive file");
+            let mut zip = ZipWriter::new(file);
+            zip.start_file(
+                "WeakAuras/WeakAuras.toc",
+                SimpleFileOptions::default().compression_method(CompressionMethod::Deflated),
+            )
+            .expect("start zip entry");
+            use std::io::Write;
+            zip.write_all(b"## Interface: 110000\n## Version: 1.0.0\n")
+                .expect("write zip entry");
+            zip.finish().expect("finish zip");
+            Ok(())
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let http_client = FakeHttpClient::default();
+    let provider = DefaultAddonProvider::with_http_client(http_client)
+        .with_download_cache_dir(Some(temp.path().join("cache")));
+
+    let materialized = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: Some("v1.2.3".to_string()),
+                asset_name: Some("addon.zip".to_string()),
+            },
+            stage_root: temp.path(),
+            context: AddonProviderContext::default(),
+        })
+        .expect("materialize github source");
+
+    assert!(materialized.archive_path.exists());
+    assert_eq!(
+        provider.options().download_cache_dir,
+        Some(temp.path().join("cache"))
+    );
+    assert_eq!(provider.http_client().requests.borrow().len(), 1);
+    assert_eq!(provider.http_client().downloads.borrow().len(), 1);
+}
+
+#[test]
+fn default_addon_provider_reuses_download_cache_for_http_archives() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        downloads: RefCell<Vec<HttpDownloadRequest>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(&self, request: HttpDownloadRequest) -> AppResult<()> {
+            self.downloads.borrow_mut().push(request.clone());
+            std::fs::write(&request.destination, b"archive").expect("archive file");
+            Ok(())
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let cache_dir = temp.path().join("cache");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+        .with_download_cache_dir(Some(cache_dir.clone()));
+    let source = AddonSourceRef::HttpArchive {
+        url: "https://example.com/addon.zip".to_string(),
+    };
+
+    let first = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: &temp.path().join("stage-a"),
+            context: AddonProviderContext::default(),
+        })
+        .expect("first materialize");
+    let second = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: &temp.path().join("stage-b"),
+            context: AddonProviderContext::default(),
+        })
+        .expect("second materialize");
+
+    assert_eq!(first.archive_path, second.archive_path);
+    assert!(first.archive_path.starts_with(&cache_dir));
+    assert_eq!(provider.http_client().downloads.borrow().len(), 1);
+}
+
+#[test]
+fn default_addon_provider_retries_failed_http_archive_downloads() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        attempts: RefCell<usize>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(&self, request: HttpDownloadRequest) -> AppResult<()> {
+            let mut attempts = self.attempts.borrow_mut();
+            *attempts += 1;
+            if *attempts == 1 {
+                return Err(AppError::Validation(
+                    "transient download failure".to_string(),
+                ));
+            }
+
+            std::fs::write(&request.destination, b"archive").expect("archive file");
+            Ok(())
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+        .with_retry_policy(super::AddonProviderRetryPolicy { max_attempts: 2 });
+    let source = AddonSourceRef::HttpArchive {
+        url: "https://example.com/addon.zip".to_string(),
+    };
+
+    let materialized = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: temp.path(),
+            context: AddonProviderContext::default(),
+        })
+        .expect("materialize with retry");
+
+    assert!(materialized.archive_path.exists());
+    assert_eq!(*provider.http_client().attempts.borrow(), 2);
 }
 
 #[test]

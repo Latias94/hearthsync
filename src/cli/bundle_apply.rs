@@ -1,13 +1,14 @@
 use super::BundleCommands;
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
-use crate::core::bundle::{
-    BundleApplyMappings, UnpackBundleRequest, load_apply_mappings, plan_bundle_apply, unpack_bundle,
-};
+use crate::core::app::BundleService;
+use crate::core::bundle::{BundleApplyMappings, UnpackBundleRequest, load_apply_mappings};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::resolve_installation;
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
+    let service = BundleService::new();
+
     match command {
         BundleCommands::Plan {
             bundle,
@@ -29,7 +30,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan = plan_bundle_apply(&bundle, &installation, &apply_mappings)?;
+            let plan = service.plan_apply(&bundle, &installation, &apply_mappings)?;
             render(json, &plan, |item| {
                 let accounts = if item.discovered_accounts.is_empty() {
                     "none".to_string()
@@ -93,7 +94,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = unpack_bundle(UnpackBundleRequest {
+            let result = service.apply(UnpackBundleRequest {
                 bundle_path: bundle,
                 installation,
                 dry_run,
@@ -157,7 +158,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
     Ok(())
 }
 
-fn resolve_apply_mappings(
+pub(super) fn resolve_apply_mappings(
     mapping_file: Option<&std::path::Path>,
     target_account: Option<String>,
     target_server: Option<String>,
@@ -181,7 +182,9 @@ fn resolve_apply_mappings(
     Ok(apply_mappings)
 }
 
-fn format_character_mappings(mappings: &[crate::core::lua_patch::CharacterMapping]) -> String {
+pub(super) fn format_character_mappings(
+    mappings: &[crate::core::lua_patch::CharacterMapping],
+) -> String {
     mappings
         .iter()
         .map(|mapping| {

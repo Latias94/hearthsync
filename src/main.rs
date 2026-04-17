@@ -1,8 +1,5 @@
-mod cli;
-mod core;
-
 fn main() {
-    if let Err(error) = cli::run() {
+    if let Err(error) = hearthsync::run_cli() {
         eprintln!("{error}");
         std::process::exit(1);
     }

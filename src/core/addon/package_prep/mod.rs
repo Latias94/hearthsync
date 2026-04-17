@@ -6,7 +6,10 @@ use std::path::Path;
 
 use tempfile::{TempDir, tempdir};
 
-use super::provider::{AddonProviderContext, materialize_source_input, materialize_source_ref};
+use super::provider::{
+    AddonProvider, AddonProviderContext, DefaultAddonProvider, MaterializeSourceInputRequest,
+    MaterializeSourceRefRequest,
+};
 use super::{AddonSourceRef, PreparedAddonDirectory, PreparedAddonPackage, TrackedAddon};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
@@ -19,12 +22,24 @@ pub(crate) fn prepare_package_from_source_input_with_flavor(
     source: &str,
     target_flavor: Option<WowFlavor>,
 ) -> AppResult<PreparedAddonPackage> {
+    let provider = DefaultAddonProvider::default();
+    prepare_package_from_source_input_with_provider(&provider, source, target_flavor)
+}
+
+pub(crate) fn prepare_package_from_source_input_with_provider<P>(
+    provider: &P,
+    source: &str,
+    target_flavor: Option<WowFlavor>,
+) -> AppResult<PreparedAddonPackage>
+where
+    P: AddonProvider,
+{
     let stage_dir = tempdir()?;
-    let materialized = materialize_source_input(
+    let materialized = provider.materialize_source_input(MaterializeSourceInputRequest {
         source,
-        stage_dir.path(),
-        AddonProviderContext { target_flavor },
-    )?;
+        stage_root: stage_dir.path(),
+        context: AddonProviderContext { target_flavor },
+    })?;
     prepare_package_from_archive(
         materialized.source_ref,
         &materialized.archive_path,
@@ -36,12 +51,24 @@ pub(crate) fn prepare_package_from_source_ref_with_flavor(
     source: &AddonSourceRef,
     target_flavor: Option<WowFlavor>,
 ) -> AppResult<PreparedAddonPackage> {
+    let provider = DefaultAddonProvider::default();
+    prepare_package_from_source_ref_with_provider(&provider, source, target_flavor)
+}
+
+pub(crate) fn prepare_package_from_source_ref_with_provider<P>(
+    provider: &P,
+    source: &AddonSourceRef,
+    target_flavor: Option<WowFlavor>,
+) -> AppResult<PreparedAddonPackage>
+where
+    P: AddonProvider,
+{
     let stage_dir = tempdir()?;
-    let materialized = materialize_source_ref(
+    let materialized = provider.materialize_source_ref(MaterializeSourceRefRequest {
         source,
-        stage_dir.path(),
-        AddonProviderContext { target_flavor },
-    )?;
+        stage_root: stage_dir.path(),
+        context: AddonProviderContext { target_flavor },
+    })?;
     prepare_package_from_archive(
         materialized.source_ref,
         &materialized.archive_path,

@@ -1,5 +1,6 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 use zip::ZipArchive;
@@ -9,15 +10,14 @@ use super::*;
 use crate::core::lua_patch::rewrite_lua_file;
 
 pub(super) fn execute_apply_operations(
-    bundle_path: &Path,
+    source: &PreparedApplySource,
     execution_operations: &[PreparedApplyOperation],
     manifest: &BundleManifest,
 ) -> AppResult<(usize, usize)> {
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
     let rewrite_stage = tempdir()?;
-    let file = File::open(bundle_path)?;
-    let mut archive = ZipArchive::new(file)?;
+    let mut zip_source = open_zip_source(source)?;
     let rewrite_options = LuaRewriteOptions {
         rewrite_profile_keys: manifest.mapping.rewrite_profile_keys,
         rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
@@ -36,23 +36,24 @@ pub(super) fn execute_apply_operations(
         if let Some(parent) = operation.destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        let source_path = if operation.rewrite_applied {
-            materialize_rewritten_operation(
-                operation_index,
-                operation,
-                &mut archive,
-                rewrite_stage.path(),
+
+        let source_path = materialize_operation_source(
+            operation_index,
+            operation,
+            source,
+            zip_source.as_mut(),
+            rewrite_stage.path(),
+        )?;
+        if operation.rewrite_applied {
+            rewrite_lua_file(
+                Path::new(&operation.archive_name),
+                &source_path,
+                &operation.rewrites,
                 rewrite_options,
-            )?
-        } else {
-            materialize_archive_operation(
-                operation_index,
-                &operation.archive_name,
-                &mut archive,
-                rewrite_stage.path(),
-            )?
-        };
-        fs::copy(source_path, &operation.destination)?;
+            )?;
+        }
+
+        fs::copy(&source_path, &operation.destination)?;
         written_files += 1;
 
         if operation.rewrite_applied {
@@ -63,41 +64,89 @@ pub(super) fn execute_apply_operations(
     Ok((written_files, rewritten_files))
 }
 
-fn materialize_rewritten_operation(
-    operation_index: usize,
-    operation: &PreparedApplyOperation,
-    archive: &mut ZipArchive<File>,
-    rewrite_stage_root: &Path,
-    rewrite_options: LuaRewriteOptions,
-) -> AppResult<PathBuf> {
-    let rewrite_path = materialize_archive_operation(
-        operation_index,
-        &operation.archive_name,
-        archive,
-        rewrite_stage_root,
-    )?;
-    rewrite_lua_file(
-        Path::new(&operation.archive_name),
-        &rewrite_path,
-        &operation.rewrites,
-        rewrite_options,
-    )?;
-    Ok(rewrite_path)
+fn open_zip_source(source: &PreparedApplySource) -> AppResult<Option<ZipArchive<File>>> {
+    match source {
+        PreparedApplySource::BundleArchive { bundle_path } => {
+            let file = File::open(bundle_path)?;
+            Ok(Some(ZipArchive::new(file)?))
+        }
+        PreparedApplySource::ExternalPackage {
+            source_path,
+            source_kind: ExternalPackageSourceKind::ZipArchive,
+        } => {
+            let file = File::open(source_path)?;
+            Ok(Some(ZipArchive::new(file)?))
+        }
+        PreparedApplySource::ExternalPackage {
+            source_kind: ExternalPackageSourceKind::Directory,
+            ..
+        } => Ok(None),
+    }
 }
 
-fn materialize_archive_operation(
+fn materialize_operation_source(
     operation_index: usize,
-    archive_name: &str,
-    archive: &mut ZipArchive<File>,
+    operation: &PreparedApplyOperation,
+    source: &PreparedApplySource,
+    zip_source: Option<&mut ZipArchive<File>>,
     stage_root: &Path,
 ) -> AppResult<PathBuf> {
+    let staged_path = staged_operation_path(operation_index, &operation.archive_name, stage_root);
+
+    match source {
+        PreparedApplySource::BundleArchive { .. } => {
+            let archive = zip_source.ok_or_else(|| {
+                AppError::Validation(
+                    "bundle apply expected an open archive source during execution".to_string(),
+                )
+            })?;
+            extract_archive_entry_to_path(archive, &operation.archive_name, &staged_path)?;
+        }
+        PreparedApplySource::ExternalPackage {
+            source_path,
+            source_kind: ExternalPackageSourceKind::Directory,
+        } => {
+            let entry_path = operation.source_path.as_deref().ok_or_else(|| {
+                AppError::Validation(format!(
+                    "external-package apply operation is missing a source path: {}",
+                    operation.archive_name
+                ))
+            })?;
+            let resolved_path = resolve_zip_style_path(source_path, entry_path)?;
+            if let Some(parent) = staged_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(resolved_path, &staged_path)?;
+        }
+        PreparedApplySource::ExternalPackage {
+            source_kind: ExternalPackageSourceKind::ZipArchive,
+            ..
+        } => {
+            let entry_path = operation.source_path.as_deref().ok_or_else(|| {
+                AppError::Validation(format!(
+                    "external-package apply operation is missing a source path: {}",
+                    operation.archive_name
+                ))
+            })?;
+            let archive = zip_source.ok_or_else(|| {
+                AppError::Validation(
+                    "external package apply expected an open archive source during execution"
+                        .to_string(),
+                )
+            })?;
+            extract_archive_entry_to_path(archive, entry_path, &staged_path)?;
+        }
+    }
+
+    Ok(staged_path)
+}
+
+fn staged_operation_path(operation_index: usize, archive_name: &str, stage_root: &Path) -> PathBuf {
     let file_name = Path::new(archive_name)
         .file_name()
         .map(|name| name.to_owned())
         .unwrap_or_else(|| format!("operation-{operation_index}").into());
-    let stage_path = stage_root.join(operation_index.to_string()).join(file_name);
-    extract_archive_entry_to_path(archive, archive_name, &stage_path)?;
-    Ok(stage_path)
+    stage_root.join(operation_index.to_string()).join(file_name)
 }
 
 fn remove_target_path(path: &Path) -> AppResult<()> {

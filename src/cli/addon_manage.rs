@@ -1,13 +1,15 @@
 use super::AddonCommands;
 use super::output::render;
 use crate::core::addon::{
-    InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest, UpdateAddonRequest, install_addon,
-    list_addons, remove_addons, search_addons, update_addons,
+    InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest, UpdateAddonRequest,
 };
+use crate::core::app::AddonService;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::resolve_installation;
 
 pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> AppResult<()> {
+    let service = AddonService::new();
+
     match command {
         AddonCommands::Search {
             install,
@@ -16,7 +18,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             limit,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let results = search_addons(SearchAddonRequest {
+            let results = service.search(SearchAddonRequest {
                 installation,
                 query,
                 limit,
@@ -50,7 +52,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
         }
         AddonCommands::List { install, flavor } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let inventory = list_addons(&installation)?;
+            let inventory = service.list(&installation)?;
             render(json, &inventory, |item| {
                 let tracked = if item.tracked_packages.is_empty() {
                     "none".to_string()
@@ -96,7 +98,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             replace_existing,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = install_addon(InstallAddonRequest {
+            let result = service.install(InstallAddonRequest {
                 installation,
                 source,
                 dry_run,
@@ -153,7 +155,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             backup_output,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = update_addons(UpdateAddonRequest {
+            let result = service.update(UpdateAddonRequest {
                 installation,
                 name,
                 dry_run,
@@ -212,7 +214,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             backup_output,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = remove_addons(RemoveAddonRequest {
+            let result = service.remove(RemoveAddonRequest {
                 installation,
                 name,
                 dry_run,

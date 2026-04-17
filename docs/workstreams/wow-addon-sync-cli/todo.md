@@ -4,6 +4,8 @@
 
 The active priority is sync semantics hardening inside the existing CLI workstream.
 Before adding more CLI surface area or starting any future frontend work, the core must stabilize planning, execution, rollback, and manifest runtime semantics.
+Reusable architecture ownership now lives in `../wow-addon-sync-core/`.
+This file should focus on CLI-facing consequences of that work.
 
 The current blocking sequence is:
 
@@ -126,10 +128,12 @@ The current blocking sequence is:
 - [ ] Add integration tests with fixture installs
 - [x] Add rollback validation tests
 - [ ] Add archive compatibility tests
-- [ ] Add Windows to macOS migration scenario tests
+- [x] Add Windows to macOS migration scenario tests
 - [ ] Replace whole-file zip writes with streaming archive I/O for large WTF files
-- [ ] Introduce a core task model with progress events and cancellation tokens
-- [ ] Keep provider networking behind traits before considering full async runtime adoption
+- [x] Introduce a core task model with progress events and cancellation tokens
+- [x] Keep provider networking behind traits before considering full async runtime adoption
+- [x] Add direct `external-package inspect/plan/apply` command surface on top of the normalized import pipeline
+- [x] Add metadata and apply-policy override flags for `external-package plan/apply`
 - [ ] Add human-readable summary reports
 - [ ] Add documentation for future frontend integration
 

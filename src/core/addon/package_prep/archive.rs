@@ -1,8 +1,9 @@
-use std::fs::{self, File};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
 
+use crate::core::archive_io::copy_reader_to_path;
 use crate::core::error::{AppError, AppResult};
 
 use super::PreparedAddonDirectory;
@@ -44,11 +45,7 @@ pub(super) fn extract_archive_addons(
         let relative = &segments[root.len()..];
         let destination =
             join_segments(stage_root, &[addon_name]).join(join_segments(Path::new(""), relative));
-        if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let mut output = File::create(destination)?;
-        std::io::copy(&mut entry, &mut output)?;
+        copy_reader_to_path(&mut entry, &destination)?;
         file_counts[root_index] += 1;
     }
 

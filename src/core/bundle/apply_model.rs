@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use crate::core::lua_patch::CharacterMapping;
 
-use super::{ApplyAction, ApplyGroup, ApplyOperation, BundleApplyPlan, WtfScope};
+use super::{
+    ApplyAction, ApplyGroup, ApplyOperation, BundleApplyPlan, ExternalPackageSourceKind, WtfScope,
+};
 
 #[derive(Debug, Clone)]
 pub(super) struct PlannedEntry {
@@ -27,6 +29,7 @@ pub(super) struct PlannedCleanup {
 
 #[derive(Debug, Clone)]
 pub(super) struct PreparedApplyOperation {
+    pub(super) source_path: Option<String>,
     pub(super) group: ApplyGroup,
     pub(super) wtf_scope: Option<WtfScope>,
     pub(super) action: ApplyAction,
@@ -39,9 +42,21 @@ pub(super) struct PreparedApplyOperation {
     pub(super) rewrites: Vec<CharacterMapping>,
 }
 
+#[derive(Debug, Clone)]
+pub(super) enum PreparedApplySource {
+    BundleArchive {
+        bundle_path: PathBuf,
+    },
+    ExternalPackage {
+        source_path: PathBuf,
+        source_kind: ExternalPackageSourceKind,
+    },
+}
+
 impl PreparedApplyOperation {
     pub(super) fn from_cleanup(cleanup: PlannedCleanup) -> Self {
         Self {
+            source_path: None,
             group: cleanup.group,
             wtf_scope: None,
             action: ApplyAction::Remove,
@@ -59,8 +74,10 @@ impl PreparedApplyOperation {
         entry: &PlannedEntry,
         action: ApplyAction,
         rewrite_applied: bool,
+        source_path: Option<String>,
     ) -> Self {
         Self {
+            source_path,
             group: entry.group,
             wtf_scope: entry.wtf_scope,
             action,
@@ -90,7 +107,9 @@ impl PreparedApplyOperation {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct PreparedBundleApply {
+    pub(super) source: PreparedApplySource,
     pub(super) plan: BundleApplyPlan,
     pub(super) execution_operations: Vec<PreparedApplyOperation>,
 }

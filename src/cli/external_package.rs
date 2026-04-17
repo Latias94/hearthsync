@@ -1,0 +1,486 @@
+use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
+use super::output::render;
+use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
+use crate::core::app::ExternalPackageService;
+use crate::core::bundle::{
+    AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
+    ExternalPackageSummary, ExternalPackageWarning,
+};
+use crate::core::error::AppResult;
+use crate::core::install::resolve_installation;
+use crate::core::manifest::{ApplyDefaults, ResourceApplyPolicy};
+
+pub(super) fn handle_external_package_command(
+    json: bool,
+    command: ExternalPackageCommands,
+) -> AppResult<()> {
+    let service = ExternalPackageService::new();
+
+    match command {
+        ExternalPackageCommands::Inspect { source } => {
+            let analysis = service.analyze(AnalyzeExternalPackageRequest {
+                source_path: source,
+            })?;
+            render(json, &analysis, |item| {
+                let warnings = format_external_package_warnings(&item.warnings, &item.summary);
+                let characters = if item.resources.wtf_characters.is_empty() {
+                    "none".to_string()
+                } else {
+                    item.resources
+                        .wtf_characters
+                        .iter()
+                        .map(|character| {
+                            format!(
+                                "{}/{}/{}",
+                                character
+                                    .source_account
+                                    .as_deref()
+                                    .unwrap_or("<unknown-account>"),
+                                character.source_server,
+                                character.source_character
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                format!(
+                    "Source: {}\nDetected kind: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
+                    item.source_path.display(),
+                    item.source_kind,
+                    item.package_id,
+                    item.package_name,
+                    item.summary.total_files,
+                    item.summary.normalized_files,
+                    item.summary.ignored_files,
+                    if item.resources.addons.is_empty() {
+                        "none".to_string()
+                    } else {
+                        item.resources.addons.join(", ")
+                    },
+                    if item.resources.wtf_common {
+                        "yes"
+                    } else {
+                        "no"
+                    },
+                    item.resources.wtf_characters.len(),
+                    if item.resources.fonts { "yes" } else { "no" },
+                    if item.resources.interface_assets.is_empty() {
+                        "none".to_string()
+                    } else {
+                        item.resources.interface_assets.join(", ")
+                    },
+                    characters,
+                    warnings
+                )
+            })?;
+        }
+        ExternalPackageCommands::Plan {
+            bundle_options,
+            install,
+            flavor,
+            mapping_file,
+            target_account,
+            target_server,
+            target_character,
+            selected_accounts,
+            all_accounts,
+        } => {
+            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let apply_mappings = resolve_apply_mappings(
+                mapping_file.as_deref(),
+                target_account,
+                target_server,
+                target_character,
+                selected_accounts,
+                all_accounts,
+            )?;
+            let plan =
+                service.plan_apply(crate::core::bundle::PlanExternalPackageApplyRequest {
+                    external_package: build_external_package_bundle_request(bundle_options),
+                    installation,
+                    apply_mappings,
+                })?;
+            render(json, &plan, |item| {
+                let accounts = if item.discovered_accounts.is_empty() {
+                    "none".to_string()
+                } else {
+                    item.discovered_accounts
+                        .iter()
+                        .map(|account| {
+                            format!(
+                                "{}({} chars)",
+                                account.account_name,
+                                account.characters.len()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                let selected_accounts = if item.selected_target_accounts.is_empty() {
+                    "none".to_string()
+                } else {
+                    item.selected_target_accounts.join(", ")
+                };
+                format!(
+                    "External package: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nWarnings: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}",
+                    item.analysis.source_path.display(),
+                    item.target_flavor_root.display(),
+                    accounts,
+                    selected_accounts,
+                    format_external_package_warnings(
+                        &item.analysis.warnings,
+                        &item.analysis.summary,
+                    ),
+                    item.summary.paths_to_remove,
+                    item.summary.files_to_add,
+                    item.summary.files_to_replace,
+                    item.summary.files_to_skip,
+                    item.summary.files_to_preserve,
+                    item.summary.files_to_rewrite,
+                    if item.character_mappings.is_empty() {
+                        "none".to_string()
+                    } else {
+                        format_character_mappings(&item.character_mappings)
+                    }
+                )
+            })?;
+        }
+        ExternalPackageCommands::Apply {
+            bundle_options,
+            install,
+            flavor,
+            dry_run,
+            backup_output,
+            mapping_file,
+            target_account,
+            target_server,
+            target_character,
+            selected_accounts,
+            all_accounts,
+        } => {
+            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let apply_mappings = resolve_apply_mappings(
+                mapping_file.as_deref(),
+                target_account,
+                target_server,
+                target_character,
+                selected_accounts,
+                all_accounts,
+            )?;
+            let result = service.apply(ApplyExternalPackageRequest {
+                external_package: build_external_package_bundle_request(bundle_options),
+                installation,
+                dry_run,
+                backup_output_path: backup_output,
+                apply_mappings,
+            })?;
+            render(json, &result, |item| {
+                let backup = item
+                    .backup_path
+                    .as_ref()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_else(|| "none".to_string());
+                let selected_accounts = if item.selected_target_accounts.is_empty() {
+                    "none".to_string()
+                } else {
+                    item.selected_target_accounts.join(", ")
+                };
+                let mapping_summary = if item.character_mappings.is_empty() {
+                    "none".to_string()
+                } else {
+                    format_character_mappings(&item.character_mappings)
+                };
+                if item.dry_run {
+                    format!(
+                        "Dry run only.\nExternal package: {}\nTarget: {}\nWarnings: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nPlanned rewrite: {}\nCharacter mappings: {}\nBackup: {}",
+                        item.analysis.source_path.display(),
+                        item.target_flavor_root.display(),
+                        format_external_package_warnings(
+                            &item.analysis.warnings,
+                            &item.analysis.summary,
+                        ),
+                        item.planned_files,
+                        selected_accounts,
+                        item.plan_summary.paths_to_remove,
+                        item.plan_summary.files_to_add,
+                        item.plan_summary.files_to_replace,
+                        item.plan_summary.files_to_skip,
+                        item.plan_summary.files_to_preserve,
+                        item.plan_summary.files_to_rewrite,
+                        mapping_summary,
+                        backup
+                    )
+                } else {
+                    format!(
+                        "Applied external package: {}\nTarget: {}\nWritten files: {}\nRewritten files: {}\nSelected accounts: {}\nCharacter mappings: {}\nBackup: {}",
+                        item.analysis.source_path.display(),
+                        item.target_flavor_root.display(),
+                        item.written_files,
+                        item.rewritten_files,
+                        selected_accounts,
+                        mapping_summary,
+                        backup
+                    )
+                }
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+fn build_external_package_bundle_request(
+    options: ExternalPackageBundleOptions,
+) -> CreateExternalPackageBundleRequest {
+    let apply_defaults = build_external_package_apply_defaults(&options);
+
+    CreateExternalPackageBundleRequest {
+        source_path: options.source,
+        source_flavor: options.source_flavor.into(),
+        source_platform: options.source_platform.map(Into::into),
+        supported_targets: if options.supported_targets.is_empty() {
+            Vec::new()
+        } else {
+            options
+                .supported_targets
+                .into_iter()
+                .map(Into::into)
+                .collect()
+        },
+        output_path: None,
+        package_id: options.package_id,
+        package_name: options.package_name,
+        created_by: options.created_by,
+        description: options.description,
+        apply_defaults,
+    }
+}
+
+fn build_external_package_apply_defaults(
+    options: &ExternalPackageBundleOptions,
+) -> Option<ApplyDefaults> {
+    let has_override = options.no_backup
+        || options.addons_policy.is_some()
+        || options.wtf_common_policy.is_some()
+        || options.wtf_characters_policy.is_some()
+        || options.fonts_policy.is_some()
+        || options.interface_assets_policy.is_some();
+
+    if !has_override {
+        return None;
+    }
+
+    Some(ApplyDefaults {
+        create_backup: !options.no_backup,
+        addons: options
+            .addons_policy
+            .map(Into::into)
+            .unwrap_or(ResourceApplyPolicy::Merge),
+        wtf_common: options
+            .wtf_common_policy
+            .map(Into::into)
+            .unwrap_or(ResourceApplyPolicy::Merge),
+        wtf_characters: options
+            .wtf_characters_policy
+            .map(Into::into)
+            .unwrap_or(ResourceApplyPolicy::Merge),
+        fonts: options
+            .fonts_policy
+            .map(Into::into)
+            .unwrap_or(ResourceApplyPolicy::Merge),
+        interface_assets: options
+            .interface_assets_policy
+            .map(Into::into)
+            .unwrap_or(ResourceApplyPolicy::Merge),
+    })
+}
+
+fn format_external_package_warnings(
+    warnings: &[ExternalPackageWarning],
+    summary: &ExternalPackageSummary,
+) -> String {
+    if warnings.is_empty() {
+        return "none".to_string();
+    }
+
+    let groups = summary
+        .warning_groups
+        .iter()
+        .map(|group| {
+            format!(
+                "{}/{}={}",
+                group.category.as_str(),
+                group.code.as_str(),
+                group.count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let details = warnings
+        .iter()
+        .map(|warning| {
+            format!(
+                "{}/{}: {}",
+                warning.category.as_str(),
+                warning.code.as_str(),
+                warning.source_path
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    format!(
+        "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
+        summary.warning_count,
+        summary.addon_warning_count,
+        summary.wtf_warning_count,
+        groups,
+        details
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
+    use crate::core::bundle::{
+        ExternalPackageWarningCategory, ExternalPackageWarningCode, ExternalPackageWarningGroup,
+    };
+
+    #[test]
+    fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {
+        let request = build_external_package_bundle_request(ExternalPackageBundleOptions {
+            source: PathBuf::from("C:\\temp\\author-ui.zip"),
+            source_flavor: FlavorArg::Retail,
+            source_platform: Some(PlatformArg::Windows),
+            supported_targets: vec![FlavorArg::Retail, FlavorArg::Classic],
+            package_id: Some("author-ui".to_string()),
+            package_name: Some("Author UI".to_string()),
+            created_by: Some("newbeebox-import".to_string()),
+            description: Some("normalized import".to_string()),
+            no_backup: true,
+            addons_policy: Some(ApplyPolicyArg::Mirror),
+            wtf_common_policy: Some(ApplyPolicyArg::Share),
+            wtf_characters_policy: Some(ApplyPolicyArg::Sync),
+            fonts_policy: Some(ApplyPolicyArg::Preserve),
+            interface_assets_policy: Some(ApplyPolicyArg::ReplaceSelected),
+        });
+
+        assert_eq!(
+            request.source_path,
+            PathBuf::from("C:\\temp\\author-ui.zip")
+        );
+        assert_eq!(
+            request.source_flavor,
+            crate::core::install::WowFlavor::Retail
+        );
+        assert_eq!(
+            request.source_platform,
+            Some(crate::core::install::HostPlatform::Windows)
+        );
+        assert_eq!(
+            request.supported_targets,
+            vec![
+                crate::core::install::WowFlavor::Retail,
+                crate::core::install::WowFlavor::Classic,
+            ]
+        );
+        assert_eq!(request.package_id.as_deref(), Some("author-ui"));
+        assert_eq!(request.package_name.as_deref(), Some("Author UI"));
+        assert_eq!(request.created_by.as_deref(), Some("newbeebox-import"));
+        assert_eq!(request.description.as_deref(), Some("normalized import"));
+
+        let apply_defaults = request
+            .apply_defaults
+            .expect("expected explicit apply defaults");
+        assert!(!apply_defaults.create_backup);
+        assert_eq!(apply_defaults.addons, ResourceApplyPolicy::Mirror);
+        assert_eq!(apply_defaults.wtf_common, ResourceApplyPolicy::Share);
+        assert_eq!(apply_defaults.wtf_characters, ResourceApplyPolicy::Sync);
+        assert_eq!(apply_defaults.fonts, ResourceApplyPolicy::Preserve);
+        assert_eq!(
+            apply_defaults.interface_assets,
+            ResourceApplyPolicy::ReplaceSelected
+        );
+    }
+
+    #[test]
+    fn build_external_package_bundle_request_skips_apply_defaults_without_overrides() {
+        let request = build_external_package_bundle_request(ExternalPackageBundleOptions {
+            source: PathBuf::from("C:\\temp\\author-ui.zip"),
+            source_flavor: FlavorArg::Retail,
+            source_platform: None,
+            supported_targets: Vec::new(),
+            package_id: None,
+            package_name: None,
+            created_by: None,
+            description: None,
+            no_backup: false,
+            addons_policy: None,
+            wtf_common_policy: None,
+            wtf_characters_policy: None,
+            fonts_policy: None,
+            interface_assets_policy: None,
+        });
+
+        assert!(request.apply_defaults.is_none());
+    }
+
+    #[test]
+    fn format_external_package_warnings_renders_groups_and_details() {
+        let warnings = vec![
+            ExternalPackageWarning {
+                category: ExternalPackageWarningCategory::Addon,
+                code: ExternalPackageWarningCode::AddonRootNotDetected,
+                source_path: "AuthorUI/Interface/AddOns/BrokenAddon/README.txt".to_string(),
+                message: "ignored addon entry".to_string(),
+            },
+            ExternalPackageWarning {
+                category: ExternalPackageWarningCategory::Wtf,
+                code: ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
+                source_path: "AuthorUI/WTF/Account/SavedVariables/Broken.lua".to_string(),
+                message: "unsupported wtf entry".to_string(),
+            },
+        ];
+        let summary = ExternalPackageSummary {
+            warning_count: 2,
+            addon_warning_count: 1,
+            wtf_warning_count: 1,
+            warning_groups: vec![
+                ExternalPackageWarningGroup {
+                    category: ExternalPackageWarningCategory::Addon,
+                    code: ExternalPackageWarningCode::AddonRootNotDetected,
+                    count: 1,
+                },
+                ExternalPackageWarningGroup {
+                    category: ExternalPackageWarningCategory::Wtf,
+                    code: ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
+                    count: 1,
+                },
+            ],
+            ..ExternalPackageSummary::default()
+        };
+
+        let rendered = format_external_package_warnings(&warnings, &summary);
+
+        assert!(rendered.contains("2 (addon: 1, wtf: 1; groups: ["));
+        assert!(rendered.contains("addon/addon_root_not_detected=1"));
+        assert!(rendered.contains("wtf/unsupported_wtf_root_savedvariables=1"));
+        assert!(rendered.contains(
+            "addon/addon_root_not_detected: AuthorUI/Interface/AddOns/BrokenAddon/README.txt"
+        ));
+        assert!(rendered.contains(
+            "wtf/unsupported_wtf_root_savedvariables: AuthorUI/WTF/Account/SavedVariables/Broken.lua"
+        ));
+    }
+
+    #[test]
+    fn format_external_package_warnings_returns_none_for_empty_warnings() {
+        let rendered = format_external_package_warnings(&[], &ExternalPackageSummary::default());
+
+        assert_eq!(rendered, "none");
+    }
+}

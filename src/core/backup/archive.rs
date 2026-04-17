@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+use tempfile::tempdir;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
@@ -10,8 +12,29 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
+use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::DetectedFlavorInstallation;
+use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
+
+#[derive(Debug, Clone)]
+struct PreparedRestoreArchive {
+    archive_path: PathBuf,
+    metadata: BackupMetadata,
+    entries: Vec<PreparedRestoreEntry>,
+}
+
+#[derive(Debug, Clone)]
+struct PreparedRestoreEntry {
+    archive_index: usize,
+    entry_name: String,
+    destination: PathBuf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RestoreExecutionMode {
+    Primary,
+    Rollback,
+}
 
 pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
     if request.groups.is_empty() {
@@ -93,17 +116,53 @@ pub fn restore_backup(
     archive_path: &Path,
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<RestoredBackup> {
+    let prepared = prepare_restore_archive(archive_path, installation)?;
+    let rollback_stage = tempdir()?;
+    let rollback_checkpoint =
+        create_restore_checkpoint(&prepared.metadata, installation, rollback_stage.path())?;
+
+    match apply_prepared_restore(&prepared, installation, RestoreExecutionMode::Primary) {
+        Ok(restored_files) => Ok(RestoredBackup {
+            archive_path: prepared.archive_path,
+            restored_files,
+            metadata: prepared.metadata,
+        }),
+        Err(error) => {
+            match restore_from_checkpoint(&rollback_checkpoint.archive_path, installation) {
+                Ok(restored) => Err(AppError::Validation(format!(
+                    "backup restore failed and transactional rollback restored pre-restore state from `{}` ({} files): {error}",
+                    restored.archive_path.display(),
+                    restored.restored_files
+                ))),
+                Err(rollback_error) => Err(AppError::Validation(format!(
+                    "backup restore failed: {error}; transactional rollback failed: {rollback_error}"
+                ))),
+            }
+        }
+    }
+}
+
+pub(super) fn read_backup_metadata_from_path(path: &Path) -> AppResult<BackupMetadata> {
+    let file = File::open(path)?;
+    let mut archive = ZipArchive::new(file)?;
+    read_backup_metadata(&mut archive)
+}
+
+fn prepare_restore_archive(
+    archive_path: &Path,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<PreparedRestoreArchive> {
     let file = File::open(archive_path)?;
     let mut archive = ZipArchive::new(file)?;
     let metadata = read_backup_metadata(&mut archive)?;
+    validate_backup_metadata(&metadata, installation)?;
 
-    for group in &metadata.groups {
-        clear_group_destination(*group, installation)?;
-    }
+    let mut entries = Vec::new();
+    let mut destination_keys = BTreeSet::new();
+    let mut destination_paths = Vec::new();
 
-    let mut restored_files = 0usize;
-    for index in 0..archive.len() {
-        let mut entry = archive.by_index(index)?;
+    for archive_index in 0..archive.len() {
+        let entry = archive.by_index(archive_index)?;
         if entry.is_dir() {
             continue;
         }
@@ -113,30 +172,41 @@ pub fn restore_backup(
             continue;
         }
 
-        let Some(destination) = map_backup_entry_to_destination(&entry_name, installation)? else {
-            continue;
-        };
-
-        if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
+        let entry_group = backup_group_for_entry_path(&entry_name)?;
+        if !metadata.groups.contains(&entry_group) {
+            return Err(AppError::Validation(format!(
+                "backup archive entry `{entry_name}` is not declared in backup metadata groups"
+            )));
         }
 
-        let mut output = File::create(destination)?;
-        std::io::copy(&mut entry, &mut output)?;
-        restored_files += 1;
+        let destination =
+            map_backup_entry_to_destination(&entry_name, installation)?.ok_or_else(|| {
+                AppError::Validation(format!(
+                    "backup archive contains unsupported entry path: `{entry_name}`"
+                ))
+            })?;
+        let collision_key = destination_collision_key(&destination, installation.platform);
+        if !destination_keys.insert(collision_key) {
+            return Err(AppError::Validation(format!(
+                "backup archive restores multiple entries onto the same destination: {}",
+                destination.display()
+            )));
+        }
+
+        ensure_no_destination_prefix_conflict(&destination, &destination_paths)?;
+        destination_paths.push(destination.clone());
+        entries.push(PreparedRestoreEntry {
+            archive_index,
+            entry_name,
+            destination,
+        });
     }
 
-    Ok(RestoredBackup {
+    Ok(PreparedRestoreArchive {
         archive_path: archive_path.to_path_buf(),
-        restored_files,
         metadata,
+        entries,
     })
-}
-
-pub(super) fn read_backup_metadata_from_path(path: &Path) -> AppResult<BackupMetadata> {
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file)?;
-    read_backup_metadata(&mut archive)
 }
 
 fn build_backup_file_name(flavor: &str, label: Option<&str>, timestamp: &str) -> String {
@@ -221,13 +291,12 @@ fn write_file_to_zip(
     source_path: &Path,
     archive_path: &Path,
 ) -> AppResult<()> {
-    let mut file = File::open(source_path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-
-    zip.start_file(to_zip_path(archive_path), zip_file_options())?;
-    zip.write_all(&buffer)?;
-    Ok(())
+    stream_file_to_zip(
+        zip,
+        source_path,
+        &to_zip_path(archive_path),
+        zip_file_options(),
+    )
 }
 
 fn to_zip_path(path: &Path) -> String {
@@ -239,6 +308,47 @@ fn read_backup_metadata(archive: &mut ZipArchive<File>) -> AppResult<BackupMetad
     let mut content = String::new();
     entry.read_to_string(&mut content)?;
     Ok(toml::from_str(&content)?)
+}
+
+fn validate_backup_metadata(
+    metadata: &BackupMetadata,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<()> {
+    if metadata.schema_version != 1 {
+        return Err(AppError::Validation(format!(
+            "unsupported backup schema version: {}",
+            metadata.schema_version
+        )));
+    }
+
+    if metadata.groups.is_empty() {
+        return Err(AppError::Validation(
+            "backup metadata must include at least one group".to_string(),
+        ));
+    }
+
+    let mut groups = BTreeSet::new();
+    for group in &metadata.groups {
+        if !groups.insert(*group) {
+            return Err(AppError::Validation(format!(
+                "backup metadata declares duplicate group `{}`",
+                group.as_str()
+            )));
+        }
+    }
+
+    if !metadata
+        .flavor
+        .eq_ignore_ascii_case(installation.flavor.as_str())
+    {
+        return Err(AppError::Validation(format!(
+            "backup flavor `{}` does not match target flavor `{}`",
+            metadata.flavor,
+            installation.flavor.as_str()
+        )));
+    }
+
+    Ok(())
 }
 
 fn clear_group_destination(
@@ -311,6 +421,114 @@ fn map_backup_entry_to_destination(
     }
 }
 
+fn backup_group_for_entry_path(entry_name: &str) -> AppResult<BackupGroup> {
+    let segments = safe_zip_segments(entry_name)?;
+    match segments.as_slice() {
+        ["addons", ..] => Ok(BackupGroup::Addons),
+        ["wtf", ..] => Ok(BackupGroup::Wtf),
+        ["fonts", ..] => Ok(BackupGroup::Fonts),
+        ["interface", ..] => Ok(BackupGroup::InterfaceAssets),
+        _ => Err(AppError::Validation(format!(
+            "backup archive contains unsupported root entry: `{entry_name}`"
+        ))),
+    }
+}
+
+fn destination_collision_key(path: &Path, platform: HostPlatform) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    match platform {
+        HostPlatform::Windows | HostPlatform::MacOs => normalized.to_ascii_lowercase(),
+        HostPlatform::Linux | HostPlatform::Unknown => normalized,
+    }
+}
+
+fn ensure_no_destination_prefix_conflict(
+    candidate: &Path,
+    existing_paths: &[PathBuf],
+) -> AppResult<()> {
+    for existing in existing_paths {
+        if path_is_prefix(existing, candidate) || path_is_prefix(candidate, existing) {
+            return Err(AppError::Validation(format!(
+                "backup archive contains conflicting restore destinations: {} and {}",
+                existing.display(),
+                candidate.display()
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn path_is_prefix(prefix: &Path, candidate: &Path) -> bool {
+    prefix != candidate && candidate.starts_with(prefix)
+}
+
+fn create_restore_checkpoint(
+    metadata: &BackupMetadata,
+    installation: &DetectedFlavorInstallation,
+    output_root: &Path,
+) -> AppResult<CreatedBackup> {
+    create_backup(BackupRequest {
+        installation: installation.clone(),
+        output_path: Some(output_root.to_path_buf()),
+        groups: metadata.groups.clone(),
+        label: Some("restore-transaction".to_string()),
+    })
+}
+
+fn restore_from_checkpoint(
+    archive_path: &Path,
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<RestoredBackup> {
+    let prepared = prepare_restore_archive(archive_path, installation)?;
+    let restored_files =
+        apply_prepared_restore(&prepared, installation, RestoreExecutionMode::Rollback)?;
+    Ok(RestoredBackup {
+        archive_path: prepared.archive_path,
+        restored_files,
+        metadata: prepared.metadata,
+    })
+}
+
+fn apply_prepared_restore(
+    prepared: &PreparedRestoreArchive,
+    installation: &DetectedFlavorInstallation,
+    mode: RestoreExecutionMode,
+) -> AppResult<usize> {
+    for group in deduped_groups_in_order(&prepared.metadata.groups) {
+        clear_group_destination(group, installation)?;
+    }
+
+    let file = File::open(&prepared.archive_path)?;
+    let mut archive = ZipArchive::new(file)?;
+    let mut restored_files = 0usize;
+    for entry in &prepared.entries {
+        maybe_inject_restore_test_failure(mode, restored_files)?;
+
+        let mut archive_entry = archive.by_index(entry.archive_index)?;
+        copy_reader_to_path(&mut archive_entry, &entry.destination).map_err(|error| {
+            AppError::Validation(format!(
+                "failed to copy backup entry `{}` to `{}`: {error}",
+                entry.entry_name,
+                entry.destination.display()
+            ))
+        })?;
+        restored_files += 1;
+    }
+
+    Ok(restored_files)
+}
+
+fn deduped_groups_in_order(groups: &[BackupGroup]) -> Vec<BackupGroup> {
+    let mut unique = Vec::new();
+    for group in groups {
+        if !unique.contains(group) {
+            unique.push(*group);
+        }
+    }
+    unique
+}
+
 fn safe_zip_segments(entry_name: &str) -> AppResult<Vec<&str>> {
     let mut segments = Vec::new();
     for segment in entry_name.split('/') {
@@ -344,4 +562,39 @@ fn zip_file_options() -> SimpleFileOptions {
 
 fn zip_dir_options() -> SimpleFileOptions {
     SimpleFileOptions::default().compression_method(CompressionMethod::Stored)
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_RESTORE_FAIL_AFTER: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+fn maybe_inject_restore_test_failure(
+    mode: RestoreExecutionMode,
+    restored_files: usize,
+) -> AppResult<()> {
+    if mode != RestoreExecutionMode::Primary {
+        return Ok(());
+    }
+
+    TEST_RESTORE_FAIL_AFTER.with(|fail_after| match fail_after.get() {
+        Some(limit) if restored_files >= limit => Err(AppError::Validation(
+            "injected restore failure for transaction test".to_string(),
+        )),
+        _ => Ok(()),
+    })
+}
+
+#[cfg(not(test))]
+fn maybe_inject_restore_test_failure(
+    _mode: RestoreExecutionMode,
+    _restored_files: usize,
+) -> AppResult<()> {
+    Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn set_restore_test_failure_after(limit: Option<usize>) {
+    TEST_RESTORE_FAIL_AFTER.with(|fail_after| fail_after.set(limit));
 }

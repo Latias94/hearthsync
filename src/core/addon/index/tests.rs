@@ -9,11 +9,12 @@ use zip::write::SimpleFileOptions;
 
 use super::{
     AddonIndexInstallRequest, inspect_addon_index, install_addon_from_index,
-    update_addons_from_index,
+    install_addon_from_index_task, update_addons_from_index, update_addons_from_index_task,
 };
 use crate::core::addon::index::AddonIndexUpdateRequest;
 use crate::core::addon::{AddonSourceRef, InstallAddonRequest, install_addon, list_addons};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
 
 #[test]
 fn inspect_addon_index_reads_packages() {
@@ -59,6 +60,52 @@ fn install_addon_from_index_installs_selected_package() {
             .join("Details")
             .join("Details.toc")
             .exists()
+    );
+}
+
+#[test]
+fn install_addon_from_index_task_reports_index_install_progress() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let archive_path = temp.path().join("details.zip");
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+    let index_path = write_index(temp.path(), &archive_path);
+
+    let cancellation = NeverCancel;
+    let mut progress = VecTaskProgressSink::default();
+    let result = install_addon_from_index_task(
+        AddonIndexInstallRequest {
+            installation,
+            index_path,
+            name: "details".to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("backups")),
+            replace_existing: false,
+        },
+        &cancellation,
+        &mut progress,
+    )
+    .expect("install from index task");
+
+    assert_eq!(result.package.id, "details");
+    assert_eq!(
+        progress
+            .events()
+            .iter()
+            .map(|event| (event.task, event.phase))
+            .collect::<Vec<_>>(),
+        vec![
+            (TaskKind::AddonIndexInstall, TaskPhase::Preparing),
+            (TaskKind::AddonIndexInstall, TaskPhase::BackingUp),
+            (TaskKind::AddonIndexInstall, TaskPhase::Executing),
+            (TaskKind::AddonIndexInstall, TaskPhase::Completed),
+        ]
     );
 }
 
@@ -145,6 +192,69 @@ fn update_addons_from_index_uses_index_source_and_skips_unselected_packages() {
         AddonSourceRef::LocalArchive {
             path: updated_archive_path,
         }
+    );
+}
+
+#[test]
+fn update_addons_from_index_task_reports_index_update_progress() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let installed_archive_path = temp.path().join("details-installed.zip");
+    let updated_archive_path = temp.path().join("details-updated.zip");
+    create_addon_archive(
+        &installed_archive_path,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+    create_addon_archive(
+        &updated_archive_path,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 120000\n## Version: 2.0.0\n",
+        )],
+    );
+    let index_path = write_index(temp.path(), &updated_archive_path);
+
+    install_addon(InstallAddonRequest {
+        installation: installation.clone(),
+        source: installed_archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install tracked addon");
+
+    let cancellation = NeverCancel;
+    let mut progress = VecTaskProgressSink::default();
+    let result = update_addons_from_index_task(
+        AddonIndexUpdateRequest {
+            installation,
+            index_path,
+            name: Some("details".to_string()),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("backups")),
+        },
+        &cancellation,
+        &mut progress,
+    )
+    .expect("update from index task");
+
+    assert_eq!(result.selected_packages.len(), 1);
+    assert_eq!(
+        progress
+            .events()
+            .iter()
+            .map(|event| (event.task, event.phase))
+            .collect::<Vec<_>>(),
+        vec![
+            (TaskKind::AddonIndexUpdate, TaskPhase::Preparing),
+            (TaskKind::AddonIndexUpdate, TaskPhase::BackingUp),
+            (TaskKind::AddonIndexUpdate, TaskPhase::Executing),
+            (TaskKind::AddonIndexUpdate, TaskPhase::Completed),
+        ]
     );
 }
 

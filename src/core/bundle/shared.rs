@@ -40,7 +40,9 @@ pub(super) fn safe_zip_segments(archive_name: &str) -> AppResult<Vec<&str>> {
     let mut segments = Vec::new();
     for segment in archive_name.split('/') {
         if segment.is_empty() {
-            continue;
+            return Err(AppError::Validation(format!(
+                "unsafe archive path: `{archive_name}`"
+            )));
         }
 
         if segment == "." || segment == ".." || segment.contains('\\') {
@@ -61,6 +63,11 @@ pub(super) fn join_segments(root: &Path, segments: &[&str]) -> PathBuf {
         path.push(segment);
     }
     path
+}
+
+pub(super) fn resolve_zip_style_path(root: &Path, archive_name: &str) -> AppResult<PathBuf> {
+    let segments = safe_zip_segments(archive_name)?;
+    Ok(join_segments(root, &segments))
 }
 
 pub(super) fn should_skip_path(path: &Path) -> bool {

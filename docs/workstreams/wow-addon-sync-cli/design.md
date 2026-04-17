@@ -5,6 +5,8 @@
 Draft v0.1
 
 Current execution focus: sync semantics hardening before GUI or broader feature expansion.
+Reusable core architecture ownership now lives in `../wow-addon-sync-core/design.md`.
+This CLI workstream should focus on command surface, user-facing behavior, and delivery sequencing on top of that shared core.
 
 ## Problem Statement
 
@@ -258,14 +260,15 @@ Therefore:
 - provider networking should sit behind traits so a later async implementation can replace the current blocking implementation
 - full async conversion should wait until resource-group policies and transaction semantics are stable
 
-### Decision 11: Treat sync semantics hardening as a blocking in-stream refactor
+### Decision 11: Treat sync semantics hardening as a blocking refactor while moving reusable architecture ownership to the core workstream
 
-The current sync hardening effort should stay inside the existing `wow-addon-sync-cli` workstream.
-This is not optional cleanup after feature completion; it is part of finishing the CLI correctly.
+The current sync hardening effort should remain a blocking refactor, but reusable architecture ownership should now move to the dedicated `wow-addon-sync-core` workstream.
+This is not optional cleanup after feature completion; it is part of finishing the product correctly.
 
 Implications:
 
-- keep `docs/workstreams/wow-addon-sync-cli/` as the source of truth
+- keep `docs/workstreams/wow-addon-sync-core/` as the source of truth for reusable architecture
+- keep `docs/workstreams/wow-addon-sync-cli/` focused on CLI-facing command and output concerns
 - allow in-place refactors that remove obsolete prototype paths
 - defer non-essential CLI expansion until the sync engine boundary is stable
 - treat documentation updates and code removal as part of the same delivery stream
@@ -275,6 +278,12 @@ Implications:
 ```text
 docs/
   workstreams/
+    wow-addon-sync-core/
+      design.md
+      research.md
+      todo.md
+      milestones.md
+      decisions.md
     wow-addon-sync-cli/
       design.md
       todo.md

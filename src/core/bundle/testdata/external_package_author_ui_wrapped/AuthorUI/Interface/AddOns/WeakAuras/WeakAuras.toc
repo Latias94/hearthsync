@@ -1,0 +1,4 @@
+## Interface: 110000
+## Title: WeakAuras
+## Version: 1.0.0
+WeakAuras.lua

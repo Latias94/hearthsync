@@ -1,7 +1,10 @@
 pub mod addon;
+pub mod app;
+mod archive_io;
 pub mod backup;
 pub mod bundle;
 pub mod error;
 pub mod install;
 pub mod lua_patch;
 pub mod manifest;
+pub mod task;

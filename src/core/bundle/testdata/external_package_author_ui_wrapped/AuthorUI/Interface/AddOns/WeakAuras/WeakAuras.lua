@@ -1,0 +1,5 @@
+WeakAurasSaved = {
+  ["profiles"] = {
+    ["Default"] = {},
+  },
+}

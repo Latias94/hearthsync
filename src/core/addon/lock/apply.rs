@@ -4,20 +4,81 @@ use super::plan::build_addon_lock_plan;
 use super::source_resolution::resolved_source_override_map;
 use super::verify::verify_addon_lock;
 use super::*;
+use crate::core::task::{
+    CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
+    emit_task_progress, ensure_task_not_cancelled,
+};
 
 pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
+    let cancellation = NeverCancel;
+    let mut progress = NoopProgressSink;
+    apply_addon_lock_sync_task(request, &cancellation, &mut progress)
+}
+
+pub fn apply_addon_lock_sync_task<TCancel, TProgress>(
+    request: AddonLockApplyRequest,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<AddonLockApplyResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    emit_task_progress(
+        progress,
+        TaskKind::AddonLockApply,
+        TaskPhase::Preparing,
+        format!(
+            "Building addon lock sync plan for `{}`",
+            request.installation.flavor_root.display()
+        ),
+    );
+    ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Preparing)?;
+
     let plan = build_addon_lock_plan(
         &request.installation,
         request.lock_path.as_deref(),
         &request.source_overrides,
     )?;
+    emit_task_progress(
+        progress,
+        TaskKind::AddonLockApply,
+        TaskPhase::Planning,
+        format!(
+            "Planned {} install, {} update, {} remove, {} metadata-only action(s)",
+            plan.result.install_count,
+            plan.result.update_count,
+            plan.result.remove_count,
+            plan.result.metadata_only_count
+        ),
+    );
+    ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Planning)?;
+
     let source_overrides =
         resolved_source_override_map(&plan.result.lock_path, &request.source_overrides)?;
     ensure_plan_is_applyable(&plan, request.replace_existing)?;
 
     let prepared = prepare_addon_lock_apply(&plan, &source_overrides, &request.installation)?;
+    if !prepared.is_empty() {
+        emit_task_progress(
+            progress,
+            TaskKind::AddonLockApply,
+            TaskPhase::BackingUp,
+            "Creating AddOns backup before addon lock apply",
+        );
+        ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::BackingUp)?;
+    }
     let backup_path = create_apply_backup(&request, prepared.is_empty())?;
 
+    if !prepared.is_empty() {
+        emit_task_progress(
+            progress,
+            TaskKind::AddonLockApply,
+            TaskPhase::Executing,
+            "Applying addon lock actions",
+        );
+        ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Executing)?;
+    }
     if let Err(error) =
         execute_prepared_addon_lock_apply(&request.installation, prepared, request.replace_existing)
     {
@@ -28,8 +89,15 @@ pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonL
         );
     }
 
+    emit_task_progress(
+        progress,
+        TaskKind::AddonLockApply,
+        TaskPhase::Verifying,
+        "Verifying addon lock state after apply",
+    );
+    ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Verifying)?;
     let verification = verify_addon_lock(&request.installation, Some(&plan.result.lock_path))?;
-    Ok(AddonLockApplyResult {
+    let result = AddonLockApplyResult {
         lock_path: plan.result.lock_path,
         installation_root: plan.result.installation_root,
         install_count: plan.result.install_count,
@@ -41,7 +109,17 @@ pub fn apply_addon_lock_sync(request: AddonLockApplyRequest) -> AppResult<AddonL
         untracked_addons: verification.untracked_addons.clone(),
         actions: plan.result.actions,
         verification,
-    })
+    };
+    emit_task_progress(
+        progress,
+        TaskKind::AddonLockApply,
+        TaskPhase::Completed,
+        format!(
+            "Addon lock apply completed with {} tracked action(s)",
+            result.actions.len()
+        ),
+    );
+    Ok(result)
 }
 
 fn ensure_plan_is_applyable(

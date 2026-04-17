@@ -3,8 +3,9 @@ mod model;
 mod select;
 
 use api::{
-    fetch_curseforge_file, fetch_curseforge_mod_files, resolve_curseforge_wow_context,
-    search_curseforge_mods as search_curseforge_mod_payloads,
+    fetch_curseforge_file_with_client, fetch_curseforge_mod_files_with_client,
+    resolve_curseforge_wow_context_with_client,
+    search_curseforge_mods_with_client as search_curseforge_mod_payloads_with_client,
 };
 use model::CurseForgeSearchMod;
 #[allow(unused_imports)]
@@ -15,36 +16,40 @@ pub(crate) use select::{
     select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
 };
 
+use super::http::HttpClient;
 use super::{AddonSearchResult, AddonSourceRef};
 use crate::core::error::AppResult;
 use crate::core::install::WowFlavor;
 
-pub(super) fn resolve_curseforge_file(
+pub(super) fn resolve_curseforge_file_with_client(
+    client: &impl HttpClient,
     mod_id: u32,
     file_id: Option<u32>,
     target_flavor: Option<WowFlavor>,
 ) -> AppResult<CurseForgeFile> {
     let wow_context = target_flavor
-        .map(resolve_curseforge_wow_context)
+        .map(|flavor| resolve_curseforge_wow_context_with_client(client, flavor))
         .transpose()?;
     if let Some(file_id) = file_id {
-        let file = fetch_curseforge_file(mod_id, file_id)?;
+        let file = fetch_curseforge_file_with_client(client, mod_id, file_id)?;
         if let Some(wow_context) = &wow_context {
             ensure_curseforge_file_matches_version_type(&file, wow_context.version_type_id)?;
         }
         return validate_curseforge_file(file);
     }
 
-    let files = fetch_curseforge_mod_files(mod_id)?;
+    let files = fetch_curseforge_mod_files_with_client(client, mod_id)?;
     select_latest_curseforge_file(files, wow_context.as_ref().map(|item| item.version_type_id))
 }
 
-pub(super) fn search_curseforge_mods(
+pub(super) fn search_curseforge_mods_with_client(
+    client: &impl HttpClient,
     query: &str,
     flavor: WowFlavor,
     limit: usize,
 ) -> AppResult<Vec<AddonSearchResult>> {
-    let (wow_context, mods) = search_curseforge_mod_payloads(query, flavor, limit)?;
+    let (wow_context, mods) =
+        search_curseforge_mod_payloads_with_client(client, query, flavor, limit)?;
     Ok(mods
         .into_iter()
         .map(|mod_item| to_addon_search_result(mod_item, wow_context.version_type_id))

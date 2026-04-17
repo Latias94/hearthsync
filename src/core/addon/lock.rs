@@ -29,7 +29,7 @@ use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
-pub use self::apply::apply_addon_lock_sync;
+pub use self::apply::{apply_addon_lock_sync, apply_addon_lock_sync_task};
 pub use self::plan::{plan_addon_lock_sync, plan_addon_lock_sync_with_source_overrides};
 pub(crate) use self::storage::sync_addon_lock_from_registry;
 pub use self::storage::{inspect_addon_lock, lock_path, write_addon_lock};

@@ -1,11 +1,14 @@
 use super::BundleCommands;
 use super::output::render;
-use crate::core::bundle::{PackBundleRequest, inspect_bundle, pack_bundle};
+use crate::core::app::BundleService;
+use crate::core::bundle::PackBundleRequest;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::resolve_installation;
 use crate::core::manifest::load_manifest;
 
 pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands) -> AppResult<()> {
+    let service = BundleService::new();
+
     match command {
         BundleCommands::Pack {
             install,
@@ -16,7 +19,7 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
             let manifest_base_dir = manifest.parent().map(|path| path.to_path_buf());
             let manifest = load_manifest(&manifest)?;
-            let bundle = pack_bundle(PackBundleRequest {
+            let bundle = service.pack(PackBundleRequest {
                 installation,
                 manifest,
                 output_path: output,
@@ -32,7 +35,7 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             })?;
         }
         BundleCommands::Inspect { bundle } => {
-            let inspection = inspect_bundle(&bundle)?;
+            let inspection = service.inspect(&bundle)?;
             render(json, &inspection, |item| {
                 let characters = item
                     .manifest

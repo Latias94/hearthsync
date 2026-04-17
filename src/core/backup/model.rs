@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::install::DetectedFlavorInstallation;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BackupGroup {
     Addons,

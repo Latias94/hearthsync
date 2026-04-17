@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 use serde::Serialize;
@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 use zip::ZipWriter;
 
 use super::*;
+use crate::core::archive_io::stream_file_to_zip;
 
 pub(super) fn add_path_to_zip(
     zip: &mut ZipWriter<File>,
@@ -52,13 +53,12 @@ fn write_file_to_zip(
     source_path: &Path,
     archive_path: &Path,
 ) -> AppResult<()> {
-    let mut file = File::open(source_path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-
-    zip.start_file(to_zip_path(archive_path), zip_file_options())?;
-    zip.write_all(&buffer)?;
-    Ok(())
+    stream_file_to_zip(
+        zip,
+        source_path,
+        &to_zip_path(archive_path),
+        zip_file_options(),
+    )
 }
 
 pub(super) fn write_toml_to_zip<T: Serialize>(

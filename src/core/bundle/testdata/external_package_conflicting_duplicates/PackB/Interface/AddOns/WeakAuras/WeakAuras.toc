@@ -1,0 +1,2 @@
+## Interface: 110000
+## Title: WeakAuras B

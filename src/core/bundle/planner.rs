@@ -5,21 +5,6 @@ use zip::ZipArchive;
 
 use super::*;
 
-struct BundleReader<'a> {
-    bundle_path: &'a Path,
-}
-
-struct BundleReadModel {
-    inspection: BundleInspection,
-    entry_names: Vec<String>,
-}
-
-struct BundlePlanner<'a> {
-    bundle_path: &'a Path,
-    installation: &'a DetectedFlavorInstallation,
-    apply_mappings: &'a BundleApplyMappings,
-}
-
 pub fn plan_bundle_apply(
     bundle_path: &Path,
     installation: &DetectedFlavorInstallation,
@@ -33,121 +18,131 @@ pub(super) fn prepare_bundle_apply(
     installation: &DetectedFlavorInstallation,
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<PreparedBundleApply> {
-    BundlePlanner {
+    let inspection = inspect_bundle(bundle_path)?;
+    let entry_names = collect_bundle_entry_names(bundle_path)?;
+    let file = File::open(bundle_path)?;
+    let mut archive = ZipArchive::new(file)?;
+
+    prepare_apply_from_entries(
         bundle_path,
         installation,
+        inspection.manifest,
+        &entry_names,
         apply_mappings,
-    }
-    .prepare()
+        PreparedApplySource::BundleArchive {
+            bundle_path: bundle_path.to_path_buf(),
+        },
+        |archive_name| read_bundle_entry_bytes_from_archive(&mut archive, archive_name),
+        |_archive_name| Ok(None),
+    )
 }
 
-impl<'a> BundleReader<'a> {
-    fn new(bundle_path: &'a Path) -> Self {
-        Self { bundle_path }
-    }
+pub(super) fn prepare_apply_from_entries<TReadBytes, TSourceForEntry>(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    entry_names: &[String],
+    apply_mappings: &BundleApplyMappings,
+    apply_source: PreparedApplySource,
+    mut read_entry_bytes: TReadBytes,
+    mut source_for_entry: TSourceForEntry,
+) -> AppResult<PreparedBundleApply>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+    TSourceForEntry: FnMut(&str) -> AppResult<Option<String>>,
+{
+    validate_target_compatibility(&manifest, installation)?;
+    let discovered_accounts = discover_local_accounts(installation)?;
+    let character_mappings = build_character_mappings(&manifest, apply_mappings)?;
+    let selected_target_accounts = resolve_selected_target_accounts(
+        &manifest,
+        &discovered_accounts,
+        &character_mappings,
+        apply_mappings,
+    )?;
+    let planned_entries = plan_extractable_entries(
+        entry_names,
+        installation,
+        &manifest,
+        &character_mappings,
+        apply_mappings,
+        &selected_target_accounts,
+    )?;
 
-    fn inspect(&self) -> AppResult<BundleInspection> {
-        inspect_bundle(self.bundle_path)
-    }
-
-    fn read_for_apply(&self) -> AppResult<BundleReadModel> {
-        let inspection = self.inspect()?;
-
-        Ok(BundleReadModel {
-            inspection,
-            entry_names: collect_bundle_entry_names(self.bundle_path)?,
-        })
-    }
+    build_prepared_apply(
+        plan_path,
+        installation,
+        manifest,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        planned_entries,
+        apply_source,
+        &mut read_entry_bytes,
+        &mut source_for_entry,
+    )
 }
 
-impl<'a> BundlePlanner<'a> {
-    fn prepare(&self) -> AppResult<PreparedBundleApply> {
-        let read_model = BundleReader::new(self.bundle_path).read_for_apply()?;
-        validate_target_compatibility(&read_model.inspection.manifest, self.installation)?;
-        let discovered_accounts = discover_local_accounts(self.installation)?;
-        let character_mappings =
-            build_character_mappings(&read_model.inspection.manifest, self.apply_mappings)?;
-        let selected_target_accounts = resolve_selected_target_accounts(
-            &read_model.inspection.manifest,
-            &discovered_accounts,
-            &character_mappings,
-            self.apply_mappings,
-        )?;
-        self.plan(
-            read_model,
-            discovered_accounts,
-            character_mappings,
-            selected_target_accounts,
-        )
+fn build_prepared_apply<TReadBytes, TSourceForEntry>(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    discovered_accounts: Vec<LocalWowAccount>,
+    selected_target_accounts: Vec<String>,
+    character_mappings: Vec<CharacterMapping>,
+    planned_entries: Vec<PlannedEntry>,
+    apply_source: PreparedApplySource,
+    read_entry_bytes: &mut TReadBytes,
+    source_for_entry: &mut TSourceForEntry,
+) -> AppResult<PreparedBundleApply>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+    TSourceForEntry: FnMut(&str) -> AppResult<Option<String>>,
+{
+    let rewrite_options = LuaRewriteOptions {
+        rewrite_profile_keys: manifest.mapping.rewrite_profile_keys,
+        rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
+    };
+    let cleanup_operations = build_cleanup_operations(&planned_entries, &manifest, installation)?;
+    let cleanup_roots = cleanup_operations
+        .iter()
+        .map(|operation| operation.destination.clone())
+        .collect::<Vec<_>>();
+    let mut execution_operations = Vec::new();
+    let mut summary = ApplyPlanSummary::default();
+
+    for cleanup in cleanup_operations {
+        summary.paths_to_remove += 1;
+        execution_operations.push(PreparedApplyOperation::from_cleanup(cleanup));
     }
 
-    fn plan(
-        &self,
-        read_model: BundleReadModel,
-        discovered_accounts: Vec<LocalWowAccount>,
-        character_mappings: Vec<CharacterMapping>,
-        selected_target_accounts: Vec<String>,
-    ) -> AppResult<PreparedBundleApply> {
-        let inspection = read_model.inspection;
-        let planned_entries = plan_extractable_entries(
-            &read_model.entry_names,
-            self.installation,
-            &inspection.manifest,
-            &character_mappings,
-            self.apply_mappings,
-            &selected_target_accounts,
-        )?;
-        let file = File::open(self.bundle_path)?;
-        let mut archive = ZipArchive::new(file)?;
-        let rewrite_options = LuaRewriteOptions {
-            rewrite_profile_keys: inspection.manifest.mapping.rewrite_profile_keys,
-            rewrite_identity_strings: inspection.manifest.mapping.rewrite_identity_strings,
-        };
+    for entry in &planned_entries {
+        let policy = resource_policy_for_group(&manifest, entry.group);
+        let preserve = policy == ResourceApplyPolicy::Preserve;
+        let share = policy == ResourceApplyPolicy::Share;
+        let cleanup_root = cleanup_scope_for_entry(entry, installation)?;
+        let will_cleanup = cleanup_root
+            .as_ref()
+            .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
 
-        let cleanup_operations =
-            build_cleanup_operations(&planned_entries, &inspection.manifest, self.installation)?;
-        let cleanup_roots = cleanup_operations
-            .iter()
-            .map(|operation| operation.destination.clone())
-            .collect::<Vec<_>>();
-        let mut execution_operations = Vec::new();
-        let mut summary = ApplyPlanSummary::default();
-        for cleanup in cleanup_operations {
-            summary.paths_to_remove += 1;
-            execution_operations.push(PreparedApplyOperation::from_cleanup(cleanup));
-        }
+        let mut rewrite_applied = false;
+        let action = if preserve {
+            summary.files_to_preserve += 1;
+            ApplyAction::Preserve
+        } else if share && entry.destination.exists() {
+            summary.files_to_preserve += 1;
+            ApplyAction::Preserve
+        } else {
+            let source_bytes = read_entry_bytes(&entry.archive_name)?;
+            let rewritten_bytes = preview_lua_bytes_rewrite(
+                Path::new(&entry.archive_name),
+                &source_bytes,
+                &entry.rewrites,
+                rewrite_options,
+            )?;
+            rewrite_applied = rewritten_bytes.is_some();
 
-        for entry in &planned_entries {
-            let policy = resource_policy_for_group(&inspection.manifest, entry.group);
-            let preserve = policy == ResourceApplyPolicy::Preserve;
-            let share = policy == ResourceApplyPolicy::Share;
-            let cleanup_root = cleanup_scope_for_entry(entry, self.installation)?;
-            let will_cleanup = cleanup_root
-                .as_ref()
-                .is_some_and(|root| cleanup_roots.iter().any(|candidate| candidate == root));
-            let source_bytes =
-                read_bundle_entry_bytes_from_archive(&mut archive, &entry.archive_name)?;
-            let rewritten_bytes = if preserve {
-                None
-            } else {
-                preview_lua_bytes_rewrite(
-                    Path::new(&entry.archive_name),
-                    &source_bytes,
-                    &entry.rewrites,
-                    rewrite_options,
-                )?
-            };
-            let rewrite_applied = rewritten_bytes.is_some();
-            let action = if preserve {
-                summary.files_to_preserve += 1;
-                ApplyAction::Preserve
-            } else if share && entry.destination.exists() {
-                summary.files_to_preserve += 1;
-                ApplyAction::Preserve
-            } else if will_cleanup {
-                summary.files_to_add += 1;
-                ApplyAction::Add
-            } else if !entry.destination.exists() {
+            if will_cleanup || !entry.destination.exists() {
                 summary.files_to_add += 1;
                 ApplyAction::Add
             } else if rewritten_bytes.as_deref().map_or_else(
@@ -159,63 +154,72 @@ impl<'a> BundlePlanner<'a> {
             } else {
                 summary.files_to_replace += 1;
                 ApplyAction::Replace
-            };
-            if rewrite_applied {
-                summary.files_to_rewrite += 1;
             }
+        };
 
-            execution_operations.push(PreparedApplyOperation::from_entry(
-                entry,
-                action,
-                rewrite_applied,
-            ));
+        if rewrite_applied {
+            summary.files_to_rewrite += 1;
         }
 
-        execution_operations.sort_by(|left, right| {
-            apply_action_order(left.action)
-                .cmp(&apply_action_order(right.action))
-                .then_with(|| apply_group_order(left.group).cmp(&apply_group_order(right.group)))
-                .then_with(|| left.destination.cmp(&right.destination))
-                .then_with(|| left.archive_name.cmp(&right.archive_name))
-        });
-        let operations = execution_operations
-            .iter()
-            .map(PreparedApplyOperation::preview)
-            .collect::<Vec<_>>();
+        let source_path = match action {
+            ApplyAction::Add | ApplyAction::Replace => source_for_entry(&entry.archive_name)?,
+            ApplyAction::Skip | ApplyAction::Preserve => None,
+            ApplyAction::Remove => unreachable!("planned bundle entry cannot produce remove"),
+        };
 
-        Ok(PreparedBundleApply {
-            plan: BundleApplyPlan {
-                bundle_path: self.bundle_path.to_path_buf(),
-                target_flavor_root: self.installation.flavor_root.clone(),
-                discovered_accounts,
-                selected_target_accounts,
-                character_mappings,
-                operations,
-                summary,
-                helper_strategy: HelperStrategy::NativeRust,
-                group_policies: ApplyGroupPolicies {
-                    addons: GroupPolicy {
-                        policy: inspection.manifest.apply.addons,
-                    },
-                    wtf_common: GroupPolicy {
-                        policy: inspection.manifest.apply.wtf_common,
-                    },
-                    wtf_characters: GroupPolicy {
-                        policy: inspection.manifest.apply.wtf_characters,
-                    },
-                    fonts: GroupPolicy {
-                        policy: inspection.manifest.apply.fonts,
-                    },
-                    interface_assets: GroupPolicy {
-                        policy: inspection.manifest.apply.interface_assets,
-                    },
-                    metadata: GroupPolicy {
-                        policy: ResourceApplyPolicy::Merge,
-                    },
-                },
-                manifest: inspection.manifest,
-            },
-            execution_operations,
-        })
+        execution_operations.push(PreparedApplyOperation::from_entry(
+            entry,
+            action,
+            rewrite_applied,
+            source_path,
+        ));
     }
+
+    execution_operations.sort_by(|left, right| {
+        apply_action_order(left.action)
+            .cmp(&apply_action_order(right.action))
+            .then_with(|| apply_group_order(left.group).cmp(&apply_group_order(right.group)))
+            .then_with(|| left.destination.cmp(&right.destination))
+            .then_with(|| left.archive_name.cmp(&right.archive_name))
+    });
+    let operations = execution_operations
+        .iter()
+        .map(PreparedApplyOperation::preview)
+        .collect::<Vec<_>>();
+
+    Ok(PreparedBundleApply {
+        source: apply_source,
+        plan: BundleApplyPlan {
+            bundle_path: plan_path.to_path_buf(),
+            target_flavor_root: installation.flavor_root.clone(),
+            discovered_accounts,
+            selected_target_accounts,
+            character_mappings,
+            operations,
+            summary,
+            helper_strategy: HelperStrategy::NativeRust,
+            group_policies: ApplyGroupPolicies {
+                addons: GroupPolicy {
+                    policy: manifest.apply.addons,
+                },
+                wtf_common: GroupPolicy {
+                    policy: manifest.apply.wtf_common,
+                },
+                wtf_characters: GroupPolicy {
+                    policy: manifest.apply.wtf_characters,
+                },
+                fonts: GroupPolicy {
+                    policy: manifest.apply.fonts,
+                },
+                interface_assets: GroupPolicy {
+                    policy: manifest.apply.interface_assets,
+                },
+                metadata: GroupPolicy {
+                    policy: ResourceApplyPolicy::Merge,
+                },
+            },
+            manifest,
+        },
+        execution_operations,
+    })
 }

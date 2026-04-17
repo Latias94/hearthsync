@@ -1,5 +1,8 @@
 # WoW Addon Sync CLI Milestones
 
+Reusable architecture ownership now lives in `../wow-addon-sync-core/`.
+These milestones should describe CLI delivery on top of that shared core.
+
 ## M0 - Documentation Baseline
 
 ### Goal
@@ -117,6 +120,8 @@ Apply a portable bundle to another installation safely.
 - bundle addon plan/apply can read embedded addon locks directly from the archive and reuse the lock sync engine
 - bundle-local addon source archives allow cross-machine addon lock sync without requiring source-machine local paths
 - current bundle apply semantics are still merge-copy oriented and must be hardened before GUI work
+- `external-package plan/apply` now supports manifest metadata overrides and per-resource apply-policy overrides for normalized imports
+- Windows-source to macOS-target migration coverage now includes external-package policy override scenarios in automated tests
 
 ## M3.5 - Sync Semantics Hardening
 

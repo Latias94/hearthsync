@@ -11,7 +11,10 @@ use serde::{Deserialize, Serialize};
 use crate::core::addon::{AddonSourceRef, InstalledAddonPackageResult, UpdatedAddonPackageResult};
 use crate::core::install::DetectedFlavorInstallation;
 
-pub use self::operations::{install_addon_from_index, update_addons_from_index};
+pub use self::operations::{
+    install_addon_from_index, install_addon_from_index_task, update_addons_from_index,
+    update_addons_from_index_task,
+};
 pub use self::storage::inspect_addon_index;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

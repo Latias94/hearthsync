@@ -1,12 +1,13 @@
 use super::BundleCommands;
 use super::output::{render, render_addon_lock_plan_summary};
-use crate::core::bundle::{
-    BundleAddonLockApplyRequest, apply_bundle_addon_lock, plan_bundle_addon_lock,
-};
+use crate::core::app::BundleService;
+use crate::core::bundle::BundleAddonLockApplyRequest;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::resolve_installation;
 
 pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -> AppResult<()> {
+    let service = BundleService::new();
+
     match command {
         BundleCommands::AddonPlan {
             bundle,
@@ -14,7 +15,7 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             flavor,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = plan_bundle_addon_lock(&bundle, &installation)?;
+            let result = service.plan_addon_lock(&bundle, &installation)?;
             render(json, &result, |item| {
                 render_addon_lock_plan_summary(
                     &format!("Bundle: {}", item.bundle_path.display()),
@@ -30,7 +31,7 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             replace_existing,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = apply_bundle_addon_lock(BundleAddonLockApplyRequest {
+            let result = service.apply_addon_lock(BundleAddonLockApplyRequest {
                 bundle_path: bundle,
                 installation,
                 backup_output_path: backup_output,

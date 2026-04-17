@@ -1,13 +1,13 @@
 use super::BackupCommands;
 use super::output::render;
-use crate::core::backup::{
-    BackupGroup, BackupRequest, RestoreBackupRequest, create_backup, list_backups,
-    restore_backup_selection,
-};
+use crate::core::app::BackupService;
+use crate::core::backup::{BackupGroup, BackupRequest, RestoreBackupRequest};
 use crate::core::error::AppResult;
 use crate::core::install::resolve_installation;
 
 pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
+    let service = BackupService::new();
+
     match command {
         BackupCommands::Create {
             install,
@@ -15,7 +15,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             output,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let backup = create_backup(BackupRequest {
+            let backup = service.create(BackupRequest {
                 installation,
                 output_path: output,
                 groups: vec![
@@ -41,7 +41,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             })?;
         }
         BackupCommands::List { dir } => {
-            let backups = list_backups(dir.as_deref())?;
+            let backups = service.list(dir.as_deref())?;
             render(json, &backups, |item| {
                 if item.entries.is_empty() {
                     format!(
@@ -85,7 +85,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             dir,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let restored = restore_backup_selection(RestoreBackupRequest {
+            let restored = service.restore(RestoreBackupRequest {
                 installation,
                 archive_path: archive,
                 backup_id: id,

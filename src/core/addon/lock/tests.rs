@@ -8,14 +8,15 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 use super::{
-    AddonLockApplyRequest, apply_addon_lock_sync, diff_addon_locks, inspect_addon_lock, lock_path,
-    plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
+    AddonLockApplyRequest, apply_addon_lock_sync, apply_addon_lock_sync_task, diff_addon_locks,
+    inspect_addon_lock, lock_path, plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
 use crate::core::addon::{
     AddonPackageMetadata, InstallAddonRequest, RemoveAddonRequest, install_addon, list_addons,
     remove_addons,
 };
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
 
 #[test]
 fn install_addon_writes_lock_with_metadata_and_content_hash() {
@@ -360,6 +361,88 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     assert!(current_installation.addon_dir.join("BigWigs").exists());
     assert!(!current_installation.addon_dir.join("Omen").exists());
     assert_eq!(count_backup_archives(&apply_backup_dir), 1);
+}
+
+#[test]
+fn apply_addon_lock_sync_task_reports_progress() {
+    let temp = tempdir().expect("temp dir");
+    let source_root = temp.path().join("sources");
+    fs::create_dir_all(&source_root).expect("source root");
+
+    let details_v1 = source_root.join("details-v1.zip");
+    let details_v2 = source_root.join("details-v2.zip");
+    create_addon_archive(
+        &details_v1,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+    create_addon_archive(
+        &details_v2,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 2.0.0\n",
+        )],
+    );
+
+    let desired_installation = create_fixture_installation(&temp.path().join("desired"));
+    install_addon(InstallAddonRequest {
+        installation: desired_installation.clone(),
+        source: details_v2.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("desired-backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install desired details");
+    let desired_lock = write_addon_lock(&desired_installation)
+        .expect("write desired lock")
+        .lock_path;
+
+    let current_installation = create_fixture_installation(&temp.path().join("current"));
+    install_addon(InstallAddonRequest {
+        installation: current_installation.clone(),
+        source: details_v1.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("current-backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install current details");
+
+    let mut progress = VecTaskProgressSink::default();
+    let cancellation = NeverCancel;
+    let result = apply_addon_lock_sync_task(
+        AddonLockApplyRequest {
+            installation: current_installation,
+            lock_path: Some(desired_lock),
+            backup_output_path: Some(temp.path().join("apply-backups")),
+            replace_existing: false,
+            source_overrides: Vec::new(),
+        },
+        &cancellation,
+        &mut progress,
+    )
+    .expect("apply addon lock task");
+
+    let phases = progress
+        .events()
+        .iter()
+        .map(|event| (event.task, event.phase))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        phases,
+        vec![
+            (TaskKind::AddonLockApply, TaskPhase::Preparing),
+            (TaskKind::AddonLockApply, TaskPhase::Planning),
+            (TaskKind::AddonLockApply, TaskPhase::BackingUp),
+            (TaskKind::AddonLockApply, TaskPhase::Executing),
+            (TaskKind::AddonLockApply, TaskPhase::Verifying),
+            (TaskKind::AddonLockApply, TaskPhase::Completed),
+        ]
+    );
+    assert!(result.verification.matches);
 }
 
 #[test]

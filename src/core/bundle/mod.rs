@@ -9,6 +9,7 @@ mod character_mapping_match;
 mod entry_layout;
 mod entry_plan;
 mod execution;
+mod external_package;
 mod packing;
 mod planner;
 mod shared;
@@ -28,9 +29,9 @@ pub use self::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
 use self::addon_source_archive::{
     add_bundle_addon_sources_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
 };
-pub use self::apply::unpack_bundle;
+pub use self::apply::{unpack_bundle, unpack_bundle_task};
 use self::apply_model::{
-    PlannedCleanup, PlannedEntry, PreparedApplyOperation, PreparedBundleApply,
+    PlannedCleanup, PlannedEntry, PreparedApplyOperation, PreparedApplySource, PreparedBundleApply,
 };
 use self::apply_policy::{
     apply_action_order, apply_group_order, build_cleanup_operations, cleanup_scope_for_entry,
@@ -45,12 +46,22 @@ use self::entry_plan::plan_extractable_entries;
 use self::execution::{
     execute_apply_operations, file_contents_equal_to_bytes, rollback_or_report_apply_error,
 };
+pub use self::external_package::{
+    AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
+    CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,
+    ExternalPackageEntry, ExternalPackageSourceKind, ExternalPackageSummary,
+    ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningCode,
+    ExternalPackageWarningGroup, PlanExternalPackageApplyRequest, PreparedExternalPackageBundle,
+    analyze_external_package, analyze_external_package_task, apply_external_package,
+    apply_external_package_task, create_external_package_bundle, plan_external_package_apply,
+    plan_external_package_apply_task,
+};
 pub use self::packing::{inspect_bundle, load_apply_mappings, pack_bundle};
 pub use self::planner::plan_bundle_apply;
 use self::shared::{
-    BundleAddonSourceEntry, BundleAddonSourceIndex, join_segments, safe_file_part,
-    safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name, zip_dir_options,
-    zip_file_options,
+    BundleAddonSourceEntry, BundleAddonSourceIndex, join_segments, resolve_zip_style_path,
+    safe_file_part, safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name,
+    zip_dir_options, zip_file_options,
 };
 use self::target_accounts::{resolve_selected_target_accounts, validate_target_compatibility};
 pub use self::types::{

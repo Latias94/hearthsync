@@ -18,6 +18,8 @@ pub enum AppError {
     TomlSer(#[from] toml::ser::Error),
     #[error("ZIP error: {0}")]
     Zip(#[from] zip::result::ZipError),
+    #[error("Task cancelled: {0}")]
+    Cancelled(String),
     #[error("Validation error: {0}")]
     Validation(String),
     #[error("Not found: {0}")]

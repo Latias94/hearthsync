@@ -1,16 +1,16 @@
 use super::AddonIndexCommands;
 use super::output::render;
-use crate::core::addon::index::{
-    AddonIndexInstallRequest, AddonIndexUpdateRequest, inspect_addon_index,
-    install_addon_from_index, update_addons_from_index,
-};
+use crate::core::addon::index::{AddonIndexInstallRequest, AddonIndexUpdateRequest};
+use crate::core::app::AddonIndexService;
 use crate::core::error::AppResult;
 use crate::core::install::resolve_installation;
 
 pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands) -> AppResult<()> {
+    let service = AddonIndexService::new();
+
     match command {
         AddonIndexCommands::Inspect { file } => {
-            let inspection = inspect_addon_index(&file)?;
+            let inspection = service.inspect(&file)?;
             render(json, &inspection, |item| {
                 let packages = item
                     .index
@@ -49,7 +49,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             replace_existing,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = install_addon_from_index(AddonIndexInstallRequest {
+            let result = service.install(AddonIndexInstallRequest {
                 installation,
                 index_path: file,
                 name,
@@ -103,7 +103,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             backup_output,
         } => {
             let installation = resolve_installation(&install, flavor.map(Into::into))?;
-            let result = update_addons_from_index(AddonIndexUpdateRequest {
+            let result = service.update(AddonIndexUpdateRequest {
                 installation,
                 index_path: file,
                 name,

@@ -6,6 +6,7 @@ use tempfile::tempdir;
 use zip::ZipArchive;
 
 use super::*;
+use crate::core::archive_io::copy_reader_to_path;
 
 pub(super) fn collect_bundle_entry_names(bundle_path: &Path) -> AppResult<Vec<String>> {
     let file = File::open(bundle_path)?;
@@ -49,12 +50,7 @@ pub(super) fn extract_archive_entry_to_path(
     let mut entry = archive
         .by_name(archive_name)
         .map_err(|_| AppError::NotFound(format!("bundle entry is missing: {archive_name}")))?;
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut output = File::create(destination)?;
-    std::io::copy(&mut entry, &mut output)?;
-    Ok(())
+    copy_reader_to_path(&mut entry, destination)
 }
 
 pub(super) fn extract_embedded_addon_lock(bundle_path: &Path) -> AppResult<ExtractedAddonLock> {
@@ -68,8 +64,7 @@ pub(super) fn extract_embedded_addon_lock(bundle_path: &Path) -> AppResult<Extra
                 "bundle does not contain embedded addon lock `{ADDON_LOCK_ENTRY}`"
             ))
         })?;
-        let mut output = File::create(&lock_path)?;
-        std::io::copy(&mut lock_entry, &mut output)?;
+        copy_reader_to_path(&mut lock_entry, &lock_path)?;
     }
 
     let source_overrides = extract_bundle_addon_source_overrides(&mut archive, stage_dir.path())?;
@@ -119,11 +114,7 @@ fn extract_bundle_addon_source_overrides(
             ))
         })?;
         let extracted_path = join_segments(stage_root, &segments);
-        if let Some(parent) = extracted_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let mut output = File::create(&extracted_path)?;
-        std::io::copy(&mut source_entry, &mut output)?;
+        copy_reader_to_path(&mut source_entry, &extracted_path)?;
 
         source_overrides.push(AddonLockSourceOverride {
             comparison_key: source.comparison_key,
