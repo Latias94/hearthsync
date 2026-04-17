@@ -1452,6 +1452,47 @@ fn plan_bundle_apply_discovers_local_accounts_and_selected_accounts() {
 }
 
 #[test]
+fn plan_bundle_apply_requires_explicit_common_account_selection_for_common_only_bundle() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let source_installation = create_fixture_installation(source.path(), true);
+    let target_installation = create_fixture_installation(target.path(), false);
+    let bundle_path = source.path().join("bundle.zip");
+    let mut manifest = sample_manifest();
+    manifest.resources.wtf_characters.clear();
+
+    fs::create_dir_all(
+        target_installation
+            .wtf_dir
+            .join("Account")
+            .join("ONLYACC")
+            .join("SavedVariables"),
+    )
+    .expect("target account");
+
+    pack_bundle(PackBundleRequest {
+        installation: source_installation,
+        manifest,
+        output_path: Some(bundle_path.clone()),
+        manifest_base_dir: None,
+    })
+    .expect("pack bundle");
+
+    let error = plan_bundle_apply(
+        &bundle_path,
+        &target_installation,
+        &BundleApplyMappings::default(),
+    )
+    .expect_err("common-only bundle should require explicit account selection");
+
+    assert!(
+        error
+            .to_string()
+            .contains("common WTF resources require explicit target account selection")
+    );
+}
+
+#[test]
 fn keep_original_character_mode_ignores_target_identity_overrides() {
     let source = tempdir().expect("source temp dir");
     let target = tempdir().expect("target temp dir");

@@ -36,10 +36,6 @@ pub(super) fn resolve_selected_target_accounts(
         return Ok(vec![target_account.clone()]);
     }
 
-    if discovered_accounts.len() == 1 {
-        return Ok(vec![discovered_accounts[0].account_name.clone()]);
-    }
-
     let mut mapped_accounts = character_mappings
         .iter()
         .map(|mapping| mapping.target_account.clone())
@@ -49,21 +45,6 @@ pub(super) fn resolve_selected_target_accounts(
 
     if mapped_accounts.len() == 1 {
         return Ok(mapped_accounts);
-    }
-
-    if discovered_accounts.is_empty() {
-        let mut source_accounts = manifest
-            .resources
-            .wtf_characters
-            .iter()
-            .filter_map(|character| character.source_account.clone())
-            .collect::<Vec<_>>();
-        source_accounts.sort();
-        source_accounts.dedup();
-        if source_accounts.len() == 1 {
-            return Ok(source_accounts);
-        }
-        return Ok(Vec::new());
     }
 
     Err(AppError::Validation(

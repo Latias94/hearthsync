@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -15,12 +16,12 @@ use super::provider::{
 };
 use super::{
     InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest, UpdateAddonRequest, install_addon,
-    install_addon_task, list_addons, remove_addons, remove_addons_task,
-    search_addons_with_provider, update_addons, update_addons_task,
+    install_addon_task, install_addon_task_with_provider, list_addons, remove_addons,
+    remove_addons_task, search_addons_with_provider, update_addons, update_addons_task,
 };
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
+use crate::core::task::{CancellationToken, NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
 
 #[test]
 fn install_addon_from_local_archive_writes_files_and_registry() {
@@ -515,6 +516,7 @@ fn prepare_package_from_source_input_can_use_fake_provider() {
         ) -> AppResult<MaterializedAddonSource> {
             assert_eq!(request.source, "fake:bundle");
             assert_eq!(request.context.target_flavor, Some(WowFlavor::Retail));
+            assert!(request.context.cancellation.is_some());
             let archive_path = request.stage_root.join("fake-addon.zip");
             create_addon_archive(
                 &archive_path,
@@ -546,10 +548,12 @@ fn prepare_package_from_source_input_can_use_fake_provider() {
         }
     }
 
+    let cancellation = NeverCancel;
     let prepared = prepare_package_from_source_input_with_provider(
         &FakeProvider,
         "fake:bundle",
         Some(WowFlavor::Retail),
+        &cancellation,
     )
     .expect("prepare package");
 
@@ -561,6 +565,89 @@ fn prepare_package_from_source_input_can_use_fake_provider() {
         AddonSourceRef::HttpArchive {
             url: "https://example.invalid/fake-addon.zip".to_string(),
         }
+    );
+}
+
+#[test]
+fn install_addon_task_forwards_cancellation_into_provider_prepare() {
+    struct FakeProvider;
+
+    impl AddonProvider for FakeProvider {
+        fn materialize_source_input(
+            &self,
+            request: MaterializeSourceInputRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            assert_eq!(request.context.target_flavor, Some(WowFlavor::Retail));
+            assert!(
+                request
+                    .context
+                    .cancellation
+                    .expect("provider cancellation token")
+                    .is_cancelled()
+            );
+            Err(AppError::Cancelled(
+                "addon provider download cancelled".to_string(),
+            ))
+        }
+
+        fn materialize_source_ref(
+            &self,
+            _request: MaterializeSourceRefRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            panic!("materialize_source_ref should not be called in this test")
+        }
+
+        fn search_addons(
+            &self,
+            _request: ProviderAddonSearchRequest<'_>,
+        ) -> AppResult<Vec<AddonSearchResult>> {
+            panic!("search_addons should not be called in this test")
+        }
+    }
+
+    struct FlipOnSecondCheck {
+        checks: Cell<usize>,
+    }
+
+    impl CancellationToken for FlipOnSecondCheck {
+        fn is_cancelled(&self) -> bool {
+            let next = self.checks.get() + 1;
+            self.checks.set(next);
+            next >= 2
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let cancellation = FlipOnSecondCheck {
+        checks: Cell::new(0),
+    };
+    let mut progress = VecTaskProgressSink::default();
+
+    let error = install_addon_task_with_provider(
+        &FakeProvider,
+        InstallAddonRequest {
+            installation,
+            source: "fake:bundle".to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("backups")),
+            replace_existing: false,
+            metadata: None,
+        },
+        &cancellation,
+        &mut progress,
+    )
+    .expect_err("provider cancellation should bubble out");
+
+    assert!(matches!(error, AppError::Cancelled(_)));
+    assert_eq!(cancellation.checks.get(), 2);
+    assert_eq!(
+        progress
+            .events()
+            .iter()
+            .map(|event| (event.task, event.phase))
+            .collect::<Vec<_>>(),
+        vec![(TaskKind::AddonInstall, TaskPhase::Preparing)]
     );
 }
 

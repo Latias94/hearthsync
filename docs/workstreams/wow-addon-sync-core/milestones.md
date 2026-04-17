@@ -79,9 +79,9 @@ Define stable long-running operation boundaries for CLI and future desktop reuse
 
 - bundle apply and external-package apply now emit per-operation `executing` progress events instead of only one coarse execution-phase event
 - cancellation during bundle and external-package execution now aborts inside the operation loop instead of waiting for the next phase boundary, and successful rollback preserves cancelled semantics instead of rewriting them as validation errors
-- addon install and addon-index install still expose a contract that looks cancellable while
-  provider-backed blocking HTTP download work cannot yet stop promptly once the request is in flight
-  and the default client still lacks explicit timeout policy
+- addon install, addon index install, update, and lock-apply preparation now propagate task
+  cancellation into provider-backed archive downloads, the default reqwest client now has explicit
+  connect and request timeouts, and cancelled downloads stop without being retried
 
 ## M3 - Import Normalization and Restore Safety
 
@@ -183,9 +183,12 @@ deleting duplicated compatibility code.
 - the second sub-slice now normalizes root-level `WTF/Account/SavedVariables` into the common
   WTF model across first-party bundles, external-package analysis, planning, apply cleanup, and
   Lua rewrite targeting, so this data is imported instead of being downgraded to warnings
-- the next sub-slice must reject normalized path sets that differ only by case when they would
-  collide on Windows or default macOS targets, because direct external-package apply and reusable
-  normalized-bundle export both need portable target-path semantics
+- the portability sub-slice now rejects normalized path sets that differ only by case when they
+  would collide on Windows or default macOS targets, and addon-index relative local archive sources
+  now resolve against the index file instead of ambient working directory
+- the account-targeting sub-slice now requires account-level or character-level artifacts for local
+  account discovery, and common WTF application no longer auto-selects a target account only
+  because one discovered directory happened to exist
 
 ## M4 - CLI Rewire onto Core Services
 
@@ -241,7 +244,7 @@ Reach the point where an `egui` frontend can start without forcing another archi
 
 ### Current Notes
 
-- `core::app::HearthSyncApp` is the intended frontend root, but desktop-readiness is still blocked
-  by four correctness gaps: case-insensitive external-package path collisions, addon-index relative
-  local archive resolution, truthfully cancellable provider download behavior, and higher-confidence
-  account discovery for common WTF targeting
+- `core::app::HearthSyncApp` remains the intended frontend root, and the earlier portability plus
+  provider-cancellation correctness blockers are now addressed; the remaining desktop-readiness work
+  is to stabilize explicit service contracts, improve long-running task reporting, and document what
+  GUI callers may rely on as stable

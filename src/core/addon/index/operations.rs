@@ -89,7 +89,7 @@ where
         TaskPhase::Preparing,
     )?;
 
-    let plan = prepare_index_install_with_provider(provider, request)?;
+    let plan = prepare_index_install_with_provider(provider, request, cancellation)?;
     let mut remapped_progress = RemappedTaskProgressSink {
         inner: progress,
         task: TaskKind::AddonIndexInstall,
@@ -159,7 +159,7 @@ where
         TaskPhase::Preparing,
     )?;
 
-    let plan = prepare_index_update_with_provider(provider, request)?;
+    let plan = prepare_index_update_with_provider(provider, request, cancellation)?;
     if plan.dry_run {
         let result = dry_run_index_update_result(plan);
         emit_task_progress(
@@ -261,6 +261,7 @@ fn metadata_from_index_package(
 fn prepare_index_install_with_provider<P>(
     provider: &P,
     request: AddonIndexInstallRequest,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<IndexInstallPlan>
 where
     P: AddonProvider + ?Sized,
@@ -273,6 +274,7 @@ where
         provider,
         &resolved_source,
         Some(request.installation.flavor),
+        cancellation,
     )?;
     let install_plan = prepare_install_prepared_addon(InstallPreparedAddonRequest {
         installation: request.installation,
@@ -293,6 +295,7 @@ where
 fn prepare_index_update_with_provider<P>(
     provider: &P,
     request: AddonIndexUpdateRequest,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<IndexUpdatePlan>
 where
     P: AddonProvider + ?Sized,
@@ -324,6 +327,7 @@ where
             provider,
             &resolved_source,
             Some(request.installation.flavor),
+            cancellation,
         )?;
         prepared.metadata = Some(metadata_from_index_package(&index, package));
         let matched = match_index_package_to_tracked_package(

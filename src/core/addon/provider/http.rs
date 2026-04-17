@@ -1,9 +1,16 @@
 use std::fs::File;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use reqwest::blocking::Client;
 
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
+use crate::core::task::CancellationToken;
+
+const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const DOWNLOAD_BUFFER_SIZE: usize = 64 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpHeader {
@@ -75,16 +82,52 @@ impl HttpResponse {
 pub trait HttpClient {
     fn get(&self, request: HttpRequest) -> AppResult<HttpResponse>;
 
-    fn download_to_path(&self, request: HttpDownloadRequest) -> AppResult<()>;
+    fn download_to_path(
+        &self,
+        request: HttpDownloadRequest,
+        cancellation: &dyn CancellationToken,
+    ) -> AppResult<()>;
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct ReqwestHttpClient;
+#[derive(Debug, Clone)]
+pub struct ReqwestHttpClient {
+    client: Client,
+    connect_timeout: Duration,
+    request_timeout: Duration,
+}
+
+impl ReqwestHttpClient {
+    pub fn with_timeouts(connect_timeout: Duration, request_timeout: Duration) -> Self {
+        let client = Client::builder()
+            .connect_timeout(connect_timeout)
+            .timeout(request_timeout)
+            .build()
+            .expect("reqwest blocking client");
+        Self {
+            client,
+            connect_timeout,
+            request_timeout,
+        }
+    }
+
+    pub fn connect_timeout(&self) -> Duration {
+        self.connect_timeout
+    }
+
+    pub fn request_timeout(&self) -> Duration {
+        self.request_timeout
+    }
+}
+
+impl Default for ReqwestHttpClient {
+    fn default() -> Self {
+        Self::with_timeouts(DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT)
+    }
+}
 
 impl HttpClient for ReqwestHttpClient {
     fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
-        let client = Client::builder().build()?;
-        let mut builder = client.get(&request.url);
+        let mut builder = self.client.get(&request.url);
         for header in &request.headers {
             builder = builder.header(&header.name, &header.value);
         }
@@ -97,22 +140,47 @@ impl HttpClient for ReqwestHttpClient {
         Ok(HttpResponse { status_code, body })
     }
 
-    fn download_to_path(&self, request: HttpDownloadRequest) -> AppResult<()> {
-        let client = Client::builder().build()?;
-        let mut builder = client.get(&request.url);
+    fn download_to_path(
+        &self,
+        request: HttpDownloadRequest,
+        cancellation: &dyn CancellationToken,
+    ) -> AppResult<()> {
+        ensure_download_not_cancelled(cancellation)?;
+        let mut builder = self.client.get(&request.url);
         for header in &request.headers {
             builder = builder.header(&header.name, &header.value);
         }
         let mut response = builder.send()?.error_for_status()?;
-        write_response_to_path(&mut response, &request.destination)
+        write_response_to_path(&mut response, &request.destination, cancellation)
     }
 }
 
 fn write_response_to_path(
     response: &mut reqwest::blocking::Response,
     destination: &Path,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<()> {
+    ensure_download_not_cancelled(cancellation)?;
     let mut file = File::create(destination)?;
-    response.copy_to(&mut file)?;
+    let mut buffer = [0u8; DOWNLOAD_BUFFER_SIZE];
+    loop {
+        ensure_download_not_cancelled(cancellation)?;
+
+        let bytes_read = response.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        file.write_all(&buffer[..bytes_read])?;
+    }
     Ok(())
+}
+
+fn ensure_download_not_cancelled(cancellation: &dyn CancellationToken) -> AppResult<()> {
+    if cancellation.is_cancelled() {
+        Err(AppError::Cancelled(
+            "addon provider download cancelled".to_string(),
+        ))
+    } else {
+        Ok(())
+    }
 }

@@ -12,6 +12,7 @@ use super::provider::{
 use super::{AddonSourceRef, PreparedAddonDirectory, PreparedAddonPackage, TrackedAddon};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
+use crate::core::task::CancellationToken;
 
 use self::archive::extract_archive_addons;
 pub(crate) use self::inspect::find_primary_toc;
@@ -21,6 +22,7 @@ pub(crate) fn prepare_package_from_source_input_with_provider<P>(
     provider: &P,
     source: &str,
     target_flavor: Option<WowFlavor>,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<PreparedAddonPackage>
 where
     P: AddonProvider + ?Sized,
@@ -29,7 +31,10 @@ where
     let materialized = provider.materialize_source_input(MaterializeSourceInputRequest {
         source,
         stage_root: stage_dir.path(),
-        context: AddonProviderContext { target_flavor },
+        context: AddonProviderContext {
+            target_flavor,
+            cancellation: Some(cancellation),
+        },
     })?;
     prepare_package_from_archive(
         materialized.source_ref,
@@ -42,6 +47,7 @@ pub(crate) fn prepare_package_from_source_ref_with_provider<P>(
     provider: &P,
     source: &AddonSourceRef,
     target_flavor: Option<WowFlavor>,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<PreparedAddonPackage>
 where
     P: AddonProvider + ?Sized,
@@ -50,7 +56,10 @@ where
     let materialized = provider.materialize_source_ref(MaterializeSourceRefRequest {
         source,
         stage_root: stage_dir.path(),
-        context: AddonProviderContext { target_flavor },
+        context: AddonProviderContext {
+            target_flavor,
+            cancellation: Some(cancellation),
+        },
     })?;
     prepare_package_from_archive(
         materialized.source_ref,

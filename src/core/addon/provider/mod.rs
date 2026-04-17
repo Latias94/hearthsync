@@ -5,6 +5,7 @@ mod parse;
 #[cfg(test)]
 mod tests;
 
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -17,6 +18,7 @@ use self::http::{HttpClient, HttpDownloadRequest, HttpHeader, HttpRequest, Reqwe
 use self::parse::{parse_curseforge_source, parse_github_source};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
+use crate::core::task::{CancellationToken, NeverCancel};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -75,6 +77,7 @@ impl AddonSourceRef {
     }
 }
 
+#[derive(Debug)]
 pub struct MaterializedAddonSource {
     pub source_ref: AddonSourceRef,
     pub archive_path: PathBuf,
@@ -84,19 +87,29 @@ pub struct MaterializedAddonSource {
 pub struct MaterializeSourceInputRequest<'a> {
     pub source: &'a str,
     pub stage_root: &'a Path,
-    pub context: AddonProviderContext,
+    pub context: AddonProviderContext<'a>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct MaterializeSourceRefRequest<'a> {
     pub source: &'a AddonSourceRef,
     pub stage_root: &'a Path,
-    pub context: AddonProviderContext,
+    pub context: AddonProviderContext<'a>,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AddonProviderContext {
+#[derive(Clone, Copy, Default)]
+pub struct AddonProviderContext<'a> {
     pub target_flavor: Option<WowFlavor>,
+    pub cancellation: Option<&'a dyn CancellationToken>,
+}
+
+impl fmt::Debug for AddonProviderContext<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AddonProviderContext")
+            .field("target_flavor", &self.target_flavor)
+            .field("has_cancellation", &self.cancellation.is_some())
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -209,7 +222,7 @@ impl<H> DefaultAddonProvider<H> {
 
 impl Default for DefaultAddonProvider<ReqwestHttpClient> {
     fn default() -> Self {
-        Self::new(ReqwestHttpClient)
+        Self::new(ReqwestHttpClient::default())
     }
 }
 
@@ -236,9 +249,13 @@ where
         retry_http(self.max_attempts, || self.inner.get(request.clone()))
     }
 
-    fn download_to_path(&self, request: HttpDownloadRequest) -> AppResult<()> {
+    fn download_to_path(
+        &self,
+        request: HttpDownloadRequest,
+        cancellation: &dyn CancellationToken,
+    ) -> AppResult<()> {
         retry_http(self.max_attempts, || {
-            self.inner.download_to_path(request.clone())
+            self.inner.download_to_path(request.clone(), cancellation)
         })
     }
 }
@@ -285,7 +302,7 @@ fn materialize_source_input_impl(
     http_client: &impl HttpClient,
     source: &str,
     stage_root: &Path,
-    context: AddonProviderContext,
+    context: AddonProviderContext<'_>,
     options: &AddonProviderOptions,
 ) -> AppResult<MaterializedAddonSource> {
     if let Some(source_ref) = parse_curseforge_source(source)? {
@@ -315,7 +332,7 @@ fn materialize_source_ref_impl(
     http_client: &impl HttpClient,
     source: &AddonSourceRef,
     stage_root: &Path,
-    context: AddonProviderContext,
+    context: AddonProviderContext<'_>,
     options: &AddonProviderOptions,
 ) -> AppResult<MaterializedAddonSource> {
     match source {
@@ -332,6 +349,7 @@ fn materialize_source_ref_impl(
                 file_name,
                 Vec::new(),
                 stage_root,
+                context.cancellation,
                 options,
             )?;
             Ok(MaterializedAddonSource {
@@ -359,6 +377,7 @@ fn materialize_source_ref_impl(
                 &file.file_name,
                 Vec::new(),
                 stage_root,
+                context.cancellation,
                 options,
             )?;
             Ok(MaterializedAddonSource {
@@ -382,6 +401,7 @@ fn materialize_source_ref_impl(
                 &asset.name,
                 Vec::new(),
                 stage_root,
+                context.cancellation,
                 options,
             )?;
             Ok(MaterializedAddonSource {
@@ -408,6 +428,7 @@ fn materialize_downloaded_archive(
     archive_name: &str,
     headers: Vec<HttpHeader>,
     stage_root: &Path,
+    cancellation: Option<&dyn CancellationToken>,
     options: &AddonProviderOptions,
 ) -> AppResult<PathBuf> {
     let archive_path = resolve_archive_path(source, archive_name, stage_root, options);
@@ -415,7 +436,7 @@ fn materialize_downloaded_archive(
         return Ok(archive_path);
     }
 
-    download_to_path_with_headers(http_client, url, headers, &archive_path)?;
+    download_to_path_with_headers(http_client, url, headers, &archive_path, cancellation)?;
     Ok(archive_path)
 }
 
@@ -440,6 +461,7 @@ fn download_to_path_with_headers(
     url: &str,
     headers: Vec<HttpHeader>,
     destination: &Path,
+    cancellation: Option<&dyn CancellationToken>,
 ) -> AppResult<()> {
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
@@ -450,8 +472,11 @@ fn download_to_path_with_headers(
         fs::remove_file(&temporary_destination)?;
     }
 
+    let never_cancel = NeverCancel;
+    let cancellation = cancellation.unwrap_or(&never_cancel);
     let download_result = http_client.download_to_path(
         HttpDownloadRequest::new(url, temporary_destination.clone()).with_headers(headers),
+        cancellation,
     );
     if let Err(error) = download_result {
         let _ = fs::remove_file(&temporary_destination);
@@ -517,6 +542,7 @@ fn retry_http<T>(max_attempts: u32, mut operation: impl FnMut() -> AppResult<T>)
     for _ in 0..max_attempts.max(1) {
         match operation() {
             Ok(value) => return Ok(value),
+            Err(error @ AppError::Cancelled(_)) => return Err(error),
             Err(error) => last_error = Some(error),
         }
     }

@@ -78,6 +78,7 @@ where
         &plan,
         &source_overrides,
         &request.installation,
+        cancellation,
     )?;
     if !prepared.is_empty() {
         emit_task_progress(

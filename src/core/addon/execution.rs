@@ -92,7 +92,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonInstall, TaskPhase::Preparing)?;
 
-    let plan = prepare_install_addon_with_provider(provider, request)?;
+    let plan = prepare_install_addon_with_provider(provider, request, cancellation)?;
     execute_install_plan_task(plan, cancellation, progress)
 }
 
@@ -198,7 +198,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonUpdate, TaskPhase::Preparing)?;
 
-    let plan = prepare_update_addons_with_provider(provider, request)?;
+    let plan = prepare_update_addons_with_provider(provider, request, cancellation)?;
     if plan.dry_run {
         let result = dry_run_update_result(plan);
         emit_task_progress(
@@ -332,6 +332,7 @@ where
 fn prepare_install_addon_with_provider<P>(
     provider: &P,
     request: InstallAddonRequest,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<InstallAddonExecutionPlan>
 where
     P: AddonProvider + ?Sized,
@@ -340,6 +341,7 @@ where
         provider,
         &request.source,
         Some(request.installation.flavor),
+        cancellation,
     )?;
     prepare_install_prepared_addon(InstallPreparedAddonRequest {
         installation: request.installation,
@@ -457,6 +459,7 @@ fn execute_install_plan(
 fn prepare_update_addons_with_provider<P>(
     provider: &P,
     request: UpdateAddonRequest,
+    cancellation: &dyn CancellationToken,
 ) -> AppResult<UpdateAddonsExecutionPlan>
 where
     P: AddonProvider + ?Sized,
@@ -476,6 +479,7 @@ where
             provider,
             &package.source,
             Some(request.installation.flavor),
+            cancellation,
         )?);
     }
 

@@ -66,7 +66,8 @@ fn discover_local_accounts_reads_accounts_and_characters() {
             .join("Account")
             .join("ACC1")
             .join("Illidan")
-            .join("Mageone"),
+            .join("Mageone")
+            .join("SavedVariables"),
     )
     .expect("character");
     fs::write(
@@ -92,5 +93,60 @@ fn discover_local_accounts_reads_accounts_and_characters() {
     );
     assert_eq!(accounts[0].characters.len(), 1);
     assert_eq!(accounts[0].characters[0].server, "Illidan");
+    assert_eq!(accounts[0].characters[0].character, "Mageone");
+}
+
+#[test]
+fn discover_local_accounts_ignores_noise_directories() {
+    let temp = tempdir().expect("temp dir");
+    let product_root = temp.path().join("World of Warcraft");
+    let flavor_root = product_root.join("_retail_");
+
+    fs::create_dir_all(flavor_root.join("Interface").join("AddOns")).expect("addons dir");
+    fs::create_dir_all(
+        flavor_root
+            .join("WTF")
+            .join("Account")
+            .join("ACC1")
+            .join("SavedVariables"),
+    )
+    .expect("saved variables");
+    fs::create_dir_all(
+        flavor_root
+            .join("WTF")
+            .join("Account")
+            .join("ACC1")
+            .join("Illidan")
+            .join("Mageone")
+            .join("SavedVariables"),
+    )
+    .expect("valid character");
+    fs::create_dir_all(flavor_root.join("WTF").join("Account").join("BROKEN")).expect("broken");
+    fs::create_dir_all(
+        flavor_root
+            .join("WTF")
+            .join("Account")
+            .join("ACC1")
+            .join("Illidan")
+            .join("Emptychar"),
+    )
+    .expect("empty character placeholder");
+    fs::write(
+        flavor_root.join("WTF").join("Config.wtf"),
+        "SET locale enUS",
+    )
+    .expect("config");
+
+    let installation = inspect_installation_on_host(
+        &product_root,
+        Some(WowFlavor::Retail),
+        HostPlatform::current(),
+    )
+    .expect("inspect");
+    let accounts = discover_local_accounts(&installation.installation).expect("discover accounts");
+
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].account_name, "ACC1");
+    assert_eq!(accounts[0].characters.len(), 1);
     assert_eq!(accounts[0].characters[0].character, "Mageone");
 }

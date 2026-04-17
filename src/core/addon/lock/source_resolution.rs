@@ -114,6 +114,7 @@ pub(super) fn prepare_expected_lock_package_with_provider<P>(
     expected: &AddonLockPackage,
     source_override_path: Option<&Path>,
     target_flavor: crate::core::install::WowFlavor,
+    cancellation: &dyn crate::core::task::CancellationToken,
 ) -> AppResult<crate::core::addon::PreparedAddonPackage>
 where
     P: crate::core::addon::AddonProvider + ?Sized,
@@ -124,6 +125,7 @@ where
             provider,
             &expected.source,
             Some(target_flavor),
+            cancellation,
         ),
     }
 }

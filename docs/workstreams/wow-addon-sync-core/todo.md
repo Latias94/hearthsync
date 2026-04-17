@@ -51,10 +51,10 @@ Current coverage: bundle apply and external-package apply now emit per-operation
 - [x] Move blocking HTTP behind provider ports
 - [x] Define archive read and write helpers as infrastructure services
 - [ ] Define optional external helper capability boundary
-- [ ] Add timeout-bounded and truthfully cancellable download behavior for provider-backed addon acquisition
-Current gap: task cancellation is exposed at the app boundary today, but blocking provider download
-work still cannot stop promptly once the HTTP request is in flight, and the default reqwest client
-does not yet configure explicit timeout policy.
+- [x] Add timeout-bounded and truthfully cancellable download behavior for provider-backed addon acquisition
+Current coverage: provider-backed addon downloads now reuse one bounded-timeout blocking reqwest
+client, stream archives to disk in chunks, stop on task cancellation while writing, and preserve
+cancelled semantics without retrying cancelled operations.
 
 ## Phase 4 - Import Normalization
 
@@ -69,10 +69,9 @@ does not yet configure explicit timeout policy.
 - [x] Accept addon roots whose `.toc` file name differs from the directory name
 - [x] Normalize root-level `WTF/Account/SavedVariables` into the common WTF model
 - [x] Add regression coverage for root-level `WTF/Account/SavedVariables` imports
-- [ ] Reject normalized external-package path sets that would collide on case-insensitive Windows or default macOS targets
-Current gap: exact-string duplicate detection exists today, but paths that differ only by case can
-still survive normalization and then overwrite each other when materialized onto case-insensitive
-targets.
+- [x] Reject normalized external-package path sets that would collide on case-insensitive Windows or default macOS targets
+Current hardening: normalized external-package path sets that differ only by case are now rejected
+before planning or apply would materialize them onto Windows or default macOS targets.
 
 ## Phase 5 - Planning and Execution Boundary
 
@@ -89,13 +88,12 @@ Current cleanup: public bundle apply operations no longer expose rewrite-related
 - [x] Replace whole-file archive buffering with streaming I/O where practical
 - [ ] Add broader archive compatibility coverage
 - [x] Add Windows-to-macOS migration scenario coverage
-- [ ] Resolve addon index local archive sources relative to the index file instead of process working directory
-- [ ] Harden account and character discovery using role artifacts in addition to directory layout
-Current gap: shared `addon-index.toml` files can still break when they use relative local archive
-paths and the caller runs from a different working directory, which is not acceptable for portable
-guild or team addon catalogs.
-Current gap: account and character discovery still leans too heavily on directory-shape heuristics,
-and common-WTF target auto-selection is still too optimistic for real migrated installations.
+- [x] Resolve addon index local archive sources relative to the index file instead of process working directory
+- [x] Harden account and character discovery using role artifacts in addition to directory layout
+Current hardening: shared `addon-index.toml` files now resolve local archive inputs relative to the
+index file itself, and common WTF application no longer auto-selects a discovered account just
+because only one directory was found. Local account discovery now requires account-level or
+character-level artifacts instead of trusting raw directory shape alone.
 
 ## Phase 7 - Integration Readiness
 
@@ -128,7 +126,6 @@ Current progress: `core::app::HearthSyncApp` now acts as the first stable top-le
 entrypoint, CLI handlers construct app services from it, and the old public
 `core::install::{scan_installations, inspect_installation, resolve_installation}` helpers are now
 crate-internal so the app boundary owns install discovery for frontend callers.
-Current gate: the app boundary should not be declared stable for GUI work until external-package
-imports reject case-insensitive target-path collisions, addon indexes resolve relative local archive
-sources portably, provider downloads become timeout-bounded and truthfully cancellable, and account
-discovery stops over-trusting raw directory layout.
+Current gate: the app boundary should not be declared stable for GUI work until stable desktop API
+contracts are documented, addon and backup tasks expose more granular progress where users wait
+longest, and the remaining app-facing services stop acting like thin forwarding facades.

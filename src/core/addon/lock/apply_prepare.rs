@@ -10,6 +10,7 @@ pub(super) fn prepare_addon_lock_apply_with_provider<P>(
     plan: &AddonLockPlanContext,
     source_overrides: &BTreeMap<String, PathBuf>,
     installation: &DetectedFlavorInstallation,
+    cancellation: &dyn crate::core::task::CancellationToken,
 ) -> AppResult<PreparedAddonLockApply>
 where
     P: crate::core::addon::AddonProvider + ?Sized,
@@ -48,6 +49,7 @@ where
                         .get(&action.action.comparison_key)
                         .map(PathBuf::as_path),
                     installation.flavor,
+                    cancellation,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);
                 update_current_packages.push(current.clone());
@@ -66,6 +68,7 @@ where
                         .get(&action.action.comparison_key)
                         .map(PathBuf::as_path),
                     installation.flavor,
+                    cancellation,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);
                 install_prepared_packages.push(prepared);

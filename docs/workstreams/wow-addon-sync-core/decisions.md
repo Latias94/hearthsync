@@ -204,3 +204,25 @@ relative to the index file instead of the caller's process working directory.
 - reusable addon index workflows cannot route local archive portability through ambient process state
 - future GUI and CLI callers share one deterministic contract for portable author packages and
   portable curated addon catalogs
+
+## ADR-013: Common WTF Targets Must Be Resolved Conservatively
+
+### Status
+
+Accepted on 2026-04-17
+
+### Decision
+
+Local account discovery and common-WTF target selection must prefer false negatives over silent
+mis-targeting. Raw directory shape alone is not enough evidence that a directory is a real local
+account or character, and the planner must not auto-select a common-WTF target account only because
+one discovered account directory exists.
+
+### Consequences
+
+- local account discovery should require account-level or character-level artifacts such as
+  `SavedVariables` or real character-root files instead of trusting any nested directory layout
+- common-WTF application should require explicit account selection unless mappings already resolve a
+  unique target account
+- future GUI flows can surface “needs explicit account selection” as a deterministic planning state
+  instead of silently writing common settings into the wrong account tree
