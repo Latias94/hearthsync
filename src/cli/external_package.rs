@@ -1,20 +1,21 @@
 use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
 use super::output::render;
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
-use crate::core::app::ExternalPackageService;
+use crate::core::app::HearthSyncApp;
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
     ExternalPackageSummary, ExternalPackageWarning,
 };
 use crate::core::error::AppResult;
-use crate::core::install::resolve_installation;
 use crate::core::manifest::{ApplyDefaults, ResourceApplyPolicy};
 
 pub(super) fn handle_external_package_command(
     json: bool,
     command: ExternalPackageCommands,
 ) -> AppResult<()> {
-    let service = ExternalPackageService::new();
+    let app = HearthSyncApp::new();
+    let service = app.external_packages();
+    let installation_service = app.installations();
 
     match command {
         ExternalPackageCommands::Inspect { source } => {
@@ -85,7 +86,7 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,
@@ -157,7 +158,7 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,

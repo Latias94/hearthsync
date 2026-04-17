@@ -167,25 +167,18 @@ fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_s
     );
     assert_eq!(analysis.package_id, "external_package_dirty_mixed_case");
     assert_eq!(analysis.summary.total_files, 8);
-    assert_eq!(analysis.summary.normalized_files, 6);
-    assert_eq!(analysis.summary.ignored_files, 2);
-    assert_eq!(analysis.summary.warning_count, 2);
+    assert_eq!(analysis.summary.normalized_files, 7);
+    assert_eq!(analysis.summary.ignored_files, 1);
+    assert_eq!(analysis.summary.warning_count, 1);
     assert_eq!(analysis.summary.addon_warning_count, 1);
-    assert_eq!(analysis.summary.wtf_warning_count, 1);
+    assert_eq!(analysis.summary.wtf_warning_count, 0);
     assert_eq!(
         analysis.summary.warning_groups,
-        vec![
-            super::ExternalPackageWarningGroup {
-                category: super::ExternalPackageWarningCategory::Addon,
-                code: super::ExternalPackageWarningCode::AddonRootNotDetected,
-                count: 1,
-            },
-            super::ExternalPackageWarningGroup {
-                category: super::ExternalPackageWarningCategory::Wtf,
-                code: super::ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
-                count: 1,
-            },
-        ]
+        vec![super::ExternalPackageWarningGroup {
+            category: super::ExternalPackageWarningCategory::Addon,
+            code: super::ExternalPackageWarningCode::AddonRootNotDetected,
+            count: 1,
+        }]
     );
     assert_eq!(analysis.resources.addons, vec!["Questie".to_string()]);
     assert!(analysis.resources.wtf_common);
@@ -199,18 +192,17 @@ fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_s
         analysis.resources.interface_assets,
         vec!["FrameXML".to_string()]
     );
-    assert_eq!(analysis.warnings.len(), 2);
+    assert_eq!(analysis.warnings.len(), 1);
     assert!(analysis.warnings.iter().any(|warning| {
         warning.code == super::ExternalPackageWarningCode::AddonRootNotDetected
             && warning.message.contains("no addon root was detected")
             && warning.source_path.contains("BrokenAddon/README.txt")
     }));
-    assert!(analysis.warnings.iter().any(|warning| {
-        warning.code == super::ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables
-            && warning.message.contains("WTF/Account/SavedVariables")
-            && warning.source_path.contains("SavedVariables/Broken.lua")
-    }));
 
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.normalized_path == "wtf/common/root/SavedVariables/Broken.lua"
+            && entry.wtf_scope == Some(super::WtfScope::RootSavedVariables)
+    }));
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path == "wtf/common/accounts/ACC1/config-cache.wtf"
             && entry.wtf_scope == Some(super::WtfScope::CacheLike)
@@ -240,26 +232,50 @@ fn analyze_external_package_zip_dirty_fixture_matches_directory_behavior() {
     );
     assert_eq!(analysis.package_id, "dirty-author-pack");
     assert_eq!(analysis.summary.total_files, 8);
-    assert_eq!(analysis.summary.normalized_files, 6);
-    assert_eq!(analysis.summary.ignored_files, 2);
-    assert_eq!(analysis.summary.warning_count, 2);
+    assert_eq!(analysis.summary.normalized_files, 7);
+    assert_eq!(analysis.summary.ignored_files, 1);
+    assert_eq!(analysis.summary.warning_count, 1);
     assert_eq!(
         analysis.summary.warning_groups,
-        vec![
-            super::ExternalPackageWarningGroup {
-                category: super::ExternalPackageWarningCategory::Addon,
-                code: super::ExternalPackageWarningCode::AddonRootNotDetected,
-                count: 1,
-            },
-            super::ExternalPackageWarningGroup {
-                category: super::ExternalPackageWarningCategory::Wtf,
-                code: super::ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
-                count: 1,
-            },
-        ]
+        vec![super::ExternalPackageWarningGroup {
+            category: super::ExternalPackageWarningCategory::Addon,
+            code: super::ExternalPackageWarningCode::AddonRootNotDetected,
+            count: 1,
+        }]
     );
     assert_eq!(analysis.resources.addons, vec!["Questie".to_string()]);
-    assert_eq!(analysis.warnings.len(), 2);
+    assert_eq!(analysis.warnings.len(), 1);
+}
+
+#[test]
+fn analyze_external_package_directory_accepts_variant_toc_names() {
+    let temp = tempdir().expect("temp dir");
+    let package_root = temp.path().join("AuthorUI");
+    let addon_root = package_root
+        .join("Interface")
+        .join("AddOns")
+        .join("DBM-Core");
+
+    fs::create_dir_all(&addon_root).expect("addon dir");
+    fs::write(
+        addon_root.join("DBM-Core_Mainline.toc"),
+        "## Interface: 110000\n## Title: DBM Core\n",
+    )
+    .expect("toc");
+    fs::write(addon_root.join("Core.lua"), "print('dbm')").expect("lua");
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
+        source_path: package_root,
+    })
+    .expect("analyze external package with variant toc");
+
+    assert_eq!(analysis.resources.addons, vec!["DBM-Core".to_string()]);
+    assert_eq!(analysis.summary.warning_count, 0);
+    assert!(analysis.warnings.is_empty());
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.normalized_path == "addons/DBM-Core/DBM-Core_Mainline.toc"
+            && entry.group == super::ApplyGroup::Addons
+    }));
 }
 
 #[test]
@@ -315,6 +331,30 @@ fn create_external_package_bundle_rejects_duplicate_normalized_paths_from_zip_fi
     let message = error.to_string();
     assert!(message.contains("normalizes multiple files onto the same target path"));
     assert!(message.contains("addons/WeakAuras/WeakAuras.toc"));
+}
+
+#[test]
+fn create_external_package_bundle_rejects_case_insensitive_target_path_collisions_from_zip_fixture()
+{
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("case-collision-author-pack.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("Fonts/FRIZQT__.ttf", "font-a"),
+            ("fonts/frizqt__.ttf", "font-b"),
+        ],
+    );
+
+    let error = create_external_package_bundle(
+        sample_external_package_request_with_apply_defaults(package_path, None),
+    )
+    .expect_err("case-insensitive normalized path collisions should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("case-insensitive target path collisions"));
+    assert!(message.contains("fonts/FRIZQT__.ttf"));
+    assert!(message.contains("fonts/frizqt__.ttf"));
 }
 
 #[test]
@@ -411,7 +451,7 @@ fn create_external_package_bundle_rejects_zip_with_only_directory_entries() {
 }
 
 #[test]
-fn analyze_external_package_directory_detects_direct_addons_and_reports_unsupported_wtf_layout() {
+fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariables() {
     let temp = tempdir().expect("temp dir");
     let package_root = temp.path().join("AuthorPack");
 
@@ -451,30 +491,18 @@ fn analyze_external_package_directory_detects_direct_addons_and_reports_unsuppor
     );
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
     assert!(analysis.resources.fonts);
-    assert!(!analysis.resources.wtf_common);
+    assert!(analysis.resources.wtf_common);
     assert_eq!(analysis.summary.total_files, 3);
-    assert_eq!(analysis.summary.normalized_files, 2);
-    assert_eq!(analysis.summary.ignored_files, 1);
-    assert_eq!(analysis.summary.warning_count, 1);
-    assert_eq!(analysis.summary.wtf_warning_count, 1);
-    assert_eq!(
-        analysis.summary.warning_groups,
-        vec![super::ExternalPackageWarningGroup {
-            category: super::ExternalPackageWarningCategory::Wtf,
-            code: super::ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
-            count: 1,
-        }]
-    );
-    assert_eq!(analysis.warnings.len(), 1);
-    assert!(
-        analysis.warnings[0].code
-            == super::ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables
-            && analysis.warnings[0]
-                .message
-                .contains("WTF/Account/SavedVariables"),
-        "unexpected warning: {}",
-        analysis.warnings[0].message.as_str()
-    );
+    assert_eq!(analysis.summary.normalized_files, 3);
+    assert_eq!(analysis.summary.ignored_files, 0);
+    assert_eq!(analysis.summary.warning_count, 0);
+    assert_eq!(analysis.summary.wtf_warning_count, 0);
+    assert!(analysis.summary.warning_groups.is_empty());
+    assert!(analysis.warnings.is_empty());
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.normalized_path == "wtf/common/root/SavedVariables/Broken.lua"
+            && entry.wtf_scope == Some(super::WtfScope::RootSavedVariables)
+    }));
 }
 
 #[test]
@@ -686,7 +714,7 @@ fn analyze_external_package_task_reports_progress() {
     )
     .expect("analyze external package task");
 
-    assert_eq!(analysis.summary.warning_count, 2);
+    assert_eq!(analysis.summary.warning_count, 1);
     assert_eq!(
         progress
             .events()
@@ -1659,18 +1687,11 @@ fn analyze_external_package_serializes_warning_groups_for_machine_consumers() {
 
     assert_eq!(
         warning_groups,
-        vec![
-            serde_json::json!({
-                "category": "addon",
-                "code": "addon_root_not_detected",
-                "count": 1
-            }),
-            serde_json::json!({
-                "category": "wtf",
-                "code": "unsupported_wtf_root_savedvariables",
-                "count": 1
-            }),
-        ]
+        vec![serde_json::json!({
+            "category": "addon",
+            "code": "addon_root_not_detected",
+            "count": 1
+        }),]
     );
 }
 
@@ -1757,6 +1778,22 @@ fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
     .expect("account root file");
     fs::write(source_account_dir.join("config-cache.wtf"), "account cache")
         .expect("account cache file");
+    fs::create_dir_all(
+        source_installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables"),
+    )
+    .expect("root saved variables");
+    fs::write(
+        source_installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join("RootDetails.lua"),
+        "DetailsDB = {}",
+    )
+    .expect("root saved variable");
     fs::create_dir_all(source_character_dir.join("SavedVariables"))
         .expect("character saved variables");
     fs::write(
@@ -1790,6 +1827,11 @@ fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
             .by_name("wtf/common/accounts/ACCOUNT/config-cache.wtf")
             .is_ok()
     );
+    assert!(
+        archive
+            .by_name("wtf/common/root/SavedVariables/RootDetails.lua")
+            .is_ok()
+    );
 
     let plan = plan_bundle_apply(
         &bundle_path,
@@ -1808,6 +1850,10 @@ fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
     assert_eq!(
         scope_for("wtf/common/Config.wtf"),
         Some(super::WtfScope::GlobalConfig)
+    );
+    assert_eq!(
+        scope_for("wtf/common/root/SavedVariables/RootDetails.lua"),
+        Some(super::WtfScope::RootSavedVariables)
     );
     assert_eq!(
         scope_for("wtf/common/accounts/ACCOUNT/account-settings.wtf"),
@@ -1883,6 +1929,32 @@ fn unpack_bundle_applies_character_mapping_and_lua_rewrite() {
     let mut manifest = sample_manifest_with_rewrite();
     manifest.mapping.character_mode = CharacterMappingMode::Explicit;
 
+    fs::create_dir_all(
+        source_installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables"),
+    )
+    .expect("root saved variables");
+    fs::write(
+        source_installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join("RootDetails.lua"),
+        r#"
+DetailsDB = {
+  ["profileKeys"] = {
+    ["Examplemage - Illidan"] = "Default",
+  },
+  ["profiles"] = {
+    ["Default.Illidan.Examplemage"] = {},
+  },
+}
+"#,
+    )
+    .expect("root saved variable");
+
     pack_bundle(PackBundleRequest {
         installation: source_installation,
         manifest,
@@ -1941,6 +2013,17 @@ fn unpack_bundle_applies_character_mapping_and_lua_rewrite() {
     .expect("common lua");
     assert!(common_lua.contains("Targetmage - Stormrage"));
     assert!(common_lua.contains("Default.Stormrage.Targetmage"));
+
+    let root_common_lua = fs::read_to_string(
+        target_installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join("RootDetails.lua"),
+    )
+    .expect("root common lua");
+    assert!(root_common_lua.contains("Targetmage - Stormrage"));
+    assert!(root_common_lua.contains("Default.Stormrage.Targetmage"));
 
     let character_lua = fs::read_to_string(
         target_installation

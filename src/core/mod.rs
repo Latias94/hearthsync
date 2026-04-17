@@ -1,4 +1,5 @@
 pub mod addon;
+mod addon_layout;
 pub mod app;
 mod archive_io;
 pub mod backup;

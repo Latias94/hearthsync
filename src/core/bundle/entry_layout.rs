@@ -8,6 +8,9 @@ pub(super) enum BundleArchiveEntry<'a> {
         rest: Vec<&'a str>,
     },
     CommonConfig,
+    CommonRootSavedVariables {
+        rest: Vec<&'a str>,
+    },
     CommonAccountSavedVariables {
         source_account: &'a str,
         rest: Vec<&'a str>,
@@ -50,6 +53,11 @@ pub(super) fn classify_bundle_archive_entry(
             rest: rest.to_vec(),
         },
         ["wtf", "common", "Config.wtf"] => BundleArchiveEntry::CommonConfig,
+        ["wtf", "common", "root", "SavedVariables", rest @ ..] if !rest.is_empty() => {
+            BundleArchiveEntry::CommonRootSavedVariables {
+                rest: rest.to_vec(),
+            }
+        }
         [
             "wtf",
             "common",

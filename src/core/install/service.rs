@@ -4,27 +4,38 @@ use std::path::{Path, PathBuf};
 use crate::core::error::{AppError, AppResult};
 
 use super::layout::{
-    build_installation, candidate_product_roots, detect_flavors, has_wow_structure, normalize_path,
+    build_installation_for_platform, candidate_product_roots_for, detect_flavors,
+    has_wow_structure, normalize_path,
 };
 use super::model::{
-    DetectedFlavorInstallation, HealthStatus, InstallationHealth, ProductInstallInspection,
-    WowFlavor,
+    DetectedFlavorInstallation, HealthStatus, HostPlatform, InstallationHealth,
+    ProductInstallInspection, WowFlavor,
 };
 
-pub fn scan_installations() -> AppResult<Vec<DetectedFlavorInstallation>> {
+pub(crate) fn scan_installations_for_host(
+    host_platform: HostPlatform,
+) -> AppResult<Vec<DetectedFlavorInstallation>> {
+    scan_installations_with_roots(&candidate_product_roots_for(host_platform), host_platform)
+}
+
+pub(crate) fn scan_installations_with_roots(
+    product_roots: &[PathBuf],
+    host_platform: HostPlatform,
+) -> AppResult<Vec<DetectedFlavorInstallation>> {
     let mut results = Vec::new();
     let mut seen = BTreeSet::new();
 
-    for product_root in candidate_product_roots() {
+    for product_root in product_roots {
         if !product_root.exists() {
             continue;
         }
 
         for flavor in detect_flavors(&product_root) {
-            let installation = build_installation(
+            let installation = build_installation_for_platform(
                 &product_root,
                 &product_root.join(flavor.folder_name()),
                 flavor,
+                host_platform,
             );
             if seen.insert(installation.flavor_root.clone()) {
                 results.push(installation);
@@ -41,9 +52,10 @@ pub fn scan_installations() -> AppResult<Vec<DetectedFlavorInstallation>> {
     Ok(results)
 }
 
-pub fn inspect_installation(
+pub(crate) fn inspect_installation_on_host(
     path: &Path,
     flavor: Option<WowFlavor>,
+    host_platform: HostPlatform,
 ) -> AppResult<ProductInstallInspection> {
     let requested_path = normalize_path(path)?;
     let (product_root, available_flavors, preselected) =
@@ -69,8 +81,12 @@ pub fn inspect_installation(
         }
     };
 
-    let installation =
-        resolve_detected_installation(&product_root, &requested_path, selected_flavor)?;
+    let installation = resolve_detected_installation(
+        &product_root,
+        &requested_path,
+        selected_flavor,
+        host_platform,
+    )?;
     let health = evaluate_installation(&installation);
 
     Ok(ProductInstallInspection {
@@ -82,11 +98,12 @@ pub fn inspect_installation(
     })
 }
 
-pub fn resolve_installation(
+pub(crate) fn resolve_installation_on_host(
     path: &Path,
     flavor: Option<WowFlavor>,
+    host_platform: HostPlatform,
 ) -> AppResult<DetectedFlavorInstallation> {
-    inspect_installation(path, flavor).map(|item| item.installation)
+    inspect_installation_on_host(path, flavor, host_platform).map(|item| item.installation)
 }
 
 fn classify_installation_path(
@@ -152,6 +169,7 @@ fn resolve_detected_installation(
     product_root: &Path,
     requested_path: &Path,
     flavor: WowFlavor,
+    host_platform: HostPlatform,
 ) -> AppResult<DetectedFlavorInstallation> {
     let flavor_root = if requested_path
         .file_name()
@@ -175,7 +193,12 @@ fn resolve_detected_installation(
         )));
     }
 
-    Ok(build_installation(product_root, &flavor_root, flavor))
+    Ok(build_installation_for_platform(
+        product_root,
+        &flavor_root,
+        flavor,
+        host_platform,
+    ))
 }
 
 fn evaluate_installation(installation: &DetectedFlavorInstallation) -> InstallationHealth {

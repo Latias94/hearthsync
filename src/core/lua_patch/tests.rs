@@ -139,6 +139,22 @@ fn preview_lua_bytes_rewrite_allows_account_saved_variables() {
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_allows_root_saved_variables() {
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/root/SavedVariables/Details.lua"),
+        br#"DetailsDB = { ["profileKeys"] = { ["Examplemage - Illidan"] = "Default" } }"#,
+        &[sample_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview");
+
+    assert!(rewritten.is_some());
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_allows_character_saved_variables() {
     let rewritten = preview_lua_bytes_rewrite(
         Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),

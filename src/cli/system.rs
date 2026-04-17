@@ -2,12 +2,13 @@ use std::path::PathBuf;
 
 use super::output::render;
 use super::{FlavorArg, ManifestCommands};
+use crate::core::app::HearthSyncApp;
 use crate::core::error::AppResult;
-use crate::core::install::{inspect_installation, scan_installations};
 use crate::core::manifest::{example_manifest, load_manifest};
 
 pub(super) fn handle_scan(json: bool) -> AppResult<()> {
-    let installations = scan_installations()?;
+    let service = HearthSyncApp::new().installations();
+    let installations = service.scan()?;
     render(json, &installations, |items| {
         if items.is_empty() {
             "No World of Warcraft installations detected.".to_string()
@@ -30,7 +31,8 @@ pub(super) fn handle_inspect(
     install: PathBuf,
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
-    let inspection = inspect_installation(&install, flavor.map(Into::into))?;
+    let service = HearthSyncApp::new().installations();
+    let inspection = service.inspect(&install, flavor.map(Into::into))?;
     render(json, &inspection, |item| {
         format!(
             "Flavor: {}\nProduct root: {}\nFlavor root: {}\nAddOns: {}\nWTF: {}\nFonts: {}\nHealth: {}",
@@ -50,7 +52,8 @@ pub(super) fn handle_doctor(
     install: PathBuf,
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
-    let inspection = inspect_installation(&install, flavor.map(Into::into))?;
+    let service = HearthSyncApp::new().installations();
+    let inspection = service.inspect(&install, flavor.map(Into::into))?;
     render(json, &inspection.health, |health| health.to_report())
 }
 

@@ -7,7 +7,9 @@ use tempfile::{TempDir, tempdir};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
+use super::wtf_scope::{classify_account_wtf_scope, classify_character_wtf_scope};
 use super::*;
+use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 use crate::core::manifest::{
@@ -219,7 +221,9 @@ pub fn analyze_external_package(
 
     let source_kind = detect_source_kind(&source_path)?;
     let source_entries = collect_source_entries(&source_path, source_kind)?;
-    let addon_roots = discover_addon_roots(&source_entries);
+    let addon_roots = discover_addon_roots_from_entry_segments(
+        source_entries.iter().map(|entry| entry.segments.as_slice()),
+    );
     let mut entries = Vec::new();
     let mut warnings = Vec::new();
 
@@ -661,42 +665,6 @@ fn should_ignore_source_segments(segments: &[String]) -> bool {
         .any(|segment| segment.eq_ignore_ascii_case("__MACOSX"))
 }
 
-fn discover_addon_roots(entries: &[SourceEntry]) -> Vec<Vec<String>> {
-    let mut roots = Vec::new();
-
-    for entry in entries {
-        if entry.segments.len() < 2 {
-            continue;
-        }
-
-        let Some(file_name) = entry.segments.last().map(String::as_str) else {
-            continue;
-        };
-        if !file_name.ends_with(".toc") {
-            continue;
-        }
-
-        let Some(file_stem) = Path::new(file_name)
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-        else {
-            continue;
-        };
-        let parent_name = &entry.segments[entry.segments.len() - 2];
-        if file_stem != parent_name {
-            continue;
-        }
-
-        let root = entry.segments[..entry.segments.len() - 1].to_vec();
-        if !roots.contains(&root) {
-            roots.push(root);
-        }
-    }
-
-    roots.sort_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
-    roots
-}
-
 fn classify_addon_entry(
     source_entry: &SourceEntry,
     addon_roots: &[Vec<String>],
@@ -744,7 +712,7 @@ fn classify_non_addon_entry(source_entry: &SourceEntry) -> ClassifiedExternalEnt
             ExternalPackageWarningCode::AddonRootNotDetected,
             &source_entry.source_path,
             format!(
-                "entry is under `AddOns` but no addon root was detected from a matching `.toc` file: {}",
+                "entry is under `AddOns` but no addon root was detected from a `.toc` file: {}",
                 source_entry.source_path
             ),
         ));
@@ -784,17 +752,33 @@ fn classify_wtf_entry(source_entry: &SourceEntry) -> Option<ClassifiedExternalEn
 
     let account = &suffix[2];
     if account.eq_ignore_ascii_case("SavedVariables") {
-        return Some(ClassifiedExternalEntry::Warn(
-            build_external_package_warning(
-                ExternalPackageWarningCategory::Wtf,
-                ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
-                &source_entry.source_path,
-                format!(
-                    "root-level `WTF/Account/SavedVariables` is not yet normalized by the bundle model: {}",
-                    source_entry.source_path
+        let rest = &suffix[3..];
+        if rest.is_empty() {
+            return Some(ClassifiedExternalEntry::Warn(
+                build_external_package_warning(
+                    ExternalPackageWarningCategory::Wtf,
+                    ExternalPackageWarningCode::WtfSavedVariablesPathWithoutFile,
+                    &source_entry.source_path,
+                    format!(
+                        "root-level `WTF/Account/SavedVariables` entry does not point to a file: {}",
+                        source_entry.source_path
+                    ),
                 ),
+            ));
+        }
+
+        return Some(ClassifiedExternalEntry::Recognized(ExternalPackageEntry {
+            source_path: source_entry.source_path.clone(),
+            normalized_path: join_exact_normalized_segments(
+                &["wtf", "common", "root", "SavedVariables"],
+                rest,
             ),
-        ));
+            group: ApplyGroup::WtfCommon,
+            wtf_scope: Some(WtfScope::RootSavedVariables),
+            source_account: None,
+            source_server: None,
+            source_character: None,
+        }));
     }
 
     let rest = &suffix[3..];
@@ -1056,10 +1040,21 @@ fn build_resources(entries: &[ExternalPackageEntry]) -> BundleResources {
 
 fn validate_unique_normalized_paths(analysis: &ExternalPackageAnalysis) -> AppResult<()> {
     let mut seen = BTreeSet::new();
+    let mut case_insensitive_seen = BTreeMap::new();
     for entry in &analysis.entries {
         if !seen.insert(entry.normalized_path.clone()) {
             return Err(AppError::Validation(format!(
                 "external package normalizes multiple files onto the same target path: {}",
+                entry.normalized_path
+            )));
+        }
+
+        let folded = entry.normalized_path.to_lowercase();
+        if let Some(previous) = case_insensitive_seen.insert(folded, entry.normalized_path.clone())
+            && previous != entry.normalized_path
+        {
+            return Err(AppError::Validation(format!(
+                "external package contains case-insensitive target path collisions: `{previous}` and `{}` would map to the same path on Windows/default macOS targets",
                 entry.normalized_path
             )));
         }
@@ -1235,6 +1230,11 @@ fn destination_path_for_normalized_entry(
     let destination = match segments.as_slice() {
         ["addons", rest @ ..] if !rest.is_empty() => join_segments(&installation.addon_dir, rest),
         ["wtf", "common", "Config.wtf"] => installation.wtf_dir.join("Config.wtf"),
+        ["wtf", "common", "root", "SavedVariables", rest @ ..] if !rest.is_empty() => installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join(join_segments(Path::new(""), rest)),
         ["wtf", "common", "accounts", account, rest @ ..] if !rest.is_empty() => installation
             .wtf_dir
             .join("Account")
@@ -1383,48 +1383,4 @@ fn find_segment_index(segments: &[String], needle: &str) -> Option<usize> {
     segments
         .iter()
         .position(|segment| segment.eq_ignore_ascii_case(needle))
-}
-
-fn classify_account_wtf_scope(relative_segments: &[String]) -> WtfScope {
-    if relative_segments.is_empty() {
-        return WtfScope::Unknown;
-    }
-
-    if relative_segments[0].eq_ignore_ascii_case("SavedVariables") {
-        WtfScope::AccountSavedVariables
-    } else if relative_segments
-        .last()
-        .is_some_and(|name| is_cache_like_wtf_file_name(name))
-    {
-        WtfScope::CacheLike
-    } else {
-        WtfScope::AccountRootFile
-    }
-}
-
-fn classify_character_wtf_scope(relative_segments: &[String]) -> WtfScope {
-    if relative_segments.is_empty() {
-        return WtfScope::Unknown;
-    }
-
-    if relative_segments[0].eq_ignore_ascii_case("SavedVariables") {
-        WtfScope::CharacterSavedVariables
-    } else if relative_segments
-        .last()
-        .is_some_and(|name| is_cache_like_wtf_file_name(name))
-    {
-        WtfScope::CacheLike
-    } else {
-        WtfScope::CharacterState
-    }
-}
-
-fn is_cache_like_wtf_file_name(file_name: &str) -> bool {
-    let file_name = file_name.to_ascii_lowercase();
-    matches!(
-        file_name.as_str(),
-        "bindings-cache.wtf" | "chat-cache.txt" | "config-cache.wtf" | "macros-cache.txt"
-    ) || file_name.ends_with("-cache.wtf")
-        || file_name.ends_with("-cache.txt")
-        || file_name.ends_with("-cache.old")
 }

@@ -1,3 +1,6 @@
+use std::path::Path;
+
+use crate::core::app::AppRuntime;
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,
@@ -11,12 +14,22 @@ use crate::core::task::{
     run_task_with_collected_progress,
 };
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ExternalPackageService;
+#[derive(Debug, Clone, Default)]
+pub struct ExternalPackageService {
+    runtime: AppRuntime,
+}
 
 impl ExternalPackageService {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_runtime(runtime: AppRuntime) -> Self {
+        Self { runtime }
+    }
+
+    pub fn runtime(&self) -> &AppRuntime {
+        &self.runtime
     }
 
     pub fn analyze(
@@ -67,14 +80,14 @@ impl ExternalPackageService {
         &self,
         request: CreateExternalPackageBundleRequest,
     ) -> AppResult<PreparedExternalPackageBundle> {
-        create_external_package_bundle(request)
+        create_external_package_bundle(self.normalize_bundle_request(request))
     }
 
     pub fn plan_apply(
         &self,
         request: PlanExternalPackageApplyRequest,
     ) -> AppResult<ExternalPackageApplyPlan> {
-        plan_external_package_apply(request)
+        plan_external_package_apply(self.normalize_plan_request(request))
     }
 
     pub fn plan_apply_task<TCancel, TProgress>(
@@ -87,7 +100,11 @@ impl ExternalPackageService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        plan_external_package_apply_task(request, cancellation, progress)
+        plan_external_package_apply_task(
+            self.normalize_plan_request(request),
+            cancellation,
+            progress,
+        )
     }
 
     pub fn plan_apply_collecting_progress(
@@ -115,7 +132,7 @@ impl ExternalPackageService {
     }
 
     pub fn apply(&self, request: ApplyExternalPackageRequest) -> AppResult<AppliedExternalPackage> {
-        apply_external_package(request)
+        apply_external_package(self.normalize_apply_request(request))
     }
 
     pub fn apply_task<TCancel, TProgress>(
@@ -128,7 +145,11 @@ impl ExternalPackageService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        apply_external_package_task(request, cancellation, progress)
+        apply_external_package_task(
+            self.normalize_apply_request(request),
+            cancellation,
+            progress,
+        )
     }
 
     pub fn apply_collecting_progress(
@@ -154,6 +175,41 @@ impl ExternalPackageService {
             self.apply_task(request, cancellation, progress)
         })
     }
+
+    fn normalize_bundle_request(
+        &self,
+        mut request: CreateExternalPackageBundleRequest,
+    ) -> CreateExternalPackageBundleRequest {
+        if request.source_platform.is_none() {
+            request.source_platform = Some(self.runtime.host_platform());
+        }
+        if request.output_path.is_none() {
+            request.output_path = self
+                .runtime
+                .default_bundle_output_dir()
+                .map(Path::to_path_buf);
+        }
+        request
+    }
+
+    fn normalize_plan_request(
+        &self,
+        mut request: PlanExternalPackageApplyRequest,
+    ) -> PlanExternalPackageApplyRequest {
+        request.external_package = self.normalize_bundle_request(request.external_package);
+        request
+    }
+
+    fn normalize_apply_request(
+        &self,
+        mut request: ApplyExternalPackageRequest,
+    ) -> ApplyExternalPackageRequest {
+        request.external_package = self.normalize_bundle_request(request.external_package);
+        if request.backup_output_path.is_none() {
+            request.backup_output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
+        }
+        request
+    }
 }
 
 #[cfg(test)]
@@ -165,6 +221,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::core::app::AppRuntime;
     use crate::core::bundle::BundleApplyMappings;
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
@@ -329,6 +386,37 @@ mod tests {
                 TaskKind::ExternalPackageApply,
             ]
         );
+    }
+
+    #[test]
+    fn external_package_service_create_bundle_uses_runtime_platform_and_output_dir() {
+        let source = tempdir().expect("source temp dir");
+        let output = tempdir().expect("output temp dir");
+        let package_root = create_minimal_external_package_source(source.path());
+
+        let service = ExternalPackageService::with_runtime(
+            AppRuntime::new()
+                .with_host_platform(HostPlatform::MacOs)
+                .with_default_bundle_output_dir(Some(output.path().to_path_buf())),
+        );
+        let prepared = service
+            .create_bundle(CreateExternalPackageBundleRequest {
+                source_path: package_root,
+                source_flavor: WowFlavor::Retail,
+                source_platform: None,
+                supported_targets: vec![WowFlavor::Retail],
+                output_path: None,
+                package_id: None,
+                package_name: None,
+                created_by: None,
+                description: None,
+                apply_defaults: None,
+            })
+            .expect("create bundle with runtime defaults");
+
+        assert_eq!(prepared.manifest.source.platform, Some(HostPlatform::MacOs));
+        assert_eq!(prepared.bundle.archive_path.parent(), Some(output.path()));
+        assert!(prepared.bundle.archive_path.is_file());
     }
 
     fn create_minimal_external_package_source(root: &Path) -> PathBuf {

@@ -54,6 +54,9 @@ pub(super) fn cleanup_scope_for_entry(
         }
         ApplyGroup::WtfCommon => match entry.wtf_scope.unwrap_or(WtfScope::Unknown) {
             WtfScope::GlobalConfig => Ok(Some(installation.wtf_dir.join("Config.wtf"))),
+            WtfScope::RootSavedVariables => Ok(Some(
+                installation.wtf_dir.join("Account").join("SavedVariables"),
+            )),
             WtfScope::AccountSavedVariables => {
                 let target_account = entry.target_account.as_ref().ok_or_else(|| {
                     AppError::Validation(

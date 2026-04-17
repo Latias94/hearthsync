@@ -76,6 +76,48 @@ fn install_addon_from_local_archive_writes_files_and_registry() {
 }
 
 #[test]
+fn install_addon_from_archive_accepts_variant_toc_names() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let archive_path = temp.path().join("dbm-pack.zip");
+
+    create_addon_archive(
+        &archive_path,
+        &[
+            (
+                "DBM-Core/DBM-Core_Mainline.toc",
+                "## Interface: 110000\n## Title: DBM Core\n",
+            ),
+            ("DBM-Core/Core.lua", "print('dbm')"),
+        ],
+    );
+
+    let result = install_addon(InstallAddonRequest {
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install addon with variant toc name");
+
+    assert_eq!(result.addons.len(), 1);
+    assert_eq!(result.addons[0].directory_name, "DBM-Core");
+    assert_eq!(
+        result.addons[0].toc_file.as_deref(),
+        Some("DBM-Core_Mainline.toc")
+    );
+    assert!(
+        installation
+            .addon_dir
+            .join("DBM-Core")
+            .join("Core.lua")
+            .exists()
+    );
+}
+
+#[test]
 fn install_addon_task_reports_install_progress() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());

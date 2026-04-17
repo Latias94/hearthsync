@@ -109,13 +109,21 @@ fn join_sidecar_source_segments(root: &Path, segments: &[&str]) -> PathBuf {
     path
 }
 
-pub(super) fn prepare_expected_lock_package(
+pub(super) fn prepare_expected_lock_package_with_provider<P>(
+    provider: &P,
     expected: &AddonLockPackage,
     source_override_path: Option<&Path>,
     target_flavor: crate::core::install::WowFlavor,
-) -> AppResult<crate::core::addon::PreparedAddonPackage> {
+) -> AppResult<crate::core::addon::PreparedAddonPackage>
+where
+    P: crate::core::addon::AddonProvider + ?Sized,
+{
     match source_override_path {
         Some(path) => prepare_package_from_archive_with_source(expected.source.clone(), path),
-        None => prepare_package_from_source_ref_with_flavor(&expected.source, Some(target_flavor)),
+        None => prepare_package_from_source_ref_with_provider(
+            provider,
+            &expected.source,
+            Some(target_flavor),
+        ),
     }
 }

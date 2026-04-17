@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::core::app::AppRuntime;
 use crate::core::bundle::{
     BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,
     BundleApplyPlan, BundleInspection, CreatedBundle, PackBundleRequest, UnpackBundleRequest,
@@ -13,12 +14,22 @@ use crate::core::task::{
     run_task_with_collected_progress,
 };
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct BundleService;
+#[derive(Debug, Clone, Default)]
+pub struct BundleService {
+    runtime: AppRuntime,
+}
 
 impl BundleService {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_runtime(runtime: AppRuntime) -> Self {
+        Self { runtime }
+    }
+
+    pub fn runtime(&self) -> &AppRuntime {
+        &self.runtime
     }
 
     pub fn inspect(&self, bundle_path: &Path) -> AppResult<BundleInspection> {
@@ -26,7 +37,7 @@ impl BundleService {
     }
 
     pub fn pack(&self, request: PackBundleRequest) -> AppResult<CreatedBundle> {
-        pack_bundle(request)
+        pack_bundle(self.normalize_pack_request(request))
     }
 
     pub fn plan_apply(
@@ -39,7 +50,7 @@ impl BundleService {
     }
 
     pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
-        unpack_bundle(request)
+        unpack_bundle(self.normalize_unpack_request(request))
     }
 
     pub fn plan_addon_lock(
@@ -54,7 +65,7 @@ impl BundleService {
         &self,
         request: BundleAddonLockApplyRequest,
     ) -> AppResult<BundleAddonLockApply> {
-        apply_bundle_addon_lock(request)
+        apply_bundle_addon_lock(self.normalize_addon_lock_request(request))
     }
 
     pub fn apply_task<TCancel, TProgress>(
@@ -67,7 +78,11 @@ impl BundleService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        unpack_bundle_task(request, cancellation, progress)
+        unpack_bundle_task(
+            self.normalize_unpack_request(request),
+            cancellation,
+            progress,
+        )
     }
 
     pub fn apply_collecting_progress(
@@ -93,6 +108,33 @@ impl BundleService {
             self.apply_task(request, cancellation, progress)
         })
     }
+
+    fn normalize_pack_request(&self, mut request: PackBundleRequest) -> PackBundleRequest {
+        if request.output_path.is_none() {
+            request.output_path = self
+                .runtime
+                .default_bundle_output_dir()
+                .map(Path::to_path_buf);
+        }
+        request
+    }
+
+    fn normalize_unpack_request(&self, mut request: UnpackBundleRequest) -> UnpackBundleRequest {
+        if request.backup_output_path.is_none() {
+            request.backup_output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
+        }
+        request
+    }
+
+    fn normalize_addon_lock_request(
+        &self,
+        mut request: BundleAddonLockApplyRequest,
+    ) -> BundleAddonLockApplyRequest {
+        if request.backup_output_path.is_none() {
+            request.backup_output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
+        }
+        request
+    }
 }
 
 #[cfg(test)]
@@ -103,6 +145,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::core::app::AppRuntime;
     use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::manifest::{
         ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, MappingRules,
@@ -183,6 +226,65 @@ mod tests {
                 (TaskKind::BundleApply, TaskPhase::Planning),
                 (TaskKind::BundleApply, TaskPhase::Completed),
             ]
+        );
+    }
+
+    #[test]
+    fn bundle_service_pack_uses_runtime_default_output_dir() {
+        let source = tempdir().expect("source temp dir");
+        let output = tempdir().expect("output temp dir");
+        let source_installation = create_bundle_fixture_installation(source.path(), true);
+
+        let service = BundleService::with_runtime(
+            AppRuntime::new().with_default_bundle_output_dir(Some(output.path().to_path_buf())),
+        );
+        let created = service
+            .pack(PackBundleRequest {
+                installation: source_installation,
+                manifest: sample_bundle_manifest(),
+                output_path: None,
+                manifest_base_dir: None,
+            })
+            .expect("pack bundle with runtime output dir");
+
+        assert_eq!(created.archive_path.parent(), Some(output.path()));
+        assert!(created.archive_path.is_file());
+    }
+
+    #[test]
+    fn bundle_service_apply_uses_runtime_default_backup_dir() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let backup = tempdir().expect("backup temp dir");
+        let source_installation = create_bundle_fixture_installation(source.path(), true);
+        let target_installation = create_bundle_fixture_installation(target.path(), false);
+        let bundle_path = source.path().join("fixture.bundle.zip");
+
+        let service = BundleService::with_runtime(
+            AppRuntime::new().with_default_backup_dir(Some(backup.path().to_path_buf())),
+        );
+        service
+            .pack(PackBundleRequest {
+                installation: source_installation,
+                manifest: sample_bundle_manifest(),
+                output_path: Some(bundle_path.clone()),
+                manifest_base_dir: None,
+            })
+            .expect("pack bundle");
+
+        let applied = service
+            .apply(UnpackBundleRequest {
+                bundle_path,
+                installation: target_installation,
+                dry_run: false,
+                backup_output_path: None,
+                apply_mappings: BundleApplyMappings::default(),
+            })
+            .expect("apply bundle with runtime backup dir");
+
+        assert_eq!(
+            applied.backup_path.as_deref().and_then(Path::parent),
+            Some(backup.path())
         );
     }
 

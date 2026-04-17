@@ -12,4 +12,7 @@ pub use model::{
     DetectedFlavorInstallation, HealthStatus, HostPlatform, InstallationHealth, LocalWowAccount,
     LocalWowCharacter, ProductInstallInspection, WowFlavor,
 };
-pub use service::{inspect_installation, resolve_installation, scan_installations};
+pub(crate) use service::{
+    inspect_installation_on_host, resolve_installation_on_host, scan_installations_for_host,
+    scan_installations_with_roots,
+};

@@ -1,5 +1,5 @@
 use super::apply_execute::execute_prepared_addon_lock_apply;
-use super::apply_prepare::prepare_addon_lock_apply;
+use super::apply_prepare::prepare_addon_lock_apply_with_provider;
 use super::plan::build_addon_lock_plan;
 use super::source_resolution::resolved_source_override_map;
 use super::verify::verify_addon_lock;
@@ -23,6 +23,21 @@ pub fn apply_addon_lock_sync_task<TCancel, TProgress>(
 where
     TCancel: CancellationToken,
     TProgress: TaskProgressSink,
+{
+    let provider = DefaultAddonProvider::default();
+    apply_addon_lock_sync_task_with_provider(&provider, request, cancellation, progress)
+}
+
+pub(crate) fn apply_addon_lock_sync_task_with_provider<TCancel, TProgress, P>(
+    provider: &P,
+    request: AddonLockApplyRequest,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<AddonLockApplyResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+    P: AddonProvider + ?Sized,
 {
     emit_task_progress(
         progress,
@@ -58,7 +73,12 @@ where
         resolved_source_override_map(&plan.result.lock_path, &request.source_overrides)?;
     ensure_plan_is_applyable(&plan, request.replace_existing)?;
 
-    let prepared = prepare_addon_lock_apply(&plan, &source_overrides, &request.installation)?;
+    let prepared = prepare_addon_lock_apply_with_provider(
+        provider,
+        &plan,
+        &source_overrides,
+        &request.installation,
+    )?;
     if !prepared.is_empty() {
         emit_task_progress(
             progress,

@@ -2,14 +2,18 @@ use super::apply_model::{
     MetadataOnlyAddonLockAction, PreparedAddonLockApply, metadata_from_lock_package,
 };
 use super::plan::AddonLockPlanContext;
-use super::source_resolution::prepare_expected_lock_package;
+use super::source_resolution::prepare_expected_lock_package_with_provider;
 use super::*;
 
-pub(super) fn prepare_addon_lock_apply(
+pub(super) fn prepare_addon_lock_apply_with_provider<P>(
+    provider: &P,
     plan: &AddonLockPlanContext,
     source_overrides: &BTreeMap<String, PathBuf>,
     installation: &DetectedFlavorInstallation,
-) -> AppResult<PreparedAddonLockApply> {
+) -> AppResult<PreparedAddonLockApply>
+where
+    P: crate::core::addon::AddonProvider + ?Sized,
+{
     let mut remove_packages = Vec::new();
     let mut update_current_packages = Vec::new();
     let mut update_prepared_packages = Vec::new();
@@ -37,7 +41,8 @@ pub(super) fn prepare_addon_lock_apply(
                         "lock update action is missing expected package".to_string(),
                     )
                 })?;
-                let mut prepared = prepare_expected_lock_package(
+                let mut prepared = prepare_expected_lock_package_with_provider(
+                    provider,
                     expected,
                     source_overrides
                         .get(&action.action.comparison_key)
@@ -54,7 +59,8 @@ pub(super) fn prepare_addon_lock_apply(
                         "lock install action is missing expected package".to_string(),
                     )
                 })?;
-                let mut prepared = prepare_expected_lock_package(
+                let mut prepared = prepare_expected_lock_package_with_provider(
+                    provider,
                     expected,
                     source_overrides
                         .get(&action.action.comparison_key)

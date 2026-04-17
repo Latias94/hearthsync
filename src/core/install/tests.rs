@@ -3,7 +3,9 @@ use std::path::Path;
 
 use tempfile::tempdir;
 
-use super::{HealthStatus, WowFlavor, discover_local_accounts, inspect_installation};
+use super::{
+    HealthStatus, HostPlatform, WowFlavor, discover_local_accounts, inspect_installation_on_host,
+};
 
 #[test]
 fn inspect_installation_resolves_product_root() {
@@ -19,7 +21,12 @@ fn inspect_installation_resolves_product_root() {
     )
     .expect("config");
 
-    let inspection = inspect_installation(&product_root, Some(WowFlavor::Retail)).expect("inspect");
+    let inspection = inspect_installation_on_host(
+        &product_root,
+        Some(WowFlavor::Retail),
+        HostPlatform::current(),
+    )
+    .expect("inspect");
 
     assert_eq!(inspection.installation.flavor, WowFlavor::Retail);
     assert_eq!(inspection.health.status, HealthStatus::Warning);
@@ -68,8 +75,12 @@ fn discover_local_accounts_reads_accounts_and_characters() {
     )
     .expect("config");
 
-    let installation =
-        inspect_installation(&product_root, Some(WowFlavor::Retail)).expect("inspect");
+    let installation = inspect_installation_on_host(
+        &product_root,
+        Some(WowFlavor::Retail),
+        HostPlatform::current(),
+    )
+    .expect("inspect");
     let accounts = discover_local_accounts(&installation.installation).expect("discover accounts");
 
     assert_eq!(accounts.len(), 1);

@@ -7,7 +7,7 @@ use crate::core::error::{AppError, AppResult};
 
 use super::model::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 
-pub(super) fn candidate_product_roots() -> Vec<PathBuf> {
+pub(super) fn candidate_product_roots_for(host_platform: HostPlatform) -> Vec<PathBuf> {
     let mut roots = BTreeSet::new();
 
     if let Ok(custom_root) = std::env::var("WOW_INSTALL_ROOT") {
@@ -15,16 +15,20 @@ pub(super) fn candidate_product_roots() -> Vec<PathBuf> {
     }
 
     if let Some(base_dirs) = BaseDirs::new() {
-        roots.extend(common_roots_for_platform(base_dirs.home_dir()));
+        roots.extend(common_roots_for_platform(
+            host_platform,
+            base_dirs.home_dir(),
+        ));
     }
 
     roots.into_iter().collect()
 }
 
-pub(super) fn build_installation(
+pub(super) fn build_installation_for_platform(
     product_root: &Path,
     flavor_root: &Path,
     flavor: WowFlavor,
+    platform: HostPlatform,
 ) -> DetectedFlavorInstallation {
     let interface_dir = flavor_root.join("Interface");
     let addon_dir = interface_dir.join("AddOns");
@@ -32,7 +36,7 @@ pub(super) fn build_installation(
     let fonts_dir = flavor_root.join("Fonts");
 
     DetectedFlavorInstallation {
-        platform: HostPlatform::current(),
+        platform,
         product_root: product_root.to_path_buf(),
         flavor_root: flavor_root.to_path_buf(),
         flavor,
@@ -80,10 +84,10 @@ pub(super) fn normalize_path(path: &Path) -> AppResult<PathBuf> {
     ))
 }
 
-fn common_roots_for_platform(home_dir: &Path) -> Vec<PathBuf> {
+fn common_roots_for_platform(host_platform: HostPlatform, home_dir: &Path) -> Vec<PathBuf> {
     let mut candidates = BTreeSet::new();
 
-    match HostPlatform::current() {
+    match host_platform {
         HostPlatform::Windows => {
             for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
                 if let Ok(value) = std::env::var(variable) {

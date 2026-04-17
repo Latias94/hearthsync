@@ -30,13 +30,20 @@ use self::registry::registry_path;
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
+pub(crate) use self::execution::{
+    InstallAddonExecutionPlan, InstallPreparedAddonRequest, execute_install_plan_task,
+    install_addon_task_with_provider, prepare_install_prepared_addon,
+    update_addons_task_with_provider,
+};
 pub(crate) use self::mutation::{
     install_prepared_package, remove_selected_packages, rollback_or_report_addon_error,
     update_prepared_packages,
 };
 pub(crate) use self::package_prep::{
-    prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_flavor,
+    prepare_package_from_archive_with_source, prepare_package_from_source_input_with_provider,
+    prepare_package_from_source_ref_with_provider,
 };
+pub(crate) use self::provider::canonicalize_local_archive_path;
 pub(crate) use self::registry::{load_registry, save_registry};
 
 #[derive(Debug, Clone, Serialize)]
@@ -226,7 +233,7 @@ pub(crate) fn search_addons_with_provider<P>(
     request: SearchAddonRequest,
 ) -> AppResult<AddonSearchCatalog>
 where
-    P: AddonProvider,
+    P: AddonProvider + ?Sized,
 {
     let results = provider.search_addons(ProviderAddonSearchRequest {
         query: &request.query,

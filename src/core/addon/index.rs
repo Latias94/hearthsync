@@ -15,6 +15,9 @@ pub use self::operations::{
     install_addon_from_index, install_addon_from_index_task, update_addons_from_index,
     update_addons_from_index_task,
 };
+pub(crate) use self::operations::{
+    install_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
+};
 pub use self::storage::inspect_addon_index;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

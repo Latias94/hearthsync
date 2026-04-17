@@ -1,13 +1,14 @@
 use super::BundleCommands;
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
-use crate::core::app::BundleService;
+use crate::core::app::HearthSyncApp;
 use crate::core::bundle::{BundleApplyMappings, UnpackBundleRequest, load_apply_mappings};
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::resolve_installation;
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
-    let service = BundleService::new();
+    let app = HearthSyncApp::new();
+    let service = app.bundles();
+    let installation_service = app.installations();
 
     match command {
         BundleCommands::Plan {
@@ -21,7 +22,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,
@@ -84,7 +85,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,

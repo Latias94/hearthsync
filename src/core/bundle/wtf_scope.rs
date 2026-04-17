@@ -1,15 +1,18 @@
 use super::*;
 
-pub(super) fn classify_account_wtf_scope(relative_segments: &[&str]) -> WtfScope {
+pub(super) fn classify_account_wtf_scope<T>(relative_segments: &[T]) -> WtfScope
+where
+    T: AsRef<str>,
+{
     if relative_segments.is_empty() {
         return WtfScope::Unknown;
     }
 
-    if is_saved_variables_segment(relative_segments[0]) {
+    if is_saved_variables_segment(relative_segments[0].as_ref()) {
         WtfScope::AccountSavedVariables
     } else if relative_segments
         .last()
-        .is_some_and(|name| is_cache_like_wtf_file_name(name))
+        .is_some_and(|name| is_cache_like_wtf_file_name(name.as_ref()))
     {
         WtfScope::CacheLike
     } else {
@@ -17,16 +20,19 @@ pub(super) fn classify_account_wtf_scope(relative_segments: &[&str]) -> WtfScope
     }
 }
 
-pub(super) fn classify_character_wtf_scope(relative_segments: &[&str]) -> WtfScope {
+pub(super) fn classify_character_wtf_scope<T>(relative_segments: &[T]) -> WtfScope
+where
+    T: AsRef<str>,
+{
     if relative_segments.is_empty() {
         return WtfScope::Unknown;
     }
 
-    if is_saved_variables_segment(relative_segments[0]) {
+    if is_saved_variables_segment(relative_segments[0].as_ref()) {
         WtfScope::CharacterSavedVariables
     } else if relative_segments
         .last()
-        .is_some_and(|name| is_cache_like_wtf_file_name(name))
+        .is_some_and(|name| is_cache_like_wtf_file_name(name.as_ref()))
     {
         WtfScope::CacheLike
     } else {

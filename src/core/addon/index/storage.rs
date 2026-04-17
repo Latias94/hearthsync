@@ -1,7 +1,8 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::*;
+use crate::core::addon::canonicalize_local_archive_path;
 use crate::core::error::{AppError, AppResult};
 
 pub fn inspect_addon_index(path: &Path) -> AppResult<AddonIndexInspection> {
@@ -20,6 +21,41 @@ pub(super) fn load_addon_index(path: &Path) -> AppResult<AddonIndex> {
     let index = toml::from_str::<AddonIndex>(&content)?;
     validate_addon_index(&index)?;
     Ok(index)
+}
+
+pub(super) fn resolve_index_package_source(
+    index_path: &Path,
+    source: &AddonSourceRef,
+) -> AppResult<AddonSourceRef> {
+    match source {
+        AddonSourceRef::LocalArchive { path } => Ok(AddonSourceRef::LocalArchive {
+            path: resolve_index_local_archive_path(index_path, path)?,
+        }),
+        other => Ok(other.clone()),
+    }
+}
+
+fn resolve_index_local_archive_path(index_path: &Path, path: &Path) -> AppResult<PathBuf> {
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        index_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(path)
+    };
+
+    canonicalize_local_archive_path(&candidate).map_err(|error| match error {
+        AppError::NotFound(_) => AppError::NotFound(format!(
+            "addon index local archive source does not exist: {}",
+            candidate.display()
+        )),
+        AppError::Validation(_) => AppError::Validation(format!(
+            "addon index local archive source must be a file archive: {}",
+            candidate.display()
+        )),
+        other => other,
+    })
 }
 
 fn validate_addon_index(index: &AddonIndex) -> AppResult<()> {

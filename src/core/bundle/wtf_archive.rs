@@ -18,6 +18,15 @@ pub(super) fn add_common_wtf_to_zip(zip: &mut ZipWriter<File>, wtf_dir: &Path) -
         return Ok(archived_files);
     }
 
+    let root_saved_variables = account_root.join("SavedVariables");
+    if root_saved_variables.exists() {
+        archived_files += add_path_to_zip(
+            zip,
+            &root_saved_variables,
+            &Path::new("wtf/common/root").join("SavedVariables"),
+        )?;
+    }
+
     for entry in fs::read_dir(account_root)? {
         let entry = entry?;
         let account_dir = entry.path();
@@ -26,6 +35,9 @@ pub(super) fn add_common_wtf_to_zip(zip: &mut ZipWriter<File>, wtf_dir: &Path) -
         }
 
         let account_name = entry.file_name().to_string_lossy().to_string();
+        if account_name.eq_ignore_ascii_case("SavedVariables") {
+            continue;
+        }
         validate_plain_name("account", &account_name)?;
         for account_entry in fs::read_dir(&account_dir)? {
             let account_entry = account_entry?;

@@ -2,21 +2,32 @@ use std::path::Path;
 
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallRequest, AddonIndexInstallResult,
-    AddonIndexUpdateRequest, AddonIndexUpdateResult, inspect_addon_index, install_addon_from_index,
-    install_addon_from_index_task, update_addons_from_index, update_addons_from_index_task,
+    AddonIndexUpdateRequest, AddonIndexUpdateResult, inspect_addon_index,
+    install_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
 };
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 use crate::core::task::{
     CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun, run_task_with_callbacks,
     run_task_with_collected_progress,
 };
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AddonIndexService;
+#[derive(Debug, Clone, Default)]
+pub struct AddonIndexService {
+    runtime: AppRuntime,
+}
 
 impl AddonIndexService {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_runtime(runtime: AppRuntime) -> Self {
+        Self { runtime }
+    }
+
+    pub fn runtime(&self) -> &AppRuntime {
+        &self.runtime
     }
 
     pub fn inspect(&self, index_path: &Path) -> AppResult<AddonIndexInspection> {
@@ -24,7 +35,9 @@ impl AddonIndexService {
     }
 
     pub fn install(&self, request: AddonIndexInstallRequest) -> AppResult<AddonIndexInstallResult> {
-        install_addon_from_index(request)
+        let cancellation = crate::core::task::NeverCancel;
+        let mut progress = crate::core::task::NoopProgressSink;
+        self.install_task(request, &cancellation, &mut progress)
     }
 
     pub fn install_task<TCancel, TProgress>(
@@ -37,7 +50,12 @@ impl AddonIndexService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        install_addon_from_index_task(request, cancellation, progress)
+        install_addon_from_index_task_with_provider(
+            self.runtime.addon_provider(),
+            request,
+            cancellation,
+            progress,
+        )
     }
 
     pub fn install_collecting_progress(
@@ -65,7 +83,9 @@ impl AddonIndexService {
     }
 
     pub fn update(&self, request: AddonIndexUpdateRequest) -> AppResult<AddonIndexUpdateResult> {
-        update_addons_from_index(request)
+        let cancellation = crate::core::task::NeverCancel;
+        let mut progress = crate::core::task::NoopProgressSink;
+        self.update_task(request, &cancellation, &mut progress)
     }
 
     pub fn update_task<TCancel, TProgress>(
@@ -78,7 +98,12 @@ impl AddonIndexService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        update_addons_from_index_task(request, cancellation, progress)
+        update_addons_from_index_task_with_provider(
+            self.runtime.addon_provider(),
+            request,
+            cancellation,
+            progress,
+        )
     }
 
     pub fn update_collecting_progress(
@@ -110,15 +135,20 @@ impl AddonIndexService {
 mod tests {
     use std::fs;
     use std::io::Write;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use tempfile::tempdir;
     use zip::write::SimpleFileOptions;
     use zip::{CompressionMethod, ZipWriter};
 
     use super::*;
-    use crate::core::addon::InstallAddonRequest;
-    use crate::core::addon::install_addon;
+    use crate::core::addon::{
+        AddonProvider, AddonSearchRequest as ProviderAddonSearchRequest, AddonSearchResult,
+        AddonSourceRef, InstallAddonRequest, MaterializeSourceInputRequest,
+        MaterializeSourceRefRequest, MaterializedAddonSource, install_addon,
+    };
+    use crate::core::app::AppRuntime;
+    use crate::core::error::AppError;
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase};
 
@@ -187,6 +217,60 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
                 (TaskKind::AddonIndexInstall, TaskPhase::Executing),
                 (TaskKind::AddonIndexInstall, TaskPhase::Completed),
             ]
+        );
+    }
+
+    #[test]
+    fn addon_index_service_install_with_runtime_uses_injected_provider() {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_empty_installation(temp.path());
+        let archive_path = temp.path().join("WeakAuras-runtime.zip");
+        create_addon_archive(
+            &archive_path,
+            &[(
+                "WeakAuras/WeakAuras.toc",
+                "## Interface: 110000\n## Version: 1.0.0\n",
+            )],
+        );
+        let index_path = temp.path().join("addon-index.toml");
+        fs::write(
+            &index_path,
+            r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+version = "1.0.0"
+source = { kind = "http_archive", url = "https://example.invalid/WeakAuras.zip" }
+supported_flavors = ["retail"]
+"#,
+        )
+        .expect("write index");
+
+        let service =
+            AddonIndexService::with_runtime(AppRuntime::with_addon_provider(FakeAddonProvider {
+                archive_path: archive_path.clone(),
+            }));
+        let result = service
+            .install(AddonIndexInstallRequest {
+                installation,
+                index_path,
+                name: "weakauras".to_string(),
+                dry_run: false,
+                backup_output_path: Some(temp.path().join("backups")),
+                replace_existing: false,
+            })
+            .expect("install from index through injected provider");
+
+        assert_eq!(result.package.id, "weakauras");
+        assert_eq!(result.install.package_id, "weakauras");
+        assert_eq!(
+            result.install.source,
+            AddonSourceRef::HttpArchive {
+                url: "https://example.invalid/WeakAuras.zip".to_string(),
+            }
         );
     }
 
@@ -327,5 +411,51 @@ supported_flavors = ["retail"]
             zip.write_all(content.as_bytes()).expect("write file");
         }
         zip.finish().expect("finish zip");
+    }
+
+    #[derive(Clone)]
+    struct FakeAddonProvider {
+        archive_path: PathBuf,
+    }
+
+    impl AddonProvider for FakeAddonProvider {
+        fn materialize_source_input(
+            &self,
+            request: MaterializeSourceInputRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            Ok(MaterializedAddonSource {
+                source_ref: AddonSourceRef::HttpArchive {
+                    url: request.source.to_string(),
+                },
+                archive_path: self.archive_path.clone(),
+            })
+        }
+
+        fn materialize_source_ref(
+            &self,
+            request: MaterializeSourceRefRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            match request.source {
+                AddonSourceRef::HttpArchive { url }
+                    if url == "https://example.invalid/WeakAuras.zip" =>
+                {
+                    Ok(MaterializedAddonSource {
+                        source_ref: request.source.clone(),
+                        archive_path: self.archive_path.clone(),
+                    })
+                }
+                other => Err(AppError::Validation(format!(
+                    "unexpected addon source ref: {}",
+                    other.display_name()
+                ))),
+            }
+        }
+
+        fn search_addons(
+            &self,
+            _request: ProviderAddonSearchRequest<'_>,
+        ) -> AppResult<Vec<AddonSearchResult>> {
+            Ok(Vec::new())
+        }
     }
 }

@@ -89,6 +89,9 @@ impl<'a> EntryPlanningContext<'a> {
                 ApplyGroup::WtfCommon,
                 Some(WtfScope::GlobalConfig),
             )]),
+            BundleArchiveEntry::CommonRootSavedVariables { rest } => Ok(vec![
+                self.plan_root_saved_variables_entry(archive_name, &rest),
+            ]),
             BundleArchiveEntry::CommonAccountSavedVariables {
                 source_account,
                 rest,
@@ -182,6 +185,24 @@ impl<'a> EntryPlanningContext<'a> {
                 target_character: None,
             })
             .collect()
+    }
+
+    fn plan_root_saved_variables_entry(&self, archive_name: &str, rest: &[&str]) -> PlannedEntry {
+        PlannedEntry {
+            archive_name: archive_name.to_string(),
+            destination: self
+                .installation
+                .wtf_dir
+                .join("Account")
+                .join("SavedVariables")
+                .join(join_segments(Path::new(""), rest)),
+            rewrites: self.character_mappings.to_vec(),
+            group: ApplyGroup::WtfCommon,
+            wtf_scope: Some(WtfScope::RootSavedVariables),
+            target_account: None,
+            target_server: None,
+            target_character: None,
+        }
     }
 
     fn resolve_common_target_accounts(&self, source_account: &str) -> Vec<String> {

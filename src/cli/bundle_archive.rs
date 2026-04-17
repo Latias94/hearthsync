@@ -1,13 +1,14 @@
 use super::BundleCommands;
 use super::output::render;
-use crate::core::app::BundleService;
+use crate::core::app::HearthSyncApp;
 use crate::core::bundle::PackBundleRequest;
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::resolve_installation;
 use crate::core::manifest::load_manifest;
 
 pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands) -> AppResult<()> {
-    let service = BundleService::new();
+    let app = HearthSyncApp::new();
+    let service = app.bundles();
+    let installation_service = app.installations();
 
     match command {
         BundleCommands::Pack {
@@ -16,7 +17,7 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             manifest,
             output,
         } => {
-            let installation = resolve_installation(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
             let manifest_base_dir = manifest.parent().map(|path| path.to_path_buf());
             let manifest = load_manifest(&manifest)?;
             let bundle = service.pack(PackBundleRequest {

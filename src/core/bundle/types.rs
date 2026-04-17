@@ -142,6 +142,7 @@ pub enum ApplyGroup {
 #[serde(rename_all = "snake_case")]
 pub enum WtfScope {
     GlobalConfig,
+    RootSavedVariables,
     AccountRootFile,
     AccountSavedVariables,
     CharacterSavedVariables,

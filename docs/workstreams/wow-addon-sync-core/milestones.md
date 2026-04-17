@@ -44,6 +44,14 @@ Make the package consumable as a library before deeper internal refactors begin.
 - CLI still builds and behaves as before
 - core modules are reachable from the library boundary
 
+### Current Notes
+
+- `core::app::HearthSyncApp` is now the first explicit top-level API candidate for reusable
+  consumers; it owns one shared `AppRuntime` and produces the installation, addon, bundle,
+  external-package, backup, addon-index, and addon-lock services from that runtime
+- the first smoke coverage now asserts that `HearthSyncApp` hands the same runtime policy to all
+  app-facing services
+
 ## M2 - Task and Provider Contracts
 
 ### Status
@@ -71,6 +79,9 @@ Define stable long-running operation boundaries for CLI and future desktop reuse
 
 - bundle apply and external-package apply now emit per-operation `executing` progress events instead of only one coarse execution-phase event
 - cancellation during bundle and external-package execution now aborts inside the operation loop instead of waiting for the next phase boundary, and successful rollback preserves cancelled semantics instead of rewriting them as validation errors
+- addon install and addon-index install still expose a contract that looks cancellable while
+  provider-backed blocking HTTP download work cannot yet stop promptly once the request is in flight
+  and the default client still lacks explicit timeout policy
 
 ## M3 - Import Normalization and Restore Safety
 
@@ -136,6 +147,46 @@ Remove redundant normalization and repacking from direct external-package plan a
 - public bundle apply operations no longer leak rewrite-related execution detail such as per-entry `rewrite_applied` or `rewrite_count`, and public plan summaries no longer leak `files_to_rewrite`; execution-only rewrite state now stays internal while final apply results still report `rewritten_files`
 - direct external-package apply now reuses the same prepared-execution path as bundle apply instead of routing through a fake bundle apply entrypoint
 
+## M3.6 - Real-World Import Compatibility Hardening
+
+### Status
+
+In progress on 2026-04-17
+
+### Goal
+
+Close the gap between current normalized-import assumptions and real addon/WTF layouts while
+deleting duplicated compatibility code.
+
+### Deliverables
+
+- shared addon-root classifier reused by addon archive install and external-package analysis
+- tolerant addon-root detection for archives whose `.toc` file name differs from the directory name
+- deleted duplicate WTF scope and addon-root classification helpers where one shared rule is enough
+- documented and then implemented support for root-level `WTF/Account/SavedVariables`
+
+### Exit Criteria
+
+- a real-world addon archive is not rejected only because its `.toc` file name does not exactly
+  match the directory name
+- external-package analysis and addon archive install do not maintain separate addon-root
+  heuristics
+- root-level `WTF/Account/SavedVariables` is no longer silently dropped as unsupported import data
+
+### Current Notes
+
+- this is a bounded refactor slice inside the existing core workstream, not a new parallel
+  workstream
+- the first sub-slice now shares addon-root detection between addon archive install and
+  external-package analysis, accepts variant `.toc` naming, and deletes duplicate WTF scope
+  classification code before the broader WTF normalization gap is addressed
+- the second sub-slice now normalizes root-level `WTF/Account/SavedVariables` into the common
+  WTF model across first-party bundles, external-package analysis, planning, apply cleanup, and
+  Lua rewrite targeting, so this data is imported instead of being downgraded to warnings
+- the next sub-slice must reject normalized path sets that differ only by case when they would
+  collide on Windows or default macOS targets, because direct external-package apply and reusable
+  normalized-bundle export both need portable target-path semantics
+
 ## M4 - CLI Rewire onto Core Services
 
 ### Goal
@@ -163,6 +214,12 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - `core::app::BackupService` now exposes backup create, list, and restore, and backup restore now has a dedicated task kind plus collected-progress and callback-based entrypoints for future GUI-driven recovery flows
 - the CLI bundle-apply and addon-lock handlers now consume `BundleService` and `AddonLockService`, further reducing direct CLI-to-domain coupling
 - the CLI bundle-archive, bundle-addon, addon-manage, addon-index, and backup handlers now also consume `core::app` services instead of calling domain modules directly
+- `core::app` now also has a shared `AppRuntime` boundary with `with_runtime()` constructors on every service, and addon-related services no longer hide a hard-coded default addon provider behind their app-facing methods; callers can inject provider policy for search, install, index update, and lock apply flows
+- `AppRuntime` now also carries default host-platform, backup-directory, and bundle-output policy, and `BundleService`, `ExternalPackageService`, and `BackupService` normalize those defaults into explicit requests before crossing into bundle, external-package, or backup domain code
+- `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
+- CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
+  instead of instantiating unrelated service facades independently, and direct install discovery
+  helpers no longer remain part of the public library hot path
 
 ## M5 - Desktop Integration Readiness
 
@@ -181,3 +238,10 @@ Reach the point where an `egui` frontend can start without forcing another archi
 - frontend work can begin on top of existing core contracts
 - no binary-only assumptions remain on the critical path
 - direct external-package and bundle planning paths no longer depend on execution-shaped repacking
+
+### Current Notes
+
+- `core::app::HearthSyncApp` is the intended frontend root, but desktop-readiness is still blocked
+  by four correctness gaps: case-insensitive external-package path collisions, addon-index relative
+  local archive resolution, truthfully cancellable provider download behavior, and higher-confidence
+  account discovery for common WTF targeting

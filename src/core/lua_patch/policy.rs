@@ -171,6 +171,15 @@ fn classify_lua_rewrite_target(path: &Path) -> Option<LuaRewriteTarget> {
         return Some(LuaRewriteTarget { file_name });
     }
 
+    if segments.len() >= 5
+        && segments[segments.len() - 5] == "wtf"
+        && segments[segments.len() - 4] == "common"
+        && segments[segments.len() - 3] == "root"
+        && segments[segments.len() - 2] == "savedvariables"
+    {
+        return Some(LuaRewriteTarget { file_name });
+    }
+
     if segments.len() >= 7
         && segments[segments.len() - 7] == "wtf"
         && segments[segments.len() - 6] == "characters"

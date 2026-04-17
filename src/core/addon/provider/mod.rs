@@ -133,6 +133,19 @@ pub trait AddonProvider {
     fn search_addons(&self, request: AddonSearchRequest<'_>) -> AppResult<Vec<AddonSearchResult>>;
 }
 
+pub(crate) fn canonicalize_local_archive_path(path: &Path) -> AppResult<PathBuf> {
+    let resolved =
+        fs::canonicalize(path).map_err(|_| AppError::NotFound(path.display().to_string()))?;
+    if !resolved.is_file() {
+        return Err(AppError::Validation(format!(
+            "addon source must be a file archive: {}",
+            resolved.display()
+        )));
+    }
+
+    Ok(normalize_canonical_archive_path(resolved))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddonProviderRetryPolicy {
     pub max_attempts: u32,
@@ -290,13 +303,7 @@ fn materialize_source_input_impl(
         return materialize_source_ref_impl(http_client, &source_ref, stage_root, context, options);
     }
 
-    let path = fs::canonicalize(source).map_err(|_| AppError::NotFound(source.to_string()))?;
-    if !path.is_file() {
-        return Err(AppError::Validation(format!(
-            "addon source must be a file archive: {}",
-            path.display()
-        )));
-    }
+    let path = canonicalize_local_archive_path(Path::new(source))?;
 
     Ok(MaterializedAddonSource {
         source_ref: AddonSourceRef::LocalArchive { path: path.clone() },
@@ -519,4 +526,21 @@ fn retry_http<T>(max_attempts: u32, mut operation: impl FnMut() -> AppResult<T>)
             "addon provider retry policy must allow at least one attempt".to_string(),
         )
     }))
+}
+
+#[cfg(windows)]
+fn normalize_canonical_archive_path(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(stripped) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{}", stripped));
+    }
+    if let Some(stripped) = text.strip_prefix(r"\\?\") {
+        return PathBuf::from(stripped);
+    }
+    path
+}
+
+#[cfg(not(windows))]
+fn normalize_canonical_archive_path(path: PathBuf) -> PathBuf {
+    path
 }

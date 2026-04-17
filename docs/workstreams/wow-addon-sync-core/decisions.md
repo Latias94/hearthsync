@@ -143,3 +143,64 @@ critical path of public planning APIs unless no smaller boundary is practical.
 - future plan APIs stay responsive enough for dry-run and GUI preview use
 - execution preparation data should stay internal
 - source-specific execution helpers may still exist, but they should not define the public plan boundary
+
+## ADR-010: Real-World Import Compatibility Hardening Stays inside the Existing Core Workstream
+
+### Status
+
+Accepted on 2026-04-17
+
+### Decision
+
+Do not create a new parallel workstream for the current real-world addon and WTF compatibility
+cleanup. Record it as a bounded refactor slice inside `wow-addon-sync-core`, with CLI notes
+capturing only user-facing consequences.
+
+### Consequences
+
+- reusable architecture still has one source of truth
+- the refactor can delete duplicated compatibility code instead of creating another planning track
+- CLI documentation should describe delivery impact, not own the architecture decision
+
+## ADR-011: Frontends Enter the Product through `core::app`, not Domain Install Helpers
+
+### Status
+
+Accepted on 2026-04-17
+
+### Decision
+
+The first stable top-level reusable API surface is `core::app::HearthSyncApp`.
+CLI and future desktop code should obtain `InstallationService`, `BundleService`,
+`ExternalPackageService`, `AddonService`, `AddonIndexService`, `AddonLockService`, and
+`BackupService` from that shared app entrypoint instead of treating domain install helpers as
+frontend-facing public API.
+
+### Consequences
+
+- one shared `AppRuntime` becomes the canonical place for host-platform, install-scan, provider,
+  backup, and bundle-output policy
+- `core::install::{scan_installations, inspect_installation, resolve_installation}` can move to
+  crate-internal support status while `core::app::InstallationService` owns the frontend contract
+- future `egui` work can start from one explicit application root instead of a loose set of
+  unrelated façades
+
+## ADR-012: Portable Inputs Must Not Depend on Caller Working Directory or Case-Sensitive Targets
+
+### Status
+
+Accepted on 2026-04-17
+
+### Decision
+
+Normalized external-package inputs and addon-index local archive references must remain portable
+across the supported Windows and macOS product targets. Case-only path variants that would collide
+on case-insensitive targets are invalid, and addon-index relative local archive paths must resolve
+relative to the index file instead of the caller's process working directory.
+
+### Consequences
+
+- external-package normalization cannot rely on exact-string duplicate checks alone
+- reusable addon index workflows cannot route local archive portability through ambient process state
+- future GUI and CLI callers share one deterministic contract for portable author packages and
+  portable curated addon catalogs

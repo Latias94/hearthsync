@@ -2,10 +2,11 @@ use std::path::Path;
 
 use crate::core::addon::lock::{
     AddonLockApplyRequest, AddonLockApplyResult, AddonLockDiffResult, AddonLockInspection,
-    AddonLockPlanResult, AddonLockVerifyResult, AddonLockWriteResult, apply_addon_lock_sync,
-    apply_addon_lock_sync_task, diff_addon_locks, inspect_addon_lock, plan_addon_lock_sync,
-    verify_addon_lock, write_addon_lock,
+    AddonLockPlanResult, AddonLockVerifyResult, AddonLockWriteResult,
+    apply_addon_lock_sync_task_with_provider, diff_addon_locks, inspect_addon_lock,
+    plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
@@ -13,12 +14,22 @@ use crate::core::task::{
     run_task_with_collected_progress,
 };
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AddonLockService;
+#[derive(Debug, Clone, Default)]
+pub struct AddonLockService {
+    runtime: AppRuntime,
+}
 
 impl AddonLockService {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    pub fn with_runtime(runtime: AppRuntime) -> Self {
+        Self { runtime }
+    }
+
+    pub fn runtime(&self) -> &AppRuntime {
+        &self.runtime
     }
 
     pub fn inspect(
@@ -56,7 +67,9 @@ impl AddonLockService {
     }
 
     pub fn apply_sync(&self, request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
-        apply_addon_lock_sync(request)
+        let cancellation = crate::core::task::NeverCancel;
+        let mut progress = crate::core::task::NoopProgressSink;
+        self.apply_sync_task(request, &cancellation, &mut progress)
     }
 
     pub fn apply_sync_task<TCancel, TProgress>(
@@ -69,7 +82,12 @@ impl AddonLockService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        apply_addon_lock_sync_task(request, cancellation, progress)
+        apply_addon_lock_sync_task_with_provider(
+            self.runtime.addon_provider(),
+            request,
+            cancellation,
+            progress,
+        )
     }
 
     pub fn apply_sync_collecting_progress(

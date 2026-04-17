@@ -7,8 +7,7 @@ use std::path::Path;
 use tempfile::{TempDir, tempdir};
 
 use super::provider::{
-    AddonProvider, AddonProviderContext, DefaultAddonProvider, MaterializeSourceInputRequest,
-    MaterializeSourceRefRequest,
+    AddonProvider, AddonProviderContext, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
 };
 use super::{AddonSourceRef, PreparedAddonDirectory, PreparedAddonPackage, TrackedAddon};
 use crate::core::error::{AppError, AppResult};
@@ -18,21 +17,13 @@ use self::archive::extract_archive_addons;
 pub(crate) use self::inspect::find_primary_toc;
 use self::package_id::derive_package_id;
 
-pub(crate) fn prepare_package_from_source_input_with_flavor(
-    source: &str,
-    target_flavor: Option<WowFlavor>,
-) -> AppResult<PreparedAddonPackage> {
-    let provider = DefaultAddonProvider::default();
-    prepare_package_from_source_input_with_provider(&provider, source, target_flavor)
-}
-
 pub(crate) fn prepare_package_from_source_input_with_provider<P>(
     provider: &P,
     source: &str,
     target_flavor: Option<WowFlavor>,
 ) -> AppResult<PreparedAddonPackage>
 where
-    P: AddonProvider,
+    P: AddonProvider + ?Sized,
 {
     let stage_dir = tempdir()?;
     let materialized = provider.materialize_source_input(MaterializeSourceInputRequest {
@@ -47,21 +38,13 @@ where
     )
 }
 
-pub(crate) fn prepare_package_from_source_ref_with_flavor(
-    source: &AddonSourceRef,
-    target_flavor: Option<WowFlavor>,
-) -> AppResult<PreparedAddonPackage> {
-    let provider = DefaultAddonProvider::default();
-    prepare_package_from_source_ref_with_provider(&provider, source, target_flavor)
-}
-
 pub(crate) fn prepare_package_from_source_ref_with_provider<P>(
     provider: &P,
     source: &AddonSourceRef,
     target_flavor: Option<WowFlavor>,
 ) -> AppResult<PreparedAddonPackage>
 where
-    P: AddonProvider,
+    P: AddonProvider + ?Sized,
 {
     let stage_dir = tempdir()?;
     let materialized = provider.materialize_source_ref(MaterializeSourceRefRequest {

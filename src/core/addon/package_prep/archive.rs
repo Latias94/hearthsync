@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
 
+use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::error::{AppError, AppResult};
 
@@ -69,7 +70,8 @@ pub(super) fn extract_archive_addons(
 }
 
 fn discover_archive_addon_roots(archive: &mut ZipArchive<File>) -> AppResult<Vec<Vec<String>>> {
-    let mut roots = Vec::new();
+    let mut entry_segments = Vec::new();
+
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
         if entry.is_dir() {
@@ -77,41 +79,20 @@ fn discover_archive_addon_roots(archive: &mut ZipArchive<File>) -> AppResult<Vec
         }
 
         let entry_name = entry.name().to_string();
-        let segments = safe_zip_segments(&entry_name)?;
-        if segments.len() < 2 {
-            continue;
-        }
-
-        let file_name = segments
-            .last()
-            .copied()
-            .ok_or_else(|| AppError::Validation("invalid archive entry".to_string()))?;
-        if !file_name.ends_with(".toc") {
-            continue;
-        }
-
-        let Some(file_stem) = Path::new(file_name)
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-        else {
-            continue;
-        };
-        let parent_name = segments[segments.len() - 2];
-        if file_stem != parent_name {
-            continue;
-        }
-
-        let root = segments[..segments.len() - 1]
-            .iter()
-            .map(|segment| (*segment).to_string())
+        let segments = safe_zip_segments(&entry_name)?
+            .into_iter()
+            .map(|segment| segment.to_string())
             .collect::<Vec<_>>();
-        if !roots.contains(&root) {
-            roots.push(root);
+        if segments.is_empty() {
+            continue;
         }
+
+        entry_segments.push(segments);
     }
 
-    roots.sort_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
-    Ok(roots)
+    Ok(discover_addon_roots_from_entry_segments(
+        entry_segments.iter().map(|segments| segments.as_slice()),
+    ))
 }
 
 fn match_addon_root(segments: &[&str], roots: &[Vec<String>]) -> Option<usize> {

@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use super::package_prep::prepare_package_from_source_input_with_flavor;
 use super::*;
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
@@ -20,7 +19,7 @@ pub(crate) struct InstallPreparedAddonRequest {
     pub(crate) metadata: Option<AddonPackageMetadata>,
 }
 
-struct InstallAddonExecutionPlan {
+pub(crate) struct InstallAddonExecutionPlan {
     installation: DetectedFlavorInstallation,
     prepared: PreparedAddonPackage,
     dry_run: bool,
@@ -66,6 +65,21 @@ where
     TCancel: CancellationToken,
     TProgress: TaskProgressSink,
 {
+    let provider = DefaultAddonProvider::default();
+    install_addon_task_with_provider(&provider, request, cancellation, progress)
+}
+
+pub(crate) fn install_addon_task_with_provider<TCancel, TProgress, P>(
+    provider: &P,
+    request: InstallAddonRequest,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<InstalledAddonPackageResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+    P: AddonProvider + ?Sized,
+{
     emit_task_progress(
         progress,
         TaskKind::AddonInstall,
@@ -78,7 +92,19 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonInstall, TaskPhase::Preparing)?;
 
-    let plan = prepare_install_addon(request)?;
+    let plan = prepare_install_addon_with_provider(provider, request)?;
+    execute_install_plan_task(plan, cancellation, progress)
+}
+
+pub(crate) fn execute_install_plan_task<TCancel, TProgress>(
+    plan: InstallAddonExecutionPlan,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<InstalledAddonPackageResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
     if plan.dry_run {
         let result = dry_run_install_result(plan);
         emit_task_progress(
@@ -146,6 +172,21 @@ where
     TCancel: CancellationToken,
     TProgress: TaskProgressSink,
 {
+    let provider = DefaultAddonProvider::default();
+    update_addons_task_with_provider(&provider, request, cancellation, progress)
+}
+
+pub(crate) fn update_addons_task_with_provider<TCancel, TProgress, P>(
+    provider: &P,
+    request: UpdateAddonRequest,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<UpdatedAddonPackageResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+    P: AddonProvider + ?Sized,
+{
     emit_task_progress(
         progress,
         TaskKind::AddonUpdate,
@@ -157,7 +198,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonUpdate, TaskPhase::Preparing)?;
 
-    let plan = prepare_update_addons(request)?;
+    let plan = prepare_update_addons_with_provider(provider, request)?;
     if plan.dry_run {
         let result = dry_run_update_result(plan);
         emit_task_progress(
@@ -288,8 +329,15 @@ where
     Ok(result)
 }
 
-fn prepare_install_addon(request: InstallAddonRequest) -> AppResult<InstallAddonExecutionPlan> {
-    let prepared = prepare_package_from_source_input_with_flavor(
+fn prepare_install_addon_with_provider<P>(
+    provider: &P,
+    request: InstallAddonRequest,
+) -> AppResult<InstallAddonExecutionPlan>
+where
+    P: AddonProvider + ?Sized,
+{
+    let prepared = prepare_package_from_source_input_with_provider(
+        provider,
         &request.source,
         Some(request.installation.flavor),
     )?;
@@ -303,7 +351,7 @@ fn prepare_install_addon(request: InstallAddonRequest) -> AppResult<InstallAddon
     })
 }
 
-fn prepare_install_prepared_addon(
+pub(crate) fn prepare_install_prepared_addon(
     request: InstallPreparedAddonRequest,
 ) -> AppResult<InstallAddonExecutionPlan> {
     let registry_path = registry_path(&request.installation);
@@ -406,7 +454,13 @@ fn execute_install_plan(
     }
 }
 
-fn prepare_update_addons(request: UpdateAddonRequest) -> AppResult<UpdateAddonsExecutionPlan> {
+fn prepare_update_addons_with_provider<P>(
+    provider: &P,
+    request: UpdateAddonRequest,
+) -> AppResult<UpdateAddonsExecutionPlan>
+where
+    P: AddonProvider + ?Sized,
+{
     let registry_path = registry_path(&request.installation);
     let registry = load_registry(&request.installation)?;
     if registry.packages.is_empty() {
@@ -418,7 +472,8 @@ fn prepare_update_addons(request: UpdateAddonRequest) -> AppResult<UpdateAddonsE
     let selected_packages = select_packages_for_update(&registry, request.name.as_deref())?;
     let mut prepared_packages = Vec::new();
     for package in &selected_packages {
-        prepared_packages.push(prepare_package_from_source_ref_with_flavor(
+        prepared_packages.push(prepare_package_from_source_ref_with_provider(
+            provider,
             &package.source,
             Some(request.installation.flavor),
         )?);

@@ -168,6 +168,11 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 - A local scan of 400 retail `SavedVariables` Lua files found no UTF-16 BOM samples, no high-NUL text payloads, and one invalid UTF-8 file (`Auctionator.lua`).
 - Lua rewrite now requires either explicit content markers such as `profileKeys` / `realm` or a small known-file rule set such as `MeetingStone.lua`.
 - A targeted local scan also found `EventsTracker.lua` and `SavedInstances.lua` storing quoted character-realm keys without those generic markers, so they stay on the explicit rule list.
+- this does not justify a new workstream; the next bounded slice stays in the existing core/CLI sync-hardening track
+- the next bounded slice starts with shared addon-root detection for real-world archives whose `.toc` file name differs from the directory name, then continues into root-level `WTF/Account/SavedVariables` import support
+- the next blocking slice after that is portable path semantics: external-package path sets that only
+  differ by case must not survive into apply on Windows/default macOS targets, and addon-index local
+  archives must not depend on the caller running from the index directory
 
 ## M4 - Configuration Sync Engine
 
@@ -261,3 +266,12 @@ Prepare the core for a future frontend.
 - progress and result models are suitable for a future frontend
 - CLI can run tasks synchronously while a future frontend can run the same task model on worker threads
 - M3.5 sync semantics hardening is complete before frontend implementation begins
+
+### Current Notes
+
+- CLI handlers that need shared runtime policy now construct services from `core::app::HearthSyncApp`
+  instead of instantiating unrelated service facades independently
+- install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
+  `core::app::InstallationService`, not the old direct domain helpers
+- frontend stabilization is still gated by portable addon-index/external-package path behavior and
+  provider download cancellation semantics, not only by the existence of app-facing service types
