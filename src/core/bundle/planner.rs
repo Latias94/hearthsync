@@ -197,20 +197,15 @@ where
         rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
     };
     let mut execution_operations = Vec::new();
-    let mut summary = ApplyPlanSummary::default();
 
     for cleanup in cleanup_operations {
-        summary.paths_to_remove += 1;
         execution_operations.push(PreparedApplyOperation::from_cleanup(cleanup));
     }
 
     for entry_operation in &entry_operations {
         let entry = &entry_operation.entry;
         let (action, rewrite_applied, source_path) = match entry_operation.disposition {
-            LogicalEntryDisposition::Preserve => {
-                summary.files_to_preserve += 1;
-                (ApplyAction::Preserve, false, None)
-            }
+            LogicalEntryDisposition::Preserve => (ApplyAction::Preserve, false, None),
             LogicalEntryDisposition::Materialize { will_cleanup } => {
                 let source_bytes = read_entry_bytes(&entry.archive_name)?;
                 let rewritten_bytes = preview_lua_bytes_rewrite(
@@ -221,16 +216,13 @@ where
                 )?;
                 let rewrite_applied = rewritten_bytes.is_some();
                 let action = if will_cleanup || !entry.destination.exists() {
-                    summary.files_to_add += 1;
                     ApplyAction::Add
                 } else if rewritten_bytes.as_deref().map_or_else(
                     || file_contents_equal_to_bytes(&source_bytes, &entry.destination),
                     |bytes| file_contents_equal_to_bytes(bytes, &entry.destination),
                 )? {
-                    summary.files_to_skip += 1;
                     ApplyAction::Skip
                 } else {
-                    summary.files_to_replace += 1;
                     ApplyAction::Replace
                 };
 
@@ -267,6 +259,7 @@ where
         .iter()
         .map(PreparedApplyOperation::preview)
         .collect::<Vec<_>>();
+    let summary = ApplyPlanSummary::from_operations(&operations);
 
     Ok(PreparedBundleApply {
         source: apply_source,

@@ -97,6 +97,24 @@ pub struct ApplyPlanSummary {
     pub files_to_preserve: usize,
 }
 
+impl ApplyPlanSummary {
+    pub(crate) fn from_operations(operations: &[ApplyOperation]) -> Self {
+        let mut summary = Self::default();
+
+        for operation in operations {
+            match operation.action {
+                ApplyAction::Remove => summary.paths_to_remove += 1,
+                ApplyAction::Add => summary.files_to_add += 1,
+                ApplyAction::Replace => summary.files_to_replace += 1,
+                ApplyAction::Skip => summary.files_to_skip += 1,
+                ApplyAction::Preserve => summary.files_to_preserve += 1,
+            }
+        }
+
+        summary
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
