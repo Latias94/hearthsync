@@ -1,14 +1,14 @@
-use std::path::Path;
-
 use crate::core::addon::lock::{
     AddonLockApplyRequest, AddonLockApplyResult, AddonLockDiffResult, AddonLockInspection,
     AddonLockPlanResult, AddonLockVerifyResult, AddonLockWriteResult,
     apply_addon_lock_sync_task_with_provider, diff_addon_locks, inspect_addon_lock,
     plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
-use crate::core::app::{AppRuntime, task_support};
+use crate::core::app::{
+    AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest, PlanAddonLockSyncRequest,
+    VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
+};
 use crate::core::error::AppResult;
-use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
@@ -29,38 +29,24 @@ impl AddonLockService {
         &self.runtime
     }
 
-    pub fn inspect(
-        &self,
-        installation: &DetectedFlavorInstallation,
-    ) -> AppResult<AddonLockInspection> {
-        inspect_addon_lock(installation)
+    pub fn inspect(&self, request: InspectAddonLockRequest) -> AppResult<AddonLockInspection> {
+        inspect_addon_lock(&request.installation)
     }
 
-    pub fn write(
-        &self,
-        installation: &DetectedFlavorInstallation,
-    ) -> AppResult<AddonLockWriteResult> {
-        write_addon_lock(installation)
+    pub fn write(&self, request: WriteAddonLockRequest) -> AppResult<AddonLockWriteResult> {
+        write_addon_lock(&request.installation)
     }
 
-    pub fn diff(&self, left: &Path, right: &Path) -> AppResult<AddonLockDiffResult> {
-        diff_addon_locks(left, right)
+    pub fn diff(&self, request: DiffAddonLockRequest) -> AppResult<AddonLockDiffResult> {
+        diff_addon_locks(&request.left_lock_path, &request.right_lock_path)
     }
 
-    pub fn verify(
-        &self,
-        installation: &DetectedFlavorInstallation,
-        lock_path: Option<&Path>,
-    ) -> AppResult<AddonLockVerifyResult> {
-        verify_addon_lock(installation, lock_path)
+    pub fn verify(&self, request: VerifyAddonLockRequest) -> AppResult<AddonLockVerifyResult> {
+        verify_addon_lock(&request.installation, request.lock_path.as_deref())
     }
 
-    pub fn plan_sync(
-        &self,
-        installation: &DetectedFlavorInstallation,
-        lock_path: Option<&Path>,
-    ) -> AppResult<AddonLockPlanResult> {
-        plan_addon_lock_sync(installation, lock_path)
+    pub fn plan_sync(&self, request: PlanAddonLockSyncRequest) -> AppResult<AddonLockPlanResult> {
+        plan_addon_lock_sync(&request.installation, request.lock_path.as_deref())
     }
 
     pub fn apply_sync(&self, request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
@@ -121,7 +107,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::install::{HostPlatform, WowFlavor};
+    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase};
 
     #[test]
@@ -132,7 +118,10 @@ mod tests {
 
         let service = AddonLockService::new();
         let plan = service
-            .plan_sync(&current, Some(&lock_path))
+            .plan_sync(PlanAddonLockSyncRequest {
+                installation: current,
+                lock_path: Some(lock_path),
+            })
             .expect("plan addon lock");
 
         assert_eq!(plan.install_count, 0);

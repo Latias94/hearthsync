@@ -1,12 +1,10 @@
-use std::path::Path;
-
 use crate::core::error::AppResult;
 use crate::core::install::{
-    DetectedFlavorInstallation, ProductInstallInspection, WowFlavor, inspect_installation_on_host,
+    DetectedFlavorInstallation, ProductInstallInspection, inspect_installation_on_host,
     resolve_installation_on_host, scan_installations_for_host, scan_installations_with_roots,
 };
 
-use super::AppRuntime;
+use super::{AppRuntime, InspectInstallationRequest, ResolveInstallationRequest};
 
 #[derive(Debug, Clone, Default)]
 pub struct InstallationService {
@@ -35,18 +33,16 @@ impl InstallationService {
 
     pub fn inspect(
         &self,
-        path: &Path,
-        flavor: Option<WowFlavor>,
+        request: InspectInstallationRequest,
     ) -> AppResult<ProductInstallInspection> {
-        inspect_installation_on_host(path, flavor, self.runtime.host_platform())
+        inspect_installation_on_host(&request.path, request.flavor, self.runtime.host_platform())
     }
 
     pub fn resolve(
         &self,
-        path: &Path,
-        flavor: Option<WowFlavor>,
+        request: ResolveInstallationRequest,
     ) -> AppResult<DetectedFlavorInstallation> {
-        resolve_installation_on_host(path, flavor, self.runtime.host_platform())
+        resolve_installation_on_host(&request.path, request.flavor, self.runtime.host_platform())
     }
 }
 
@@ -99,10 +95,16 @@ mod tests {
             AppRuntime::new().with_host_platform(HostPlatform::MacOs),
         );
         let inspection = service
-            .inspect(&product_root, Some(WowFlavor::Retail))
+            .inspect(InspectInstallationRequest {
+                path: product_root.clone(),
+                flavor: Some(WowFlavor::Retail),
+            })
             .expect("inspect");
         let resolved = service
-            .resolve(&product_root, Some(WowFlavor::Retail))
+            .resolve(ResolveInstallationRequest {
+                path: product_root,
+                flavor: Some(WowFlavor::Retail),
+            })
             .expect("resolve");
 
         assert_eq!(inspection.installation.platform, HostPlatform::MacOs);

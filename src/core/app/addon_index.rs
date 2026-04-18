@@ -1,11 +1,9 @@
-use std::path::Path;
-
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallRequest, AddonIndexInstallResult,
     AddonIndexUpdateRequest, AddonIndexUpdateResult, inspect_addon_index,
     install_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
 };
-use crate::core::app::{AppRuntime, task_support};
+use crate::core::app::{AppRuntime, InspectAddonIndexRequest, task_support};
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
@@ -27,8 +25,8 @@ impl AddonIndexService {
         &self.runtime
     }
 
-    pub fn inspect(&self, index_path: &Path) -> AppResult<AddonIndexInspection> {
-        inspect_addon_index(index_path)
+    pub fn inspect(&self, request: InspectAddonIndexRequest) -> AppResult<AddonIndexInspection> {
+        inspect_addon_index(&request.index_path)
     }
 
     pub fn install(&self, request: AddonIndexInstallRequest) -> AppResult<AddonIndexInstallResult> {
@@ -169,7 +167,9 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
         .expect("write index");
 
         let service = AddonIndexService::new();
-        let inspection = service.inspect(&index_path).expect("inspect addon index");
+        let inspection = service
+            .inspect(InspectAddonIndexRequest { index_path })
+            .expect("inspect addon index");
 
         assert_eq!(inspection.package_count, 1);
         assert_eq!(inspection.index.name, "Fixture Index");

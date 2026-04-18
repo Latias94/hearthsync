@@ -1,7 +1,7 @@
 use super::AddonIndexCommands;
 use super::output::render;
 use crate::core::addon::index::{AddonIndexInstallRequest, AddonIndexUpdateRequest};
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{HearthSyncApp, InspectAddonIndexRequest, ResolveInstallationRequest};
 use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands) -> AppResult<()> {
@@ -11,7 +11,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
 
     match command {
         AddonIndexCommands::Inspect { file } => {
-            let inspection = service.inspect(&file)?;
+            let inspection = service.inspect(InspectAddonIndexRequest { index_path: file })?;
             render(json, &inspection, |item| {
                 let packages = item
                     .index
@@ -49,7 +49,10 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let result = service.install(AddonIndexInstallRequest {
                 installation,
                 index_path: file,
@@ -103,7 +106,10 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             dry_run,
             backup_output,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let result = service.update(AddonIndexUpdateRequest {
                 installation,
                 index_path: file,

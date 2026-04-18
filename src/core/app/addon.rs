@@ -4,9 +4,8 @@ use crate::core::addon::{
     UpdatedAddonPackageResult, install_addon_task_with_provider, list_addons, remove_addons_task,
     search_addons_with_provider, update_addons_task_with_provider,
 };
-use crate::core::app::{AppRuntime, task_support};
+use crate::core::app::{AppRuntime, ListAddonsRequest, task_support};
 use crate::core::error::AppResult;
-use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
@@ -31,8 +30,8 @@ impl AddonService {
         search_addons_with_provider(self.runtime.addon_provider(), request)
     }
 
-    pub fn list(&self, installation: &DetectedFlavorInstallation) -> AppResult<AddonInventory> {
-        list_addons(installation)
+    pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventory> {
+        list_addons(&request.installation)
     }
 
     pub fn install(&self, request: InstallAddonRequest) -> AppResult<InstalledAddonPackageResult> {
@@ -223,7 +222,9 @@ mod tests {
                 metadata: None,
             })
             .expect("install addon");
-        let inventory = service.list(&installation).expect("list addons");
+        let inventory = service
+            .list(ListAddonsRequest { installation })
+            .expect("list addons");
 
         assert_eq!(installed.package_id, "weakauras");
         assert_eq!(inventory.tracked_packages.len(), 1);
@@ -290,7 +291,9 @@ mod tests {
                 metadata: None,
             })
             .expect("install addon through injected provider");
-        let inventory = service.list(&installation).expect("list addons");
+        let inventory = service
+            .list(ListAddonsRequest { installation })
+            .expect("list addons");
 
         assert_eq!(installed.package_id, "weakauras");
         assert_eq!(inventory.tracked_packages.len(), 1);

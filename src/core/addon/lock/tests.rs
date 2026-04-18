@@ -442,9 +442,11 @@ fn apply_addon_lock_sync_task_reports_progress() {
     assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::Planning)));
     assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::BackingUp)));
     assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::Verifying)));
-    assert!(phases.iter().any(|phase| {
-        *phase == (TaskKind::AddonLockApply, TaskPhase::Executing)
-    }));
+    assert!(
+        phases
+            .iter()
+            .any(|phase| { *phase == (TaskKind::AddonLockApply, TaskPhase::Executing) })
+    );
     assert!(progress.events().iter().any(|event| {
         event.task == TaskKind::AddonLockApply
             && event.phase == TaskPhase::Executing

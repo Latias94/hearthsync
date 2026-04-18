@@ -1,7 +1,10 @@
 use super::AddonLockCommands;
 use super::output::{render, render_addon_lock_plan_summary};
 use crate::core::addon::lock::AddonLockApplyRequest;
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{
+    DiffAddonLockRequest, HearthSyncApp, InspectAddonLockRequest, PlanAddonLockSyncRequest,
+    ResolveInstallationRequest, VerifyAddonLockRequest, WriteAddonLockRequest,
+};
 use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) -> AppResult<()> {
@@ -11,8 +14,11 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
 
     match command {
         AddonLockCommands::Inspect { install, flavor } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
-            let inspection = service.inspect(&installation)?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
+            let inspection = service.inspect(InspectAddonLockRequest { installation })?;
             render(json, &inspection, |item| {
                 let packages = item
                     .lock
@@ -43,8 +49,11 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             })?;
         }
         AddonLockCommands::Write { install, flavor } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
-            let result = service.write(&installation)?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
+            let result = service.write(WriteAddonLockRequest { installation })?;
             render(json, &result, |item| {
                 if item.removed {
                     format!(
@@ -64,7 +73,10 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             left_file,
             right_file,
         } => {
-            let result = service.diff(&left_file, &right_file)?;
+            let result = service.diff(DiffAddonLockRequest {
+                left_lock_path: left_file,
+                right_lock_path: right_file,
+            })?;
             render(json, &result, |item| {
                 let mut lines = vec![
                     format!("Left: {}", item.left_label),
@@ -132,8 +144,14 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             flavor,
             file,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
-            let result = service.verify(&installation, file.as_deref())?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
+            let result = service.verify(VerifyAddonLockRequest {
+                installation,
+                lock_path: file,
+            })?;
             render(json, &result, |item| {
                 let mut lines = vec![
                     format!("Lock: {}", item.lock_path.display()),
@@ -221,8 +239,14 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             flavor,
             file,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
-            let result = service.plan_sync(&installation, file.as_deref())?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
+            let result = service.plan_sync(PlanAddonLockSyncRequest {
+                installation,
+                lock_path: file,
+            })?;
             render(json, &result, |item| {
                 render_addon_lock_plan_summary(&format!("Lock: {}", item.lock_path.display()), item)
             })?;
@@ -234,7 +258,10 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let result = service.apply_sync(AddonLockApplyRequest {
                 installation,
                 lock_path: file,

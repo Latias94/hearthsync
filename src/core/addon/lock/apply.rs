@@ -106,8 +106,7 @@ where
         request.replace_existing,
         cancellation,
         progress,
-    )
-    {
+    ) {
         return rollback_or_report_addon_error(
             error,
             backup_path.as_deref(),

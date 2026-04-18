@@ -1,7 +1,7 @@
 use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
 use super::output::render;
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{HearthSyncApp, ResolveInstallationRequest};
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
     ExternalPackageSummary, ExternalPackageWarning,
@@ -86,7 +86,10 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,
@@ -158,7 +161,10 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,

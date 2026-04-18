@@ -247,3 +247,23 @@ should reuse one shared wrapper helper instead of each façade manually reconstr
   service-specific wrapper behavior
 - the next refactor slices should target real service-contract semantics rather than preserving
   duplicated façade plumbing
+
+## ADR-015: App Read and Plan APIs Use Owned Request Contracts
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+`core::app` read-oriented and planning-oriented service APIs should accept explicit owned request
+structs instead of exposing service-specific mixes of borrowed paths, optional references, and
+positional parameters.
+
+### Consequences
+
+- CLI and future GUI code depend on one stable app-facing input shape per operation
+- runtime policy injection and app-level defaults can evolve without leaking more positional
+  arguments into frontend callers
+- the app boundary moves closer to a real service contract and further away from a thin forwarding
+  façade over domain helpers

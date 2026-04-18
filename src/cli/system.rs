@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::output::render;
 use super::{FlavorArg, ManifestCommands};
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{HearthSyncApp, InspectInstallationRequest};
 use crate::core::error::AppResult;
 use crate::core::manifest::{example_manifest, load_manifest};
 
@@ -32,7 +32,10 @@ pub(super) fn handle_inspect(
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
     let service = HearthSyncApp::new().installations();
-    let inspection = service.inspect(&install, flavor.map(Into::into))?;
+    let inspection = service.inspect(InspectInstallationRequest {
+        path: install,
+        flavor: flavor.map(Into::into),
+    })?;
     render(json, &inspection, |item| {
         format!(
             "Flavor: {}\nProduct root: {}\nFlavor root: {}\nAddOns: {}\nWTF: {}\nFonts: {}\nHealth: {}",
@@ -53,7 +56,10 @@ pub(super) fn handle_doctor(
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
     let service = HearthSyncApp::new().installations();
-    let inspection = service.inspect(&install, flavor.map(Into::into))?;
+    let inspection = service.inspect(InspectInstallationRequest {
+        path: install,
+        flavor: flavor.map(Into::into),
+    })?;
     render(json, &inspection.health, |health| health.to_report())
 }
 

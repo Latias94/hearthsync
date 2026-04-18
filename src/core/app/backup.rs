@@ -1,5 +1,4 @@
-use std::path::Path;
-
+use crate::core::app::ListBackupsRequest;
 use crate::core::app::{AppRuntime, task_support};
 use crate::core::backup::{
     BackupCatalog, BackupRequest, CreatedBackup, RestoreBackupRequest, RestoredBackup,
@@ -30,8 +29,9 @@ impl BackupService {
         create_backup(self.normalize_backup_request(request))
     }
 
-    pub fn list(&self, backup_dir: Option<&Path>) -> AppResult<BackupCatalog> {
-        list_backups(backup_dir.or_else(|| self.runtime.default_backup_dir()))
+    pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalog> {
+        let backup_dir = self.runtime.backup_dir_or_default(request.backup_dir);
+        list_backups(backup_dir.as_deref())
     }
 
     pub fn restore(&self, request: RestoreBackupRequest) -> AppResult<RestoredBackup> {
@@ -230,7 +230,9 @@ mod tests {
                 label: Some("runtime-default".to_string()),
             })
             .expect("create backup");
-        let catalog = service.list(None).expect("list backups");
+        let catalog = service
+            .list(ListBackupsRequest { backup_dir: None })
+            .expect("list backups");
 
         fs::write(
             installation

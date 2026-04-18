@@ -1,6 +1,6 @@
 use super::BundleCommands;
 use super::output::{render, render_addon_lock_plan_summary};
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{HearthSyncApp, PlanBundleAddonLockRequest, ResolveInstallationRequest};
 use crate::core::bundle::BundleAddonLockApplyRequest;
 use crate::core::error::{AppError, AppResult};
 
@@ -15,8 +15,14 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             install,
             flavor,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
-            let result = service.plan_addon_lock(&bundle, &installation)?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
+            let result = service.plan_addon_lock(PlanBundleAddonLockRequest {
+                bundle_path: bundle,
+                installation,
+            })?;
             render(json, &result, |item| {
                 render_addon_lock_plan_summary(
                     &format!("Bundle: {}", item.bundle_path.display()),
@@ -31,7 +37,10 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let result = service.apply_addon_lock(BundleAddonLockApplyRequest {
                 bundle_path: bundle,
                 installation,

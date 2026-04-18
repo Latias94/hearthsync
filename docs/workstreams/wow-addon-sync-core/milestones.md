@@ -228,6 +228,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - the same runtime boundary now also exposes shared default-injection helpers for backup paths,
   bundle output paths, and source-platform defaults, so app services stop re-encoding the same
   missing-value policy locally
+- app-facing inspect, resolve, list, and planning APIs now also use explicit owned request
+  contracts instead of mixing borrowed paths, optional references, and positional parameters across
+  services
 - `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery

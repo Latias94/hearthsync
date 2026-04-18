@@ -1,7 +1,7 @@
 use super::BundleCommands;
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{HearthSyncApp, PlanBundleApplyRequest, ResolveInstallationRequest};
 use crate::core::bundle::{BundleApplyMappings, UnpackBundleRequest, load_apply_mappings};
 use crate::core::error::{AppError, AppResult};
 
@@ -22,7 +22,10 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,
@@ -31,7 +34,11 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan = service.plan_apply(&bundle, &installation, &apply_mappings)?;
+            let plan = service.plan_apply(PlanBundleApplyRequest {
+                bundle_path: bundle,
+                installation,
+                apply_mappings,
+            })?;
             render(json, &plan, |item| {
                 let accounts = if item.discovered_accounts.is_empty() {
                     "none".to_string()
@@ -85,7 +92,10 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,

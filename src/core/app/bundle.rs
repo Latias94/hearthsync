@@ -1,14 +1,12 @@
-use std::path::Path;
-
 use crate::core::app::{AppRuntime, task_support};
+use crate::core::app::{InspectBundleRequest, PlanBundleAddonLockRequest, PlanBundleApplyRequest};
 use crate::core::bundle::{
-    BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,
-    BundleApplyPlan, BundleInspection, CreatedBundle, PackBundleRequest, UnpackBundleRequest,
-    UnpackedBundle, apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
+    BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyPlan,
+    BundleInspection, CreatedBundle, PackBundleRequest, UnpackBundleRequest, UnpackedBundle,
+    apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
     plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
-use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
@@ -29,21 +27,20 @@ impl BundleService {
         &self.runtime
     }
 
-    pub fn inspect(&self, bundle_path: &Path) -> AppResult<BundleInspection> {
-        inspect_bundle(bundle_path)
+    pub fn inspect(&self, request: InspectBundleRequest) -> AppResult<BundleInspection> {
+        inspect_bundle(&request.bundle_path)
     }
 
     pub fn pack(&self, request: PackBundleRequest) -> AppResult<CreatedBundle> {
         pack_bundle(self.normalize_pack_request(request))
     }
 
-    pub fn plan_apply(
-        &self,
-        bundle_path: &Path,
-        installation: &DetectedFlavorInstallation,
-        apply_mappings: &BundleApplyMappings,
-    ) -> AppResult<BundleApplyPlan> {
-        plan_bundle_apply(bundle_path, installation, apply_mappings)
+    pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlan> {
+        plan_bundle_apply(
+            &request.bundle_path,
+            &request.installation,
+            &request.apply_mappings,
+        )
     }
 
     pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
@@ -54,10 +51,9 @@ impl BundleService {
 
     pub fn plan_addon_lock(
         &self,
-        bundle_path: &Path,
-        installation: &DetectedFlavorInstallation,
+        request: PlanBundleAddonLockRequest,
     ) -> AppResult<BundleAddonLockPlan> {
-        plan_bundle_addon_lock(bundle_path, installation)
+        plan_bundle_addon_lock(&request.bundle_path, &request.installation)
     }
 
     pub fn apply_addon_lock(
@@ -140,7 +136,8 @@ mod tests {
 
     use super::*;
     use crate::core::app::AppRuntime;
-    use crate::core::install::{HostPlatform, WowFlavor};
+    use crate::core::bundle::BundleApplyMappings;
+    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::manifest::{
         ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, MappingRules,
         PackageMetadata, ResourceApplyPolicy, SourceInstallation,
@@ -166,11 +163,11 @@ mod tests {
             .expect("pack bundle");
 
         let plan = service
-            .plan_apply(
-                &bundle_path,
-                &target_installation,
-                &BundleApplyMappings::default(),
-            )
+            .plan_apply(PlanBundleApplyRequest {
+                bundle_path: bundle_path.clone(),
+                installation: target_installation,
+                apply_mappings: BundleApplyMappings::default(),
+            })
             .expect("plan bundle apply");
 
         assert_eq!(plan.bundle_path, bundle_path);

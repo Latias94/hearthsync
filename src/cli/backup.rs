@@ -1,6 +1,6 @@
 use super::BackupCommands;
 use super::output::render;
-use crate::core::app::HearthSyncApp;
+use crate::core::app::{HearthSyncApp, ListBackupsRequest, ResolveInstallationRequest};
 use crate::core::backup::{BackupGroup, BackupRequest, RestoreBackupRequest};
 use crate::core::error::AppResult;
 
@@ -15,7 +15,10 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             flavor,
             output,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let backup = service.create(BackupRequest {
                 installation,
                 output_path: output,
@@ -42,7 +45,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             })?;
         }
         BackupCommands::List { dir } => {
-            let backups = service.list(dir.as_deref())?;
+            let backups = service.list(ListBackupsRequest { backup_dir: dir })?;
             render(json, &backups, |item| {
                 if item.entries.is_empty() {
                     format!(
@@ -85,7 +88,10 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             id,
             dir,
         } => {
-            let installation = installation_service.resolve(&install, flavor.map(Into::into))?;
+            let installation = installation_service.resolve(ResolveInstallationRequest {
+                path: install,
+                flavor: flavor.map(Into::into),
+            })?;
             let restored = service.restore(RestoreBackupRequest {
                 installation,
                 archive_path: archive,
