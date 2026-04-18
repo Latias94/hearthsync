@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -40,7 +40,9 @@ use crate::core::bundle::{
     ExternalPackageSummary as DomainExternalPackageSummary,
     ExternalPackageWarning as DomainExternalPackageWarning, ExternalPackageWarningCategory,
     ExternalPackageWarningCode, ExternalPackageWarningGroup as DomainExternalPackageWarningGroup,
-    GroupPolicy, HelperStrategy, UnpackedBundle as DomainUnpackedBundle, WtfScope,
+    GroupPolicy, HelperStrategy,
+    PreparedExternalPackageBundle as DomainPreparedExternalPackageBundle,
+    UnpackedBundle as DomainUnpackedBundle, WtfScope,
 };
 use crate::core::install::{
     DetectedFlavorInstallation, HealthStatus, InstallationHealth, LocalWowAccount,
@@ -852,6 +854,56 @@ impl From<DomainCreatedBundle> for CreatedBundleResult {
             archive_path: value.archive_path,
             archived_files: value.archived_files,
             manifest: BundleManifestResult::from(value.manifest),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageBundleResult {
+    pub analysis: ExternalPackageAnalysisResult,
+    pub manifest: BundleManifestResult,
+    pub bundle: CreatedBundleResult,
+}
+
+#[derive(Debug)]
+pub struct ExternalPackageBundleHandle {
+    result: ExternalPackageBundleResult,
+    _prepared: DomainPreparedExternalPackageBundle,
+}
+
+impl ExternalPackageBundleHandle {
+    pub fn result(&self) -> &ExternalPackageBundleResult {
+        &self.result
+    }
+
+    pub fn analysis(&self) -> &ExternalPackageAnalysisResult {
+        &self.result.analysis
+    }
+
+    pub fn manifest(&self) -> &BundleManifestResult {
+        &self.result.manifest
+    }
+
+    pub fn bundle(&self) -> &CreatedBundleResult {
+        &self.result.bundle
+    }
+
+    pub fn archive_path(&self) -> &Path {
+        &self.result.bundle.archive_path
+    }
+}
+
+impl From<DomainPreparedExternalPackageBundle> for ExternalPackageBundleHandle {
+    fn from(value: DomainPreparedExternalPackageBundle) -> Self {
+        let result = ExternalPackageBundleResult {
+            analysis: ExternalPackageAnalysisResult::from(value.analysis.clone()),
+            manifest: BundleManifestResult::from(value.manifest.clone()),
+            bundle: CreatedBundleResult::from(value.bundle.clone()),
+        };
+
+        Self {
+            result,
+            _prepared: value,
         }
     }
 }

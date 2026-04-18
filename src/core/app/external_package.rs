@@ -1,11 +1,11 @@
 use crate::core::app::{
     AppRuntime, ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult,
-    ExternalPackageApplyResult, task_support,
+    ExternalPackageApplyResult, ExternalPackageBundleHandle, task_support,
 };
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
-    PlanExternalPackageApplyRequest, PreparedExternalPackageBundle, analyze_external_package_task,
-    apply_external_package_task, create_external_package_bundle, plan_external_package_apply_task,
+    PlanExternalPackageApplyRequest, analyze_external_package_task, apply_external_package_task,
+    create_external_package_bundle, plan_external_package_apply_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -78,8 +78,9 @@ impl ExternalPackageService {
     pub fn create_bundle(
         &self,
         request: CreateExternalPackageBundleRequest,
-    ) -> AppResult<PreparedExternalPackageBundle> {
-        create_external_package_bundle(self.normalize_bundle_request(request))
+    ) -> AppResult<ExternalPackageBundleHandle> {
+        let bundle = create_external_package_bundle(self.normalize_bundle_request(request))?;
+        Ok(ExternalPackageBundleHandle::from(bundle))
     }
 
     pub fn plan_apply(
@@ -418,9 +419,41 @@ mod tests {
             })
             .expect("create bundle with runtime defaults");
 
-        assert_eq!(prepared.manifest.source.platform, Some(HostPlatform::MacOs));
-        assert_eq!(prepared.bundle.archive_path.parent(), Some(output.path()));
-        assert!(prepared.bundle.archive_path.is_file());
+        assert_eq!(
+            prepared.manifest().source.platform,
+            Some(HostPlatform::MacOs)
+        );
+        assert_eq!(prepared.bundle().archive_path.parent(), Some(output.path()));
+        assert!(prepared.archive_path().is_file());
+    }
+
+    #[test]
+    fn external_package_service_create_bundle_keeps_temporary_bundle_alive_while_handle_exists() {
+        let source = tempdir().expect("source temp dir");
+        let package_root = create_minimal_external_package_source(source.path());
+
+        let service = ExternalPackageService::new();
+        let prepared = service
+            .create_bundle(CreateExternalPackageBundleRequest {
+                source_path: package_root,
+                source_flavor: WowFlavor::Retail,
+                source_platform: None,
+                supported_targets: vec![WowFlavor::Retail],
+                output_path: None,
+                package_id: None,
+                package_name: None,
+                created_by: None,
+                description: None,
+                apply_defaults: None,
+            })
+            .expect("create temporary bundle");
+
+        let archive_path = prepared.archive_path().to_path_buf();
+        assert!(archive_path.is_file());
+
+        drop(prepared);
+
+        assert!(!archive_path.exists());
     }
 
     fn create_minimal_external_package_source(root: &Path) -> PathBuf {
