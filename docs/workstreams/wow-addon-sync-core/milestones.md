@@ -82,6 +82,9 @@ Define stable long-running operation boundaries for CLI and future desktop reuse
 - addon install, addon index install, update, and lock-apply preparation now propagate task
   cancellation into provider-backed archive downloads, the default reqwest client now has explicit
   connect and request timeouts, and cancelled downloads stop without being retried
+- addon install, addon update, addon remove, addon index install, addon index update, and backup
+  restore now also emit detail-level `executing` progress from inside their real filesystem loops,
+  and those loops re-check cancellation instead of only trusting outer phase boundaries
 
 ## M3 - Import Normalization and Restore Safety
 

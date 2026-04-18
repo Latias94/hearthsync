@@ -12,7 +12,7 @@ use crate::core::addon::{
     InstallAddonExecutionPlan, InstallPreparedAddonRequest, PreparedAddonPackage,
     TrackedAddonPackage, UpdatedAddonPackageResult, execute_install_plan_task, list_addons,
     load_registry, prepare_install_prepared_addon, prepare_package_from_source_ref_with_provider,
-    rollback_or_report_addon_error, update_prepared_packages,
+    rollback_or_report_addon_error, update_prepared_packages_task,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
@@ -203,7 +203,7 @@ where
         TaskKind::AddonIndexUpdate,
         TaskPhase::Executing,
     )?;
-    let result = execute_index_update_plan(plan, backup_path)?;
+    let result = execute_index_update_plan(plan, backup_path, cancellation, progress)?;
 
     emit_task_progress(
         progress,
@@ -391,10 +391,16 @@ fn dry_run_index_update_result(plan: IndexUpdatePlan) -> AddonIndexUpdateResult 
     }
 }
 
-fn execute_index_update_plan(
+fn execute_index_update_plan<TCancel, TProgress>(
     plan: IndexUpdatePlan,
     backup_path: PathBuf,
-) -> AppResult<AddonIndexUpdateResult> {
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<AddonIndexUpdateResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
     let IndexUpdatePlan {
         installation,
         index_path,
@@ -407,7 +413,15 @@ fn execute_index_update_plan(
         ..
     } = plan;
 
-    match update_prepared_packages(&installation, registry, matched_packages, prepared_packages) {
+    match update_prepared_packages_task(
+        &installation,
+        registry,
+        matched_packages,
+        prepared_packages,
+        TaskKind::AddonIndexUpdate,
+        cancellation,
+        progress,
+    ) {
         Ok((updated_packages, written_files)) => Ok(AddonIndexUpdateResult {
             index_path,
             selected_packages,

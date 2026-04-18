@@ -11,7 +11,7 @@ use super::{
     restore_backup, restore_backup_selection, restore_backup_selection_task,
 };
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
+use crate::core::task::{NeverCancel, TaskKind, TaskPhase, TaskProgressEvent, VecTaskProgressSink};
 
 #[test]
 fn create_backup_writes_expected_entries() {
@@ -327,19 +327,7 @@ fn restore_backup_selection_task_reports_progress() {
     .expect("restore task");
 
     assert_eq!(restored.restored_files, 1);
-    assert_eq!(
-        progress
-            .events()
-            .iter()
-            .map(|event| (event.task, event.phase))
-            .collect::<Vec<_>>(),
-        vec![
-            (TaskKind::BackupRestore, TaskPhase::Preparing),
-            (TaskKind::BackupRestore, TaskPhase::BackingUp),
-            (TaskKind::BackupRestore, TaskPhase::Executing),
-            (TaskKind::BackupRestore, TaskPhase::Completed),
-        ]
-    );
+    assert_backup_restore_task_progress(progress.events());
 }
 
 #[test]
@@ -445,4 +433,32 @@ fn create_fixture_installation(root: &Path, flavor: WowFlavor) -> DetectedFlavor
         wtf_dir,
         fonts_dir,
     }
+}
+
+fn assert_backup_restore_task_progress(events: &[TaskProgressEvent]) {
+    let phases = events
+        .iter()
+        .map(|event| (event.task, event.phase))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        phases.first(),
+        Some(&(TaskKind::BackupRestore, TaskPhase::Preparing))
+    );
+    assert_eq!(
+        phases.last(),
+        Some(&(TaskKind::BackupRestore, TaskPhase::Completed))
+    );
+    assert!(phases.contains(&(TaskKind::BackupRestore, TaskPhase::BackingUp)));
+    assert!(
+        phases
+            .iter()
+            .any(|phase| { *phase == (TaskKind::BackupRestore, TaskPhase::Executing) })
+    );
+    assert!(events.iter().any(|event| {
+        event.task == TaskKind::BackupRestore
+            && event.phase == TaskPhase::Executing
+            && (event.message.contains("Clearing restore target group")
+                || event.message.contains("Restoring backup entry"))
+    }));
 }

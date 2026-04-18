@@ -144,7 +144,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonInstall, TaskPhase::Executing)?;
 
-    let result = execute_install_plan(plan, backup_path)?;
+    let result = execute_install_plan(plan, backup_path, cancellation, progress)?;
     emit_task_progress(
         progress,
         TaskKind::AddonInstall,
@@ -238,7 +238,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonUpdate, TaskPhase::Executing)?;
 
-    let result = execute_update_plan(plan, backup_path)?;
+    let result = execute_update_plan(plan, backup_path, cancellation, progress)?;
     emit_task_progress(
         progress,
         TaskKind::AddonUpdate,
@@ -316,7 +316,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonRemove, TaskPhase::Executing)?;
 
-    let result = execute_remove_plan(plan, backup_path)?;
+    let result = execute_remove_plan(plan, backup_path, cancellation, progress)?;
     emit_task_progress(
         progress,
         TaskKind::AddonRemove,
@@ -424,10 +424,16 @@ fn dry_run_install_result(plan: InstallAddonExecutionPlan) -> InstalledAddonPack
     }
 }
 
-fn execute_install_plan(
+fn execute_install_plan<TCancel, TProgress>(
     plan: InstallAddonExecutionPlan,
     backup_path: PathBuf,
-) -> AppResult<InstalledAddonPackageResult> {
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<InstalledAddonPackageResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
     let InstallAddonExecutionPlan {
         installation,
         prepared,
@@ -438,7 +444,14 @@ fn execute_install_plan(
         ..
     } = plan;
 
-    match install_prepared_package(&installation, prepared, replace_existing) {
+    match install_prepared_package_task(
+        &installation,
+        prepared,
+        replace_existing,
+        TaskKind::AddonInstall,
+        cancellation,
+        progress,
+    ) {
         Ok((package, written_files)) => Ok(InstalledAddonPackageResult {
             dry_run: false,
             source: package.source.clone(),
@@ -546,10 +559,16 @@ fn dry_run_update_result(plan: UpdateAddonsExecutionPlan) -> UpdatedAddonPackage
     }
 }
 
-fn execute_update_plan(
+fn execute_update_plan<TCancel, TProgress>(
     plan: UpdateAddonsExecutionPlan,
     backup_path: PathBuf,
-) -> AppResult<UpdatedAddonPackageResult> {
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<UpdatedAddonPackageResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
     let UpdateAddonsExecutionPlan {
         installation,
         registry,
@@ -560,11 +579,14 @@ fn execute_update_plan(
         ..
     } = plan;
 
-    match update_prepared_packages(
+    match update_prepared_packages_task(
         &installation,
         registry,
         selected_packages,
         prepared_packages,
+        TaskKind::AddonUpdate,
+        cancellation,
+        progress,
     ) {
         Ok((updated_packages, written_files)) => Ok(UpdatedAddonPackageResult {
             dry_run: false,
@@ -623,10 +645,16 @@ fn dry_run_remove_result(plan: RemoveAddonsExecutionPlan) -> RemovedAddonPackage
     }
 }
 
-fn execute_remove_plan(
+fn execute_remove_plan<TCancel, TProgress>(
     plan: RemoveAddonsExecutionPlan,
     backup_path: PathBuf,
-) -> AppResult<RemovedAddonPackageResult> {
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<RemovedAddonPackageResult>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
     let RemoveAddonsExecutionPlan {
         installation,
         removed_packages,
@@ -635,7 +663,13 @@ fn execute_remove_plan(
         ..
     } = plan;
 
-    match remove_selected_packages(&installation, removed_packages.clone()) {
+    match remove_selected_packages_task(
+        &installation,
+        removed_packages.clone(),
+        TaskKind::AddonRemove,
+        cancellation,
+        progress,
+    ) {
         Ok(registry_cleaned) => Ok(RemovedAddonPackageResult {
             dry_run: false,
             registry_path,

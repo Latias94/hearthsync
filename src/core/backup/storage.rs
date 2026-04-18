@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 
-use super::archive::{read_backup_metadata_from_path, restore_backup};
+use super::archive::{read_backup_metadata_from_path, restore_backup_task};
 use super::model::{BackupCatalog, BackupCatalogEntry, RestoreBackupRequest, RestoredBackup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::{
@@ -121,7 +121,8 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::BackupRestore, TaskPhase::Executing)?;
 
-    let restored = restore_backup(&archive_path, &request.installation)?;
+    let restored =
+        restore_backup_task(&archive_path, &request.installation, cancellation, progress)?;
     emit_task_progress(
         progress,
         TaskKind::BackupRestore,

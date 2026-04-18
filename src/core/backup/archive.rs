@@ -15,6 +15,10 @@ use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
+use crate::core::task::{
+    CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
+    ensure_task_not_cancelled,
+};
 
 #[derive(Debug, Clone)]
 struct PreparedRestoreArchive {
@@ -34,6 +38,67 @@ struct PreparedRestoreEntry {
 enum RestoreExecutionMode {
     Primary,
     Rollback,
+}
+
+enum RestoreExecutionStep<'a> {
+    ClearGroup {
+        group: BackupGroup,
+        current: usize,
+        total: usize,
+    },
+    RestoreEntry {
+        entry_name: &'a str,
+        current: usize,
+        total: usize,
+    },
+}
+
+trait RestoreExecutionObserver {
+    fn before_step(&mut self, _step: RestoreExecutionStep<'_>) -> AppResult<()> {
+        Ok(())
+    }
+}
+
+struct NoopRestoreExecutionObserver;
+
+impl RestoreExecutionObserver for NoopRestoreExecutionObserver {}
+
+struct TaskRestoreExecutionObserver<'a, TCancel, TProgress> {
+    cancellation: &'a TCancel,
+    progress: &'a mut TProgress,
+}
+
+impl<'a, TCancel, TProgress> TaskRestoreExecutionObserver<'a, TCancel, TProgress> {
+    fn new(cancellation: &'a TCancel, progress: &'a mut TProgress) -> Self {
+        Self {
+            cancellation,
+            progress,
+        }
+    }
+}
+
+impl<TCancel, TProgress> RestoreExecutionObserver
+    for TaskRestoreExecutionObserver<'_, TCancel, TProgress>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    fn before_step(&mut self, step: RestoreExecutionStep<'_>) -> AppResult<()> {
+        ensure_task_not_cancelled(
+            self.cancellation,
+            TaskKind::BackupRestore,
+            TaskPhase::Executing,
+        )?;
+        if let Some(message) = restore_execution_step_message(step) {
+            emit_task_progress(
+                self.progress,
+                TaskKind::BackupRestore,
+                TaskPhase::Executing,
+                message,
+            );
+        }
+        Ok(())
+    }
 }
 
 pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
@@ -116,12 +181,40 @@ pub fn restore_backup(
     archive_path: &Path,
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<RestoredBackup> {
+    let mut observer = NoopRestoreExecutionObserver;
+    restore_backup_with_observer(archive_path, installation, &mut observer)
+}
+
+pub(crate) fn restore_backup_task<TCancel, TProgress>(
+    archive_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<RestoredBackup>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    let mut observer = TaskRestoreExecutionObserver::new(cancellation, progress);
+    restore_backup_with_observer(archive_path, installation, &mut observer)
+}
+
+fn restore_backup_with_observer(
+    archive_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    observer: &mut impl RestoreExecutionObserver,
+) -> AppResult<RestoredBackup> {
     let prepared = prepare_restore_archive(archive_path, installation)?;
     let rollback_stage = tempdir()?;
     let rollback_checkpoint =
         create_restore_checkpoint(&prepared.metadata, installation, rollback_stage.path())?;
 
-    match apply_prepared_restore(&prepared, installation, RestoreExecutionMode::Primary) {
+    match apply_prepared_restore(
+        &prepared,
+        installation,
+        RestoreExecutionMode::Primary,
+        observer,
+    ) {
         Ok(restored_files) => Ok(RestoredBackup {
             archive_path: prepared.archive_path,
             restored_files,
@@ -481,8 +574,13 @@ fn restore_from_checkpoint(
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<RestoredBackup> {
     let prepared = prepare_restore_archive(archive_path, installation)?;
-    let restored_files =
-        apply_prepared_restore(&prepared, installation, RestoreExecutionMode::Rollback)?;
+    let mut observer = NoopRestoreExecutionObserver;
+    let restored_files = apply_prepared_restore(
+        &prepared,
+        installation,
+        RestoreExecutionMode::Rollback,
+        &mut observer,
+    )?;
     Ok(RestoredBackup {
         archive_path: prepared.archive_path,
         restored_files,
@@ -494,16 +592,30 @@ fn apply_prepared_restore(
     prepared: &PreparedRestoreArchive,
     installation: &DetectedFlavorInstallation,
     mode: RestoreExecutionMode,
+    observer: &mut impl RestoreExecutionObserver,
 ) -> AppResult<usize> {
-    for group in deduped_groups_in_order(&prepared.metadata.groups) {
+    let groups = deduped_groups_in_order(&prepared.metadata.groups);
+    let total_groups = groups.len();
+    for (index, group) in groups.into_iter().enumerate() {
+        observer.before_step(RestoreExecutionStep::ClearGroup {
+            group,
+            current: index + 1,
+            total: total_groups,
+        })?;
         clear_group_destination(group, installation)?;
     }
 
     let file = File::open(&prepared.archive_path)?;
     let mut archive = ZipArchive::new(file)?;
     let mut restored_files = 0usize;
+    let total_entries = prepared.entries.len();
     for entry in &prepared.entries {
         maybe_inject_restore_test_failure(mode, restored_files)?;
+        observer.before_step(RestoreExecutionStep::RestoreEntry {
+            entry_name: &entry.entry_name,
+            current: restored_files + 1,
+            total: total_entries,
+        })?;
 
         let mut archive_entry = archive.by_index(entry.archive_index)?;
         copy_reader_to_path(&mut archive_entry, &entry.destination).map_err(|error| {
@@ -554,6 +666,31 @@ fn join_segments(root: &Path, segments: &[&str]) -> PathBuf {
         path.push(segment);
     }
     path
+}
+
+fn restore_execution_step_message(step: RestoreExecutionStep<'_>) -> Option<String> {
+    match step {
+        RestoreExecutionStep::ClearGroup {
+            group,
+            current,
+            total,
+        } => Some(format!(
+            "Clearing restore target group {current}/{total} `{}`",
+            group.as_str()
+        )),
+        RestoreExecutionStep::RestoreEntry {
+            entry_name,
+            current,
+            total,
+        } if should_emit_restore_entry_progress(current, total) => Some(format!(
+            "Restoring backup entry {current}/{total} `{entry_name}`"
+        )),
+        RestoreExecutionStep::RestoreEntry { .. } => None,
+    }
+}
+
+fn should_emit_restore_entry_progress(current: usize, total: usize) -> bool {
+    current <= 3 || current == total || total <= 25 || current % 25 == 0
 }
 
 fn zip_file_options() -> SimpleFileOptions {

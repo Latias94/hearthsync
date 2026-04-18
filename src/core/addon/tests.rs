@@ -21,6 +21,7 @@ use super::{
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+use crate::core::task::TaskProgressEvent;
 use crate::core::task::{CancellationToken, NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
 
 #[test]
@@ -149,18 +150,10 @@ fn install_addon_task_reports_install_progress() {
     .expect("install addon task");
 
     assert_eq!(result.package_id, "weakauras-pack");
-    assert_eq!(
-        progress
-            .events()
-            .iter()
-            .map(|event| (event.task, event.phase))
-            .collect::<Vec<_>>(),
-        vec![
-            (TaskKind::AddonInstall, TaskPhase::Preparing),
-            (TaskKind::AddonInstall, TaskPhase::BackingUp),
-            (TaskKind::AddonInstall, TaskPhase::Executing),
-            (TaskKind::AddonInstall, TaskPhase::Completed),
-        ]
+    assert_addon_task_progress(
+        progress.events(),
+        TaskKind::AddonInstall,
+        "Installing addon directory",
     );
 }
 
@@ -272,18 +265,10 @@ fn update_addons_task_reports_update_progress() {
     .expect("update addon task");
 
     assert_eq!(result.updated_packages.len(), 1);
-    assert_eq!(
-        progress
-            .events()
-            .iter()
-            .map(|event| (event.task, event.phase))
-            .collect::<Vec<_>>(),
-        vec![
-            (TaskKind::AddonUpdate, TaskPhase::Preparing),
-            (TaskKind::AddonUpdate, TaskPhase::BackingUp),
-            (TaskKind::AddonUpdate, TaskPhase::Executing),
-            (TaskKind::AddonUpdate, TaskPhase::Completed),
-        ]
+    assert_addon_task_progress(
+        progress.events(),
+        TaskKind::AddonUpdate,
+        "Writing updated addon directory",
     );
 }
 
@@ -388,18 +373,10 @@ fn remove_addons_task_reports_remove_progress() {
     .expect("remove addon task");
 
     assert_eq!(result.removed_addons, vec!["Plater".to_string()]);
-    assert_eq!(
-        progress
-            .events()
-            .iter()
-            .map(|event| (event.task, event.phase))
-            .collect::<Vec<_>>(),
-        vec![
-            (TaskKind::AddonRemove, TaskPhase::Preparing),
-            (TaskKind::AddonRemove, TaskPhase::BackingUp),
-            (TaskKind::AddonRemove, TaskPhase::Executing),
-            (TaskKind::AddonRemove, TaskPhase::Completed),
-        ]
+    assert_addon_task_progress(
+        progress.events(),
+        TaskKind::AddonRemove,
+        "Removing addon directory",
     );
 }
 
@@ -673,6 +650,31 @@ fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {
         wtf_dir,
         fonts_dir,
     }
+}
+
+fn assert_addon_task_progress(
+    events: &[TaskProgressEvent],
+    task: TaskKind,
+    executing_detail: &str,
+) {
+    let phases = events
+        .iter()
+        .map(|event| (event.task, event.phase))
+        .collect::<Vec<_>>();
+
+    assert_eq!(phases.first(), Some(&(task, TaskPhase::Preparing)));
+    assert_eq!(phases.last(), Some(&(task, TaskPhase::Completed)));
+    assert!(phases.contains(&(task, TaskPhase::BackingUp)));
+    assert!(
+        phases
+            .iter()
+            .any(|phase| *phase == (task, TaskPhase::Executing))
+    );
+    assert!(events.iter().any(|event| {
+        event.task == task
+            && event.phase == TaskPhase::Executing
+            && event.message.contains(executing_detail)
+    }));
 }
 
 fn create_addon_archive(path: &Path, entries: &[(&str, &str)]) {

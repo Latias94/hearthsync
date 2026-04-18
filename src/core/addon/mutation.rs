@@ -9,17 +9,119 @@ use super::*;
 use crate::core::backup::restore_backup;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
+use crate::core::task::{
+    CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
+    ensure_task_not_cancelled,
+};
+
+#[derive(Clone, Copy)]
+enum MutationProgressMode {
+    Install,
+    Update,
+    Remove,
+}
+
+enum AddonMutationStep<'a> {
+    RemoveAddonDirectory {
+        addon_name: &'a str,
+        current: usize,
+        total: usize,
+    },
+    WriteAddonDirectory {
+        addon_name: &'a str,
+        current: usize,
+        total: usize,
+    },
+}
+
+trait AddonMutationObserver {
+    fn before_step(&mut self, _step: AddonMutationStep<'_>) -> AppResult<()> {
+        Ok(())
+    }
+}
+
+struct NoopAddonMutationObserver;
+
+impl AddonMutationObserver for NoopAddonMutationObserver {}
+
+struct TaskAddonMutationObserver<'a, TCancel, TProgress> {
+    task: TaskKind,
+    mode: MutationProgressMode,
+    cancellation: &'a TCancel,
+    progress: &'a mut TProgress,
+}
+
+impl<'a, TCancel, TProgress> TaskAddonMutationObserver<'a, TCancel, TProgress> {
+    fn new(
+        task: TaskKind,
+        mode: MutationProgressMode,
+        cancellation: &'a TCancel,
+        progress: &'a mut TProgress,
+    ) -> Self {
+        Self {
+            task,
+            mode,
+            cancellation,
+            progress,
+        }
+    }
+}
+
+impl<TCancel, TProgress> AddonMutationObserver for TaskAddonMutationObserver<'_, TCancel, TProgress>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    fn before_step(&mut self, step: AddonMutationStep<'_>) -> AppResult<()> {
+        ensure_task_not_cancelled(self.cancellation, self.task, TaskPhase::Executing)?;
+        emit_task_progress(
+            self.progress,
+            self.task,
+            TaskPhase::Executing,
+            addon_mutation_step_message(self.mode, step),
+        );
+        Ok(())
+    }
+}
 
 pub(crate) fn install_prepared_package(
     installation: &DetectedFlavorInstallation,
     prepared: PreparedAddonPackage,
     replace_existing: bool,
 ) -> AppResult<(TrackedAddonPackage, usize)> {
+    let mut observer = NoopAddonMutationObserver;
+    install_prepared_package_with_observer(installation, prepared, replace_existing, &mut observer)
+}
+
+pub(crate) fn install_prepared_package_task<TCancel, TProgress>(
+    installation: &DetectedFlavorInstallation,
+    prepared: PreparedAddonPackage,
+    replace_existing: bool,
+    task: TaskKind,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<(TrackedAddonPackage, usize)>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    let mut observer =
+        TaskAddonMutationObserver::new(task, MutationProgressMode::Install, cancellation, progress);
+    install_prepared_package_with_observer(installation, prepared, replace_existing, &mut observer)
+}
+
+fn install_prepared_package_with_observer(
+    installation: &DetectedFlavorInstallation,
+    prepared: PreparedAddonPackage,
+    replace_existing: bool,
+    observer: &mut impl AddonMutationObserver,
+) -> AppResult<(TrackedAddonPackage, usize)> {
     let addon_names = prepared
         .addons
         .iter()
         .map(|addon| addon.addon.directory_name.clone())
         .collect::<BTreeSet<_>>();
+    let total_addons = prepared.addons.len();
     let mut written_files = 0usize;
     let mut registry = load_registry(installation)?;
 
@@ -30,7 +132,12 @@ pub(crate) fn install_prepared_package(
             .any(|addon| addon_names.contains(&addon.directory_name))
     });
 
-    for addon in &prepared.addons {
+    for (index, addon) in prepared.addons.iter().enumerate() {
+        observer.before_step(AddonMutationStep::WriteAddonDirectory {
+            addon_name: &addon.addon.directory_name,
+            current: index + 1,
+            total: total_addons,
+        })?;
         let destination = installation.addon_dir.join(&addon.addon.directory_name);
         if destination.exists() {
             if !replace_existing {
@@ -65,16 +172,73 @@ pub(crate) fn install_prepared_package(
 
 pub(crate) fn update_prepared_packages(
     installation: &DetectedFlavorInstallation,
-    mut registry: AddonRegistry,
+    registry: AddonRegistry,
     selected_packages: Vec<TrackedAddonPackage>,
     prepared_packages: Vec<PreparedAddonPackage>,
 ) -> AppResult<(Vec<TrackedAddonPackage>, usize)> {
+    let mut observer = NoopAddonMutationObserver;
+    update_prepared_packages_with_observer(
+        installation,
+        registry,
+        selected_packages,
+        prepared_packages,
+        &mut observer,
+    )
+}
+
+pub(crate) fn update_prepared_packages_task<TCancel, TProgress>(
+    installation: &DetectedFlavorInstallation,
+    registry: AddonRegistry,
+    selected_packages: Vec<TrackedAddonPackage>,
+    prepared_packages: Vec<PreparedAddonPackage>,
+    task: TaskKind,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<(Vec<TrackedAddonPackage>, usize)>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    let mut observer =
+        TaskAddonMutationObserver::new(task, MutationProgressMode::Update, cancellation, progress);
+    update_prepared_packages_with_observer(
+        installation,
+        registry,
+        selected_packages,
+        prepared_packages,
+        &mut observer,
+    )
+}
+
+fn update_prepared_packages_with_observer(
+    installation: &DetectedFlavorInstallation,
+    mut registry: AddonRegistry,
+    selected_packages: Vec<TrackedAddonPackage>,
+    prepared_packages: Vec<PreparedAddonPackage>,
+    observer: &mut impl AddonMutationObserver,
+) -> AppResult<(Vec<TrackedAddonPackage>, usize)> {
     let mut updated_packages = Vec::new();
     let mut written_files = 0usize;
+    let total_removed_addons = selected_packages
+        .iter()
+        .map(|package| package.addons.len())
+        .sum::<usize>();
+    let total_written_addons = prepared_packages
+        .iter()
+        .map(|package| package.addons.len())
+        .sum::<usize>();
+    let mut removed_addons = 0usize;
+    let mut written_addons = 0usize;
 
     for (existing_package, prepared_package) in selected_packages.into_iter().zip(prepared_packages)
     {
         for addon in &existing_package.addons {
+            removed_addons += 1;
+            observer.before_step(AddonMutationStep::RemoveAddonDirectory {
+                addon_name: &addon.directory_name,
+                current: removed_addons,
+                total: total_removed_addons,
+            })?;
             let path = installation.addon_dir.join(&addon.directory_name);
             if path.exists() {
                 remove_path(&path)?;
@@ -82,6 +246,12 @@ pub(crate) fn update_prepared_packages(
         }
 
         for addon in &prepared_package.addons {
+            written_addons += 1;
+            observer.before_step(AddonMutationStep::WriteAddonDirectory {
+                addon_name: &addon.addon.directory_name,
+                current: written_addons,
+                total: total_written_addons,
+            })?;
             let destination = installation.addon_dir.join(&addon.addon.directory_name);
             if destination.exists() {
                 remove_path(&destination)?;
@@ -117,10 +287,46 @@ pub(crate) fn remove_selected_packages(
     installation: &DetectedFlavorInstallation,
     selected_packages: Vec<TrackedAddonPackage>,
 ) -> AppResult<bool> {
+    let mut observer = NoopAddonMutationObserver;
+    remove_selected_packages_with_observer(installation, selected_packages, &mut observer)
+}
+
+pub(crate) fn remove_selected_packages_task<TCancel, TProgress>(
+    installation: &DetectedFlavorInstallation,
+    selected_packages: Vec<TrackedAddonPackage>,
+    task: TaskKind,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<bool>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    let mut observer =
+        TaskAddonMutationObserver::new(task, MutationProgressMode::Remove, cancellation, progress);
+    remove_selected_packages_with_observer(installation, selected_packages, &mut observer)
+}
+
+fn remove_selected_packages_with_observer(
+    installation: &DetectedFlavorInstallation,
+    selected_packages: Vec<TrackedAddonPackage>,
+    observer: &mut impl AddonMutationObserver,
+) -> AppResult<bool> {
     let mut registry = load_registry(installation)?;
+    let total_removed_addons = selected_packages
+        .iter()
+        .map(|package| package.addons.len())
+        .sum::<usize>();
+    let mut removed_addons = 0usize;
 
     for package in &selected_packages {
         for addon in &package.addons {
+            removed_addons += 1;
+            observer.before_step(AddonMutationStep::RemoveAddonDirectory {
+                addon_name: &addon.directory_name,
+                current: removed_addons,
+                total: total_removed_addons,
+            })?;
             let path = installation.addon_dir.join(&addon.directory_name);
             if path.exists() {
                 remove_path(&path)?;
@@ -203,4 +409,45 @@ fn now_rfc3339() -> AppResult<String> {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(|error| AppError::Validation(error.to_string()))
+}
+
+fn addon_mutation_step_message(mode: MutationProgressMode, step: AddonMutationStep<'_>) -> String {
+    match (mode, step) {
+        (
+            MutationProgressMode::Install,
+            AddonMutationStep::WriteAddonDirectory {
+                addon_name,
+                current,
+                total,
+            },
+        ) => format!("Installing addon directory {current}/{total} `{addon_name}`"),
+        (
+            MutationProgressMode::Update,
+            AddonMutationStep::RemoveAddonDirectory {
+                addon_name,
+                current,
+                total,
+            },
+        ) => format!("Removing existing addon directory {current}/{total} `{addon_name}`"),
+        (
+            MutationProgressMode::Update,
+            AddonMutationStep::WriteAddonDirectory {
+                addon_name,
+                current,
+                total,
+            },
+        ) => format!("Writing updated addon directory {current}/{total} `{addon_name}`"),
+        (
+            MutationProgressMode::Remove,
+            AddonMutationStep::RemoveAddonDirectory {
+                addon_name,
+                current,
+                total,
+            },
+        ) => format!("Removing addon directory {current}/{total} `{addon_name}`"),
+        (MutationProgressMode::Install, AddonMutationStep::RemoveAddonDirectory { .. })
+        | (MutationProgressMode::Remove, AddonMutationStep::WriteAddonDirectory { .. }) => {
+            "Applying addon mutation".to_string()
+        }
+    }
 }

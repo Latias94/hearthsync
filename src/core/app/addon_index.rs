@@ -150,7 +150,7 @@ mod tests {
     use crate::core::app::AppRuntime;
     use crate::core::error::AppError;
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-    use crate::core::task::{TaskKind, TaskPhase};
+    use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 
     #[test]
     fn addon_index_service_inspects_index_file() {
@@ -206,17 +206,10 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
             .expect("install from index with collected progress");
 
         assert_eq!(run.result.package.id, "weakauras");
-        assert_eq!(
-            run.progress
-                .iter()
-                .map(|event| (event.task, event.phase))
-                .collect::<Vec<_>>(),
-            vec![
-                (TaskKind::AddonIndexInstall, TaskPhase::Preparing),
-                (TaskKind::AddonIndexInstall, TaskPhase::BackingUp),
-                (TaskKind::AddonIndexInstall, TaskPhase::Executing),
-                (TaskKind::AddonIndexInstall, TaskPhase::Completed),
-            ]
+        assert_addon_index_task_progress(
+            &run.progress,
+            TaskKind::AddonIndexInstall,
+            "Installing addon directory",
         );
     }
 
@@ -323,7 +316,12 @@ supported_flavors = ["retail"]
         .expect("update from index with callbacks");
 
         assert_eq!(result.selected_packages.len(), 1);
-        assert_eq!(seen.borrow().len(), 4);
+        assert!(seen.borrow().len() >= 4);
+        assert!(seen.borrow().iter().any(|event| {
+            event.task == TaskKind::AddonIndexUpdate
+                && event.phase == TaskPhase::Executing
+                && event.message.contains("Writing updated addon directory")
+        }));
         assert!(cancellation_checks.get() >= 3);
     }
 
@@ -457,5 +455,30 @@ supported_flavors = ["retail"]
         ) -> AppResult<Vec<AddonSearchResult>> {
             Ok(Vec::new())
         }
+    }
+
+    fn assert_addon_index_task_progress(
+        events: &[TaskProgressEvent],
+        task: TaskKind,
+        executing_detail: &str,
+    ) {
+        let phases = events
+            .iter()
+            .map(|event| (event.task, event.phase))
+            .collect::<Vec<_>>();
+
+        assert_eq!(phases.first(), Some(&(task, TaskPhase::Preparing)));
+        assert_eq!(phases.last(), Some(&(task, TaskPhase::Completed)));
+        assert!(phases.contains(&(task, TaskPhase::BackingUp)));
+        assert!(
+            phases
+                .iter()
+                .any(|phase| *phase == (task, TaskPhase::Executing))
+        );
+        assert!(events.iter().any(|event| {
+            event.task == task
+                && event.phase == TaskPhase::Executing
+                && event.message.contains(executing_detail)
+        }));
     }
 }

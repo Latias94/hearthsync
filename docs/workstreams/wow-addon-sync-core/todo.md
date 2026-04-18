@@ -43,7 +43,12 @@ runtime policy instead of every caller constructing unrelated facades ad hoc.
 - [x] Introduce task wrappers for backup restore
 - [ ] Add finer-grained progress beyond phase-only events for long file-oriented operations
 - [ ] Add cancellation checks inside long-running execution loops instead of only between phases
-Current coverage: bundle apply and external-package apply now emit per-operation `executing` progress and honor cancellation inside the execution loop, but addon and backup flows still need the same treatment where it matters.
+Current coverage: bundle apply and external-package apply emit per-operation `executing`
+progress and honor cancellation inside the execution loop; addon install, update, remove, addon
+index install and update, and backup restore now also emit execution-detail progress from inside
+their real mutation or restore loops and re-check cancellation during those loops.
+Current gap: addon lock apply still exposes mostly phase-level progress even though its internal
+mutation work can take time on larger installs.
 
 ## Phase 3 - Provider and Infrastructure Ports
 

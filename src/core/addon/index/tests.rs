@@ -17,7 +17,7 @@ use crate::core::addon::{
     list_addons,
 };
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
+use crate::core::task::{NeverCancel, TaskKind, TaskPhase, TaskProgressEvent, VecTaskProgressSink};
 
 #[test]
 fn inspect_addon_index_reads_packages() {
@@ -97,18 +97,10 @@ fn install_addon_from_index_task_reports_index_install_progress() {
     .expect("install from index task");
 
     assert_eq!(result.package.id, "details");
-    assert_eq!(
-        progress
-            .events()
-            .iter()
-            .map(|event| (event.task, event.phase))
-            .collect::<Vec<_>>(),
-        vec![
-            (TaskKind::AddonIndexInstall, TaskPhase::Preparing),
-            (TaskKind::AddonIndexInstall, TaskPhase::BackingUp),
-            (TaskKind::AddonIndexInstall, TaskPhase::Executing),
-            (TaskKind::AddonIndexInstall, TaskPhase::Completed),
-        ]
+    assert_addon_index_task_progress(
+        progress.events(),
+        TaskKind::AddonIndexInstall,
+        "Installing addon directory",
     );
 }
 
@@ -365,18 +357,10 @@ fn update_addons_from_index_task_reports_index_update_progress() {
     .expect("update from index task");
 
     assert_eq!(result.selected_packages.len(), 1);
-    assert_eq!(
-        progress
-            .events()
-            .iter()
-            .map(|event| (event.task, event.phase))
-            .collect::<Vec<_>>(),
-        vec![
-            (TaskKind::AddonIndexUpdate, TaskPhase::Preparing),
-            (TaskKind::AddonIndexUpdate, TaskPhase::BackingUp),
-            (TaskKind::AddonIndexUpdate, TaskPhase::Executing),
-            (TaskKind::AddonIndexUpdate, TaskPhase::Completed),
-        ]
+    assert_addon_index_task_progress(
+        progress.events(),
+        TaskKind::AddonIndexUpdate,
+        "Writing updated addon directory",
     );
 }
 
@@ -443,4 +427,29 @@ fn create_addon_archive(path: &Path, entries: &[(&str, &str)]) {
 
 fn normalized_archive_path(path: &Path) -> std::path::PathBuf {
     canonicalize_local_archive_path(path).expect("normalized archive path")
+}
+
+fn assert_addon_index_task_progress(
+    events: &[TaskProgressEvent],
+    task: TaskKind,
+    executing_detail: &str,
+) {
+    let phases = events
+        .iter()
+        .map(|event| (event.task, event.phase))
+        .collect::<Vec<_>>();
+
+    assert_eq!(phases.first(), Some(&(task, TaskPhase::Preparing)));
+    assert_eq!(phases.last(), Some(&(task, TaskPhase::Completed)));
+    assert!(phases.contains(&(task, TaskPhase::BackingUp)));
+    assert!(
+        phases
+            .iter()
+            .any(|phase| *phase == (task, TaskPhase::Executing))
+    );
+    assert!(events.iter().any(|event| {
+        event.task == task
+            && event.phase == TaskPhase::Executing
+            && event.message.contains(executing_detail)
+    }));
 }

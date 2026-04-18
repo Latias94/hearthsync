@@ -109,7 +109,7 @@ mod tests {
     use crate::core::app::AppRuntime;
     use crate::core::backup::{BackupGroup, BackupRequest};
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-    use crate::core::task::{TaskKind, TaskPhase};
+    use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 
     #[test]
     fn backup_service_restore_collecting_progress_returns_restore_task_events() {
@@ -155,18 +155,7 @@ mod tests {
             .expect("restore with collected progress");
 
         assert_eq!(run.result.restored_files, 1);
-        assert_eq!(
-            run.progress
-                .iter()
-                .map(|event| (event.task, event.phase))
-                .collect::<Vec<_>>(),
-            vec![
-                (TaskKind::BackupRestore, TaskPhase::Preparing),
-                (TaskKind::BackupRestore, TaskPhase::BackingUp),
-                (TaskKind::BackupRestore, TaskPhase::Executing),
-                (TaskKind::BackupRestore, TaskPhase::Completed),
-            ]
-        );
+        assert_backup_restore_task_progress(&run.progress);
     }
 
     #[test]
@@ -209,7 +198,13 @@ mod tests {
             .expect("restore with callbacks");
 
         assert_eq!(restored.restored_files, 1);
-        assert_eq!(seen.borrow().len(), 4);
+        assert!(seen.borrow().len() >= 4);
+        assert!(seen.borrow().iter().any(|event| {
+            event.task == TaskKind::BackupRestore
+                && event.phase == TaskPhase::Executing
+                && (event.message.contains("Clearing restore target group")
+                    || event.message.contains("Restoring backup entry"))
+        }));
         assert!(cancellation_checks.get() >= 3);
     }
 
@@ -294,5 +289,33 @@ mod tests {
             wtf_dir,
             fonts_dir,
         }
+    }
+
+    fn assert_backup_restore_task_progress(events: &[TaskProgressEvent]) {
+        let phases = events
+            .iter()
+            .map(|event| (event.task, event.phase))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            phases.first(),
+            Some(&(TaskKind::BackupRestore, TaskPhase::Preparing))
+        );
+        assert_eq!(
+            phases.last(),
+            Some(&(TaskKind::BackupRestore, TaskPhase::Completed))
+        );
+        assert!(phases.contains(&(TaskKind::BackupRestore, TaskPhase::BackingUp)));
+        assert!(
+            phases
+                .iter()
+                .any(|phase| { *phase == (TaskKind::BackupRestore, TaskPhase::Executing) })
+        );
+        assert!(events.iter().any(|event| {
+            event.task == TaskKind::BackupRestore
+                && event.phase == TaskPhase::Executing
+                && (event.message.contains("Clearing restore target group")
+                    || event.message.contains("Restoring backup entry"))
+        }));
     }
 }
