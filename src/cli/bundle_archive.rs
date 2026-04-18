@@ -44,7 +44,6 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             })?;
             render(json, &inspection, |item| {
                 let characters = item
-                    .manifest
                     .resources
                     .wtf_characters
                     .iter()
@@ -63,8 +62,8 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
                 format!(
                     "Bundle: {}\nPackage: {}\nSource flavor: {}\nFiles: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}",
                     item.archive_path.display(),
-                    item.manifest.package.name,
-                    item.manifest.source.flavor.as_str(),
+                    item.package.name,
+                    item.source.flavor.as_str(),
                     item.entries.total_files,
                     item.entries.addons,
                     item.entries.wtf_common,

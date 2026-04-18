@@ -1,10 +1,10 @@
 use crate::core::addon::{
-    AddonInventory, AddonSearchCatalog, InstallAddonRequest, InstalledAddonPackageResult,
-    RemoveAddonRequest, RemovedAddonPackageResult, SearchAddonRequest, UpdateAddonRequest,
-    UpdatedAddonPackageResult, install_addon_task_with_provider, list_addons, remove_addons_task,
-    search_addons_with_provider, update_addons_task_with_provider,
+    AddonSearchCatalog, InstallAddonRequest, InstalledAddonPackageResult, RemoveAddonRequest,
+    RemovedAddonPackageResult, SearchAddonRequest, UpdateAddonRequest, UpdatedAddonPackageResult,
+    install_addon_task_with_provider, list_addons, remove_addons_task, search_addons_with_provider,
+    update_addons_task_with_provider,
 };
-use crate::core::app::{AppRuntime, ListAddonsRequest, task_support};
+use crate::core::app::{AddonInventoryResult, AppRuntime, ListAddonsRequest, task_support};
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
@@ -30,8 +30,9 @@ impl AddonService {
         search_addons_with_provider(self.runtime.addon_provider(), request)
     }
 
-    pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventory> {
-        list_addons(&request.installation)
+    pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
+        let inventory = list_addons(&request.installation)?;
+        Ok(AddonInventoryResult::from(inventory))
     }
 
     pub fn install(&self, request: InstallAddonRequest) -> AppResult<InstalledAddonPackageResult> {

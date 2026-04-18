@@ -7,6 +7,7 @@ mod client;
 mod external_package;
 mod install;
 mod request;
+mod response;
 mod runtime;
 mod task_support;
 
@@ -23,5 +24,11 @@ pub use request::{
     InspectInstallationRequest, ListAddonsRequest, ListBackupsRequest, PlanAddonLockSyncRequest,
     PlanBundleAddonLockRequest, PlanBundleApplyRequest, ResolveInstallationRequest,
     VerifyAddonLockRequest, WriteAddonLockRequest,
+};
+pub use response::{
+    AddonIndexInspectionResult, AddonInventoryResult, AddonLockInspectionResult,
+    BackupCatalogResult, BundleInspectionResult, InstallationHealthResult,
+    InstallationInspectionResult, InstallationResult, InstallationScanResult,
+    TrackedAddonPackageResult,
 };
 pub use runtime::{AppRuntime, SharedAddonProvider};

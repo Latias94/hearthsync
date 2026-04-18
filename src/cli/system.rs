@@ -9,16 +9,19 @@ use crate::core::manifest::{example_manifest, load_manifest};
 pub(super) fn handle_scan(json: bool) -> AppResult<()> {
     let service = HearthSyncApp::new().installations();
     let installations = service.scan()?;
-    render(json, &installations, |items| {
-        if items.is_empty() {
+    render(json, &installations, |item| {
+        if item.installations.is_empty() {
             "No World of Warcraft installations detected.".to_string()
         } else {
-            let mut lines = vec![format!("Detected {} installation(s):", items.len())];
-            for item in items {
+            let mut lines = vec![format!(
+                "Detected {} installation(s):",
+                item.installation_count
+            )];
+            for installation in &item.installations {
                 lines.push(format!(
                     "- {} => {}",
-                    item.flavor.as_str(),
-                    item.flavor_root.display()
+                    installation.flavor.as_str(),
+                    installation.flavor_root.display()
                 ));
             }
             lines.join("\n")
@@ -45,7 +48,7 @@ pub(super) fn handle_inspect(
             item.installation.addon_dir.display(),
             item.installation.wtf_dir.display(),
             item.installation.fonts_dir.display(),
-            item.health.summary()
+            item.health.status_label
         )
     })
 }

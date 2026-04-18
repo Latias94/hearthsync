@@ -267,3 +267,23 @@ positional parameters.
   arguments into frontend callers
 - the app boundary moves closer to a real service contract and further away from a thin forwarding
   façade over domain helpers
+
+## ADR-016: Read-Only App Outputs Use App-Owned DTOs
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+Read-only `core::app` outputs that frontends consume directly should prefer app-owned result DTOs
+over returning raw domain aggregate structs.
+
+### Consequences
+
+- future GUI work can bind to stable app-facing output shapes without learning internal domain
+  aggregate boundaries
+- CLI rendering can depend on app-owned summary counts and labels instead of reconstructing them
+  from nested domain payloads
+- execution and mutation results may still transition in later slices, but the read-only surface now
+  has a clearer ownership boundary

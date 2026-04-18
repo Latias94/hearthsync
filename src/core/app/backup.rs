@@ -1,8 +1,8 @@
 use crate::core::app::ListBackupsRequest;
-use crate::core::app::{AppRuntime, task_support};
+use crate::core::app::{AppRuntime, BackupCatalogResult, task_support};
 use crate::core::backup::{
-    BackupCatalog, BackupRequest, CreatedBackup, RestoreBackupRequest, RestoredBackup,
-    create_backup, list_backups, restore_backup_selection_task,
+    BackupRequest, CreatedBackup, RestoreBackupRequest, RestoredBackup, create_backup,
+    list_backups, restore_backup_selection_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -29,9 +29,10 @@ impl BackupService {
         create_backup(self.normalize_backup_request(request))
     }
 
-    pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalog> {
+    pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
         let backup_dir = self.runtime.backup_dir_or_default(request.backup_dir);
-        list_backups(backup_dir.as_deref())
+        let catalog = list_backups(backup_dir.as_deref())?;
+        Ok(BackupCatalogResult::from(catalog))
     }
 
     pub fn restore(&self, request: RestoreBackupRequest) -> AppResult<RestoredBackup> {
@@ -260,7 +261,7 @@ mod tests {
 
         assert_eq!(created.archive_path.parent(), Some(backup_dir.as_path()));
         assert_eq!(catalog.backup_dir, backup_dir);
-        assert_eq!(catalog.entries.len(), 1);
+        assert_eq!(catalog.entry_count, 1);
         assert_eq!(restored.restored_files, 1);
     }
 

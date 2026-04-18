@@ -14,15 +14,12 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             let inspection = service.inspect(InspectAddonIndexRequest { index_path: file })?;
             render(json, &inspection, |item| {
                 let packages = item
-                    .index
                     .packages
                     .iter()
                     .map(|package| {
                         format!(
                             "{} {} => {}",
-                            package.id,
-                            package.version,
-                            package.source.display_name()
+                            package.id, package.version, package.source_label
                         )
                     })
                     .collect::<Vec<_>>()
@@ -30,7 +27,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
                 format!(
                     "Index: {}\nName: {}\nPackages: {}\n{}",
                     item.index_path.display(),
-                    item.index.name,
+                    item.name,
                     item.package_count,
                     if packages.is_empty() {
                         "none".to_string()

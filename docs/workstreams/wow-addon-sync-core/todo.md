@@ -131,6 +131,10 @@ Current progress: app-facing inspect, resolve, list, and planning APIs that prev
 scattered path or reference arguments now use explicit owned request contracts, so CLI and future
 GUI callers can depend on stable `core::app` input shapes instead of service-specific parameter
 combinations.
+Current progress: read-only app outputs for installation scan and inspect, addon inventory,
+addon-index inspect, addon-lock inspect, backup catalog list, and bundle inspect now also return
+app-defined result DTOs instead of exposing raw domain aggregate payloads directly to frontend
+callers.
 Current progress: app services that expose direct, collected-progress, and callback-based long-running
 operations now reuse one shared internal task-wrapper helper, and direct entrypoints route through the
 same task path instead of each façade rebuilding its own `NeverCancel` and progress plumbing.

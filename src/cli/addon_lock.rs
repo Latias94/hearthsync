@@ -21,7 +21,6 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             let inspection = service.inspect(InspectAddonLockRequest { installation })?;
             render(json, &inspection, |item| {
                 let packages = item
-                    .lock
                     .packages
                     .iter()
                     .map(|package| {
@@ -38,7 +37,7 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
                 format!(
                     "Lock: {}\nGenerated: {}\nPackages: {}\n{}",
                     item.lock_path.display(),
-                    item.lock.generated_at,
+                    item.generated_at,
                     item.package_count,
                     if packages.is_empty() {
                         "none".to_string()

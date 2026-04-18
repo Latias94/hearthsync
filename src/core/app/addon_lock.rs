@@ -1,12 +1,12 @@
 use crate::core::addon::lock::{
-    AddonLockApplyRequest, AddonLockApplyResult, AddonLockDiffResult, AddonLockInspection,
-    AddonLockPlanResult, AddonLockVerifyResult, AddonLockWriteResult,
-    apply_addon_lock_sync_task_with_provider, diff_addon_locks, inspect_addon_lock,
-    plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
+    AddonLockApplyRequest, AddonLockApplyResult, AddonLockDiffResult, AddonLockPlanResult,
+    AddonLockVerifyResult, AddonLockWriteResult, apply_addon_lock_sync_task_with_provider,
+    diff_addon_locks, inspect_addon_lock, plan_addon_lock_sync, verify_addon_lock,
+    write_addon_lock,
 };
 use crate::core::app::{
-    AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest, PlanAddonLockSyncRequest,
-    VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
+    AddonLockInspectionResult, AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest,
+    PlanAddonLockSyncRequest, VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -29,8 +29,12 @@ impl AddonLockService {
         &self.runtime
     }
 
-    pub fn inspect(&self, request: InspectAddonLockRequest) -> AppResult<AddonLockInspection> {
-        inspect_addon_lock(&request.installation)
+    pub fn inspect(
+        &self,
+        request: InspectAddonLockRequest,
+    ) -> AppResult<AddonLockInspectionResult> {
+        let inspection = inspect_addon_lock(&request.installation)?;
+        Ok(AddonLockInspectionResult::from(inspection))
     }
 
     pub fn write(&self, request: WriteAddonLockRequest) -> AppResult<AddonLockWriteResult> {

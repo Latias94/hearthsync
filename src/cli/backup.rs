@@ -55,23 +55,22 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                 } else {
                     let mut lines = vec![
                         format!("Backup dir: {}", item.backup_dir.display()),
-                        format!("Found {} backup(s):", item.entries.len()),
+                        format!("Found {} backup(s):", item.entry_count),
                     ];
                     for entry in &item.entries {
                         let groups = entry
-                            .metadata
                             .groups
                             .iter()
                             .map(BackupGroup::as_str)
                             .collect::<Vec<_>>()
                             .join(", ");
-                        let label = entry.metadata.label.as_deref().unwrap_or("none");
+                        let label = entry.label.as_deref().unwrap_or("none");
                         lines.push(format!(
                             "- {} | label: {} | created: {} | flavor: {} | groups: {} | size: {} bytes | path: {}",
                             entry.backup_id,
                             label,
-                            entry.metadata.created_at,
-                            entry.metadata.flavor,
+                            entry.created_at,
+                            entry.flavor,
                             groups,
                             entry.archive_size_bytes,
                             entry.archive_path.display()

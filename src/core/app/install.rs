@@ -1,10 +1,13 @@
 use crate::core::error::AppResult;
 use crate::core::install::{
-    DetectedFlavorInstallation, ProductInstallInspection, inspect_installation_on_host,
-    resolve_installation_on_host, scan_installations_for_host, scan_installations_with_roots,
+    DetectedFlavorInstallation, inspect_installation_on_host, resolve_installation_on_host,
+    scan_installations_for_host, scan_installations_with_roots,
 };
 
-use super::{AppRuntime, InspectInstallationRequest, ResolveInstallationRequest};
+use super::{
+    AppRuntime, InspectInstallationRequest, InstallationInspectionResult, InstallationScanResult,
+    ResolveInstallationRequest,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct InstallationService {
@@ -24,18 +27,25 @@ impl InstallationService {
         &self.runtime
     }
 
-    pub fn scan(&self) -> AppResult<Vec<DetectedFlavorInstallation>> {
-        match self.runtime.install_scan_roots() {
+    pub fn scan(&self) -> AppResult<InstallationScanResult> {
+        let installations = match self.runtime.install_scan_roots() {
             Some(roots) => scan_installations_with_roots(roots, self.runtime.host_platform()),
             None => scan_installations_for_host(self.runtime.host_platform()),
-        }
+        }?;
+
+        Ok(InstallationScanResult::from_installations(installations))
     }
 
     pub fn inspect(
         &self,
         request: InspectInstallationRequest,
-    ) -> AppResult<ProductInstallInspection> {
-        inspect_installation_on_host(&request.path, request.flavor, self.runtime.host_platform())
+    ) -> AppResult<InstallationInspectionResult> {
+        let inspection = inspect_installation_on_host(
+            &request.path,
+            request.flavor,
+            self.runtime.host_platform(),
+        )?;
+        Ok(InstallationInspectionResult::from(inspection))
     }
 
     pub fn resolve(
@@ -72,9 +82,9 @@ mod tests {
         );
         let installations = service.scan().expect("scan installations");
 
-        assert_eq!(installations.len(), 1);
-        assert_eq!(installations[0].platform, HostPlatform::MacOs);
-        assert_eq!(installations[0].product_root, product_root);
+        assert_eq!(installations.installation_count, 1);
+        assert_eq!(installations.installations[0].platform, HostPlatform::MacOs);
+        assert_eq!(installations.installations[0].product_root, product_root);
     }
 
     #[test]

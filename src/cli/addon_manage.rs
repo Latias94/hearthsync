@@ -70,7 +70,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                             format!(
                                 "{} => {} [{}]",
                                 package.package_id,
-                                package.source.display_name(),
+                                package.source_label,
                                 package
                                     .addons
                                     .iter()
@@ -88,9 +88,11 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                     item.untracked_addons.join(", ")
                 };
                 format!(
-                    "Target: {}\nRegistry: {}\nTracked packages:\n{}\nUntracked addon directories: {}",
+                    "Target: {}\nRegistry: {}\nTracked packages: {}\nTracked addons: {}\nTracked package details:\n{}\nUntracked addon directories: {}",
                     item.target_addon_root.display(),
                     item.registry_path.display(),
+                    item.tracked_package_count,
+                    item.tracked_addon_count,
                     tracked,
                     untracked
                 )
