@@ -348,15 +348,47 @@ pub fn create_external_package_bundle(
 pub fn plan_external_package_apply(
     request: PlanExternalPackageApplyRequest,
 ) -> AppResult<ExternalPackageApplyPlan> {
-    let prepared = prepare_external_package_apply(
-        request.external_package,
-        &request.installation,
-        &request.apply_mappings,
-    )?;
-    Ok(project_external_package_plan(
-        prepared.analysis,
-        prepared.prepared_apply.plan,
-    ))
+    let (analysis, manifest) = prepare_external_package_artifacts(&request.external_package)?;
+    let entry_source_map = build_external_package_entry_source_map(&analysis)?;
+    let entry_names = entry_source_map.keys().cloned().collect::<Vec<_>>();
+    let source_path = analysis.source_path.clone();
+    let source_kind = analysis.source_kind;
+
+    let plan = match source_kind {
+        ExternalPackageSourceKind::Directory => {
+            super::planner::plan_apply_from_entries_with_reader(
+                &source_path,
+                &request.installation,
+                manifest,
+                &entry_names,
+                &request.apply_mappings,
+                |normalized_path| {
+                    let source_entry =
+                        lookup_external_package_source_path(&entry_source_map, normalized_path)?;
+                    let resolved_path = resolve_zip_style_path(&source_path, source_entry)?;
+                    Ok(fs::read(resolved_path)?)
+                },
+            )?
+        }
+        ExternalPackageSourceKind::ZipArchive => {
+            let file = File::open(&source_path)?;
+            let mut archive = ZipArchive::new(file)?;
+            super::planner::plan_apply_from_entries_with_reader(
+                &source_path,
+                &request.installation,
+                manifest,
+                &entry_names,
+                &request.apply_mappings,
+                |normalized_path| {
+                    let source_entry =
+                        lookup_external_package_source_path(&entry_source_map, normalized_path)?;
+                    read_bundle_entry_bytes_from_archive(&mut archive, source_entry)
+                },
+            )?
+        }
+    };
+
+    Ok(project_external_package_plan(analysis, plan))
 }
 
 pub fn plan_external_package_apply_task<TCancel, TProgress>(
@@ -492,18 +524,13 @@ fn prepare_external_package_apply(
             PreparedApplySource::ExternalPackage {
                 source_path: source_path.clone(),
                 source_kind,
+                entry_source_map: entry_source_map.clone(),
             },
             |normalized_path| {
                 let source_entry =
                     lookup_external_package_source_path(&entry_source_map, normalized_path)?;
                 let resolved_path = resolve_zip_style_path(&source_path, source_entry)?;
                 Ok(fs::read(resolved_path)?)
-            },
-            |normalized_path| {
-                Ok(Some(
-                    lookup_external_package_source_path(&entry_source_map, normalized_path)?
-                        .to_string(),
-                ))
             },
         )?,
         ExternalPackageSourceKind::ZipArchive => {
@@ -518,17 +545,12 @@ fn prepare_external_package_apply(
                 PreparedApplySource::ExternalPackage {
                     source_path: source_path.clone(),
                     source_kind,
+                    entry_source_map: entry_source_map.clone(),
                 },
                 |normalized_path| {
                     let source_entry =
                         lookup_external_package_source_path(&entry_source_map, normalized_path)?;
                     read_bundle_entry_bytes_from_archive(&mut archive, source_entry)
-                },
-                |normalized_path| {
-                    Ok(Some(
-                        lookup_external_package_source_path(&entry_source_map, normalized_path)?
-                            .to_string(),
-                    ))
                 },
             )?
         }
@@ -1153,18 +1175,18 @@ fn build_external_manifest(
         apply: request
             .apply_defaults
             .clone()
-            .unwrap_or_else(default_external_apply_defaults),
+            .unwrap_or_else(author_package_apply_defaults),
     })
 }
 
-fn default_external_apply_defaults() -> ApplyDefaults {
+pub(crate) fn author_package_apply_defaults() -> ApplyDefaults {
     ApplyDefaults {
         create_backup: true,
-        addons: ResourceApplyPolicy::Merge,
-        wtf_common: ResourceApplyPolicy::Merge,
-        wtf_characters: ResourceApplyPolicy::Merge,
-        fonts: ResourceApplyPolicy::Merge,
-        interface_assets: ResourceApplyPolicy::Merge,
+        addons: ResourceApplyPolicy::Mirror,
+        wtf_common: ResourceApplyPolicy::Share,
+        wtf_characters: ResourceApplyPolicy::ReplaceSelected,
+        fonts: ResourceApplyPolicy::Mirror,
+        interface_assets: ResourceApplyPolicy::Mirror,
     }
 }
 

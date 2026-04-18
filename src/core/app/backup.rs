@@ -110,8 +110,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::AppRuntime;
-    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+    use crate::core::app::{AppRuntime, ResolvedInstallationValue};
+    use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(restored.restored_files, 1);
     }
 
-    fn create_empty_installation(root: &Path) -> DetectedFlavorInstallation {
+    fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
         let product_root = root.join("World of Warcraft");
         let flavor_root = product_root.join("_retail_");
         let interface_dir = flavor_root.join("Interface");
@@ -284,7 +284,7 @@ mod tests {
         fs::create_dir_all(&wtf_dir).expect("wtf dir");
         fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
-        DetectedFlavorInstallation {
+        crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -294,6 +294,7 @@ mod tests {
             wtf_dir,
             fonts_dir,
         }
+        .into()
     }
 
     fn assert_backup_restore_task_progress(events: &[TaskProgressEvent]) {

@@ -1,12 +1,12 @@
 use crate::core::error::AppResult;
 use crate::core::install::{
-    DetectedFlavorInstallation, inspect_installation_on_host, resolve_installation_on_host,
-    scan_installations_for_host, scan_installations_with_roots,
+    inspect_installation_on_host, resolve_installation_on_host, scan_installations_for_host,
+    scan_installations_with_roots,
 };
 
 use super::{
     AppRuntime, InspectInstallationRequest, InstallationInspectionResult, InstallationScanResult,
-    ResolveInstallationRequest,
+    ResolveInstallationRequest, ResolvedInstallationValue,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -51,8 +51,13 @@ impl InstallationService {
     pub fn resolve(
         &self,
         request: ResolveInstallationRequest,
-    ) -> AppResult<DetectedFlavorInstallation> {
-        resolve_installation_on_host(&request.path, request.flavor, self.runtime.host_platform())
+    ) -> AppResult<ResolvedInstallationValue> {
+        let installation = resolve_installation_on_host(
+            &request.path,
+            request.flavor,
+            self.runtime.host_platform(),
+        )?;
+        Ok(ResolvedInstallationValue::from(installation))
     }
 }
 
@@ -64,6 +69,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::core::app::{AddonService, ListAddonsRequest};
     use crate::core::install::{HealthStatus, HostPlatform, WowFlavor};
 
     #[test]
@@ -125,5 +131,12 @@ mod tests {
                 .flavor_root
                 .ends_with(Path::new("World of Warcraft").join("_retail_"))
         );
+
+        let inventory = AddonService::new()
+            .list(ListAddonsRequest {
+                installation: resolved,
+            })
+            .expect("list addons from resolved installation value");
+        assert_eq!(inventory.tracked_packages.len(), 0);
     }
 }

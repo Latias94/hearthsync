@@ -2,13 +2,12 @@ use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
 use super::output::render;
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
 use crate::core::app::{
-    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
+    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
     CreateExternalPackageBundleAppRequest, ExternalPackageSummaryResult,
     ExternalPackageWarningResult, HearthSyncApp, PlanExternalPackageApplyAppRequest,
-    ResolveInstallationRequest,
+    ResolveInstallationRequest, ResourceApplyPolicyValue,
 };
 use crate::core::error::AppResult;
-use crate::core::manifest::{ApplyDefaults, ResourceApplyPolicy};
 
 pub(super) fn handle_external_package_command(
     json: bool,
@@ -263,7 +262,7 @@ fn build_external_package_bundle_request(
 
 fn build_external_package_apply_defaults(
     options: &ExternalPackageBundleOptions,
-) -> Option<ApplyDefaults> {
+) -> Option<BundleApplyDefaultsValue> {
     let has_override = options.no_backup
         || options.addons_policy.is_some()
         || options.wtf_common_policy.is_some()
@@ -275,29 +274,35 @@ fn build_external_package_apply_defaults(
         return None;
     }
 
-    Some(ApplyDefaults {
-        create_backup: !options.no_backup,
-        addons: options
-            .addons_policy
-            .map(Into::into)
-            .unwrap_or(ResourceApplyPolicy::Merge),
-        wtf_common: options
-            .wtf_common_policy
-            .map(Into::into)
-            .unwrap_or(ResourceApplyPolicy::Merge),
-        wtf_characters: options
-            .wtf_characters_policy
-            .map(Into::into)
-            .unwrap_or(ResourceApplyPolicy::Merge),
-        fonts: options
-            .fonts_policy
-            .map(Into::into)
-            .unwrap_or(ResourceApplyPolicy::Merge),
-        interface_assets: options
-            .interface_assets_policy
-            .map(Into::into)
-            .unwrap_or(ResourceApplyPolicy::Merge),
-    })
+    let mut defaults = BundleApplyDefaultsValue::author_package_defaults();
+    defaults.create_backup = !options.no_backup;
+    if let Some(policy) = options.addons_policy {
+        defaults.addons = ResourceApplyPolicyValue::from(
+            crate::core::manifest::ResourceApplyPolicy::from(policy),
+        );
+    }
+    if let Some(policy) = options.wtf_common_policy {
+        defaults.wtf_common = ResourceApplyPolicyValue::from(
+            crate::core::manifest::ResourceApplyPolicy::from(policy),
+        );
+    }
+    if let Some(policy) = options.wtf_characters_policy {
+        defaults.wtf_characters = ResourceApplyPolicyValue::from(
+            crate::core::manifest::ResourceApplyPolicy::from(policy),
+        );
+    }
+    if let Some(policy) = options.fonts_policy {
+        defaults.fonts = ResourceApplyPolicyValue::from(
+            crate::core::manifest::ResourceApplyPolicy::from(policy),
+        );
+    }
+    if let Some(policy) = options.interface_assets_policy {
+        defaults.interface_assets = ResourceApplyPolicyValue::from(
+            crate::core::manifest::ResourceApplyPolicy::from(policy),
+        );
+    }
+
+    Some(defaults)
 }
 
 fn format_external_package_warnings(
@@ -351,7 +356,10 @@ mod tests {
 
     use super::*;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
-    use crate::core::app::{ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue};
+    use crate::core::app::{
+        ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+        ResourceApplyPolicyValue,
+    };
 
     #[test]
     fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {
@@ -400,13 +408,16 @@ mod tests {
             .apply_defaults
             .expect("expected explicit apply defaults");
         assert!(!apply_defaults.create_backup);
-        assert_eq!(apply_defaults.addons, ResourceApplyPolicy::Mirror);
-        assert_eq!(apply_defaults.wtf_common, ResourceApplyPolicy::Share);
-        assert_eq!(apply_defaults.wtf_characters, ResourceApplyPolicy::Sync);
-        assert_eq!(apply_defaults.fonts, ResourceApplyPolicy::Preserve);
+        assert_eq!(apply_defaults.addons, ResourceApplyPolicyValue::Mirror);
+        assert_eq!(apply_defaults.wtf_common, ResourceApplyPolicyValue::Share);
+        assert_eq!(
+            apply_defaults.wtf_characters,
+            ResourceApplyPolicyValue::Sync
+        );
+        assert_eq!(apply_defaults.fonts, ResourceApplyPolicyValue::Preserve);
         assert_eq!(
             apply_defaults.interface_assets,
-            ResourceApplyPolicy::ReplaceSelected
+            ResourceApplyPolicyValue::ReplaceSelected
         );
     }
 
@@ -430,6 +441,43 @@ mod tests {
         });
 
         assert!(request.apply_defaults.is_none());
+    }
+
+    #[test]
+    fn build_external_package_bundle_request_partial_overrides_inherit_author_package_defaults() {
+        let request = build_external_package_bundle_request(ExternalPackageBundleOptions {
+            source: PathBuf::from("C:\\temp\\author-ui.zip"),
+            source_flavor: FlavorArg::Retail,
+            source_platform: None,
+            supported_targets: Vec::new(),
+            package_id: None,
+            package_name: None,
+            created_by: None,
+            description: None,
+            no_backup: true,
+            addons_policy: None,
+            wtf_common_policy: None,
+            wtf_characters_policy: None,
+            fonts_policy: Some(ApplyPolicyArg::Preserve),
+            interface_assets_policy: None,
+        });
+
+        let apply_defaults = request
+            .apply_defaults
+            .expect("expected explicit apply defaults");
+
+        assert!(!apply_defaults.create_backup);
+        assert_eq!(apply_defaults.addons, ResourceApplyPolicyValue::Mirror);
+        assert_eq!(apply_defaults.wtf_common, ResourceApplyPolicyValue::Share);
+        assert_eq!(
+            apply_defaults.wtf_characters,
+            ResourceApplyPolicyValue::ReplaceSelected
+        );
+        assert_eq!(apply_defaults.fonts, ResourceApplyPolicyValue::Preserve);
+        assert_eq!(
+            apply_defaults.interface_assets,
+            ResourceApplyPolicyValue::Mirror
+        );
     }
 
     #[test]

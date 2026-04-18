@@ -29,12 +29,47 @@ enum LogicalEntryDisposition {
     Materialize { will_cleanup: bool },
 }
 
+#[derive(Debug)]
+struct PendingPreviewApply {
+    plan_path: PathBuf,
+    target_flavor_root: PathBuf,
+    discovered_accounts: Vec<LocalWowAccount>,
+    selected_target_accounts: Vec<String>,
+    character_mappings: Vec<CharacterMapping>,
+    manifest: BundleManifest,
+    settled_operations: Vec<PreviewOperation>,
+    pending_existing_target_entries: Vec<PendingExistingTargetPreviewEntry>,
+}
+
+#[derive(Debug)]
+struct PendingExistingTargetPreviewEntry {
+    entry: PlannedEntry,
+}
+
+#[derive(Debug)]
+struct ResolvedPreviewApply {
+    plan: BundleApplyPlan,
+    preview_operations: Vec<PreviewOperation>,
+}
+
 pub fn plan_bundle_apply(
     bundle_path: &Path,
     installation: &DetectedFlavorInstallation,
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<BundleApplyPlan> {
-    Ok(prepare_bundle_apply(bundle_path, installation, apply_mappings)?.plan)
+    let inspection = inspect_bundle(bundle_path)?;
+    let entry_names = collect_bundle_entry_names(bundle_path)?;
+    let file = File::open(bundle_path)?;
+    let mut archive = ZipArchive::new(file)?;
+
+    plan_apply_from_entries_with_reader(
+        bundle_path,
+        installation,
+        inspection.manifest,
+        &entry_names,
+        apply_mappings,
+        |archive_name| read_bundle_entry_bytes_from_archive(&mut archive, archive_name),
+    )
 }
 
 pub(super) fn prepare_bundle_apply(
@@ -57,11 +92,10 @@ pub(super) fn prepare_bundle_apply(
             bundle_path: bundle_path.to_path_buf(),
         },
         |archive_name| read_bundle_entry_bytes_from_archive(&mut archive, archive_name),
-        |_archive_name| Ok(None),
     )
 }
 
-pub(super) fn prepare_apply_from_entries<TReadBytes, TSourceForEntry>(
+pub(super) fn prepare_apply_from_entries<TReadBytes>(
     plan_path: &Path,
     installation: &DetectedFlavorInstallation,
     manifest: BundleManifest,
@@ -69,11 +103,55 @@ pub(super) fn prepare_apply_from_entries<TReadBytes, TSourceForEntry>(
     apply_mappings: &BundleApplyMappings,
     apply_source: PreparedApplySource,
     mut read_entry_bytes: TReadBytes,
-    mut source_for_entry: TSourceForEntry,
 ) -> AppResult<PreparedBundleApply>
 where
     TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
-    TSourceForEntry: FnMut(&str) -> AppResult<Option<String>>,
+{
+    let resolved_preview_apply = resolve_preview_apply_from_entries(
+        plan_path,
+        installation,
+        manifest,
+        entry_names,
+        apply_mappings,
+        &mut read_entry_bytes,
+    )?;
+
+    Ok(resolved_preview_apply.into_prepared_apply(apply_source))
+}
+
+pub(super) fn plan_apply_from_entries_with_reader<TReadBytes>(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    entry_names: &[String],
+    apply_mappings: &BundleApplyMappings,
+    mut read_entry_bytes: TReadBytes,
+) -> AppResult<BundleApplyPlan>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+{
+    let resolved_preview_apply = resolve_preview_apply_from_entries(
+        plan_path,
+        installation,
+        manifest,
+        entry_names,
+        apply_mappings,
+        &mut read_entry_bytes,
+    )?;
+
+    Ok(resolved_preview_apply.into_plan())
+}
+
+fn resolve_preview_apply_from_entries<TReadBytes>(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    entry_names: &[String],
+    apply_mappings: &BundleApplyMappings,
+    read_entry_bytes: &mut TReadBytes,
+) -> AppResult<ResolvedPreviewApply>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
 {
     let logical_apply = plan_apply_from_entries(
         plan_path,
@@ -82,13 +160,9 @@ where
         entry_names,
         apply_mappings,
     )?;
+    let pending_preview_apply = build_pending_preview_apply(logical_apply);
 
-    prepare_logical_apply(
-        logical_apply,
-        apply_source,
-        &mut read_entry_bytes,
-        &mut source_for_entry,
-    )
+    finalize_pending_preview_apply(pending_preview_apply, read_entry_bytes)
 }
 
 fn plan_apply_from_entries(
@@ -172,16 +246,7 @@ fn build_logical_apply(
     })
 }
 
-fn prepare_logical_apply<TReadBytes, TSourceForEntry>(
-    logical_apply: LogicalBundleApply,
-    apply_source: PreparedApplySource,
-    read_entry_bytes: &mut TReadBytes,
-    source_for_entry: &mut TSourceForEntry,
-) -> AppResult<PreparedBundleApply>
-where
-    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
-    TSourceForEntry: FnMut(&str) -> AppResult<Option<String>>,
-{
+fn build_pending_preview_apply(logical_apply: LogicalBundleApply) -> PendingPreviewApply {
     let LogicalBundleApply {
         plan_path,
         target_flavor_root,
@@ -192,89 +257,157 @@ where
         cleanup_operations,
         entry_operations,
     } = logical_apply;
+    let mut settled_operations = Vec::new();
+    let mut pending_existing_target_entries = Vec::new();
+
+    for cleanup in cleanup_operations {
+        settled_operations.push(PreviewOperation::from_cleanup(cleanup));
+    }
+
+    for entry_operation in entry_operations {
+        let entry = entry_operation.entry;
+        match entry_operation.disposition {
+            LogicalEntryDisposition::Preserve => {
+                settled_operations
+                    .push(PreviewOperation::from_entry(&entry, ApplyAction::Preserve));
+            }
+            LogicalEntryDisposition::Materialize { will_cleanup } => {
+                if will_cleanup || !entry.destination.exists() {
+                    settled_operations.push(PreviewOperation::from_entry(&entry, ApplyAction::Add));
+                } else {
+                    pending_existing_target_entries
+                        .push(PendingExistingTargetPreviewEntry { entry });
+                }
+            }
+        }
+    }
+
+    PendingPreviewApply {
+        plan_path,
+        target_flavor_root,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        manifest,
+        settled_operations,
+        pending_existing_target_entries,
+    }
+}
+
+fn finalize_pending_preview_apply<TReadBytes>(
+    pending_preview_apply: PendingPreviewApply,
+    read_entry_bytes: &mut TReadBytes,
+) -> AppResult<ResolvedPreviewApply>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+{
+    let PendingPreviewApply {
+        plan_path,
+        target_flavor_root,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        manifest,
+        settled_operations,
+        pending_existing_target_entries,
+    } = pending_preview_apply;
     let rewrite_options = LuaRewriteOptions {
         rewrite_profile_keys: manifest.mapping.rewrite_profile_keys,
         rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
     };
-    let mut execution_operations = Vec::new();
+    let preview_operations = finalize_preview_operations(
+        settled_operations,
+        pending_existing_target_entries,
+        rewrite_options,
+        read_entry_bytes,
+    )?;
+    Ok(ResolvedPreviewApply::new(
+        plan_path,
+        target_flavor_root,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        manifest,
+        preview_operations,
+    ))
+}
 
-    for cleanup in cleanup_operations {
-        execution_operations.push(PreparedApplyOperation::from_cleanup(cleanup));
-    }
+fn finalize_preview_operations<TReadBytes>(
+    mut settled_operations: Vec<PreviewOperation>,
+    pending_existing_target_entries: Vec<PendingExistingTargetPreviewEntry>,
+    rewrite_options: LuaRewriteOptions,
+    read_entry_bytes: &mut TReadBytes,
+) -> AppResult<Vec<PreviewOperation>>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+{
+    settled_operations.extend(finalize_existing_target_preview_entries(
+        pending_existing_target_entries,
+        rewrite_options,
+        read_entry_bytes,
+    )?);
 
-    for entry_operation in &entry_operations {
-        let entry = &entry_operation.entry;
-        let (action, rewrite_applied, source_path) = match entry_operation.disposition {
-            LogicalEntryDisposition::Preserve => (ApplyAction::Preserve, false, None),
-            LogicalEntryDisposition::Materialize { will_cleanup } => {
-                let source_bytes = read_entry_bytes(&entry.archive_name)?;
-                let rewritten_bytes = preview_lua_bytes_rewrite(
-                    Path::new(&entry.archive_name),
-                    &source_bytes,
-                    &entry.rewrites,
-                    rewrite_options,
-                )?;
-                let rewrite_applied = rewritten_bytes.is_some();
-                let action = if will_cleanup || !entry.destination.exists() {
-                    ApplyAction::Add
-                } else if rewritten_bytes.as_deref().map_or_else(
-                    || file_contents_equal_to_bytes(&source_bytes, &entry.destination),
-                    |bytes| file_contents_equal_to_bytes(bytes, &entry.destination),
-                )? {
-                    ApplyAction::Skip
-                } else {
-                    ApplyAction::Replace
-                };
-
-                let source_path = match action {
-                    ApplyAction::Add | ApplyAction::Replace => {
-                        source_for_entry(&entry.archive_name)?
-                    }
-                    ApplyAction::Skip | ApplyAction::Preserve => None,
-                    ApplyAction::Remove => {
-                        unreachable!("logical entry operation cannot finalize as remove")
-                    }
-                };
-
-                (action, rewrite_applied, source_path)
-            }
-        };
-
-        execution_operations.push(PreparedApplyOperation::from_entry(
-            entry,
-            action,
-            rewrite_applied,
-            source_path,
-        ));
-    }
-
-    execution_operations.sort_by(|left, right| {
-        apply_action_order(left.action)
-            .cmp(&apply_action_order(right.action))
-            .then_with(|| apply_group_order(left.group).cmp(&apply_group_order(right.group)))
-            .then_with(|| left.destination.cmp(&right.destination))
-            .then_with(|| left.archive_name.cmp(&right.archive_name))
+    settled_operations.sort_by(|left, right| {
+        apply_action_order(left.action())
+            .cmp(&apply_action_order(right.action()))
+            .then_with(|| apply_group_order(left.group()).cmp(&apply_group_order(right.group())))
+            .then_with(|| left.destination().cmp(right.destination()))
+            .then_with(|| left.archive_name().cmp(right.archive_name()))
     });
-    let operations = execution_operations
-        .iter()
-        .map(PreparedApplyOperation::preview)
-        .collect::<Vec<_>>();
-    let summary = ApplyPlanSummary::from_operations(&operations);
 
-    Ok(PreparedBundleApply {
-        source: apply_source,
-        plan: build_bundle_apply_plan(
-            plan_path,
-            target_flavor_root,
-            discovered_accounts,
-            selected_target_accounts,
-            character_mappings,
-            operations,
-            summary,
-            manifest,
-        ),
-        execution_operations,
-    })
+    Ok(settled_operations)
+}
+
+fn finalize_existing_target_preview_entries<TReadBytes>(
+    pending_entries: Vec<PendingExistingTargetPreviewEntry>,
+    rewrite_options: LuaRewriteOptions,
+    read_entry_bytes: &mut TReadBytes,
+) -> AppResult<Vec<PreviewOperation>>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+{
+    let mut finalized_operations = Vec::with_capacity(pending_entries.len());
+
+    for pending_entry in pending_entries {
+        let action = finalize_existing_target_action(
+            &pending_entry.entry,
+            rewrite_options,
+            read_entry_bytes,
+        )?;
+        finalized_operations.push(PreviewOperation::from_entry(&pending_entry.entry, action));
+    }
+
+    Ok(finalized_operations)
+}
+
+fn finalize_existing_target_action<TReadBytes>(
+    entry: &PlannedEntry,
+    rewrite_options: LuaRewriteOptions,
+    read_entry_bytes: &mut TReadBytes,
+) -> AppResult<ApplyAction>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+{
+    let source_bytes = read_entry_bytes(&entry.archive_name)?;
+    let comparison_bytes = if entry.rewrites.is_empty() {
+        None
+    } else {
+        preview_lua_bytes_rewrite(
+            Path::new(&entry.archive_name),
+            &source_bytes,
+            &entry.rewrites,
+            rewrite_options,
+        )?
+    };
+
+    if comparison_bytes.as_deref().map_or_else(
+        || file_contents_equal_to_bytes(&source_bytes, &entry.destination),
+        |bytes| file_contents_equal_to_bytes(bytes, &entry.destination),
+    )? {
+        Ok(ApplyAction::Skip)
+    } else {
+        Ok(ApplyAction::Replace)
+    }
 }
 
 fn build_bundle_apply_plan(
@@ -321,5 +454,55 @@ fn build_group_policies(manifest: &BundleManifest) -> ApplyGroupPolicies {
         metadata: GroupPolicy {
             policy: ResourceApplyPolicy::Merge,
         },
+    }
+}
+
+impl ResolvedPreviewApply {
+    fn new(
+        plan_path: PathBuf,
+        target_flavor_root: PathBuf,
+        discovered_accounts: Vec<LocalWowAccount>,
+        selected_target_accounts: Vec<String>,
+        character_mappings: Vec<CharacterMapping>,
+        manifest: BundleManifest,
+        preview_operations: Vec<PreviewOperation>,
+    ) -> Self {
+        let operations = preview_operations
+            .iter()
+            .cloned()
+            .map(ApplyOperation::from)
+            .collect::<Vec<_>>();
+        let summary = ApplyPlanSummary::from_operations(&operations);
+        let plan = build_bundle_apply_plan(
+            plan_path,
+            target_flavor_root,
+            discovered_accounts,
+            selected_target_accounts,
+            character_mappings,
+            operations,
+            summary,
+            manifest,
+        );
+
+        Self {
+            plan,
+            preview_operations,
+        }
+    }
+
+    fn into_plan(self) -> BundleApplyPlan {
+        self.plan
+    }
+
+    fn into_prepared_apply(self, apply_source: PreparedApplySource) -> PreparedBundleApply {
+        PreparedBundleApply {
+            source: apply_source,
+            plan: self.plan,
+            execution_operations: self
+                .preview_operations
+                .into_iter()
+                .map(PreparedApplyOperation::from_preview)
+                .collect(),
+        }
     }
 }

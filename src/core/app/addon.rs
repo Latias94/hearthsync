@@ -35,7 +35,8 @@ impl AddonService {
     }
 
     pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
-        let inventory = list_addons(&request.installation)?;
+        let installation = request.installation.into();
+        let inventory = list_addons(&installation)?;
         Ok(AddonInventoryResult::from(inventory))
     }
 
@@ -202,9 +203,9 @@ mod tests {
         AddonSourceRef, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
         MaterializedAddonSource,
     };
-    use crate::core::app::AppRuntime;
+    use crate::core::app::{AddonPackageMetadataValue, AppRuntime, ResolvedInstallationValue};
     use crate::core::error::AppError;
-    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+    use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{
         NeverCancel, TaskKind, TaskPhase, TaskProgressEvent, VecTaskProgressSink,
     };
@@ -261,6 +262,59 @@ mod tests {
         assert_eq!(results.result_count, 1);
         assert_eq!(results.results[0].provider, "fake-provider");
         assert_eq!(results.results[0].source_label, "curseforge:42");
+    }
+
+    #[test]
+    fn addon_service_install_and_list_roundtrip_app_owned_metadata() {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_empty_installation(temp.path());
+        let archive_path = temp.path().join("Details.zip");
+        create_addon_archive(
+            &archive_path,
+            &[(
+                "Details/Details.toc",
+                "## Interface: 110000\n## Version: 1.0.0\n",
+            )],
+        );
+
+        let service = AddonService::new();
+        service
+            .install(InstallAddonAppRequest {
+                installation: installation.clone(),
+                source: archive_path.display().to_string(),
+                dry_run: false,
+                backup_output_path: Some(temp.path().join("backups")),
+                replace_existing: false,
+                metadata: Some(AddonPackageMetadataValue {
+                    index_name: Some("curated".to_string()),
+                    index_package_id: Some("details".to_string()),
+                    package_name: Some("Details".to_string()),
+                    version: Some("1.0.0".to_string()),
+                    source_url: Some("https://example.invalid/details.zip".to_string()),
+                    website_url: Some("https://example.invalid/details".to_string()),
+                    source_sha256: Some("abc123".to_string()),
+                    supported_flavors: vec!["retail".to_string()],
+                }),
+            })
+            .expect("install addon");
+
+        let inventory = service
+            .list(ListAddonsRequest { installation })
+            .expect("list addons");
+        let metadata = inventory.tracked_packages[0]
+            .metadata
+            .as_ref()
+            .expect("tracked metadata");
+
+        assert_eq!(metadata.index_name.as_deref(), Some("curated"));
+        assert_eq!(metadata.index_package_id.as_deref(), Some("details"));
+        assert_eq!(metadata.package_name.as_deref(), Some("Details"));
+        assert_eq!(metadata.version.as_deref(), Some("1.0.0"));
+        assert_eq!(
+            metadata.source_url.as_deref(),
+            Some("https://example.invalid/details.zip")
+        );
+        assert_eq!(metadata.supported_flavors, vec!["retail"]);
     }
 
     #[test]
@@ -452,7 +506,7 @@ mod tests {
         );
     }
 
-    fn create_empty_installation(root: &Path) -> DetectedFlavorInstallation {
+    fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
         let product_root = root.join("World of Warcraft");
         let flavor_root = product_root.join("_retail_");
         let interface_dir = flavor_root.join("Interface");
@@ -464,7 +518,7 @@ mod tests {
         fs::create_dir_all(&wtf_dir).expect("wtf dir");
         fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
-        DetectedFlavorInstallation {
+        crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -474,6 +528,7 @@ mod tests {
             wtf_dir,
             fonts_dir,
         }
+        .into()
     }
 
     fn create_addon_archive(path: &Path, entries: &[(&str, &str)]) {

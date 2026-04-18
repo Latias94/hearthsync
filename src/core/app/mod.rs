@@ -9,6 +9,7 @@ mod install;
 mod request;
 mod response;
 mod runtime;
+mod stable;
 mod task_support;
 mod types;
 
@@ -34,7 +35,12 @@ pub use request::{
 };
 pub use response::*;
 pub use runtime::{AppRuntime, SharedAddonProvider};
+pub use stable::StableAppServices;
 pub use types::{
-    ApplyActionValue, ApplyGroupValue, BackupGroupValue, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, HelperStrategyValue, ResourceApplyPolicyValue, WtfScopeValue,
+    AddonPackageMetadataValue, ApplyActionValue, ApplyGroupValue, BackupGroupValue,
+    BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
+    BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
+    BundleResourcesValue, BundleSourceValue, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue, HelperStrategyValue, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, WtfScopeValue,
 };

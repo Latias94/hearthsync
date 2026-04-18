@@ -97,7 +97,7 @@ The current blocking sequence is:
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
-- [ ] Reject external-package path sets that would collide on case-insensitive Windows/default macOS targets
+- [x] Reject external-package path sets that would collide on case-insensitive Windows/default macOS targets
 - [x] Make manifest character mapping intent (`keep_original`, `explicit`, `prompt`) affect runtime behavior
 - [x] Align apply ordering with explicit resource-group ordering instead of archive iteration order
 
@@ -128,7 +128,7 @@ The current blocking sequence is:
 - [x] Implement `hearthsync addon install`
 - [x] Implement `hearthsync addon update`
 - [x] Implement `hearthsync addon remove`
-- [ ] Resolve addon-index relative local archives against the index file instead of the caller working directory
+- [x] Resolve addon-index relative local archives against the index file instead of the caller working directory
 
 ## Phase 8 - Reliability and Polish
 
@@ -142,7 +142,7 @@ The current blocking sequence is:
 - [x] Add direct `external-package inspect/plan/apply` command surface on top of the normalized import pipeline
 - [x] Add metadata and apply-policy override flags for `external-package plan/apply`
 - [x] Consume one shared core app entrypoint instead of constructing unrelated service facades per handler
-- [ ] Make provider-backed addon downloads timeout-bounded and truthfully cancellable before GUI reuse
+- [x] Make provider-backed addon downloads timeout-bounded and truthfully cancellable before GUI reuse
 - [ ] Add human-readable summary reports
 - [ ] Add documentation for future frontend integration
 

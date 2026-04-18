@@ -3,8 +3,10 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::{
-    ApplyActionValue, ApplyGroupValue, BackupGroupValue, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, HelperStrategyValue, ResourceApplyPolicyValue, WtfScopeValue,
+    AddonPackageMetadataValue, ApplyActionValue, ApplyGroupValue, BackupGroupValue,
+    BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
+    BundleSourceValue, ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+    HelperStrategyValue, ResolvedInstallationValue, ResourceApplyPolicyValue, WtfScopeValue,
 };
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallResult as DomainAddonIndexInstallResult,
@@ -23,7 +25,7 @@ use crate::core::addon::lock::{
     AddonLockWriteResult as DomainAddonLockWriteResult,
 };
 use crate::core::addon::{
-    AddonInventory, AddonPackageMetadata, AddonSearchCatalog as DomainAddonSearchCatalog,
+    AddonInventory, AddonSearchCatalog as DomainAddonSearchCatalog,
     AddonSearchResult as DomainAddonSearchResult, AddonSourceRef as DomainAddonSourceRef,
     InstalledAddonPackageResult as DomainInstalledAddonPackageResult,
     RemovedAddonPackageResult as DomainRemovedAddonPackageResult, TrackedAddon,
@@ -48,54 +50,26 @@ use crate::core::bundle::{
     UnpackedBundle as DomainUnpackedBundle,
 };
 use crate::core::install::{
-    DetectedFlavorInstallation, HealthStatus, InstallationHealth, LocalWowAccount,
-    LocalWowCharacter, ProductInstallInspection, WowFlavor,
+    HealthStatus, InstallationHealth, LocalWowAccount, LocalWowCharacter, ProductInstallInspection,
+    WowFlavor,
 };
 use crate::core::lua_patch::CharacterMapping;
-use crate::core::manifest::{
-    ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
-    MappingRules, PackageMetadata, SourceInstallation,
-};
-
-#[derive(Debug, Clone, Serialize)]
-pub struct InstallationResult {
-    pub platform: crate::core::install::HostPlatform,
-    pub flavor: WowFlavor,
-    pub product_root: PathBuf,
-    pub flavor_root: PathBuf,
-    pub interface_dir: PathBuf,
-    pub addon_dir: PathBuf,
-    pub wtf_dir: PathBuf,
-    pub fonts_dir: PathBuf,
-}
-
-impl From<DetectedFlavorInstallation> for InstallationResult {
-    fn from(value: DetectedFlavorInstallation) -> Self {
-        Self {
-            platform: value.platform,
-            flavor: value.flavor,
-            product_root: value.product_root,
-            flavor_root: value.flavor_root,
-            interface_dir: value.interface_dir,
-            addon_dir: value.addon_dir,
-            wtf_dir: value.wtf_dir,
-            fonts_dir: value.fonts_dir,
-        }
-    }
-}
+use crate::core::manifest::BundleResources;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InstallationScanResult {
     pub installation_count: usize,
-    pub installations: Vec<InstallationResult>,
+    pub installations: Vec<ResolvedInstallationValue>,
 }
 
 impl InstallationScanResult {
-    pub fn from_installations(installations: Vec<DetectedFlavorInstallation>) -> Self {
+    pub fn from_installations(
+        installations: Vec<crate::core::install::DetectedFlavorInstallation>,
+    ) -> Self {
         let installation_count = installations.len();
         let installations = installations
             .into_iter()
-            .map(InstallationResult::from)
+            .map(ResolvedInstallationValue::from)
             .collect();
 
         Self {
@@ -157,7 +131,7 @@ pub struct InstallationInspectionResult {
     pub requested_path: PathBuf,
     pub product_root: PathBuf,
     pub available_flavors: Vec<WowFlavor>,
-    pub installation: InstallationResult,
+    pub installation: ResolvedInstallationValue,
     pub health: InstallationHealthResult,
 }
 
@@ -167,35 +141,8 @@ impl From<ProductInstallInspection> for InstallationInspectionResult {
             requested_path: value.requested_path,
             product_root: value.product_root,
             available_flavors: value.available_flavors,
-            installation: InstallationResult::from(value.installation),
+            installation: ResolvedInstallationValue::from(value.installation),
             health: InstallationHealthResult::from(value.health),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AddonMetadataResult {
-    pub index_name: Option<String>,
-    pub index_package_id: Option<String>,
-    pub package_name: Option<String>,
-    pub version: Option<String>,
-    pub source_url: Option<String>,
-    pub website_url: Option<String>,
-    pub source_sha256: Option<String>,
-    pub supported_flavors: Vec<String>,
-}
-
-impl From<AddonPackageMetadata> for AddonMetadataResult {
-    fn from(value: AddonPackageMetadata) -> Self {
-        Self {
-            index_name: value.index_name,
-            index_package_id: value.index_package_id,
-            package_name: value.package_name,
-            version: value.version,
-            source_url: value.source_url,
-            website_url: value.website_url,
-            source_sha256: value.source_sha256,
-            supported_flavors: value.supported_flavors,
         }
     }
 }
@@ -319,7 +266,7 @@ pub struct TrackedAddonPackageResult {
     pub updated_at: String,
     pub addon_count: usize,
     pub addons: Vec<TrackedAddonResult>,
-    pub metadata: Option<AddonMetadataResult>,
+    pub metadata: Option<AddonPackageMetadataValue>,
 }
 
 impl From<TrackedAddonPackage> for TrackedAddonPackageResult {
@@ -340,7 +287,7 @@ impl From<TrackedAddonPackage> for TrackedAddonPackageResult {
                 .into_iter()
                 .map(TrackedAddonResult::from)
                 .collect(),
-            metadata: value.metadata.map(AddonMetadataResult::from),
+            metadata: value.metadata.map(AddonPackageMetadataValue::from),
         }
     }
 }
@@ -859,62 +806,9 @@ impl From<BackupCatalog> for BackupCatalogResult {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct BundlePackageResult {
-    pub id: String,
-    pub name: String,
-    pub created_by: String,
-    pub description: Option<String>,
-}
-
-impl From<PackageMetadata> for BundlePackageResult {
-    fn from(value: PackageMetadata) -> Self {
-        Self {
-            id: value.id,
-            name: value.name,
-            created_by: value.created_by,
-            description: value.description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct BundleSourceResult {
-    pub flavor: WowFlavor,
-    pub platform: Option<crate::core::install::HostPlatform>,
-    pub exported_at: Option<String>,
-    pub supported_targets: Vec<WowFlavor>,
-}
-
-impl From<SourceInstallation> for BundleSourceResult {
-    fn from(value: SourceInstallation) -> Self {
-        Self {
-            flavor: value.flavor,
-            platform: value.platform,
-            exported_at: value.exported_at,
-            supported_targets: value.supported_targets,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct BundleCharacterResourceResult {
-    pub source_account: Option<String>,
-    pub source_server: String,
-    pub source_character: String,
-    pub target_hint: Option<String>,
-}
-
-impl From<CharacterResource> for BundleCharacterResourceResult {
-    fn from(value: CharacterResource) -> Self {
-        Self {
-            source_account: value.source_account,
-            source_server: value.source_server,
-            source_character: value.source_character,
-            target_hint: value.target_hint,
-        }
-    }
-}
+pub type BundlePackageResult = BundlePackageValue;
+pub type BundleSourceResult = BundleSourceValue;
+pub type BundleCharacterResourceResult = BundleCharacterResourceValue;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BundleResourcesResult {
@@ -1219,70 +1113,8 @@ impl From<ApplyGroupPolicies> for ApplyGroupPoliciesResult {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct BundleMappingRulesResult {
-    pub character_mode: CharacterMappingMode,
-    pub rewrite_profile_keys: bool,
-    pub rewrite_identity_strings: bool,
-    pub allow_cross_platform: bool,
-}
-
-impl From<MappingRules> for BundleMappingRulesResult {
-    fn from(value: MappingRules) -> Self {
-        Self {
-            character_mode: value.character_mode,
-            rewrite_profile_keys: value.rewrite_profile_keys,
-            rewrite_identity_strings: value.rewrite_identity_strings,
-            allow_cross_platform: value.allow_cross_platform,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct BundleApplyDefaultsResult {
-    pub create_backup: bool,
-    pub addons: ResourceApplyPolicyValue,
-    pub wtf_common: ResourceApplyPolicyValue,
-    pub wtf_characters: ResourceApplyPolicyValue,
-    pub fonts: ResourceApplyPolicyValue,
-    pub interface_assets: ResourceApplyPolicyValue,
-}
-
-impl From<ApplyDefaults> for BundleApplyDefaultsResult {
-    fn from(value: ApplyDefaults) -> Self {
-        Self {
-            create_backup: value.create_backup,
-            addons: ResourceApplyPolicyValue::from(value.addons),
-            wtf_common: ResourceApplyPolicyValue::from(value.wtf_common),
-            wtf_characters: ResourceApplyPolicyValue::from(value.wtf_characters),
-            fonts: ResourceApplyPolicyValue::from(value.fonts),
-            interface_assets: ResourceApplyPolicyValue::from(value.interface_assets),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct BundleManifestResult {
-    pub schema_version: u32,
-    pub package: BundlePackageResult,
-    pub source: BundleSourceResult,
-    pub resources: BundleResourcesResult,
-    pub mapping: BundleMappingRulesResult,
-    pub apply: BundleApplyDefaultsResult,
-}
-
-impl From<BundleManifest> for BundleManifestResult {
-    fn from(value: BundleManifest) -> Self {
-        Self {
-            schema_version: value.schema_version,
-            package: BundlePackageResult::from(value.package),
-            source: BundleSourceResult::from(value.source),
-            resources: BundleResourcesResult::from(value.resources),
-            mapping: BundleMappingRulesResult::from(value.mapping),
-            apply: BundleApplyDefaultsResult::from(value.apply),
-        }
-    }
-}
+pub type BundleMappingRulesResult = BundleMappingRulesValue;
+pub type BundleManifestResult = BundleManifestValue;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BundleApplyPlanResult {

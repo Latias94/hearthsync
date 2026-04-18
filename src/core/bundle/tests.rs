@@ -900,6 +900,138 @@ fn apply_external_package_task_wraps_normalization_and_apply_progress() {
 }
 
 #[test]
+fn plan_external_package_apply_uses_author_package_default_profile_when_apply_defaults_missing() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let package_path = source.path().join("author-ui-pack.zip");
+
+    create_external_package_fixture_archive(&package_path);
+
+    let target_installation =
+        create_fixture_installation_on_platform(target.path(), false, HostPlatform::MacOs);
+    seed_external_package_policy_target(&target_installation);
+
+    let plan = plan_external_package_apply(PlanExternalPackageApplyRequest {
+        external_package: sample_external_package_request_with_apply_defaults(package_path, None),
+        installation: target_installation.clone(),
+        apply_mappings: BundleApplyMappings {
+            target_account: Some("ACCOUNT".to_string()),
+            target_server: Some("Illidan".to_string()),
+            target_character: Some("Examplemage".to_string()),
+            ..BundleApplyMappings::default()
+        },
+    })
+    .expect("plan external package apply with default profile");
+
+    assert_eq!(target_installation.platform, HostPlatform::MacOs);
+    assert!(plan.manifest.apply.create_backup);
+    assert_eq!(
+        plan.group_policies.addons.policy,
+        ResourceApplyPolicy::Mirror
+    );
+    assert_eq!(
+        plan.group_policies.wtf_common.policy,
+        ResourceApplyPolicy::Share
+    );
+    assert_eq!(
+        plan.group_policies.wtf_characters.policy,
+        ResourceApplyPolicy::ReplaceSelected
+    );
+    assert_eq!(
+        plan.group_policies.fonts.policy,
+        ResourceApplyPolicy::Mirror
+    );
+    assert_eq!(
+        plan.group_policies.interface_assets.policy,
+        ResourceApplyPolicy::Mirror
+    );
+    assert_eq!(plan.selected_target_accounts, vec!["ACCOUNT".to_string()]);
+    assert_eq!(plan.summary.paths_to_remove, 4);
+    assert_eq!(plan.summary.files_to_add, 8);
+    assert_eq!(plan.summary.files_to_replace, 0);
+    assert_eq!(plan.summary.files_to_skip, 0);
+    assert_eq!(plan.summary.files_to_preserve, 1);
+
+    assert!(plan.operations.iter().any(|operation| {
+        operation.action == super::ApplyAction::Remove
+            && operation.destination == target_installation.addon_dir.join("WeakAuras")
+    }));
+    assert!(plan.operations.iter().any(|operation| {
+        operation.action == super::ApplyAction::Remove
+            && operation.destination == target_installation.fonts_dir
+    }));
+    assert!(plan.operations.iter().any(|operation| {
+        operation.action == super::ApplyAction::Remove
+            && operation.destination == target_installation.interface_dir.join("SharedXML")
+    }));
+    assert!(plan.operations.iter().any(|operation| {
+        operation.action == super::ApplyAction::Remove
+            && operation.destination
+                == target_installation
+                    .wtf_dir
+                    .join("Account")
+                    .join("ACCOUNT")
+                    .join("Illidan")
+                    .join("Examplemage")
+    }));
+    assert!(plan.operations.iter().any(|operation| {
+        operation.archive_name == "wtf/common/Config.wtf"
+            && operation.action == super::ApplyAction::Preserve
+    }));
+}
+
+#[test]
+fn external_package_apply_plan_does_not_expose_execution_only_fields() {
+    let package_root = external_package_fixture_root();
+    let target = tempdir().expect("target temp dir");
+    let installation = create_fixture_installation(target.path(), false);
+
+    let plan = plan_external_package_apply(PlanExternalPackageApplyRequest {
+        external_package: sample_external_package_request_with_apply_defaults(package_root, None),
+        installation,
+        apply_mappings: BundleApplyMappings {
+            target_account: Some("ACCOUNT".to_string()),
+            target_server: Some("Illidan".to_string()),
+            target_character: Some("Examplemage".to_string()),
+            ..BundleApplyMappings::default()
+        },
+    })
+    .expect("plan external package");
+
+    let serialized_plan = serde_json::to_value(&plan).expect("serialize external package plan");
+    let operations = serialized_plan
+        .get("operations")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .expect("operations array");
+
+    assert!(!operations.is_empty());
+    assert!(
+        operations
+            .iter()
+            .all(|operation| operation.get("staged_path").is_none())
+    );
+    assert!(
+        operations
+            .iter()
+            .all(|operation| operation.get("rewrites").is_none())
+    );
+    assert!(
+        operations
+            .iter()
+            .all(|operation| operation.get("rewrite_count").is_none())
+    );
+    assert!(
+        operations
+            .iter()
+            .all(|operation| operation.get("rewrite_applied").is_none())
+    );
+    assert!(serialized_plan.get("prepared_apply").is_none());
+    assert!(serialized_plan.get("apply_source").is_none());
+    assert!(serialized_plan.get("entry_source_map").is_none());
+}
+
+#[test]
 fn plan_external_package_apply_supports_windows_package_to_macos_target_with_policy_overrides() {
     let source = tempdir().expect("source temp dir");
     let target = tempdir().expect("target temp dir");
@@ -1957,6 +2089,128 @@ fn plan_bundle_apply_skips_identical_files() {
         plan.operations
             .iter()
             .all(|operation| operation.action == super::ApplyAction::Skip)
+    );
+}
+
+#[test]
+fn plan_apply_from_entries_with_reader_skips_byte_reads_for_deterministic_add_operations() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), false);
+    let read_calls = Cell::new(0usize);
+
+    let plan = super::planner::plan_apply_from_entries_with_reader(
+        std::path::Path::new("test.bundle.zip"),
+        &installation,
+        sample_manifest(),
+        &["addons/WeakAuras/WeakAuras.toc".to_string()],
+        &BundleApplyMappings::default(),
+        |_archive_name| {
+            read_calls.set(read_calls.get() + 1);
+            Ok(b"unused".to_vec())
+        },
+    )
+    .expect("plan apply from entries");
+
+    assert_eq!(read_calls.get(), 0);
+    assert_eq!(plan.summary.files_to_add, 1);
+    assert_eq!(plan.summary.files_to_replace, 0);
+    assert_eq!(plan.summary.files_to_skip, 0);
+    assert_eq!(plan.operations.len(), 1);
+    assert_eq!(plan.operations[0].action, super::ApplyAction::Add);
+}
+
+#[test]
+fn plan_apply_from_entries_with_reader_reads_bytes_when_existing_target_needs_preview_finalize() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), true);
+    let read_calls = Cell::new(0usize);
+
+    let plan = super::planner::plan_apply_from_entries_with_reader(
+        std::path::Path::new("test.bundle.zip"),
+        &installation,
+        sample_manifest(),
+        &["addons/WeakAuras/WeakAuras.toc".to_string()],
+        &BundleApplyMappings::default(),
+        |_archive_name| {
+            read_calls.set(read_calls.get() + 1);
+            Ok(b"## Interface: 110000".to_vec())
+        },
+    )
+    .expect("plan apply from entries");
+
+    assert_eq!(read_calls.get(), 1);
+    assert_eq!(plan.summary.files_to_add, 0);
+    assert_eq!(plan.summary.files_to_replace, 0);
+    assert_eq!(plan.summary.files_to_skip, 1);
+    assert_eq!(plan.operations.len(), 1);
+    assert_eq!(plan.operations[0].action, super::ApplyAction::Skip);
+}
+
+#[test]
+fn prepare_bundle_apply_projects_preview_operations_into_execution_operations() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let source_installation = create_fixture_installation(source.path(), true);
+    let target_installation = create_fixture_installation(target.path(), false);
+    let bundle_path = source.path().join("bundle.zip");
+
+    pack_bundle(PackBundleRequest {
+        installation: source_installation,
+        manifest: sample_manifest_with_rewrite(),
+        output_path: Some(bundle_path.clone()),
+        manifest_base_dir: None,
+    })
+    .expect("pack bundle");
+
+    let prepared = super::planner::prepare_bundle_apply(
+        &bundle_path,
+        &target_installation,
+        &BundleApplyMappings::default(),
+    )
+    .expect("prepare bundle");
+
+    let plan_projection = prepared
+        .plan
+        .operations
+        .iter()
+        .map(|operation| {
+            (
+                operation.action,
+                operation.archive_name.clone(),
+                operation.destination.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let execution_projection = prepared
+        .execution_operations
+        .iter()
+        .map(|operation| {
+            (
+                operation.action,
+                operation.archive_name.clone(),
+                operation.destination.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(execution_projection, plan_projection);
+    assert!(
+        prepared
+            .execution_operations
+            .iter()
+            .any(|operation| !operation.rewrites.is_empty())
+    );
+
+    let serialized_operations = serde_json::to_value(&prepared.plan)
+        .expect("serialize prepared plan")
+        .get("operations")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .expect("operations array");
+    assert!(
+        serialized_operations
+            .iter()
+            .all(|operation| operation.get("rewrites").is_none())
     );
 }
 

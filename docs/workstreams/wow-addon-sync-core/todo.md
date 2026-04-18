@@ -2,168 +2,136 @@
 
 ## Current Focus
 
-The current priority is to turn the existing implementation into a reusable application core while
-hardening real-world addon and WTF compatibility before more surface area is added.
+The core workstream is no longer in bootstrap mode.
+It is now the main fearless-refactor track for turning the current implementation into a reusable,
+cross-platform WoW sync engine that CLI and future `egui` code can both consume.
 
-The active sequence is:
+This file tracks the remaining architecture work only.
+Historical baseline work belongs in `milestones.md` and `decisions.md`.
 
-1. expose a reusable library entrypoint
-2. move architecture ownership to this workstream
-3. remove the temporary-bundle bridge from direct external-package plan and apply [completed on 2026-04-17]
-4. harden real-world import compatibility and delete duplicated classification paths
-5. harden portable path semantics for external packages and addon indexes
-6. make bundle planning a cleaner logical boundary
-7. harden provider, task, and account-discovery contracts for future GUI reuse
+The active refactor sequence is:
 
-## Phase 0 - Workstream Bootstrap
+1. rebaseline the workstream documents around the real remaining architecture work
+2. lock author-package default apply semantics to explicit per-group policies
+3. finish the planner and execution-preparation split so public plans stay logical
+4. turn `core::app` into stable service contracts instead of thin forwarding facades
+5. close the remaining portability and optional-helper capability gaps on top of the cleaner core
 
-- [x] Create the core workstream
-- [x] Record reusable core architecture goals
-- [x] Record research summary and current gaps
-- [x] Repoint CLI workstream notes to the new core source of truth
+## Refactor Rules
 
-## Phase 1 - Library Boundary
+- delete obsolete transition code once the replacement path exists and tests pass
+- prefer one canonical rule per behavior instead of CLI-only and core-only duplicates
+- prefer explicit false negatives over silent destructive mis-targeting for account and character data
+- keep direct external-package import on the same planning and safety model as first-party bundles
 
-- [x] Expose a package library entrypoint
-- [x] Decide the first stable top-level public API surface
-- [x] Add library-level smoke tests for reusable entrypoints
-- [ ] Reduce binary-specific assumptions in module ownership
-Current candidate: `core::app::HearthSyncApp` is now the first explicit top-level application API for
-desktop or CLI callers, with `InstallationService`, `BundleService`, `ExternalPackageService`,
-`AddonService`, `AddonIndexService`, `AddonLockService`, and `BackupService` created from one shared
-runtime policy instead of every caller constructing unrelated facades ad hoc.
+## R0 - Workstream Rebaseline
 
-## Phase 2 - Task Model
+- [x] Move reusable architecture ownership into `wow-addon-sync-core`
+- [x] Repoint CLI workstream notes so they stop owning core architecture
+- [x] Replace the old accumulation-style TODO with a refactor-sequence view
+- [x] Record the next bounded slices in `milestones.md`
 
-- [x] Define task input and result conventions
-- [x] Define progress event model
-- [x] Define cancellation checks or token model
-- [x] Introduce task wrappers for bundle apply and addon lock apply
-- [x] Introduce task wrappers for addon install, update, and remove
-- [x] Introduce task wrappers for backup restore
-- [ ] Add finer-grained progress beyond phase-only events for long file-oriented operations
-- [ ] Add cancellation checks inside long-running execution loops instead of only between phases
-Current coverage: bundle apply and external-package apply emit per-operation `executing`
-progress and honor cancellation inside the execution loop; addon install, update, remove, addon
-index install and update, addon lock apply, and backup restore now also emit execution-detail
-progress from inside their real mutation or restore loops and re-check cancellation during those
-loops.
-Current coverage: app-facing input and output contracts now also live in explicit
-`core::app::{request,response}` types instead of being scattered across domain modules or
-service-specific positional parameters.
-Current gap: long-running task semantics are now materially better, but GUI-stable progress
-expectations and which task/result contracts are intended to remain stable still need to be
-documented more explicitly.
+## R1 - Author Package Default Semantics
 
-## Phase 3 - Provider and Infrastructure Ports
+Goal: direct author-package import must stop behaving like a merge-first prototype and instead
+default to explicit group semantics that match real UI-package expectations.
 
-- [x] Introduce addon provider traits
-- [x] Move blocking HTTP behind provider ports
-- [x] Define archive read and write helpers as infrastructure services
-- [ ] Define optional external helper capability boundary
-- [x] Add timeout-bounded and truthfully cancellable download behavior for provider-backed addon acquisition
-Current coverage: provider-backed addon downloads now reuse one bounded-timeout blocking reqwest
-client, stream archives to disk in chunks, stop on task cancellation while writing, and preserve
-cancelled semantics without retrying cancelled operations.
+- [x] Define one shared default profile for author-package import:
+  `addons=mirror`, `wtf_common=share`, `wtf_characters=replace_selected`, `fonts=mirror`,
+  `interface_assets=mirror`, `create_backup=true`
+- [x] Make `external-package` manifest creation use that profile when `apply_defaults` is omitted
+- [x] Make CLI partial overrides inherit the shared profile instead of falling back to `merge`
+- [x] Add regression coverage for default cleanup and preserve counts on author-package plan
+- [x] Add regression coverage for CLI partial-override composition
+- [x] Record the semantic decision in `decisions.md`
 
-## Phase 4 - Import Normalization
+Exit criteria:
 
-- [x] Design analyzer input model for external archives and folders
-- [x] Detect addon, WTF, fonts, and interface asset groups from third-party packages
-- [x] Produce a normalized import model or temporary internal manifest
-- [x] Reuse the same plan and execution pipeline as first-party bundles
-- [x] Remove the mandatory temporary first-party bundle bridge from direct external-package plan
-- [x] Remove the mandatory temporary first-party bundle bridge from direct external-package apply
-- [x] Keep explicit normalized-bundle export as an optional workflow, not an internal dependency
-- [x] Replace duplicated addon-root detection with one shared classifier reused by addon archive install and external-package analysis
-- [x] Accept addon roots whose `.toc` file name differs from the directory name
-- [x] Normalize root-level `WTF/Account/SavedVariables` into the common WTF model
-- [x] Add regression coverage for root-level `WTF/Account/SavedVariables` imports
-- [x] Reject normalized external-package path sets that would collide on case-insensitive Windows or default macOS targets
-Current hardening: normalized external-package path sets that differ only by case are now rejected
-before planning or apply would materialize them onto Windows or default macOS targets.
+- applying a real-world author package without policy flags no longer leaves stale addons, stale
+  fonts, or stale interface assets mixed into the target installation
+- changing one CLI policy flag does not silently reset every other group back to `merge`
 
-## Phase 5 - Planning and Execution Boundary
+## R2 - Logical Planning Boundary
 
-- [x] Split logical planning from execution-time byte reads and rewrite materialization
-- [x] Introduce a reusable source-entry planning boundary shared by bundle archives and normalized external packages
-- [ ] Keep plan previews stable while deleting execution-only planning work
-- [ ] Document which data belongs only to execution preparation and must not leak into public plan payloads
-Current cleanup: public bundle apply operations no longer expose rewrite-related execution detail such as per-entry `rewrite_applied` or `rewrite_count`, and public plan summaries no longer expose `files_to_rewrite`; these now stay inside execution preparation or final execution results only.
+Goal: public planning APIs should describe intent, not execution staging internals.
 
-## Phase 6 - Safety Hardening
+- [x] separate logical planning DTOs from execution-preparation data that only exists to support
+  byte reads, rewrites, and cleanup materialization
+  Completed: the planner no longer depends on an execution-only `source_for_entry` callback;
+  external-package normalized entry source resolution stays under the prepared apply source used by
+  execution.
+  Completed: planner internals now split “operations already logically determined” from
+  “entries that still need existing-target preview finalize”, and preview finalize resolves into a
+  preview-only operation model instead of reusing `PreparedApplyOperation`.
+  Completed: public `bundle plan` and `external-package plan` no longer route through
+  `PreparedBundleApply`; apply paths project the resolved preview into a lean execution payload only
+  at the final boundary.
+- [x] reduce public-plan dependence on entry-byte reads where no rewrite or content comparison is
+  required for the preview contract
+  Completed: planner skips source-byte reads for deterministic `Add` operations, and actual rewrite
+  application is decided during execution instead of being precomputed during plan preparation.
+- [x] make the direct external-package path and first-party bundle path share the same logical
+  planner boundary instead of only the same execution-preparation boundary
+- [x] document which data is allowed in public plan payloads and which data must remain execution-only
+  Completed: `design.md` and `decisions.md` now explicitly limit public plan payloads to logical
+  preview data and forbid rewrite vectors, source maps, staging paths, and other execution-only
+  state from leaking into `bundle plan` or `external-package plan`.
+- [x] delete the remaining execution-shaped planning helpers once the smaller logical path is in place
+  Completed: resolved preview now owns the public `BundleApplyPlan` directly, and `plan` / `prepare`
+  consume the same resolved result instead of routing through separate projection helpers for plan
+  and execution preparation.
 
-- [x] Redesign backup restore as a safer transaction-style pipeline
-- [x] Add validation before destructive replacement during restore
-- [x] Replace whole-file archive buffering with streaming I/O where practical
-- [ ] Add broader archive compatibility coverage
-- [x] Add Windows-to-macOS migration scenario coverage
-- [x] Resolve addon index local archive sources relative to the index file instead of process working directory
-- [x] Harden account and character discovery using role artifacts in addition to directory layout
-Current hardening: shared `addon-index.toml` files now resolve local archive inputs relative to the
-index file itself, and common WTF application no longer auto-selects a discovered account just
-because only one directory was found. Local account discovery now requires account-level or
-character-level artifacts instead of trusting raw directory shape alone.
+Exit criteria:
 
-## Phase 7 - Integration Readiness
+- `bundle plan` and `external-package plan` remain stable dry-run APIs for CLI and future GUI use
+- execution-only rewrite/materialization state does not leak into public plan contracts
 
-- [x] Rewire CLI handlers onto reusable service or task boundaries
-- [x] Introduce a shared `core::app::AppRuntime` and make addon-facing services consume injected addon-provider policy
-- [x] Introduce `core::app::InstallationService` and move installation discovery onto runtime-controlled host and scan-root policy
-- [ ] Turn `core::app` from forwarding facades into real service contracts with injected runtime policy
-- [ ] Define desktop-facing service contracts
-  Current candidates: `core::app::InstallationService`, `core::app::ExternalPackageService`, `core::app::BundleService`, `core::app::AddonLockService`, `core::app::AddonService`, `core::app::AddonIndexService`, `core::app::BackupService`
-- [ ] Add progress-aware reporting hooks for future frontend integration
-  Current candidate: external-package analyze, plan, and apply task wrappers with dedicated task kinds
-  Current candidate: `TaskRun<T>` collection mode plus callback-based task runner helpers
-  Current candidate: addon install, update, and remove task wrappers plus `core::app::AddonService` progress and callback entrypoints
-  Current candidate: addon index install and update task wrappers plus `core::app::AddonIndexService` progress and callback entrypoints
-  Current candidate: backup restore task wrappers plus `core::app::BackupService` progress and callback entrypoints
-- [ ] Document which APIs are considered stable for GUI work
-  Current candidate: external-package `summary.warning_groups` plus per-warning `category/code/source_path`
-Current progress: `core::app` now exposes shared `AppRuntime` plus `with_runtime()` constructors across
-service facades, and `AddonService`, `AddonIndexService`, and `AddonLockService` no longer create
-default addon providers internally when the caller wants an injected runtime policy.
-Current progress: `AppRuntime` now also owns default host-platform, backup-directory, and bundle-output
-policy for `BundleService`, `ExternalPackageService`, and `BackupService`, so the app boundary can
-materialize stable defaults before domain functions run instead of letting CLI or domain code fall
-back to ambient process state.
-Current progress: the same runtime boundary now also owns the helper methods that fill missing
-backup, bundle-output, and source-platform defaults into app-facing requests, reducing repeated
-service-local `if is_none()` policy wiring.
-Current progress: app-facing inspect, resolve, list, and planning APIs that previously exposed
-scattered path or reference arguments now use explicit owned request contracts, so CLI and future
-GUI callers can depend on stable `core::app` input shapes instead of service-specific parameter
-combinations.
-Current progress: app-facing mutation APIs for addon, addon index, addon lock apply, backup,
-bundle, and external-package flows now also use owned request contracts, and CLI handlers no
-longer construct domain mutation requests directly.
-Current progress: read-only app outputs for installation scan and inspect, addon inventory,
-addon-index inspect, addon-lock inspect, backup catalog list, and bundle inspect now also return
-app-defined result DTOs instead of exposing raw domain aggregate payloads directly to frontend
-callers.
-Current progress: addon-facing app outputs no longer expose raw domain `AddonSourceRef` values to
-frontend callers; app-owned source DTOs now carry stable kind and metadata fields for search,
-inventory, install, index, and addon-lock result payloads.
-Current progress: shared app-facing backup group values now also live under `core::app` instead of
-leaking raw domain `BackupGroup` enums through CLI, app requests, or app result payloads.
-Current progress: bundle and external-package planning payloads now also use app-owned apply value
-enums for actions, groups, WTF scopes, helper strategy, and resource policies instead of exposing
-those domain enums directly through app result DTOs.
-Current progress: external-package warning payloads now also use app-owned warning category and code
-enums, so frontend callers no longer depend on bundle-domain warning enum definitions just to render
-analysis diagnostics.
-Current progress: app services that expose direct, collected-progress, and callback-based long-running
-operations now reuse one shared internal task-wrapper helper, and direct entrypoints route through the
-same task path instead of each façade rebuilding its own `NeverCancel` and progress plumbing.
-Current progress: installation scan, inspect, and resolve now also have an app-facing
-`InstallationService`, and CLI installation entrypoints no longer call `core::install` directly;
-runtime can override host-platform plus candidate scan roots before install discovery reaches the
-domain layer.
-Current progress: `core::app::HearthSyncApp` now acts as the first stable top-level application
-entrypoint, CLI handlers construct app services from it, and the old public
-`core::install::{scan_installations, inspect_installation, resolve_installation}` helpers are now
-crate-internal so the app boundary owns install discovery for frontend callers.
-Current gate: the app boundary should not be declared stable for GUI work until stable desktop API
-contracts are documented, addon and backup tasks expose more granular progress where users wait
-longest, and the remaining app-facing services stop acting like thin forwarding facades.
+## R3 - `core::app` Contract Stabilization
+
+Goal: the reusable app boundary should own runtime policy, requests, results, and task behavior in
+ways that a future frontend can depend on without learning internal domain seams.
+
+- [x] define which `core::app` services are intended to be GUI-stable first
+  Completed: the first-wave GUI-stable set is now explicitly defined as installation, addon,
+  bundle, external-package, and backup services; addon-index and addon-lock remain available app
+  services but are not part of the first-wave stability promise yet.
+- [ ] keep app request and result types app-owned where frontends depend on them directly
+  Current progress: `InstallationService::resolve` now returns one shared app-owned resolved
+  installation value, and app requests that target an installation now consume that value instead
+  of leaking domain `DetectedFlavorInstallation` directly through the frontend boundary. Bundle
+  and external-package requests now also use shared app-owned apply strategy values for
+  target-account mappings and author-package default-policy overrides, so frontends no longer need
+  domain `BundleApplyMappings` or `ApplyDefaults` just to drive stable bundle/external-package
+  flows. `AddonService` install/list contracts now also use one shared app-owned addon package
+  metadata value instead of exposing domain `AddonPackageMetadata` through stable addon requests or
+  tracked-package results. Stable pack/apply/export results now also share one app-owned manifest
+  value tree, so `BundleService` and `ExternalPackageService` no longer require domain
+  `BundleManifest` at the stable app boundary just to accept a manifest request or return a full
+  manifest payload.
+- [ ] remove remaining thin-forwarder service behavior by moving real normalization and policy
+  ownership into the app boundary
+- [ ] document stable progress expectations for long-running bundle, external-package, addon, and
+  backup tasks
+- [ ] keep optional provider/helper capability switches behind runtime/service boundaries instead of
+  leaking them into CLI orchestration
+
+Exit criteria:
+
+- `core::app::HearthSyncApp` is a credible frontend root instead of only a service factory
+- CLI and future `egui` code can depend on the same task and service contracts
+
+## R4 - Portability and Capability Hardening
+
+Goal: finish the remaining cross-platform and helper-boundary gaps after the architecture is clean
+enough that these rules live in one place.
+
+- [ ] define the optional external-helper capability boundary explicitly
+- [ ] broaden archive-compatibility coverage for author packages and large real-world inputs
+- [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
+- [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and
+  caller-working-directory assumptions
+
+Exit criteria:
+
+- Windows and macOS callers share one deterministic import contract
+- helper-assisted paths, if added later, remain optional accelerators rather than architecture owners

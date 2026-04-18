@@ -119,7 +119,7 @@ Apply a portable bundle to another installation safely.
 - bundle unpack preserves embedded addon metadata under `.hearthsync/bundles/<bundle-id>/` without overwriting active addon tracking
 - bundle addon plan/apply can read embedded addon locks directly from the archive and reuse the lock sync engine
 - bundle-local addon source archives allow cross-machine addon lock sync without requiring source-machine local paths
-- current bundle apply semantics are still merge-copy oriented and must be hardened before GUI work
+- direct `external-package plan/apply` now defaults to the shared author-package profile from the core workstream instead of merge-first behavior
 - `external-package plan/apply` now supports manifest metadata overrides and per-resource apply-policy overrides for normalized imports
 - Windows-source to macOS-target migration coverage now includes external-package policy override scenarios in automated tests
 
@@ -273,5 +273,5 @@ Prepare the core for a future frontend.
   instead of instantiating unrelated service facades independently
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   `core::app::InstallationService`, not the old direct domain helpers
-- frontend stabilization is still gated by portable addon-index/external-package path behavior and
-  provider download cancellation semantics, not only by the existence of app-facing service types
+- frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
+  ownership, not by the already-addressed portable path and provider-cancellation basics

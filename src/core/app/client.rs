@@ -1,6 +1,6 @@
 use super::{
     AddonIndexService, AddonLockService, AddonService, AppRuntime, BackupService, BundleService,
-    ExternalPackageService, InstallationService,
+    ExternalPackageService, InstallationService, StableAppServices,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -19,6 +19,10 @@ impl HearthSyncApp {
 
     pub fn runtime(&self) -> &AppRuntime {
         &self.runtime
+    }
+
+    pub fn stable_services(&self) -> StableAppServices {
+        StableAppServices::with_runtime(self.runtime.clone())
     }
 
     pub fn installations(&self) -> InstallationService {
@@ -100,6 +104,34 @@ mod tests {
         );
         assert_eq!(
             app.addon_locks().runtime().host_platform(),
+            HostPlatform::MacOs
+        );
+    }
+
+    #[test]
+    fn hearthsync_app_exposes_first_wave_stable_services() {
+        let temp = tempdir().expect("temp dir");
+        let backup_dir = temp.path().join("backups");
+        let bundle_dir = temp.path().join("bundles");
+        let runtime = AppRuntime::new()
+            .with_host_platform(HostPlatform::MacOs)
+            .with_default_backup_dir(Some(backup_dir.clone()))
+            .with_default_bundle_output_dir(Some(bundle_dir.clone()));
+
+        let app = HearthSyncApp::with_runtime(runtime);
+        let stable = app.stable_services();
+
+        assert_eq!(stable.runtime().host_platform(), HostPlatform::MacOs);
+        assert_eq!(
+            stable.backups().runtime().default_backup_dir(),
+            Some(backup_dir.as_path())
+        );
+        assert_eq!(
+            stable.bundles().runtime().default_bundle_output_dir(),
+            Some(bundle_dir.as_path())
+        );
+        assert_eq!(
+            stable.addons().runtime().host_platform(),
             HostPlatform::MacOs
         );
     }

@@ -2,9 +2,10 @@ use super::BundleCommands;
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
 use crate::core::app::{
-    ApplyBundleAppRequest, HearthSyncApp, PlanBundleApplyRequest, ResolveInstallationRequest,
+    ApplyBundleAppRequest, BundleApplyMappingsValue, HearthSyncApp, PlanBundleApplyRequest,
+    ResolveInstallationRequest,
 };
-use crate::core::bundle::{BundleApplyMappings, load_apply_mappings};
+use crate::core::bundle::load_apply_mappings;
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
@@ -176,11 +177,11 @@ pub(super) fn resolve_apply_mappings(
     target_character: Option<String>,
     selected_accounts: Vec<String>,
     all_accounts: bool,
-) -> AppResult<BundleApplyMappings> {
+) -> AppResult<BundleApplyMappingsValue> {
     let mut apply_mappings = if let Some(path) = mapping_file {
-        load_apply_mappings(path)?
+        load_apply_mappings(path)?.into()
     } else {
-        BundleApplyMappings::default()
+        BundleApplyMappingsValue::default()
     };
     merge_apply_mapping_overrides(
         &mut apply_mappings,

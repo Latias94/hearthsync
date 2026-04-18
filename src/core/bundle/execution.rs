@@ -50,19 +50,21 @@ where
             zip_source.as_mut(),
             rewrite_stage.path(),
         )?;
-        if operation.rewrite_applied {
+        let rewrite_applied = if operation.rewrites.is_empty() {
+            false
+        } else {
             rewrite_lua_file(
                 Path::new(&operation.archive_name),
                 &source_path,
                 &operation.rewrites,
                 rewrite_options,
-            )?;
-        }
+            )?
+        };
 
         fs::copy(&source_path, &operation.destination)?;
         written_files += 1;
 
-        if operation.rewrite_applied {
+        if rewrite_applied {
             rewritten_files += 1;
         }
     }
@@ -79,6 +81,7 @@ fn open_zip_source(source: &PreparedApplySource) -> AppResult<Option<ZipArchive<
         PreparedApplySource::ExternalPackage {
             source_path,
             source_kind: ExternalPackageSourceKind::ZipArchive,
+            ..
         } => {
             let file = File::open(source_path)?;
             Ok(Some(ZipArchive::new(file)?))
@@ -111,13 +114,12 @@ fn materialize_operation_source(
         PreparedApplySource::ExternalPackage {
             source_path,
             source_kind: ExternalPackageSourceKind::Directory,
+            entry_source_map,
         } => {
-            let entry_path = operation.source_path.as_deref().ok_or_else(|| {
-                AppError::Validation(format!(
-                    "external-package apply operation is missing a source path: {}",
-                    operation.archive_name
-                ))
-            })?;
+            let entry_path = lookup_external_package_entry_source_path(
+                entry_source_map,
+                &operation.archive_name,
+            )?;
             let resolved_path = resolve_zip_style_path(source_path, entry_path)?;
             if let Some(parent) = staged_path.parent() {
                 fs::create_dir_all(parent)?;
@@ -126,14 +128,13 @@ fn materialize_operation_source(
         }
         PreparedApplySource::ExternalPackage {
             source_kind: ExternalPackageSourceKind::ZipArchive,
+            entry_source_map,
             ..
         } => {
-            let entry_path = operation.source_path.as_deref().ok_or_else(|| {
-                AppError::Validation(format!(
-                    "external-package apply operation is missing a source path: {}",
-                    operation.archive_name
-                ))
-            })?;
+            let entry_path = lookup_external_package_entry_source_path(
+                entry_source_map,
+                &operation.archive_name,
+            )?;
             let archive = zip_source.ok_or_else(|| {
                 AppError::Validation(
                     "external package apply expected an open archive source during execution"
@@ -145,6 +146,20 @@ fn materialize_operation_source(
     }
 
     Ok(staged_path)
+}
+
+fn lookup_external_package_entry_source_path<'a>(
+    entry_source_map: &'a std::collections::BTreeMap<String, String>,
+    archive_name: &str,
+) -> AppResult<&'a str> {
+    entry_source_map
+        .get(archive_name)
+        .map(String::as_str)
+        .ok_or_else(|| {
+            AppError::Validation(format!(
+                "external-package apply operation is missing a source path: {archive_name}"
+            ))
+        })
 }
 
 fn staged_operation_path(operation_index: usize, archive_name: &str, stage_root: &Path) -> PathBuf {

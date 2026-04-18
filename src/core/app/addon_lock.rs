@@ -33,12 +33,14 @@ impl AddonLockService {
         &self,
         request: InspectAddonLockRequest,
     ) -> AppResult<AddonLockInspectionResult> {
-        let inspection = inspect_addon_lock(&request.installation)?;
+        let installation = request.installation.into();
+        let inspection = inspect_addon_lock(&installation)?;
         Ok(AddonLockInspectionResult::from(inspection))
     }
 
     pub fn write(&self, request: WriteAddonLockRequest) -> AppResult<AddonLockWriteResult> {
-        let written = write_addon_lock(&request.installation)?;
+        let installation = request.installation.into();
+        let written = write_addon_lock(&installation)?;
         Ok(AddonLockWriteResult::from(written))
     }
 
@@ -48,12 +50,14 @@ impl AddonLockService {
     }
 
     pub fn verify(&self, request: VerifyAddonLockRequest) -> AppResult<AddonLockVerifyResult> {
-        let verification = verify_addon_lock(&request.installation, request.lock_path.as_deref())?;
+        let installation = request.installation.into();
+        let verification = verify_addon_lock(&installation, request.lock_path.as_deref())?;
         Ok(AddonLockVerifyResult::from(verification))
     }
 
     pub fn plan_sync(&self, request: PlanAddonLockSyncRequest) -> AppResult<AddonLockPlanResult> {
-        let plan = plan_addon_lock_sync(&request.installation, request.lock_path.as_deref())?;
+        let installation = request.installation.into();
+        let plan = plan_addon_lock_sync(&installation, request.lock_path.as_deref())?;
         Ok(AddonLockPlanResult::from(plan))
     }
 
@@ -116,7 +120,8 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+    use crate::core::app::ResolvedInstallationValue;
+    use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase};
 
     #[test]
@@ -213,7 +218,7 @@ mod tests {
         path
     }
 
-    fn create_empty_installation(root: &Path) -> DetectedFlavorInstallation {
+    fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
         let product_root = root.join("World of Warcraft");
         let flavor_root = product_root.join("_retail_");
         let interface_dir = flavor_root.join("Interface");
@@ -225,7 +230,7 @@ mod tests {
         fs::create_dir_all(&wtf_dir).expect("wtf dir");
         fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
-        DetectedFlavorInstallation {
+        crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -235,5 +240,6 @@ mod tests {
             wtf_dir,
             fonts_dir,
         }
+        .into()
     }
 }

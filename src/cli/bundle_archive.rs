@@ -23,7 +23,7 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
                 flavor: flavor.map(Into::into),
             })?;
             let manifest_base_dir = manifest.parent().map(|path| path.to_path_buf());
-            let manifest = load_manifest(&manifest)?;
+            let manifest = load_manifest(&manifest)?.into();
             let bundle = service.pack(PackBundleAppRequest {
                 installation,
                 manifest,

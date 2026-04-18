@@ -32,6 +32,7 @@ use self::addon_source_archive::{
 pub use self::apply::{unpack_bundle, unpack_bundle_task};
 use self::apply_model::{
     PlannedCleanup, PlannedEntry, PreparedApplyOperation, PreparedApplySource, PreparedBundleApply,
+    PreviewOperation,
 };
 use self::apply_policy::{
     apply_action_order, apply_group_order, build_cleanup_operations, cleanup_scope_for_entry,
@@ -46,6 +47,7 @@ use self::entry_plan::plan_extractable_entries;
 use self::execution::{
     execute_apply_operations, file_contents_equal_to_bytes, rollback_or_report_apply_error,
 };
+pub(crate) use self::external_package::author_package_apply_defaults;
 pub use self::external_package::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,

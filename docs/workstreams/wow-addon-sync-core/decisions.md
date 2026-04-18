@@ -308,3 +308,216 @@ exposing raw domain request types directly to CLI or future desktop callers.
 - further contract cleanup can now focus on which shared value objects should remain cross-layer
   types and which ones still need app-owned wrappers, rather than first untangling raw domain
   request leakage
+
+## ADR-018: Author-Package Import Defaults Are Explicit per Resource Group, not Merge-First
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+Direct external author-package import should default to one explicit resource-group profile:
+
+- `create_backup = true`
+- `addons = mirror`
+- `wtf_common = share`
+- `wtf_characters = replace_selected`
+- `fonts = mirror`
+- `interface_assets = mirror`
+
+This profile must be shared by core manifest creation and CLI override composition.
+If the caller overrides only some groups, unspecified groups inherit this shared profile instead of
+falling back to `merge`.
+
+### Consequences
+
+- default author-package import behaves like a real setup sync path instead of a merge-only prototype
+- stale addons, fonts, and interface assets are removed by default when the author package owns
+  those groups
+- common `WTF` remains conservative by default, while character `WTF` remains explicit and
+  target-scoped
+- CLI policy flags no longer have the surprising side effect of resetting other groups back to old
+  merge semantics
+
+## ADR-019: Transition Code Should Be Deleted Promptly after the Cleaner Path Lands
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+When a new path fully replaces an older bridge or transitional helper, the project should delete
+the old path in the same bounded refactor stream instead of preserving long-lived dual-track logic
+for comfort.
+
+### Consequences
+
+- workstream planning should prefer small, test-backed slices that end with deletion of obsolete code
+- direct external-package import, planner cleanup, and future app-contract work should not keep
+  redundant bridges once the new contract is verified
+- the repository stays easier to reason about because architecture documents describe one intended
+  path instead of a permanent stack of historical fallback layers
+
+## ADR-020: Public Plan Payloads Stay Logical and Exclude Execution State
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+Public dry-run payloads such as `BundleApplyPlan` and `ExternalPackageApplyPlan` should expose only
+logical preview data:
+
+- group policies, target selection, and character mappings
+- logical operations with action, scope, normalized archive identity, and destination
+- plan summaries, helper strategy, manifest, and external-package normalization analysis
+
+They should not expose execution-only state such as rewrite vectors, source-entry maps, prepared
+apply-source details, temporary staging paths, byte-materialization flags, or rollback bookkeeping.
+Execution-specific payloads must be projected from the resolved logical preview only at the apply
+boundary.
+
+### Consequences
+
+- CLI and future GUI dry-run flows can depend on one stable preview contract without learning apply
+  internals
+- planner refactors can keep deleting execution-shaped helpers without changing public plan models
+- if execution later needs more source-specific data, that data must remain internal to prepared
+  apply types instead of leaking into plan serialization
+
+## ADR-021: GUI Stability Starts with a Smaller App Service Set
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+The first GUI-stable `core::app` contract should not promise every current app service at once.
+The initial stable service set is:
+
+- `InstallationService`
+- `AddonService`
+- `BundleService`
+- `ExternalPackageService`
+- `BackupService`
+
+`AddonIndexService` and `AddonLockService` remain available app services, but they are not part of
+the first-wave GUI-stable contract yet.
+
+### Consequences
+
+- future `egui` work has one explicit stable entry set for installation, addon, bundle,
+  external-package, and backup flows
+- advanced curation and reproducibility flows can continue evolving without forcing premature
+  stability promises on addon-index and addon-lock contracts
+- `HearthSyncApp` should expose an explicit code boundary for the stable service set instead of
+  relying on documentation alone
+
+## ADR-022: App Service Requests Share an App-Owned Resolved Installation Value
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+`InstallationService::resolve` should return an app-owned resolved installation value, and app
+service requests that target a specific WoW installation should accept that same value instead of
+exposing domain `DetectedFlavorInstallation` directly.
+
+### Consequences
+
+- stable frontend callers can resolve an installation once and reuse the same app-owned value
+  across addon, bundle, external-package, backup, addon-index, and addon-lock requests
+- request-side contract cleanup now has one shared value object boundary instead of many service-
+  specific leaks of the domain install model
+- further R3 cleanup can focus on remaining domain-owned request payloads such as manifests,
+  apply defaults, mapping inputs, and addon metadata
+
+## ADR-023: Stable Bundle and External-Package Strategy Inputs Use App-Owned Values
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+Stable frontend-facing bundle and external-package requests should use shared app-owned value
+objects for apply strategy input:
+
+- target-account and character mapping input uses `BundleApplyMappingsValue`
+- author-package default policy overrides use `BundleApplyDefaultsValue`
+
+Frontend callers should not need domain `BundleApplyMappings` or manifest `ApplyDefaults` just to
+drive stable `BundleService` or `ExternalPackageService` flows.
+
+### Consequences
+
+- CLI and future `egui` code can build apply-strategy input against the app boundary instead of
+  learning bundle or manifest-domain structs
+- the shared author-package default profile is now reachable from the app boundary, not only from
+  domain-level helpers
+- `BundleManifest`, addon metadata, and remaining install/platform enums are still part of the
+  next request/result cleanup slices, but apply-strategy input is no longer one of the larger
+  domain leaks on the first-wave stable service set
+
+## ADR-024: Stable Addon Metadata Uses One App-Owned Value
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+Stable addon-facing request and result contracts should use one shared app-owned addon package
+metadata value instead of exposing domain `AddonPackageMetadata` directly.
+
+This applies at least to:
+
+- `InstallAddonAppRequest.metadata`
+- tracked-package metadata returned from addon inventory, update, and remove result payloads
+
+### Consequences
+
+- stable addon callers can pass curated metadata through the app boundary without learning the
+  addon domain model
+- addon inventory and mutation results now return the same app-owned metadata shape that addon
+  install requests accept
+- remaining `R3` request/result cleanup can focus on larger domain leaks such as manifest
+  ownership and shared platform/flavor enums instead of carrying a duplicate metadata DTO at the
+  stable addon boundary
+
+## ADR-025: Stable Full Manifest Payloads Use One App-Owned Value Tree
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+Stable app-facing full manifest payloads should use one shared app-owned manifest value tree
+instead of exposing domain `BundleManifest` directly on requests while returning a separate
+response-only manifest DTO.
+
+This applies at least to:
+
+- `PackBundleAppRequest.manifest`
+- bundle creation results that return a full manifest
+- bundle apply / external-package plan / external-package apply results that return a full manifest
+
+Inspection-oriented resource summaries may still keep separate result DTOs when they intentionally
+add derived counts or other preview-only convenience fields.
+
+### Consequences
+
+- stable callers now submit and receive the same app-owned full-manifest shape across bundle and
+  external-package flows
+- `core::app` no longer needs a split between request-side domain `BundleManifest` and response-
+  side `BundleManifestResult` for the same logical payload
+- remaining `R3` cleanup can now focus on the smaller enum/value leaks such as `WowFlavor`,
+  `HostPlatform`, and `CharacterMappingMode`, plus any thin-forwarder behavior that still lives in
+  service wrappers

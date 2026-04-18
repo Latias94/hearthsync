@@ -40,11 +40,14 @@ impl BundleService {
     }
 
     pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlanResult> {
-        let plan = plan_bundle_apply(
-            &request.bundle_path,
-            &request.installation,
-            &request.apply_mappings,
-        )?;
+        let PlanBundleApplyRequest {
+            bundle_path,
+            installation,
+            apply_mappings,
+        } = request;
+        let installation = installation.into();
+        let apply_mappings = apply_mappings.into();
+        let plan = plan_bundle_apply(&bundle_path, &installation, &apply_mappings)?;
         Ok(BundleApplyPlanResult::from(plan))
     }
 
@@ -58,7 +61,8 @@ impl BundleService {
         &self,
         request: PlanBundleAddonLockRequest,
     ) -> AppResult<BundleAddonLockPlanResult> {
-        let plan = plan_bundle_addon_lock(&request.bundle_path, &request.installation)?;
+        let installation = request.installation.into();
+        let plan = plan_bundle_addon_lock(&request.bundle_path, &installation)?;
         Ok(BundleAddonLockPlanResult::from(plan))
     }
 
@@ -146,13 +150,13 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::AppRuntime;
-    use crate::core::bundle::BundleApplyMappings;
-    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-    use crate::core::manifest::{
-        ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, MappingRules,
-        PackageMetadata, ResourceApplyPolicy, SourceInstallation,
+    use crate::core::app::{
+        AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleManifestValue,
+        BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
+        ResolvedInstallationValue, ResourceApplyPolicyValue,
     };
+    use crate::core::install::{HostPlatform, WowFlavor};
+    use crate::core::manifest::CharacterMappingMode;
     use crate::core::task::{TaskKind, TaskPhase};
 
     #[test]
@@ -177,7 +181,7 @@ mod tests {
             .plan_apply(PlanBundleApplyRequest {
                 bundle_path: bundle_path.clone(),
                 installation: target_installation,
-                apply_mappings: BundleApplyMappings::default(),
+                apply_mappings: BundleApplyMappingsValue::default(),
             })
             .expect("plan bundle apply");
 
@@ -213,7 +217,7 @@ mod tests {
                 installation: target_installation,
                 dry_run: true,
                 backup_output_path: None,
-                apply_mappings: BundleApplyMappings::default(),
+                apply_mappings: BundleApplyMappingsValue::default(),
             })
             .expect("apply bundle with progress");
 
@@ -280,7 +284,7 @@ mod tests {
                 installation: target_installation,
                 dry_run: false,
                 backup_output_path: None,
-                apply_mappings: BundleApplyMappings::default(),
+                apply_mappings: BundleApplyMappingsValue::default(),
             })
             .expect("apply bundle with runtime backup dir");
 
@@ -293,7 +297,7 @@ mod tests {
     fn create_bundle_fixture_installation(
         root: &Path,
         with_content: bool,
-    ) -> DetectedFlavorInstallation {
+    ) -> ResolvedInstallationValue {
         let product_root = root.join("World of Warcraft");
         let flavor_root = product_root.join("_retail_");
         let interface_dir = flavor_root.join("Interface");
@@ -319,7 +323,7 @@ mod tests {
             .expect("lua");
         }
 
-        DetectedFlavorInstallation {
+        crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -329,24 +333,25 @@ mod tests {
             wtf_dir,
             fonts_dir,
         }
+        .into()
     }
 
-    fn sample_bundle_manifest() -> BundleManifest {
-        BundleManifest {
+    fn sample_bundle_manifest() -> BundleManifestValue {
+        BundleManifestValue {
             schema_version: 1,
-            package: PackageMetadata {
+            package: BundlePackageValue {
                 id: "test-ui".to_string(),
                 name: "Test UI".to_string(),
                 created_by: "test".to_string(),
                 description: None,
             },
-            source: SourceInstallation {
+            source: BundleSourceValue {
                 flavor: WowFlavor::Retail,
                 platform: None,
                 exported_at: None,
                 supported_targets: vec![WowFlavor::Retail],
             },
-            resources: BundleResources {
+            resources: BundleResourcesValue {
                 addons: vec!["WeakAuras".to_string()],
                 wtf_common: false,
                 wtf_characters: Vec::new(),
@@ -355,19 +360,19 @@ mod tests {
                 addon_lock: false,
                 addon_indexes: Vec::new(),
             },
-            mapping: MappingRules {
+            mapping: BundleMappingRulesValue {
                 character_mode: CharacterMappingMode::KeepOriginal,
                 rewrite_profile_keys: false,
                 rewrite_identity_strings: false,
                 allow_cross_platform: true,
             },
-            apply: ApplyDefaults {
+            apply: BundleApplyDefaultsValue {
                 create_backup: true,
-                addons: ResourceApplyPolicy::Merge,
-                wtf_common: ResourceApplyPolicy::Merge,
-                wtf_characters: ResourceApplyPolicy::Merge,
-                fonts: ResourceApplyPolicy::Merge,
-                interface_assets: ResourceApplyPolicy::Merge,
+                addons: ResourceApplyPolicyValue::Merge,
+                wtf_common: ResourceApplyPolicyValue::Merge,
+                wtf_characters: ResourceApplyPolicyValue::Merge,
+                fonts: ResourceApplyPolicyValue::Merge,
+                interface_assets: ResourceApplyPolicyValue::Merge,
             },
         }
     }

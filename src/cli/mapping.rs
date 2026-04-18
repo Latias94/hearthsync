@@ -1,7 +1,7 @@
-use crate::core::bundle::BundleApplyMappings;
+use crate::core::app::BundleApplyMappingsValue;
 
 pub(super) fn merge_apply_mapping_overrides(
-    apply_mappings: &mut BundleApplyMappings,
+    apply_mappings: &mut BundleApplyMappingsValue,
     target_account: Option<String>,
     target_server: Option<String>,
     target_character: Option<String>,

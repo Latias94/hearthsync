@@ -227,9 +227,11 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::AppRuntime;
-    use crate::core::bundle::BundleApplyMappings;
-    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+    use crate::core::app::{
+        AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ResolvedInstallationValue,
+        ResourceApplyPolicyValue,
+    };
+    use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
 
     #[test]
@@ -329,7 +331,7 @@ mod tests {
                     installation: target_installation.clone(),
                     dry_run: true,
                     backup_output_path: None,
-                    apply_mappings: BundleApplyMappings::default(),
+                    apply_mappings: BundleApplyMappingsValue::default(),
                 },
                 &cancellation,
                 &mut progress,
@@ -376,7 +378,7 @@ mod tests {
                 installation: target_installation,
                 dry_run: true,
                 backup_output_path: None,
-                apply_mappings: BundleApplyMappings::default(),
+                apply_mappings: BundleApplyMappingsValue::default(),
             })
             .expect("apply with collected progress");
 
@@ -416,7 +418,14 @@ mod tests {
                 package_name: None,
                 created_by: None,
                 description: None,
-                apply_defaults: None,
+                apply_defaults: Some(BundleApplyDefaultsValue {
+                    create_backup: false,
+                    addons: ResourceApplyPolicyValue::Mirror,
+                    wtf_common: ResourceApplyPolicyValue::Share,
+                    wtf_characters: ResourceApplyPolicyValue::ReplaceSelected,
+                    fonts: ResourceApplyPolicyValue::Preserve,
+                    interface_assets: ResourceApplyPolicyValue::Mirror,
+                }),
             })
             .expect("create bundle with runtime defaults");
 
@@ -424,6 +433,7 @@ mod tests {
             prepared.manifest().source.platform,
             Some(HostPlatform::MacOs)
         );
+        assert!(!prepared.manifest().apply.create_backup);
         assert_eq!(prepared.bundle().archive_path.parent(), Some(output.path()));
         assert!(prepared.archive_path().is_file());
     }
@@ -470,7 +480,7 @@ mod tests {
         package_root
     }
 
-    fn create_empty_installation(root: &Path) -> DetectedFlavorInstallation {
+    fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
         let product_root = root.join("World of Warcraft");
         let flavor_root = product_root.join("_retail_");
         let interface_dir = flavor_root.join("Interface");
@@ -482,7 +492,7 @@ mod tests {
         fs::create_dir_all(&wtf_dir).expect("wtf dir");
         fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
-        DetectedFlavorInstallation {
+        crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -492,5 +502,6 @@ mod tests {
             wtf_dir,
             fonts_dir,
         }
+        .into()
     }
 }
