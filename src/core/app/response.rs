@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
-use crate::core::addon::index::{AddonIndexInspection, AddonIndexPackage};
+use crate::core::addon::index::{
+    AddonIndexInspection, AddonIndexInstallResult as DomainAddonIndexInstallResult,
+    AddonIndexPackage, AddonIndexUpdateResult as DomainAddonIndexUpdateResult,
+};
 use crate::core::addon::lock::{
     AddonLockApplyResult as DomainAddonLockApplyResult,
     AddonLockDiffResult as DomainAddonLockDiffResult,
@@ -13,17 +16,25 @@ use crate::core::addon::lock::{
     AddonLockPlanResult as DomainAddonLockPlanResult,
     AddonLockSyncAction as DomainAddonLockSyncAction, AddonLockSyncActionKind,
     AddonLockVerifyResult as DomainAddonLockVerifyResult,
+    AddonLockWriteResult as DomainAddonLockWriteResult,
 };
 use crate::core::addon::{
-    AddonInventory, AddonPackageMetadata, AddonSourceRef, TrackedAddon, TrackedAddonPackage,
+    AddonInventory, AddonPackageMetadata, AddonSourceRef,
+    InstalledAddonPackageResult as DomainInstalledAddonPackageResult,
+    RemovedAddonPackageResult as DomainRemovedAddonPackageResult, TrackedAddon,
+    TrackedAddonPackage, UpdatedAddonPackageResult as DomainUpdatedAddonPackageResult,
 };
-use crate::core::backup::{BackupCatalog, BackupCatalogEntry, BackupGroup};
+use crate::core::backup::{
+    BackupCatalog, BackupCatalogEntry, BackupGroup, BackupMetadata,
+    CreatedBackup as DomainCreatedBackup, RestoredBackup as DomainRestoredBackup,
+};
 use crate::core::bundle::{
     AppliedExternalPackage as DomainAppliedExternalPackage, ApplyAction, ApplyGroup,
     ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
     BundleAddonLockApply as DomainBundleAddonLockApply,
     BundleAddonLockPlan as DomainBundleAddonLockPlan, BundleApplyPlan as DomainBundleApplyPlan,
-    BundleEntryCounts, BundleInspection, ExternalPackageAnalysis as DomainExternalPackageAnalysis,
+    BundleEntryCounts, BundleInspection, CreatedBundle as DomainCreatedBundle,
+    ExternalPackageAnalysis as DomainExternalPackageAnalysis,
     ExternalPackageApplyPlan as DomainExternalPackageApplyPlan,
     ExternalPackageEntry as DomainExternalPackageEntry, ExternalPackageSourceKind,
     ExternalPackageSummary as DomainExternalPackageSummary,
@@ -272,6 +283,114 @@ impl From<AddonInventory> for AddonInventoryResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct InstalledAddonPackageResult {
+    pub dry_run: bool,
+    pub source: AddonSourceRef,
+    pub source_label: String,
+    pub package_id: String,
+    pub addon_count: usize,
+    pub addons: Vec<TrackedAddonResult>,
+    pub files_to_write: usize,
+    pub written_files: usize,
+    pub replaced_addon_count: usize,
+    pub replaced_addons: Vec<String>,
+    pub registry_path: PathBuf,
+    pub backup_path: Option<PathBuf>,
+}
+
+impl From<DomainInstalledAddonPackageResult> for InstalledAddonPackageResult {
+    fn from(value: DomainInstalledAddonPackageResult) -> Self {
+        let source_label = value.source.display_name();
+        let addon_count = value.addons.len();
+        let replaced_addon_count = value.replaced_addons.len();
+
+        Self {
+            dry_run: value.dry_run,
+            source: value.source,
+            source_label,
+            package_id: value.package_id,
+            addon_count,
+            addons: value
+                .addons
+                .into_iter()
+                .map(TrackedAddonResult::from)
+                .collect(),
+            files_to_write: value.files_to_write,
+            written_files: value.written_files,
+            replaced_addon_count,
+            replaced_addons: value.replaced_addons,
+            registry_path: value.registry_path,
+            backup_path: value.backup_path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdatedAddonPackageResult {
+    pub dry_run: bool,
+    pub registry_path: PathBuf,
+    pub files_to_write: usize,
+    pub written_files: usize,
+    pub updated_package_count: usize,
+    pub updated_packages: Vec<TrackedAddonPackageResult>,
+    pub backup_path: Option<PathBuf>,
+}
+
+impl From<DomainUpdatedAddonPackageResult> for UpdatedAddonPackageResult {
+    fn from(value: DomainUpdatedAddonPackageResult) -> Self {
+        let updated_package_count = value.updated_packages.len();
+
+        Self {
+            dry_run: value.dry_run,
+            registry_path: value.registry_path,
+            files_to_write: value.files_to_write,
+            written_files: value.written_files,
+            updated_package_count,
+            updated_packages: value
+                .updated_packages
+                .into_iter()
+                .map(TrackedAddonPackageResult::from)
+                .collect(),
+            backup_path: value.backup_path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RemovedAddonPackageResult {
+    pub dry_run: bool,
+    pub registry_path: PathBuf,
+    pub removed_package_count: usize,
+    pub removed_packages: Vec<TrackedAddonPackageResult>,
+    pub removed_addon_count: usize,
+    pub removed_addons: Vec<String>,
+    pub registry_cleaned: bool,
+    pub backup_path: Option<PathBuf>,
+}
+
+impl From<DomainRemovedAddonPackageResult> for RemovedAddonPackageResult {
+    fn from(value: DomainRemovedAddonPackageResult) -> Self {
+        let removed_package_count = value.removed_packages.len();
+        let removed_addon_count = value.removed_addons.len();
+
+        Self {
+            dry_run: value.dry_run,
+            registry_path: value.registry_path,
+            removed_package_count,
+            removed_packages: value
+                .removed_packages
+                .into_iter()
+                .map(TrackedAddonPackageResult::from)
+                .collect(),
+            removed_addon_count,
+            removed_addons: value.removed_addons,
+            registry_cleaned: value.registry_cleaned,
+            backup_path: value.backup_path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AddonIndexPackageResult {
     pub id: String,
     pub name: String,
@@ -326,6 +445,48 @@ impl From<AddonIndexInspection> for AddonIndexInspectionResult {
                 .into_iter()
                 .map(AddonIndexPackageResult::from)
                 .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonIndexInstallResult {
+    pub index_path: PathBuf,
+    pub package: AddonIndexPackageResult,
+    pub install: InstalledAddonPackageResult,
+}
+
+impl From<DomainAddonIndexInstallResult> for AddonIndexInstallResult {
+    fn from(value: DomainAddonIndexInstallResult) -> Self {
+        Self {
+            index_path: value.index_path,
+            package: AddonIndexPackageResult::from(value.package),
+            install: InstalledAddonPackageResult::from(value.install),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonIndexUpdateResult {
+    pub index_path: PathBuf,
+    pub selected_package_count: usize,
+    pub selected_packages: Vec<AddonIndexPackageResult>,
+    pub update: UpdatedAddonPackageResult,
+}
+
+impl From<DomainAddonIndexUpdateResult> for AddonIndexUpdateResult {
+    fn from(value: DomainAddonIndexUpdateResult) -> Self {
+        let selected_package_count = value.selected_packages.len();
+
+        Self {
+            index_path: value.index_path,
+            selected_package_count,
+            selected_packages: value
+                .selected_packages
+                .into_iter()
+                .map(AddonIndexPackageResult::from)
+                .collect(),
+            update: UpdatedAddonPackageResult::from(value.update),
         }
     }
 }
@@ -405,6 +566,23 @@ impl From<AddonLockInspection> for AddonLockInspectionResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct AddonLockWriteResult {
+    pub lock_path: PathBuf,
+    pub package_count: usize,
+    pub removed: bool,
+}
+
+impl From<DomainAddonLockWriteResult> for AddonLockWriteResult {
+    fn from(value: DomainAddonLockWriteResult) -> Self {
+        Self {
+            lock_path: value.lock_path,
+            package_count: value.package_count,
+            removed: value.removed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct BackupEntryResult {
     pub backup_id: String,
     pub archive_path: PathBuf,
@@ -427,6 +605,67 @@ impl From<BackupCatalogEntry> for BackupEntryResult {
             flavor: value.metadata.flavor,
             flavor_root: value.metadata.flavor_root,
             groups: value.metadata.groups,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BackupMetadataResult {
+    pub schema_version: u32,
+    pub created_at: String,
+    pub label: Option<String>,
+    pub flavor: String,
+    pub flavor_root: PathBuf,
+    pub group_count: usize,
+    pub groups: Vec<BackupGroup>,
+}
+
+impl From<BackupMetadata> for BackupMetadataResult {
+    fn from(value: BackupMetadata) -> Self {
+        let group_count = value.groups.len();
+
+        Self {
+            schema_version: value.schema_version,
+            created_at: value.created_at,
+            label: value.label,
+            flavor: value.flavor,
+            flavor_root: value.flavor_root,
+            group_count,
+            groups: value.groups,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreatedBackupResult {
+    pub archive_path: PathBuf,
+    pub archived_files: usize,
+    pub metadata: BackupMetadataResult,
+}
+
+impl From<DomainCreatedBackup> for CreatedBackupResult {
+    fn from(value: DomainCreatedBackup) -> Self {
+        Self {
+            archive_path: value.archive_path,
+            archived_files: value.archived_files,
+            metadata: BackupMetadataResult::from(value.metadata),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RestoredBackupResult {
+    pub archive_path: PathBuf,
+    pub restored_files: usize,
+    pub metadata: BackupMetadataResult,
+}
+
+impl From<DomainRestoredBackup> for RestoredBackupResult {
+    fn from(value: DomainRestoredBackup) -> Self {
+        Self {
+            archive_path: value.archive_path,
+            restored_files: value.restored_files,
+            metadata: BackupMetadataResult::from(value.metadata),
         }
     }
 }
@@ -596,6 +835,23 @@ impl From<BundleInspection> for BundleInspectionResult {
             source,
             resources,
             entries: BundleEntryCountsResult::from(value.entries),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreatedBundleResult {
+    pub archive_path: PathBuf,
+    pub archived_files: usize,
+    pub manifest: BundleManifestResult,
+}
+
+impl From<DomainCreatedBundle> for CreatedBundleResult {
+    fn from(value: DomainCreatedBundle) -> Self {
+        Self {
+            archive_path: value.archive_path,
+            archived_files: value.archived_files,
+            manifest: BundleManifestResult::from(value.manifest),
         }
     }
 }

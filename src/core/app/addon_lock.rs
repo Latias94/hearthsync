@@ -1,12 +1,12 @@
 use crate::core::addon::lock::{
-    AddonLockApplyRequest, AddonLockWriteResult, apply_addon_lock_sync_task_with_provider,
-    diff_addon_locks, inspect_addon_lock, plan_addon_lock_sync, verify_addon_lock,
-    write_addon_lock,
+    AddonLockApplyRequest, apply_addon_lock_sync_task_with_provider, diff_addon_locks,
+    inspect_addon_lock, plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
 use crate::core::app::{
     AddonLockApplyResult, AddonLockDiffResult, AddonLockInspectionResult, AddonLockPlanResult,
-    AddonLockVerifyResult, AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest,
-    PlanAddonLockSyncRequest, VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
+    AddonLockVerifyResult, AddonLockWriteResult, AppRuntime, DiffAddonLockRequest,
+    InspectAddonLockRequest, PlanAddonLockSyncRequest, VerifyAddonLockRequest,
+    WriteAddonLockRequest, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -38,7 +38,8 @@ impl AddonLockService {
     }
 
     pub fn write(&self, request: WriteAddonLockRequest) -> AppResult<AddonLockWriteResult> {
-        write_addon_lock(&request.installation)
+        let written = write_addon_lock(&request.installation)?;
+        Ok(AddonLockWriteResult::from(written))
     }
 
     pub fn diff(&self, request: DiffAddonLockRequest) -> AppResult<AddonLockDiffResult> {

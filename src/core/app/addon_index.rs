@@ -1,10 +1,10 @@
 use crate::core::addon::index::{
-    AddonIndexInstallRequest, AddonIndexInstallResult, AddonIndexUpdateRequest,
-    AddonIndexUpdateResult, inspect_addon_index, install_addon_from_index_task_with_provider,
-    update_addons_from_index_task_with_provider,
+    AddonIndexInstallRequest, AddonIndexUpdateRequest, inspect_addon_index,
+    install_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
 };
 use crate::core::app::{
-    AddonIndexInspectionResult, AppRuntime, InspectAddonIndexRequest, task_support,
+    AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexUpdateResult, AppRuntime,
+    InspectAddonIndexRequest, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -51,12 +51,13 @@ impl AddonIndexService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        install_addon_from_index_task_with_provider(
+        let installed = install_addon_from_index_task_with_provider(
             self.runtime.addon_provider(),
             request,
             cancellation,
             progress,
-        )
+        )?;
+        Ok(AddonIndexInstallResult::from(installed))
     }
 
     pub fn install_collecting_progress(
@@ -99,12 +100,13 @@ impl AddonIndexService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        update_addons_from_index_task_with_provider(
+        let updated = update_addons_from_index_task_with_provider(
             self.runtime.addon_provider(),
             request,
             cancellation,
             progress,
-        )
+        )?;
+        Ok(AddonIndexUpdateResult::from(updated))
     }
 
     pub fn update_collecting_progress(

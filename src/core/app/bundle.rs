@@ -1,12 +1,11 @@
 use crate::core::app::{
     AppRuntime, BundleAddonLockApplyResult, BundleAddonLockPlanResult, BundleApplyPlanResult,
-    BundleApplyResult, BundleInspectionResult, InspectBundleRequest, PlanBundleAddonLockRequest,
-    PlanBundleApplyRequest, task_support,
+    BundleApplyResult, BundleInspectionResult, CreatedBundleResult, InspectBundleRequest,
+    PlanBundleAddonLockRequest, PlanBundleApplyRequest, task_support,
 };
 use crate::core::bundle::{
-    BundleAddonLockApplyRequest, CreatedBundle, PackBundleRequest, UnpackBundleRequest,
-    apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
-    plan_bundle_apply, unpack_bundle_task,
+    BundleAddonLockApplyRequest, PackBundleRequest, UnpackBundleRequest, apply_bundle_addon_lock,
+    inspect_bundle, pack_bundle, plan_bundle_addon_lock, plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -34,8 +33,9 @@ impl BundleService {
         Ok(BundleInspectionResult::from(inspection))
     }
 
-    pub fn pack(&self, request: PackBundleRequest) -> AppResult<CreatedBundle> {
-        pack_bundle(self.normalize_pack_request(request))
+    pub fn pack(&self, request: PackBundleRequest) -> AppResult<CreatedBundleResult> {
+        let bundle = pack_bundle(self.normalize_pack_request(request))?;
+        Ok(CreatedBundleResult::from(bundle))
     }
 
     pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlanResult> {

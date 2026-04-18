@@ -1,8 +1,9 @@
 use crate::core::app::ListBackupsRequest;
-use crate::core::app::{AppRuntime, BackupCatalogResult, task_support};
+use crate::core::app::{
+    AppRuntime, BackupCatalogResult, CreatedBackupResult, RestoredBackupResult, task_support,
+};
 use crate::core::backup::{
-    BackupRequest, CreatedBackup, RestoreBackupRequest, RestoredBackup, create_backup,
-    list_backups, restore_backup_selection_task,
+    BackupRequest, RestoreBackupRequest, create_backup, list_backups, restore_backup_selection_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -25,8 +26,9 @@ impl BackupService {
         &self.runtime
     }
 
-    pub fn create(&self, request: BackupRequest) -> AppResult<CreatedBackup> {
-        create_backup(self.normalize_backup_request(request))
+    pub fn create(&self, request: BackupRequest) -> AppResult<CreatedBackupResult> {
+        let created = create_backup(self.normalize_backup_request(request))?;
+        Ok(CreatedBackupResult::from(created))
     }
 
     pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
@@ -35,7 +37,7 @@ impl BackupService {
         Ok(BackupCatalogResult::from(catalog))
     }
 
-    pub fn restore(&self, request: RestoreBackupRequest) -> AppResult<RestoredBackup> {
+    pub fn restore(&self, request: RestoreBackupRequest) -> AppResult<RestoredBackupResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.restore_task(request, cancellation, progress)
         })
@@ -46,22 +48,23 @@ impl BackupService {
         request: RestoreBackupRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
-    ) -> AppResult<RestoredBackup>
+    ) -> AppResult<RestoredBackupResult>
     where
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        restore_backup_selection_task(
+        let restored = restore_backup_selection_task(
             self.normalize_restore_request(request),
             cancellation,
             progress,
-        )
+        )?;
+        Ok(RestoredBackupResult::from(restored))
     }
 
     pub fn restore_collecting_progress(
         &self,
         request: RestoreBackupRequest,
-    ) -> AppResult<TaskRun<RestoredBackup>> {
+    ) -> AppResult<TaskRun<RestoredBackupResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.restore_task(request, cancellation, progress)
         })
@@ -72,7 +75,7 @@ impl BackupService {
         request: RestoreBackupRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
-    ) -> AppResult<RestoredBackup>
+    ) -> AppResult<RestoredBackupResult>
     where
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),

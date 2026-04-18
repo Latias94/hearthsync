@@ -1,10 +1,12 @@
 use crate::core::addon::{
-    AddonSearchCatalog, InstallAddonRequest, InstalledAddonPackageResult, RemoveAddonRequest,
-    RemovedAddonPackageResult, SearchAddonRequest, UpdateAddonRequest, UpdatedAddonPackageResult,
-    install_addon_task_with_provider, list_addons, remove_addons_task, search_addons_with_provider,
-    update_addons_task_with_provider,
+    AddonSearchCatalog, InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest,
+    UpdateAddonRequest, install_addon_task_with_provider, list_addons, remove_addons_task,
+    search_addons_with_provider, update_addons_task_with_provider,
 };
-use crate::core::app::{AddonInventoryResult, AppRuntime, ListAddonsRequest, task_support};
+use crate::core::app::{
+    AddonInventoryResult, AppRuntime, InstalledAddonPackageResult, ListAddonsRequest,
+    RemovedAddonPackageResult, UpdatedAddonPackageResult, task_support,
+};
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
@@ -51,12 +53,13 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        install_addon_task_with_provider(
+        let installed = install_addon_task_with_provider(
             self.runtime.addon_provider(),
             request,
             cancellation,
             progress,
-        )
+        )?;
+        Ok(InstalledAddonPackageResult::from(installed))
     }
 
     pub fn install_collecting_progress(
@@ -99,12 +102,13 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        update_addons_task_with_provider(
+        let updated = update_addons_task_with_provider(
             self.runtime.addon_provider(),
             request,
             cancellation,
             progress,
-        )
+        )?;
+        Ok(UpdatedAddonPackageResult::from(updated))
     }
 
     pub fn update_collecting_progress(
@@ -147,7 +151,8 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        remove_addons_task(request, cancellation, progress)
+        let removed = remove_addons_task(request, cancellation, progress)?;
+        Ok(RemovedAddonPackageResult::from(removed))
     }
 
     pub fn remove_collecting_progress(
