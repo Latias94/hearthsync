@@ -1,11 +1,12 @@
 use crate::core::app::{
-    AppRuntime, BundleAddonLockPlanResult, BundleApplyPlanResult, BundleInspectionResult,
-    InspectBundleRequest, PlanBundleAddonLockRequest, PlanBundleApplyRequest, task_support,
+    AppRuntime, BundleAddonLockApplyResult, BundleAddonLockPlanResult, BundleApplyPlanResult,
+    BundleApplyResult, BundleInspectionResult, InspectBundleRequest, PlanBundleAddonLockRequest,
+    PlanBundleApplyRequest, task_support,
 };
 use crate::core::bundle::{
-    BundleAddonLockApply, BundleAddonLockApplyRequest, CreatedBundle, PackBundleRequest,
-    UnpackBundleRequest, UnpackedBundle, apply_bundle_addon_lock, inspect_bundle, pack_bundle,
-    plan_bundle_addon_lock, plan_bundle_apply, unpack_bundle_task,
+    BundleAddonLockApplyRequest, CreatedBundle, PackBundleRequest, UnpackBundleRequest,
+    apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
+    plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -46,7 +47,7 @@ impl BundleService {
         Ok(BundleApplyPlanResult::from(plan))
     }
 
-    pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
+    pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<BundleApplyResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
@@ -63,8 +64,9 @@ impl BundleService {
     pub fn apply_addon_lock(
         &self,
         request: BundleAddonLockApplyRequest,
-    ) -> AppResult<BundleAddonLockApply> {
-        apply_bundle_addon_lock(self.normalize_addon_lock_request(request))
+    ) -> AppResult<BundleAddonLockApplyResult> {
+        let applied = apply_bundle_addon_lock(self.normalize_addon_lock_request(request))?;
+        Ok(BundleAddonLockApplyResult::from(applied))
     }
 
     pub fn apply_task<TCancel, TProgress>(
@@ -72,22 +74,23 @@ impl BundleService {
         request: UnpackBundleRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
-    ) -> AppResult<UnpackedBundle>
+    ) -> AppResult<BundleApplyResult>
     where
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        unpack_bundle_task(
+        let applied = unpack_bundle_task(
             self.normalize_unpack_request(request),
             cancellation,
             progress,
-        )
+        )?;
+        Ok(BundleApplyResult::from(applied))
     }
 
     pub fn apply_collecting_progress(
         &self,
         request: UnpackBundleRequest,
-    ) -> AppResult<TaskRun<UnpackedBundle>> {
+    ) -> AppResult<TaskRun<BundleApplyResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
@@ -98,7 +101,7 @@ impl BundleService {
         request: UnpackBundleRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
-    ) -> AppResult<UnpackedBundle>
+    ) -> AppResult<BundleApplyResult>
     where
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),

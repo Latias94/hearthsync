@@ -191,81 +191,25 @@ pub(super) fn resolve_apply_mappings(
     Ok(apply_mappings)
 }
 
-pub(super) fn format_character_mappings(mappings: &[impl CharacterMappingView]) -> String {
+pub(super) fn format_character_mappings(
+    mappings: &[crate::core::app::CharacterMappingResult],
+) -> String {
     mappings
         .iter()
         .map(|mapping| {
             format!(
                 "{}/{}/{} -> {}/{}/{}",
-                mapping.source_account().unwrap_or("<unknown-account>"),
-                mapping.source_server(),
-                mapping.source_character(),
-                mapping.target_account(),
-                mapping.target_server(),
-                mapping.target_character()
+                mapping
+                    .source_account
+                    .as_deref()
+                    .unwrap_or("<unknown-account>"),
+                mapping.source_server,
+                mapping.source_character,
+                mapping.target_account,
+                mapping.target_server,
+                mapping.target_character
             )
         })
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-pub(super) trait CharacterMappingView {
-    fn source_account(&self) -> Option<&str>;
-    fn source_server(&self) -> &str;
-    fn source_character(&self) -> &str;
-    fn target_account(&self) -> &str;
-    fn target_server(&self) -> &str;
-    fn target_character(&self) -> &str;
-}
-
-impl CharacterMappingView for crate::core::lua_patch::CharacterMapping {
-    fn source_account(&self) -> Option<&str> {
-        self.source_account.as_deref()
-    }
-
-    fn source_server(&self) -> &str {
-        &self.source_server
-    }
-
-    fn source_character(&self) -> &str {
-        &self.source_character
-    }
-
-    fn target_account(&self) -> &str {
-        &self.target_account
-    }
-
-    fn target_server(&self) -> &str {
-        &self.target_server
-    }
-
-    fn target_character(&self) -> &str {
-        &self.target_character
-    }
-}
-
-impl CharacterMappingView for crate::core::app::CharacterMappingResult {
-    fn source_account(&self) -> Option<&str> {
-        self.source_account.as_deref()
-    }
-
-    fn source_server(&self) -> &str {
-        &self.source_server
-    }
-
-    fn source_character(&self) -> &str {
-        &self.source_character
-    }
-
-    fn target_account(&self) -> &str {
-        &self.target_account
-    }
-
-    fn target_server(&self) -> &str {
-        &self.target_server
-    }
-
-    fn target_character(&self) -> &str {
-        &self.target_character
-    }
 }

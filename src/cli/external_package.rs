@@ -7,7 +7,6 @@ use crate::core::app::{
 };
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
-    ExternalPackageSummary, ExternalPackageWarning,
 };
 use crate::core::error::AppResult;
 use crate::core::manifest::{ApplyDefaults, ResourceApplyPolicy};
@@ -304,17 +303,24 @@ fn build_external_package_apply_defaults(
 }
 
 fn format_external_package_warnings(
-    warnings: &[impl ExternalPackageWarningView],
-    summary: &impl ExternalPackageSummaryView,
+    warnings: &[ExternalPackageWarningResult],
+    summary: &ExternalPackageSummaryResult,
 ) -> String {
     if warnings.is_empty() {
         return "none".to_string();
     }
 
     let groups = summary
-        .warning_groups()
-        .into_iter()
-        .map(|group| format!("{}/{}={}", group.0.as_str(), group.1.as_str(), group.2))
+        .warning_groups
+        .iter()
+        .map(|group| {
+            format!(
+                "{}/{}={}",
+                group.category.as_str(),
+                group.code.as_str(),
+                group.count
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -323,9 +329,9 @@ fn format_external_package_warnings(
         .map(|warning| {
             format!(
                 "{}/{}: {}",
-                warning.category().as_str(),
-                warning.code().as_str(),
-                warning.source_path()
+                warning.category.as_str(),
+                warning.code.as_str(),
+                warning.source_path
             )
         })
         .collect::<Vec<_>>()
@@ -333,113 +339,12 @@ fn format_external_package_warnings(
 
     format!(
         "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
-        summary.warning_count(),
-        summary.addon_warning_count(),
-        summary.wtf_warning_count(),
+        summary.warning_count,
+        summary.addon_warning_count,
+        summary.wtf_warning_count,
         groups,
         details
     )
-}
-
-trait ExternalPackageWarningView {
-    fn category(&self) -> crate::core::bundle::ExternalPackageWarningCategory;
-    fn code(&self) -> crate::core::bundle::ExternalPackageWarningCode;
-    fn source_path(&self) -> &str;
-}
-
-impl ExternalPackageWarningView for ExternalPackageWarning {
-    fn category(&self) -> crate::core::bundle::ExternalPackageWarningCategory {
-        self.category
-    }
-
-    fn code(&self) -> crate::core::bundle::ExternalPackageWarningCode {
-        self.code
-    }
-
-    fn source_path(&self) -> &str {
-        &self.source_path
-    }
-}
-
-impl ExternalPackageWarningView for ExternalPackageWarningResult {
-    fn category(&self) -> crate::core::bundle::ExternalPackageWarningCategory {
-        self.category
-    }
-
-    fn code(&self) -> crate::core::bundle::ExternalPackageWarningCode {
-        self.code
-    }
-
-    fn source_path(&self) -> &str {
-        &self.source_path
-    }
-}
-
-trait ExternalPackageSummaryView {
-    fn warning_count(&self) -> usize;
-    fn addon_warning_count(&self) -> usize;
-    fn wtf_warning_count(&self) -> usize;
-    fn warning_groups(
-        &self,
-    ) -> Vec<(
-        crate::core::bundle::ExternalPackageWarningCategory,
-        crate::core::bundle::ExternalPackageWarningCode,
-        usize,
-    )>;
-}
-
-impl ExternalPackageSummaryView for ExternalPackageSummary {
-    fn warning_count(&self) -> usize {
-        self.warning_count
-    }
-
-    fn addon_warning_count(&self) -> usize {
-        self.addon_warning_count
-    }
-
-    fn wtf_warning_count(&self) -> usize {
-        self.wtf_warning_count
-    }
-
-    fn warning_groups(
-        &self,
-    ) -> Vec<(
-        crate::core::bundle::ExternalPackageWarningCategory,
-        crate::core::bundle::ExternalPackageWarningCode,
-        usize,
-    )> {
-        self.warning_groups
-            .iter()
-            .map(|group| (group.category, group.code, group.count))
-            .collect()
-    }
-}
-
-impl ExternalPackageSummaryView for ExternalPackageSummaryResult {
-    fn warning_count(&self) -> usize {
-        self.warning_count
-    }
-
-    fn addon_warning_count(&self) -> usize {
-        self.addon_warning_count
-    }
-
-    fn wtf_warning_count(&self) -> usize {
-        self.wtf_warning_count
-    }
-
-    fn warning_groups(
-        &self,
-    ) -> Vec<(
-        crate::core::bundle::ExternalPackageWarningCategory,
-        crate::core::bundle::ExternalPackageWarningCode,
-        usize,
-    )> {
-        self.warning_groups
-            .iter()
-            .map(|group| (group.category, group.code, group.count))
-            .collect()
-    }
 }
 
 #[cfg(test)]
@@ -448,9 +353,7 @@ mod tests {
 
     use super::*;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
-    use crate::core::bundle::{
-        ExternalPackageWarningCategory, ExternalPackageWarningCode, ExternalPackageWarningGroup,
-    };
+    use crate::core::bundle::{ExternalPackageWarningCategory, ExternalPackageWarningCode};
 
     #[test]
     fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {
@@ -534,36 +437,43 @@ mod tests {
     #[test]
     fn format_external_package_warnings_renders_groups_and_details() {
         let warnings = vec![
-            ExternalPackageWarning {
+            ExternalPackageWarningResult {
                 category: ExternalPackageWarningCategory::Addon,
                 code: ExternalPackageWarningCode::AddonRootNotDetected,
                 source_path: "AuthorUI/Interface/AddOns/BrokenAddon/README.txt".to_string(),
                 message: "ignored addon entry".to_string(),
             },
-            ExternalPackageWarning {
+            ExternalPackageWarningResult {
                 category: ExternalPackageWarningCategory::Wtf,
                 code: ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
                 source_path: "AuthorUI/WTF/Account/SavedVariables/Broken.lua".to_string(),
                 message: "unsupported wtf entry".to_string(),
             },
         ];
-        let summary = ExternalPackageSummary {
+        let summary = ExternalPackageSummaryResult {
             warning_count: 2,
             addon_warning_count: 1,
             wtf_warning_count: 1,
             warning_groups: vec![
-                ExternalPackageWarningGroup {
+                crate::core::app::ExternalPackageWarningGroupResult {
                     category: ExternalPackageWarningCategory::Addon,
                     code: ExternalPackageWarningCode::AddonRootNotDetected,
                     count: 1,
                 },
-                ExternalPackageWarningGroup {
+                crate::core::app::ExternalPackageWarningGroupResult {
                     category: ExternalPackageWarningCategory::Wtf,
                     code: ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
                     count: 1,
                 },
             ],
-            ..ExternalPackageSummary::default()
+            total_files: 0,
+            normalized_files: 0,
+            ignored_files: 0,
+            addons: 0,
+            wtf_common: 0,
+            wtf_characters: 0,
+            fonts: 0,
+            interface_assets: 0,
         };
 
         let rendered = format_external_package_warnings(&warnings, &summary);
@@ -581,9 +491,24 @@ mod tests {
 
     #[test]
     fn format_external_package_warnings_returns_none_for_empty_warnings() {
-        let warnings: [ExternalPackageWarning; 0] = [];
-        let rendered =
-            format_external_package_warnings(&warnings, &ExternalPackageSummary::default());
+        let warnings: [ExternalPackageWarningResult; 0] = [];
+        let rendered = format_external_package_warnings(
+            &warnings,
+            &ExternalPackageSummaryResult {
+                total_files: 0,
+                normalized_files: 0,
+                ignored_files: 0,
+                addons: 0,
+                wtf_common: 0,
+                wtf_characters: 0,
+                fonts: 0,
+                interface_assets: 0,
+                warning_count: 0,
+                addon_warning_count: 0,
+                wtf_warning_count: 0,
+                warning_groups: Vec::new(),
+            },
+        );
 
         assert_eq!(rendered, "none");
     }

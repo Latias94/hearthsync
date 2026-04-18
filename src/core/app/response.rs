@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::core::addon::index::{AddonIndexInspection, AddonIndexPackage};
 use crate::core::addon::lock::{
+    AddonLockApplyResult as DomainAddonLockApplyResult,
     AddonLockDiffResult as DomainAddonLockDiffResult,
     AddonLockFieldChange as DomainAddonLockFieldChange, AddonLockInspection, AddonLockPackage,
     AddonLockPackageDiff as DomainAddonLockPackageDiff,
@@ -18,7 +19,9 @@ use crate::core::addon::{
 };
 use crate::core::backup::{BackupCatalog, BackupCatalogEntry, BackupGroup};
 use crate::core::bundle::{
-    ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
+    AppliedExternalPackage as DomainAppliedExternalPackage, ApplyAction, ApplyGroup,
+    ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
+    BundleAddonLockApply as DomainBundleAddonLockApply,
     BundleAddonLockPlan as DomainBundleAddonLockPlan, BundleApplyPlan as DomainBundleApplyPlan,
     BundleEntryCounts, BundleInspection, ExternalPackageAnalysis as DomainExternalPackageAnalysis,
     ExternalPackageApplyPlan as DomainExternalPackageApplyPlan,
@@ -26,7 +29,7 @@ use crate::core::bundle::{
     ExternalPackageSummary as DomainExternalPackageSummary,
     ExternalPackageWarning as DomainExternalPackageWarning, ExternalPackageWarningCategory,
     ExternalPackageWarningCode, ExternalPackageWarningGroup as DomainExternalPackageWarningGroup,
-    GroupPolicy, HelperStrategy, WtfScope,
+    GroupPolicy, HelperStrategy, UnpackedBundle as DomainUnpackedBundle, WtfScope,
 };
 use crate::core::install::{
     DetectedFlavorInstallation, HealthStatus, InstallationHealth, LocalWowAccount,
@@ -853,6 +856,43 @@ impl From<DomainBundleApplyPlan> for BundleApplyPlanResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct BundleApplyResult {
+    pub bundle_path: PathBuf,
+    pub target_flavor_root: PathBuf,
+    pub dry_run: bool,
+    pub planned_files: usize,
+    pub written_files: usize,
+    pub rewritten_files: usize,
+    pub backup_path: Option<PathBuf>,
+    pub selected_target_accounts: Vec<String>,
+    pub plan_summary: ApplyPlanSummaryResult,
+    pub character_mappings: Vec<CharacterMappingResult>,
+    pub manifest: BundleManifestResult,
+}
+
+impl From<DomainUnpackedBundle> for BundleApplyResult {
+    fn from(value: DomainUnpackedBundle) -> Self {
+        Self {
+            bundle_path: value.bundle_path,
+            target_flavor_root: value.target_flavor_root,
+            dry_run: value.dry_run,
+            planned_files: value.planned_files,
+            written_files: value.written_files,
+            rewritten_files: value.rewritten_files,
+            backup_path: value.backup_path,
+            selected_target_accounts: value.selected_target_accounts,
+            plan_summary: ApplyPlanSummaryResult::from(value.plan_summary),
+            character_mappings: value
+                .character_mappings
+                .into_iter()
+                .map(CharacterMappingResult::from)
+                .collect(),
+            manifest: BundleManifestResult::from(value.manifest),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AddonLockPackageSnapshotResult {
     pub comparison_key: String,
     pub package_id: String,
@@ -1111,6 +1151,50 @@ impl From<DomainAddonLockPlanResult> for AddonLockPlanResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct AddonLockApplyResult {
+    pub lock_path: PathBuf,
+    pub installation_root: PathBuf,
+    pub install_count: usize,
+    pub update_count: usize,
+    pub remove_count: usize,
+    pub metadata_only_count: usize,
+    pub unchanged_count: usize,
+    pub blocked_count: usize,
+    pub untracked_addon_count: usize,
+    pub untracked_addons: Vec<String>,
+    pub action_count: usize,
+    pub actions: Vec<AddonLockSyncActionResult>,
+    pub verification: AddonLockVerifyResult,
+}
+
+impl From<DomainAddonLockApplyResult> for AddonLockApplyResult {
+    fn from(value: DomainAddonLockApplyResult) -> Self {
+        let untracked_addon_count = value.untracked_addons.len();
+        let action_count = value.actions.len();
+
+        Self {
+            lock_path: value.lock_path,
+            installation_root: value.installation_root,
+            install_count: value.install_count,
+            update_count: value.update_count,
+            remove_count: value.remove_count,
+            metadata_only_count: value.metadata_only_count,
+            unchanged_count: value.unchanged_count,
+            blocked_count: value.blocked_count,
+            untracked_addon_count,
+            untracked_addons: value.untracked_addons,
+            action_count,
+            actions: value
+                .actions
+                .into_iter()
+                .map(AddonLockSyncActionResult::from)
+                .collect(),
+            verification: AddonLockVerifyResult::from(value.verification),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct BundleAddonLockPlanResult {
     pub bundle_path: PathBuf,
     pub embedded_lock_entry: String,
@@ -1123,6 +1207,23 @@ impl From<DomainBundleAddonLockPlan> for BundleAddonLockPlanResult {
             bundle_path: value.bundle_path,
             embedded_lock_entry: value.embedded_lock_entry,
             plan: AddonLockPlanResult::from(value.plan),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleAddonLockApplyResult {
+    pub bundle_path: PathBuf,
+    pub embedded_lock_entry: String,
+    pub apply: AddonLockApplyResult,
+}
+
+impl From<DomainBundleAddonLockApply> for BundleAddonLockApplyResult {
+    fn from(value: DomainBundleAddonLockApply) -> Self {
+        Self {
+            bundle_path: value.bundle_path,
+            embedded_lock_entry: value.embedded_lock_entry,
+            apply: AddonLockApplyResult::from(value.apply),
         }
     }
 }
@@ -1304,6 +1405,43 @@ impl From<DomainExternalPackageApplyPlan> for ExternalPackageApplyPlanResult {
             summary: ApplyPlanSummaryResult::from(value.summary),
             helper_strategy: value.helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
+            manifest: BundleManifestResult::from(value.manifest),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageApplyResult {
+    pub analysis: ExternalPackageAnalysisResult,
+    pub target_flavor_root: PathBuf,
+    pub dry_run: bool,
+    pub planned_files: usize,
+    pub written_files: usize,
+    pub rewritten_files: usize,
+    pub backup_path: Option<PathBuf>,
+    pub selected_target_accounts: Vec<String>,
+    pub plan_summary: ApplyPlanSummaryResult,
+    pub character_mappings: Vec<CharacterMappingResult>,
+    pub manifest: BundleManifestResult,
+}
+
+impl From<DomainAppliedExternalPackage> for ExternalPackageApplyResult {
+    fn from(value: DomainAppliedExternalPackage) -> Self {
+        Self {
+            analysis: ExternalPackageAnalysisResult::from(value.analysis),
+            target_flavor_root: value.target_flavor_root,
+            dry_run: value.dry_run,
+            planned_files: value.planned_files,
+            written_files: value.written_files,
+            rewritten_files: value.rewritten_files,
+            backup_path: value.backup_path,
+            selected_target_accounts: value.selected_target_accounts,
+            plan_summary: ApplyPlanSummaryResult::from(value.plan_summary),
+            character_mappings: value
+                .character_mappings
+                .into_iter()
+                .map(CharacterMappingResult::from)
+                .collect(),
             manifest: BundleManifestResult::from(value.manifest),
         }
     }

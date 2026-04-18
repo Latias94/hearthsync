@@ -1,12 +1,12 @@
 use crate::core::addon::lock::{
-    AddonLockApplyRequest, AddonLockApplyResult, AddonLockWriteResult,
-    apply_addon_lock_sync_task_with_provider, diff_addon_locks, inspect_addon_lock,
-    plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
+    AddonLockApplyRequest, AddonLockWriteResult, apply_addon_lock_sync_task_with_provider,
+    diff_addon_locks, inspect_addon_lock, plan_addon_lock_sync, verify_addon_lock,
+    write_addon_lock,
 };
 use crate::core::app::{
-    AddonLockDiffResult, AddonLockInspectionResult, AddonLockPlanResult, AddonLockVerifyResult,
-    AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest, PlanAddonLockSyncRequest,
-    VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
+    AddonLockApplyResult, AddonLockDiffResult, AddonLockInspectionResult, AddonLockPlanResult,
+    AddonLockVerifyResult, AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest,
+    PlanAddonLockSyncRequest, VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -72,12 +72,13 @@ impl AddonLockService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        apply_addon_lock_sync_task_with_provider(
+        let applied = apply_addon_lock_sync_task_with_provider(
             self.runtime.addon_provider(),
             request,
             cancellation,
             progress,
-        )
+        )?;
+        Ok(AddonLockApplyResult::from(applied))
     }
 
     pub fn apply_sync_collecting_progress(
