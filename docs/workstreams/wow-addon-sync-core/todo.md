@@ -147,6 +147,9 @@ frontend callers; app-owned source DTOs now carry stable kind and metadata field
 inventory, install, index, and addon-lock result payloads.
 Current progress: shared app-facing backup group values now also live under `core::app` instead of
 leaking raw domain `BackupGroup` enums through CLI, app requests, or app result payloads.
+Current progress: bundle and external-package planning payloads now also use app-owned apply value
+enums for actions, groups, WTF scopes, helper strategy, and resource policies instead of exposing
+those domain enums directly through app result DTOs.
 Current progress: app services that expose direct, collected-progress, and callback-based long-running
 operations now reuse one shared internal task-wrapper helper, and direct entrypoints route through the
 same task path instead of each façade rebuilding its own `NeverCancel` and progress plumbing.

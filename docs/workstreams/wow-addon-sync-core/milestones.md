@@ -243,6 +243,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - `core::app` now also has a small shared app-type layer for reusable frontend-facing value enums,
   starting with backup groups so backup requests and results no longer expose raw domain
   `BackupGroup` values
+- the same shared app-type layer now also owns bundle and external-package planning enums for apply
+  actions, apply groups, WTF scopes, helper strategy, and resource policies, so app plan DTOs stop
+  leaking those domain enum definitions directly
 - `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery

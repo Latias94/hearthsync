@@ -2,7 +2,10 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use super::BackupGroupValue;
+use super::{
+    ApplyActionValue, ApplyGroupValue, BackupGroupValue, HelperStrategyValue,
+    ResourceApplyPolicyValue, WtfScopeValue,
+};
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallResult as DomainAddonIndexInstallResult,
     AddonIndexPackage, AddonIndexUpdateResult as DomainAddonIndexUpdateResult,
@@ -31,9 +34,8 @@ use crate::core::backup::{
     RestoredBackup as DomainRestoredBackup,
 };
 use crate::core::bundle::{
-    AppliedExternalPackage as DomainAppliedExternalPackage, ApplyAction, ApplyGroup,
-    ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
-    BundleAddonLockApply as DomainBundleAddonLockApply,
+    AppliedExternalPackage as DomainAppliedExternalPackage, ApplyGroupPolicies, ApplyOperation,
+    ApplyPlanSummary, BundleAddonLockApply as DomainBundleAddonLockApply,
     BundleAddonLockPlan as DomainBundleAddonLockPlan, BundleApplyPlan as DomainBundleApplyPlan,
     BundleEntryCounts, BundleInspection, CreatedBundle as DomainCreatedBundle,
     ExternalPackageAnalysis as DomainExternalPackageAnalysis,
@@ -42,9 +44,8 @@ use crate::core::bundle::{
     ExternalPackageSummary as DomainExternalPackageSummary,
     ExternalPackageWarning as DomainExternalPackageWarning, ExternalPackageWarningCategory,
     ExternalPackageWarningCode, ExternalPackageWarningGroup as DomainExternalPackageWarningGroup,
-    GroupPolicy, HelperStrategy,
-    PreparedExternalPackageBundle as DomainPreparedExternalPackageBundle,
-    UnpackedBundle as DomainUnpackedBundle, WtfScope,
+    GroupPolicy, PreparedExternalPackageBundle as DomainPreparedExternalPackageBundle,
+    UnpackedBundle as DomainUnpackedBundle,
 };
 use crate::core::install::{
     DetectedFlavorInstallation, HealthStatus, InstallationHealth, LocalWowAccount,
@@ -53,7 +54,7 @@ use crate::core::install::{
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::{
     ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
-    MappingRules, PackageMetadata, ResourceApplyPolicy, SourceInstallation,
+    MappingRules, PackageMetadata, SourceInstallation,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -1136,9 +1137,9 @@ impl From<CharacterMapping> for CharacterMappingResult {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ApplyOperationResult {
-    pub group: ApplyGroup,
-    pub wtf_scope: Option<WtfScope>,
-    pub action: ApplyAction,
+    pub group: ApplyGroupValue,
+    pub wtf_scope: Option<WtfScopeValue>,
+    pub action: ApplyActionValue,
     pub archive_name: String,
     pub destination: PathBuf,
     pub target_account: Option<String>,
@@ -1149,9 +1150,9 @@ pub struct ApplyOperationResult {
 impl From<ApplyOperation> for ApplyOperationResult {
     fn from(value: ApplyOperation) -> Self {
         Self {
-            group: value.group,
-            wtf_scope: value.wtf_scope,
-            action: value.action,
+            group: ApplyGroupValue::from(value.group),
+            wtf_scope: value.wtf_scope.map(WtfScopeValue::from),
+            action: ApplyActionValue::from(value.action),
             archive_name: value.archive_name,
             destination: value.destination,
             target_account: value.target_account,
@@ -1184,13 +1185,13 @@ impl From<ApplyPlanSummary> for ApplyPlanSummaryResult {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupPolicyResult {
-    pub policy: ResourceApplyPolicy,
+    pub policy: ResourceApplyPolicyValue,
 }
 
 impl From<GroupPolicy> for GroupPolicyResult {
     fn from(value: GroupPolicy) -> Self {
         Self {
-            policy: value.policy,
+            policy: ResourceApplyPolicyValue::from(value.policy),
         }
     }
 }
@@ -1240,22 +1241,22 @@ impl From<MappingRules> for BundleMappingRulesResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct BundleApplyDefaultsResult {
     pub create_backup: bool,
-    pub addons: ResourceApplyPolicy,
-    pub wtf_common: ResourceApplyPolicy,
-    pub wtf_characters: ResourceApplyPolicy,
-    pub fonts: ResourceApplyPolicy,
-    pub interface_assets: ResourceApplyPolicy,
+    pub addons: ResourceApplyPolicyValue,
+    pub wtf_common: ResourceApplyPolicyValue,
+    pub wtf_characters: ResourceApplyPolicyValue,
+    pub fonts: ResourceApplyPolicyValue,
+    pub interface_assets: ResourceApplyPolicyValue,
 }
 
 impl From<ApplyDefaults> for BundleApplyDefaultsResult {
     fn from(value: ApplyDefaults) -> Self {
         Self {
             create_backup: value.create_backup,
-            addons: value.addons,
-            wtf_common: value.wtf_common,
-            wtf_characters: value.wtf_characters,
-            fonts: value.fonts,
-            interface_assets: value.interface_assets,
+            addons: ResourceApplyPolicyValue::from(value.addons),
+            wtf_common: ResourceApplyPolicyValue::from(value.wtf_common),
+            wtf_characters: ResourceApplyPolicyValue::from(value.wtf_characters),
+            fonts: ResourceApplyPolicyValue::from(value.fonts),
+            interface_assets: ResourceApplyPolicyValue::from(value.interface_assets),
         }
     }
 }
@@ -1292,7 +1293,7 @@ pub struct BundleApplyPlanResult {
     pub character_mappings: Vec<CharacterMappingResult>,
     pub operations: Vec<ApplyOperationResult>,
     pub summary: ApplyPlanSummaryResult,
-    pub helper_strategy: HelperStrategy,
+    pub helper_strategy: HelperStrategyValue,
     pub group_policies: ApplyGroupPoliciesResult,
     pub manifest: BundleManifestResult,
 }
@@ -1319,7 +1320,7 @@ impl From<DomainBundleApplyPlan> for BundleApplyPlanResult {
                 .map(ApplyOperationResult::from)
                 .collect(),
             summary: ApplyPlanSummaryResult::from(value.summary),
-            helper_strategy: value.helper_strategy,
+            helper_strategy: HelperStrategyValue::from(value.helper_strategy),
             group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
             manifest: BundleManifestResult::from(value.manifest),
         }
@@ -1705,8 +1706,8 @@ impl From<DomainBundleAddonLockApply> for BundleAddonLockApplyResult {
 pub struct ExternalPackageEntryResult {
     pub source_path: String,
     pub normalized_path: String,
-    pub group: ApplyGroup,
-    pub wtf_scope: Option<WtfScope>,
+    pub group: ApplyGroupValue,
+    pub wtf_scope: Option<WtfScopeValue>,
     pub source_account: Option<String>,
     pub source_server: Option<String>,
     pub source_character: Option<String>,
@@ -1717,8 +1718,8 @@ impl From<DomainExternalPackageEntry> for ExternalPackageEntryResult {
         Self {
             source_path: value.source_path,
             normalized_path: value.normalized_path,
-            group: value.group,
-            wtf_scope: value.wtf_scope,
+            group: ApplyGroupValue::from(value.group),
+            wtf_scope: value.wtf_scope.map(WtfScopeValue::from),
             source_account: value.source_account,
             source_server: value.source_server,
             source_character: value.source_character,
@@ -1849,7 +1850,7 @@ pub struct ExternalPackageApplyPlanResult {
     pub character_mappings: Vec<CharacterMappingResult>,
     pub operations: Vec<ApplyOperationResult>,
     pub summary: ApplyPlanSummaryResult,
-    pub helper_strategy: HelperStrategy,
+    pub helper_strategy: HelperStrategyValue,
     pub group_policies: ApplyGroupPoliciesResult,
     pub manifest: BundleManifestResult,
 }
@@ -1876,7 +1877,7 @@ impl From<DomainExternalPackageApplyPlan> for ExternalPackageApplyPlanResult {
                 .map(ApplyOperationResult::from)
                 .collect(),
             summary: ApplyPlanSummaryResult::from(value.summary),
-            helper_strategy: value.helper_strategy,
+            helper_strategy: HelperStrategyValue::from(value.helper_strategy),
             group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
             manifest: BundleManifestResult::from(value.manifest),
         }

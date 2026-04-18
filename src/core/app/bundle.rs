@@ -185,7 +185,7 @@ mod tests {
         assert!(
             plan.operations
                 .iter()
-                .any(|item| item.group == crate::core::bundle::ApplyGroup::Addons)
+                .any(|item| item.group == crate::core::app::ApplyGroupValue::Addons)
         );
     }
 

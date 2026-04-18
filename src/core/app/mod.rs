@@ -34,4 +34,7 @@ pub use request::{
 };
 pub use response::*;
 pub use runtime::{AppRuntime, SharedAddonProvider};
-pub use types::BackupGroupValue;
+pub use types::{
+    ApplyActionValue, ApplyGroupValue, BackupGroupValue, HelperStrategyValue,
+    ResourceApplyPolicyValue, WtfScopeValue,
+};
