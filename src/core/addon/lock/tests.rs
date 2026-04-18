@@ -432,16 +432,26 @@ fn apply_addon_lock_sync_task_reports_progress() {
         .map(|event| (event.task, event.phase))
         .collect::<Vec<_>>();
     assert_eq!(
-        phases,
-        vec![
-            (TaskKind::AddonLockApply, TaskPhase::Preparing),
-            (TaskKind::AddonLockApply, TaskPhase::Planning),
-            (TaskKind::AddonLockApply, TaskPhase::BackingUp),
-            (TaskKind::AddonLockApply, TaskPhase::Executing),
-            (TaskKind::AddonLockApply, TaskPhase::Verifying),
-            (TaskKind::AddonLockApply, TaskPhase::Completed),
-        ]
+        phases.first(),
+        Some(&(TaskKind::AddonLockApply, TaskPhase::Preparing))
     );
+    assert_eq!(
+        phases.last(),
+        Some(&(TaskKind::AddonLockApply, TaskPhase::Completed))
+    );
+    assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::Planning)));
+    assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::BackingUp)));
+    assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::Verifying)));
+    assert!(phases.iter().any(|phase| {
+        *phase == (TaskKind::AddonLockApply, TaskPhase::Executing)
+    }));
+    assert!(progress.events().iter().any(|event| {
+        event.task == TaskKind::AddonLockApply
+            && event.phase == TaskPhase::Executing
+            && (event.message.contains("Removing")
+                || event.message.contains("Writing updated addon directory")
+                || event.message.contains("Installing addon directory"))
+    }));
     assert!(result.verification.matches);
 }
 

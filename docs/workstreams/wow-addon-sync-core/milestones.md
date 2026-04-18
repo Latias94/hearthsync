@@ -85,6 +85,9 @@ Define stable long-running operation boundaries for CLI and future desktop reuse
 - addon install, addon update, addon remove, addon index install, addon index update, and backup
   restore now also emit detail-level `executing` progress from inside their real filesystem loops,
   and those loops re-check cancellation instead of only trusting outer phase boundaries
+- addon lock apply now also reuses those task-aware addon mutation executors, so remove, update,
+  install, and metadata-only lock actions surface execution-detail progress under one stable top-level
+  task kind instead of disappearing behind one coarse `executing` event
 
 ## M3 - Import Normalization and Restore Safety
 

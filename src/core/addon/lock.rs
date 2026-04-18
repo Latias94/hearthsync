@@ -21,9 +21,10 @@ use serde::{Deserialize, Serialize};
 use crate::core::addon::{
     AddonInventory, AddonPackageMetadata, AddonProvider, AddonRegistry, AddonSourceRef,
     DefaultAddonProvider, PreparedAddonPackage, TrackedAddon, TrackedAddonPackage,
-    install_prepared_package, list_addons, load_registry, prepare_package_from_archive_with_source,
-    prepare_package_from_source_ref_with_provider, remove_selected_packages,
-    rollback_or_report_addon_error, save_registry, update_prepared_packages,
+    install_prepared_package_task, list_addons, load_registry,
+    prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_provider,
+    remove_selected_packages_task, rollback_or_report_addon_error, save_registry,
+    update_prepared_packages_task,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};

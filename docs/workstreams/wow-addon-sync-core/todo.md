@@ -45,10 +45,11 @@ runtime policy instead of every caller constructing unrelated facades ad hoc.
 - [ ] Add cancellation checks inside long-running execution loops instead of only between phases
 Current coverage: bundle apply and external-package apply emit per-operation `executing`
 progress and honor cancellation inside the execution loop; addon install, update, remove, addon
-index install and update, and backup restore now also emit execution-detail progress from inside
-their real mutation or restore loops and re-check cancellation during those loops.
-Current gap: addon lock apply still exposes mostly phase-level progress even though its internal
-mutation work can take time on larger installs.
+index install and update, addon lock apply, and backup restore now also emit execution-detail
+progress from inside their real mutation or restore loops and re-check cancellation during those
+loops.
+Current gap: long-running task semantics are now materially better, but task input/output contracts
+and GUI-stable progress expectations are still only implicit in code and tests.
 
 ## Phase 3 - Provider and Infrastructure Ports
 

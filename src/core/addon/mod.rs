@@ -36,8 +36,7 @@ pub(crate) use self::execution::{
     update_addons_task_with_provider,
 };
 pub(crate) use self::mutation::{
-    install_prepared_package, install_prepared_package_task, remove_selected_packages,
-    remove_selected_packages_task, rollback_or_report_addon_error, update_prepared_packages,
+    install_prepared_package_task, remove_selected_packages_task, rollback_or_report_addon_error,
     update_prepared_packages_task,
 };
 pub(crate) use self::package_prep::{

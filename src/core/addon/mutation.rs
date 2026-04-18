@@ -40,10 +40,6 @@ trait AddonMutationObserver {
     }
 }
 
-struct NoopAddonMutationObserver;
-
-impl AddonMutationObserver for NoopAddonMutationObserver {}
-
 struct TaskAddonMutationObserver<'a, TCancel, TProgress> {
     task: TaskKind,
     mode: MutationProgressMode,
@@ -82,15 +78,6 @@ where
         );
         Ok(())
     }
-}
-
-pub(crate) fn install_prepared_package(
-    installation: &DetectedFlavorInstallation,
-    prepared: PreparedAddonPackage,
-    replace_existing: bool,
-) -> AppResult<(TrackedAddonPackage, usize)> {
-    let mut observer = NoopAddonMutationObserver;
-    install_prepared_package_with_observer(installation, prepared, replace_existing, &mut observer)
 }
 
 pub(crate) fn install_prepared_package_task<TCancel, TProgress>(
@@ -168,22 +155,6 @@ fn install_prepared_package_with_observer(
     save_registry(installation, &registry)?;
 
     Ok((package, written_files))
-}
-
-pub(crate) fn update_prepared_packages(
-    installation: &DetectedFlavorInstallation,
-    registry: AddonRegistry,
-    selected_packages: Vec<TrackedAddonPackage>,
-    prepared_packages: Vec<PreparedAddonPackage>,
-) -> AppResult<(Vec<TrackedAddonPackage>, usize)> {
-    let mut observer = NoopAddonMutationObserver;
-    update_prepared_packages_with_observer(
-        installation,
-        registry,
-        selected_packages,
-        prepared_packages,
-        &mut observer,
-    )
 }
 
 pub(crate) fn update_prepared_packages_task<TCancel, TProgress>(
@@ -281,14 +252,6 @@ fn update_prepared_packages_with_observer(
 
     save_registry(installation, &registry)?;
     Ok((updated_packages, written_files))
-}
-
-pub(crate) fn remove_selected_packages(
-    installation: &DetectedFlavorInstallation,
-    selected_packages: Vec<TrackedAddonPackage>,
-) -> AppResult<bool> {
-    let mut observer = NoopAddonMutationObserver;
-    remove_selected_packages_with_observer(installation, selected_packages, &mut observer)
 }
 
 pub(crate) fn remove_selected_packages_task<TCancel, TProgress>(

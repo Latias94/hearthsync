@@ -100,8 +100,13 @@ where
         );
         ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Executing)?;
     }
-    if let Err(error) =
-        execute_prepared_addon_lock_apply(&request.installation, prepared, request.replace_existing)
+    if let Err(error) = execute_prepared_addon_lock_apply(
+        &request.installation,
+        prepared,
+        request.replace_existing,
+        cancellation,
+        progress,
+    )
     {
         return rollback_or_report_addon_error(
             error,
