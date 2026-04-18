@@ -19,7 +19,8 @@ use crate::core::addon::lock::{
     AddonLockWriteResult as DomainAddonLockWriteResult,
 };
 use crate::core::addon::{
-    AddonInventory, AddonPackageMetadata, AddonSourceRef,
+    AddonInventory, AddonPackageMetadata, AddonSearchCatalog as DomainAddonSearchCatalog,
+    AddonSearchResult as DomainAddonSearchResult, AddonSourceRef,
     InstalledAddonPackageResult as DomainInstalledAddonPackageResult,
     RemovedAddonPackageResult as DomainRemovedAddonPackageResult, TrackedAddon,
     TrackedAddonPackage, UpdatedAddonPackageResult as DomainUpdatedAddonPackageResult,
@@ -280,6 +281,62 @@ impl From<AddonInventory> for AddonInventoryResult {
                 .map(TrackedAddonPackageResult::from)
                 .collect(),
             untracked_addons: value.untracked_addons,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonSearchResult {
+    pub provider: String,
+    pub name: String,
+    pub summary: Option<String>,
+    pub source: AddonSourceRef,
+    pub source_label: String,
+    pub install_hint: String,
+    pub website_url: Option<String>,
+    pub provider_project_id: Option<u32>,
+    pub provider_file_id: Option<u32>,
+    pub download_count: u64,
+}
+
+impl From<DomainAddonSearchResult> for AddonSearchResult {
+    fn from(value: DomainAddonSearchResult) -> Self {
+        let source_label = value.source.display_name();
+
+        Self {
+            provider: value.provider.to_string(),
+            name: value.name,
+            summary: value.summary,
+            source: value.source,
+            source_label,
+            install_hint: value.install_hint,
+            website_url: value.website_url,
+            provider_project_id: value.provider_project_id,
+            provider_file_id: value.provider_file_id,
+            download_count: value.download_count,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonSearchCatalogResult {
+    pub query: String,
+    pub result_count: usize,
+    pub results: Vec<AddonSearchResult>,
+}
+
+impl From<DomainAddonSearchCatalog> for AddonSearchCatalogResult {
+    fn from(value: DomainAddonSearchCatalog) -> Self {
+        let result_count = value.results.len();
+
+        Self {
+            query: value.query,
+            result_count,
+            results: value
+                .results
+                .into_iter()
+                .map(AddonSearchResult::from)
+                .collect(),
         }
     }
 }

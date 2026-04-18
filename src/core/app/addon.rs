@@ -1,11 +1,12 @@
 use crate::core::addon::{
-    AddonSearchCatalog, install_addon_task_with_provider, list_addons, remove_addons_task,
-    search_addons_with_provider, update_addons_task_with_provider,
+    install_addon_task_with_provider, list_addons, remove_addons_task, search_addons_with_provider,
+    update_addons_task_with_provider,
 };
 use crate::core::app::{
-    AddonInventoryResult, AppRuntime, InstallAddonAppRequest, InstalledAddonPackageResult,
-    ListAddonsRequest, RemoveAddonAppRequest, RemovedAddonPackageResult, SearchAddonsRequest,
-    UpdateAddonAppRequest, UpdatedAddonPackageResult, task_support,
+    AddonInventoryResult, AddonSearchCatalogResult, AppRuntime, InstallAddonAppRequest,
+    InstalledAddonPackageResult, ListAddonsRequest, RemoveAddonAppRequest,
+    RemovedAddonPackageResult, SearchAddonsRequest, UpdateAddonAppRequest,
+    UpdatedAddonPackageResult, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -28,8 +29,9 @@ impl AddonService {
         &self.runtime
     }
 
-    pub fn search(&self, request: SearchAddonsRequest) -> AppResult<AddonSearchCatalog> {
-        search_addons_with_provider(self.runtime.addon_provider(), request.into())
+    pub fn search(&self, request: SearchAddonsRequest) -> AppResult<AddonSearchCatalogResult> {
+        let results = search_addons_with_provider(self.runtime.addon_provider(), request.into())?;
+        Ok(AddonSearchCatalogResult::from(results))
     }
 
     pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
@@ -238,6 +240,27 @@ mod tests {
         assert_eq!(installed.package_id, "weakauras");
         assert_eq!(inventory.tracked_packages.len(), 1);
         assert!(inventory.untracked_addons.is_empty());
+    }
+
+    #[test]
+    fn addon_service_search_returns_app_owned_catalog() {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_empty_installation(temp.path());
+        let service =
+            AddonService::with_runtime(AppRuntime::with_addon_provider(FakeSearchAddonProvider));
+
+        let results = service
+            .search(SearchAddonsRequest {
+                installation,
+                query: "weak".to_string(),
+                limit: 5,
+            })
+            .expect("search addons");
+
+        assert_eq!(results.query, "weak");
+        assert_eq!(results.result_count, 1);
+        assert_eq!(results.results[0].provider, "fake-provider");
+        assert_eq!(results.results[0].source_label, "curseforge:42");
     }
 
     #[test]
@@ -505,6 +528,51 @@ mod tests {
             _request: ProviderAddonSearchRequest<'_>,
         ) -> AppResult<Vec<AddonSearchResult>> {
             Ok(Vec::new())
+        }
+    }
+
+    #[derive(Clone)]
+    struct FakeSearchAddonProvider;
+
+    impl AddonProvider for FakeSearchAddonProvider {
+        fn materialize_source_input(
+            &self,
+            _request: MaterializeSourceInputRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            Err(AppError::Validation(
+                "search-only provider does not materialize sources".to_string(),
+            ))
+        }
+
+        fn materialize_source_ref(
+            &self,
+            _request: MaterializeSourceRefRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            Err(AppError::Validation(
+                "search-only provider does not materialize sources".to_string(),
+            ))
+        }
+
+        fn search_addons(
+            &self,
+            request: ProviderAddonSearchRequest<'_>,
+        ) -> AppResult<Vec<AddonSearchResult>> {
+            assert_eq!(request.query, "weak");
+            assert_eq!(request.limit, 5);
+            Ok(vec![AddonSearchResult {
+                provider: "fake-provider",
+                name: "WeakAuras".to_string(),
+                summary: Some("fixture search result".to_string()),
+                source: AddonSourceRef::CurseForgeMod {
+                    mod_id: 42,
+                    file_id: None,
+                },
+                install_hint: "curseforge:42".to_string(),
+                website_url: Some("https://example.invalid/weakauras".to_string()),
+                provider_project_id: Some(42),
+                provider_file_id: None,
+                download_count: 100,
+            }])
         }
     }
 
