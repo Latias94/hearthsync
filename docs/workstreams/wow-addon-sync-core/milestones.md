@@ -225,6 +225,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - the CLI bundle-archive, bundle-addon, addon-manage, addon-index, and backup handlers now also consume `core::app` services instead of calling domain modules directly
 - `core::app` now also has a shared `AppRuntime` boundary with `with_runtime()` constructors on every service, and addon-related services no longer hide a hard-coded default addon provider behind their app-facing methods; callers can inject provider policy for search, install, index update, and lock apply flows
 - `AppRuntime` now also carries default host-platform, backup-directory, and bundle-output policy, and `BundleService`, `ExternalPackageService`, and `BackupService` normalize those defaults into explicit requests before crossing into bundle, external-package, or backup domain code
+- the same runtime boundary now also exposes shared default-injection helpers for backup paths,
+  bundle output paths, and source-platform defaults, so app services stop re-encoding the same
+  missing-value policy locally
 - `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery

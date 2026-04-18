@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::core::app::{AppRuntime, task_support};
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
@@ -182,15 +180,11 @@ impl ExternalPackageService {
         &self,
         mut request: CreateExternalPackageBundleRequest,
     ) -> CreateExternalPackageBundleRequest {
-        if request.source_platform.is_none() {
-            request.source_platform = Some(self.runtime.host_platform());
-        }
-        if request.output_path.is_none() {
-            request.output_path = self
-                .runtime
-                .default_bundle_output_dir()
-                .map(Path::to_path_buf);
-        }
+        request.source_platform = Some(
+            self.runtime
+                .source_platform_or_host(request.source_platform),
+        );
+        request.output_path = self.runtime.bundle_output_or_default(request.output_path);
         request
     }
 
@@ -207,9 +201,9 @@ impl ExternalPackageService {
         mut request: ApplyExternalPackageRequest,
     ) -> ApplyExternalPackageRequest {
         request.external_package = self.normalize_bundle_request(request.external_package);
-        if request.backup_output_path.is_none() {
-            request.backup_output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
-        }
+        request.backup_output_path = self
+            .runtime
+            .backup_output_or_default(request.backup_output_path);
         request
     }
 }

@@ -69,6 +69,14 @@ impl AppRuntime {
         self.default_backup_dir.as_deref()
     }
 
+    pub fn backup_output_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
+        path.or_else(|| self.default_backup_dir.clone())
+    }
+
+    pub fn backup_dir_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
+        path.or_else(|| self.default_backup_dir.clone())
+    }
+
     pub fn with_default_bundle_output_dir(
         mut self,
         default_bundle_output_dir: Option<PathBuf>,
@@ -79,6 +87,14 @@ impl AppRuntime {
 
     pub fn default_bundle_output_dir(&self) -> Option<&Path> {
         self.default_bundle_output_dir.as_deref()
+    }
+
+    pub fn bundle_output_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
+        path.or_else(|| self.default_bundle_output_dir.clone())
+    }
+
+    pub fn source_platform_or_host(&self, platform: Option<HostPlatform>) -> HostPlatform {
+        platform.unwrap_or(self.host_platform)
     }
 }
 
@@ -96,5 +112,52 @@ impl fmt::Debug for AppRuntime {
             .field("default_backup_dir", &self.default_backup_dir)
             .field("default_bundle_output_dir", &self.default_bundle_output_dir)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
+        let backup_dir = PathBuf::from("backups");
+        let bundle_dir = PathBuf::from("bundles");
+        let explicit_backup = PathBuf::from("custom-backups");
+        let explicit_bundle = PathBuf::from("custom-bundles");
+        let runtime = AppRuntime::new()
+            .with_default_backup_dir(Some(backup_dir.clone()))
+            .with_default_bundle_output_dir(Some(bundle_dir.clone()));
+
+        assert_eq!(
+            runtime.backup_output_or_default(None),
+            Some(backup_dir.clone())
+        );
+        assert_eq!(
+            runtime.backup_output_or_default(Some(explicit_backup.clone())),
+            Some(explicit_backup)
+        );
+        assert_eq!(runtime.backup_dir_or_default(None), Some(backup_dir));
+        assert_eq!(
+            runtime.bundle_output_or_default(None),
+            Some(bundle_dir.clone())
+        );
+        assert_eq!(
+            runtime.bundle_output_or_default(Some(explicit_bundle.clone())),
+            Some(explicit_bundle)
+        );
+    }
+
+    #[test]
+    fn runtime_source_platform_or_host_uses_explicit_platform_before_host_default() {
+        let runtime = AppRuntime::new().with_host_platform(HostPlatform::MacOs);
+
+        assert_eq!(runtime.source_platform_or_host(None), HostPlatform::MacOs);
+        assert_eq!(
+            runtime.source_platform_or_host(Some(HostPlatform::Windows)),
+            HostPlatform::Windows
+        );
     }
 }

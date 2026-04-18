@@ -82,16 +82,12 @@ impl BackupService {
     }
 
     fn normalize_backup_request(&self, mut request: BackupRequest) -> BackupRequest {
-        if request.output_path.is_none() {
-            request.output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
-        }
+        request.output_path = self.runtime.backup_output_or_default(request.output_path);
         request
     }
 
     fn normalize_restore_request(&self, mut request: RestoreBackupRequest) -> RestoreBackupRequest {
-        if request.backup_dir.is_none() {
-            request.backup_dir = self.runtime.default_backup_dir().map(Path::to_path_buf);
-        }
+        request.backup_dir = self.runtime.backup_dir_or_default(request.backup_dir);
         request
     }
 }

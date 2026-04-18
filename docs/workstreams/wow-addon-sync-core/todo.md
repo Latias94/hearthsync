@@ -124,6 +124,9 @@ Current progress: `AppRuntime` now also owns default host-platform, backup-direc
 policy for `BundleService`, `ExternalPackageService`, and `BackupService`, so the app boundary can
 materialize stable defaults before domain functions run instead of letting CLI or domain code fall
 back to ambient process state.
+Current progress: the same runtime boundary now also owns the helper methods that fill missing
+backup, bundle-output, and source-platform defaults into app-facing requests, reducing repeated
+service-local `if is_none()` policy wiring.
 Current progress: app services that expose direct, collected-progress, and callback-based long-running
 operations now reuse one shared internal task-wrapper helper, and direct entrypoints route through the
 same task path instead of each façade rebuilding its own `NeverCancel` and progress plumbing.

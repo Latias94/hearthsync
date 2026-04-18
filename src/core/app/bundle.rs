@@ -109,19 +109,14 @@ impl BundleService {
     }
 
     fn normalize_pack_request(&self, mut request: PackBundleRequest) -> PackBundleRequest {
-        if request.output_path.is_none() {
-            request.output_path = self
-                .runtime
-                .default_bundle_output_dir()
-                .map(Path::to_path_buf);
-        }
+        request.output_path = self.runtime.bundle_output_or_default(request.output_path);
         request
     }
 
     fn normalize_unpack_request(&self, mut request: UnpackBundleRequest) -> UnpackBundleRequest {
-        if request.backup_output_path.is_none() {
-            request.backup_output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
-        }
+        request.backup_output_path = self
+            .runtime
+            .backup_output_or_default(request.backup_output_path);
         request
     }
 
@@ -129,9 +124,9 @@ impl BundleService {
         &self,
         mut request: BundleAddonLockApplyRequest,
     ) -> BundleAddonLockApplyRequest {
-        if request.backup_output_path.is_none() {
-            request.backup_output_path = self.runtime.default_backup_dir().map(Path::to_path_buf);
-        }
+        request.backup_output_path = self
+            .runtime
+            .backup_output_or_default(request.backup_output_path);
         request
     }
 }
