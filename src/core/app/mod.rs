@@ -10,6 +10,7 @@ mod request;
 mod response;
 mod runtime;
 mod task_support;
+mod types;
 
 pub use addon::AddonService;
 pub use addon_index::AddonIndexService;
@@ -33,3 +34,4 @@ pub use request::{
 };
 pub use response::*;
 pub use runtime::{AppRuntime, SharedAddonProvider};
+pub use types::BackupGroupValue;

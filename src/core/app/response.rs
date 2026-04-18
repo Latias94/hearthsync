@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use super::BackupGroupValue;
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallResult as DomainAddonIndexInstallResult,
     AddonIndexPackage, AddonIndexUpdateResult as DomainAddonIndexUpdateResult,
@@ -26,8 +27,8 @@ use crate::core::addon::{
     TrackedAddonPackage, UpdatedAddonPackageResult as DomainUpdatedAddonPackageResult,
 };
 use crate::core::backup::{
-    BackupCatalog, BackupCatalogEntry, BackupGroup, BackupMetadata,
-    CreatedBackup as DomainCreatedBackup, RestoredBackup as DomainRestoredBackup,
+    BackupCatalog, BackupCatalogEntry, BackupMetadata, CreatedBackup as DomainCreatedBackup,
+    RestoredBackup as DomainRestoredBackup,
 };
 use crate::core::bundle::{
     AppliedExternalPackage as DomainAppliedExternalPackage, ApplyAction, ApplyGroup,
@@ -746,7 +747,7 @@ pub struct BackupEntryResult {
     pub label: Option<String>,
     pub flavor: String,
     pub flavor_root: PathBuf,
-    pub groups: Vec<BackupGroup>,
+    pub groups: Vec<BackupGroupValue>,
 }
 
 impl From<BackupCatalogEntry> for BackupEntryResult {
@@ -759,7 +760,12 @@ impl From<BackupCatalogEntry> for BackupEntryResult {
             label: value.metadata.label,
             flavor: value.metadata.flavor,
             flavor_root: value.metadata.flavor_root,
-            groups: value.metadata.groups,
+            groups: value
+                .metadata
+                .groups
+                .into_iter()
+                .map(BackupGroupValue::from)
+                .collect(),
         }
     }
 }
@@ -772,7 +778,7 @@ pub struct BackupMetadataResult {
     pub flavor: String,
     pub flavor_root: PathBuf,
     pub group_count: usize,
-    pub groups: Vec<BackupGroup>,
+    pub groups: Vec<BackupGroupValue>,
 }
 
 impl From<BackupMetadata> for BackupMetadataResult {
@@ -786,7 +792,11 @@ impl From<BackupMetadata> for BackupMetadataResult {
             flavor: value.flavor,
             flavor_root: value.flavor_root,
             group_count,
-            groups: value.groups,
+            groups: value
+                .groups
+                .into_iter()
+                .map(BackupGroupValue::from)
+                .collect(),
         }
     }
 }

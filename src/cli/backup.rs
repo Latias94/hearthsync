@@ -1,10 +1,9 @@
 use super::BackupCommands;
 use super::output::render;
 use crate::core::app::{
-    CreateBackupAppRequest, HearthSyncApp, ListBackupsRequest, ResolveInstallationRequest,
-    RestoreBackupAppRequest,
+    BackupGroupValue, CreateBackupAppRequest, HearthSyncApp, ListBackupsRequest,
+    ResolveInstallationRequest, RestoreBackupAppRequest,
 };
-use crate::core::backup::BackupGroup;
 use crate::core::error::AppResult;
 
 pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
@@ -26,10 +25,10 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                 installation,
                 output_path: output,
                 groups: vec![
-                    BackupGroup::Addons,
-                    BackupGroup::Wtf,
-                    BackupGroup::Fonts,
-                    BackupGroup::InterfaceAssets,
+                    BackupGroupValue::Addons,
+                    BackupGroupValue::Wtf,
+                    BackupGroupValue::Fonts,
+                    BackupGroupValue::InterfaceAssets,
                 ],
                 label: None,
             })?;
@@ -41,7 +40,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                     item.metadata
                         .groups
                         .iter()
-                        .map(BackupGroup::as_str)
+                        .map(BackupGroupValue::as_str)
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -64,7 +63,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                         let groups = entry
                             .groups
                             .iter()
-                            .map(BackupGroup::as_str)
+                            .map(BackupGroupValue::as_str)
                             .collect::<Vec<_>>()
                             .join(", ");
                         let label = entry.label.as_deref().unwrap_or("none");
@@ -110,7 +109,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                     item.metadata
                         .groups
                         .iter()
-                        .map(BackupGroup::as_str)
+                        .map(BackupGroupValue::as_str)
                         .collect::<Vec<_>>()
                         .join(", ")
                 )

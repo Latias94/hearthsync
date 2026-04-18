@@ -240,6 +240,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - addon-related app outputs now also wrap source references in app-owned DTOs instead of leaking
   raw domain `AddonSourceRef` values through search, inventory, install, index, or addon-lock
   payloads
+- `core::app` now also has a small shared app-type layer for reusable frontend-facing value enums,
+  starting with backup groups so backup requests and results no longer expose raw domain
+  `BackupGroup` values
 - `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::BackupGroupValue;
 use crate::core::addon::index::{
     AddonIndexInstallRequest as DomainAddonIndexInstallRequest,
     AddonIndexUpdateRequest as DomainAddonIndexUpdateRequest,
@@ -14,8 +15,7 @@ use crate::core::addon::{
     UpdateAddonRequest as DomainUpdateAddonRequest,
 };
 use crate::core::backup::{
-    BackupGroup, BackupRequest as DomainBackupRequest,
-    RestoreBackupRequest as DomainRestoreBackupRequest,
+    BackupRequest as DomainBackupRequest, RestoreBackupRequest as DomainRestoreBackupRequest,
 };
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest as DomainAnalyzeExternalPackageRequest,
@@ -238,7 +238,7 @@ pub struct ListBackupsRequest {
 pub struct CreateBackupAppRequest {
     pub installation: DetectedFlavorInstallation,
     pub output_path: Option<PathBuf>,
-    pub groups: Vec<BackupGroup>,
+    pub groups: Vec<BackupGroupValue>,
     pub label: Option<String>,
 }
 
@@ -247,7 +247,7 @@ impl From<CreateBackupAppRequest> for DomainBackupRequest {
         Self {
             installation: request.installation,
             output_path: request.output_path,
-            groups: request.groups,
+            groups: request.groups.into_iter().map(Into::into).collect(),
             label: request.label,
         }
     }

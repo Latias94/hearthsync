@@ -111,7 +111,6 @@ mod tests {
 
     use super::*;
     use crate::core::app::AppRuntime;
-    use crate::core::backup::BackupGroup;
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 
@@ -135,7 +134,7 @@ mod tests {
             .create(CreateBackupAppRequest {
                 installation: installation.clone(),
                 output_path: Some(temp.path().join("backups")),
-                groups: vec![BackupGroup::Addons],
+                groups: vec![crate::core::app::BackupGroupValue::Addons],
                 label: Some("service-restore".to_string()),
             })
             .expect("create backup");
@@ -175,7 +174,7 @@ mod tests {
             .create(CreateBackupAppRequest {
                 installation: installation.clone(),
                 output_path: Some(temp.path().join("backups")),
-                groups: vec![BackupGroup::Wtf],
+                groups: vec![crate::core::app::BackupGroupValue::Wtf],
                 label: Some("service-callback".to_string()),
             })
             .expect("create backup");
@@ -235,7 +234,7 @@ mod tests {
             .create(CreateBackupAppRequest {
                 installation: installation.clone(),
                 output_path: None,
-                groups: vec![BackupGroup::Addons],
+                groups: vec![crate::core::app::BackupGroupValue::Addons],
                 label: Some("runtime-default".to_string()),
             })
             .expect("create backup");
