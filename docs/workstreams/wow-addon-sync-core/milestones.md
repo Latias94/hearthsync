@@ -237,6 +237,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - read-only app outputs for installation scan and inspect, addon inventory, addon-index inspect,
   addon-lock inspect, backup catalog list, and bundle inspect now also flow through app-owned DTOs
   instead of returning raw domain aggregate structs directly
+- addon-related app outputs now also wrap source references in app-owned DTOs instead of leaking
+  raw domain `AddonSourceRef` values through search, inventory, install, index, or addon-lock
+  payloads
 - `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery

@@ -20,7 +20,7 @@ use crate::core::addon::lock::{
 };
 use crate::core::addon::{
     AddonInventory, AddonPackageMetadata, AddonSearchCatalog as DomainAddonSearchCatalog,
-    AddonSearchResult as DomainAddonSearchResult, AddonSourceRef,
+    AddonSearchResult as DomainAddonSearchResult, AddonSourceRef as DomainAddonSourceRef,
     InstalledAddonPackageResult as DomainInstalledAddonPackageResult,
     RemovedAddonPackageResult as DomainRemovedAddonPackageResult, TrackedAddon,
     TrackedAddonPackage, UpdatedAddonPackageResult as DomainUpdatedAddonPackageResult,
@@ -198,6 +198,97 @@ impl From<AddonPackageMetadata> for AddonMetadataResult {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonSourceKindResult {
+    LocalArchive,
+    HttpArchive,
+    CurseForgeMod,
+    GitHubRelease,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonSourceResult {
+    pub kind: AddonSourceKindResult,
+    pub display_name: String,
+    pub local_archive_path: Option<PathBuf>,
+    pub url: Option<String>,
+    pub mod_id: Option<u32>,
+    pub file_id: Option<u32>,
+    pub owner: Option<String>,
+    pub repo: Option<String>,
+    pub tag: Option<String>,
+    pub asset_name: Option<String>,
+}
+
+impl AddonSourceResult {
+    pub fn display_name(&self) -> &str {
+        &self.display_name
+    }
+}
+
+impl From<DomainAddonSourceRef> for AddonSourceResult {
+    fn from(value: DomainAddonSourceRef) -> Self {
+        let display_name = value.display_name();
+
+        match value {
+            DomainAddonSourceRef::LocalArchive { path } => Self {
+                kind: AddonSourceKindResult::LocalArchive,
+                display_name,
+                local_archive_path: Some(path),
+                url: None,
+                mod_id: None,
+                file_id: None,
+                owner: None,
+                repo: None,
+                tag: None,
+                asset_name: None,
+            },
+            DomainAddonSourceRef::HttpArchive { url } => Self {
+                kind: AddonSourceKindResult::HttpArchive,
+                display_name,
+                local_archive_path: None,
+                url: Some(url),
+                mod_id: None,
+                file_id: None,
+                owner: None,
+                repo: None,
+                tag: None,
+                asset_name: None,
+            },
+            DomainAddonSourceRef::CurseForgeMod { mod_id, file_id } => Self {
+                kind: AddonSourceKindResult::CurseForgeMod,
+                display_name,
+                local_archive_path: None,
+                url: None,
+                mod_id: Some(mod_id),
+                file_id,
+                owner: None,
+                repo: None,
+                tag: None,
+                asset_name: None,
+            },
+            DomainAddonSourceRef::GitHubRelease {
+                owner,
+                repo,
+                tag,
+                asset_name,
+            } => Self {
+                kind: AddonSourceKindResult::GitHubRelease,
+                display_name,
+                local_archive_path: None,
+                url: None,
+                mod_id: None,
+                file_id: None,
+                owner: Some(owner),
+                repo: Some(repo),
+                tag,
+                asset_name,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TrackedAddonResult {
     pub directory_name: String,
@@ -220,7 +311,7 @@ impl From<TrackedAddon> for TrackedAddonResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct TrackedAddonPackageResult {
     pub package_id: String,
-    pub source: AddonSourceRef,
+    pub source: AddonSourceResult,
     pub source_label: String,
     pub installed_at: String,
     pub updated_at: String,
@@ -231,12 +322,13 @@ pub struct TrackedAddonPackageResult {
 
 impl From<TrackedAddonPackage> for TrackedAddonPackageResult {
     fn from(value: TrackedAddonPackage) -> Self {
-        let source_label = value.source.display_name();
+        let source = AddonSourceResult::from(value.source);
+        let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
 
         Self {
             package_id: value.package_id,
-            source: value.source,
+            source,
             source_label,
             installed_at: value.installed_at,
             updated_at: value.updated_at,
@@ -290,7 +382,7 @@ pub struct AddonSearchResult {
     pub provider: String,
     pub name: String,
     pub summary: Option<String>,
-    pub source: AddonSourceRef,
+    pub source: AddonSourceResult,
     pub source_label: String,
     pub install_hint: String,
     pub website_url: Option<String>,
@@ -301,13 +393,14 @@ pub struct AddonSearchResult {
 
 impl From<DomainAddonSearchResult> for AddonSearchResult {
     fn from(value: DomainAddonSearchResult) -> Self {
-        let source_label = value.source.display_name();
+        let source = AddonSourceResult::from(value.source);
+        let source_label = source.display_name.clone();
 
         Self {
             provider: value.provider.to_string(),
             name: value.name,
             summary: value.summary,
-            source: value.source,
+            source,
             source_label,
             install_hint: value.install_hint,
             website_url: value.website_url,
@@ -344,7 +437,7 @@ impl From<DomainAddonSearchCatalog> for AddonSearchCatalogResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct InstalledAddonPackageResult {
     pub dry_run: bool,
-    pub source: AddonSourceRef,
+    pub source: AddonSourceResult,
     pub source_label: String,
     pub package_id: String,
     pub addon_count: usize,
@@ -359,13 +452,14 @@ pub struct InstalledAddonPackageResult {
 
 impl From<DomainInstalledAddonPackageResult> for InstalledAddonPackageResult {
     fn from(value: DomainInstalledAddonPackageResult) -> Self {
-        let source_label = value.source.display_name();
+        let source = AddonSourceResult::from(value.source);
+        let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
         let replaced_addon_count = value.replaced_addons.len();
 
         Self {
             dry_run: value.dry_run,
-            source: value.source,
+            source,
             source_label,
             package_id: value.package_id,
             addon_count,
@@ -454,7 +548,7 @@ pub struct AddonIndexPackageResult {
     pub id: String,
     pub name: String,
     pub version: String,
-    pub source: AddonSourceRef,
+    pub source: AddonSourceResult,
     pub source_label: String,
     pub source_url: Option<String>,
     pub website_url: Option<String>,
@@ -465,13 +559,14 @@ pub struct AddonIndexPackageResult {
 
 impl From<AddonIndexPackage> for AddonIndexPackageResult {
     fn from(value: AddonIndexPackage) -> Self {
-        let source_label = value.source.display_name();
+        let source = AddonSourceResult::from(value.source);
+        let source_label = source.display_name.clone();
 
         Self {
             id: value.id,
             name: value.name,
             version: value.version,
-            source: value.source,
+            source,
             source_label,
             source_url: value.source_url,
             website_url: value.website_url,
@@ -557,7 +652,7 @@ pub struct AddonLockPackageResult {
     pub index_package_id: Option<String>,
     pub name: Option<String>,
     pub version: Option<String>,
-    pub source: AddonSourceRef,
+    pub source: AddonSourceResult,
     pub source_label: String,
     pub source_url: Option<String>,
     pub website_url: Option<String>,
@@ -572,7 +667,8 @@ pub struct AddonLockPackageResult {
 
 impl From<AddonLockPackage> for AddonLockPackageResult {
     fn from(value: AddonLockPackage) -> Self {
-        let source_label = value.source.display_name();
+        let source = AddonSourceResult::from(value.source);
+        let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
 
         Self {
@@ -581,7 +677,7 @@ impl From<AddonLockPackage> for AddonLockPackageResult {
             index_package_id: value.index_package_id,
             name: value.name,
             version: value.version,
-            source: value.source,
+            source,
             source_label,
             source_url: value.source_url,
             website_url: value.website_url,
@@ -1265,7 +1361,7 @@ pub struct AddonLockPackageSnapshotResult {
     pub index_package_id: Option<String>,
     pub name: Option<String>,
     pub version: Option<String>,
-    pub source: AddonSourceRef,
+    pub source: AddonSourceResult,
     pub source_label: String,
     pub source_url: Option<String>,
     pub website_url: Option<String>,
@@ -1276,7 +1372,8 @@ pub struct AddonLockPackageSnapshotResult {
 
 impl From<DomainAddonLockPackageSnapshot> for AddonLockPackageSnapshotResult {
     fn from(value: DomainAddonLockPackageSnapshot) -> Self {
-        let source_label = value.source.display_name();
+        let source = AddonSourceResult::from(value.source);
+        let source_label = source.display_name.clone();
 
         Self {
             comparison_key: value.comparison_key,
@@ -1285,7 +1382,7 @@ impl From<DomainAddonLockPackageSnapshot> for AddonLockPackageSnapshotResult {
             index_package_id: value.index_package_id,
             name: value.name,
             version: value.version,
-            source: value.source,
+            source,
             source_label,
             source_url: value.source_url,
             website_url: value.website_url,
@@ -1447,7 +1544,7 @@ pub struct AddonLockSyncActionResult {
     pub package_id: String,
     pub name: Option<String>,
     pub addon_directories: Vec<String>,
-    pub source: Option<AddonSourceRef>,
+    pub source: Option<AddonSourceResult>,
     pub source_label: Option<String>,
     pub reasons: Vec<String>,
     pub blocked_reasons: Vec<String>,
@@ -1456,7 +1553,8 @@ pub struct AddonLockSyncActionResult {
 
 impl From<DomainAddonLockSyncAction> for AddonLockSyncActionResult {
     fn from(value: DomainAddonLockSyncAction) -> Self {
-        let source_label = value.source.as_ref().map(AddonSourceRef::display_name);
+        let source = value.source.map(AddonSourceResult::from);
+        let source_label = source.as_ref().map(|source| source.display_name.clone());
 
         Self {
             kind: value.kind,
@@ -1464,7 +1562,7 @@ impl From<DomainAddonLockSyncAction> for AddonLockSyncActionResult {
             package_id: value.package_id,
             name: value.name,
             addon_directories: value.addon_directories,
-            source: value.source,
+            source,
             source_label,
             reasons: value.reasons,
             blocked_reasons: value.blocked_reasons,

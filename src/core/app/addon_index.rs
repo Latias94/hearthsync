@@ -269,10 +269,12 @@ supported_flavors = ["retail"]
         assert_eq!(result.package.id, "weakauras");
         assert_eq!(result.install.package_id, "weakauras");
         assert_eq!(
-            result.install.source,
-            AddonSourceRef::HttpArchive {
-                url: "https://example.invalid/WeakAuras.zip".to_string(),
-            }
+            result.install.source.kind,
+            crate::core::app::AddonSourceKindResult::HttpArchive
+        );
+        assert_eq!(
+            result.install.source.url.as_deref(),
+            Some("https://example.invalid/WeakAuras.zip")
         );
     }
 

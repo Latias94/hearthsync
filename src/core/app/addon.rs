@@ -330,10 +330,12 @@ mod tests {
         assert_eq!(installed.package_id, "weakauras");
         assert_eq!(inventory.tracked_packages.len(), 1);
         assert_eq!(
-            inventory.tracked_packages[0].source,
-            AddonSourceRef::HttpArchive {
-                url: "https://example.invalid/WeakAuras.zip".to_string(),
-            }
+            inventory.tracked_packages[0].source.kind,
+            crate::core::app::AddonSourceKindResult::HttpArchive
+        );
+        assert_eq!(
+            inventory.tracked_packages[0].source.url.as_deref(),
+            Some("https://example.invalid/WeakAuras.zip")
         );
     }
 

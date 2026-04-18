@@ -142,6 +142,9 @@ Current progress: read-only app outputs for installation scan and inspect, addon
 addon-index inspect, addon-lock inspect, backup catalog list, and bundle inspect now also return
 app-defined result DTOs instead of exposing raw domain aggregate payloads directly to frontend
 callers.
+Current progress: addon-facing app outputs no longer expose raw domain `AddonSourceRef` values to
+frontend callers; app-owned source DTOs now carry stable kind and metadata fields for search,
+inventory, install, index, and addon-lock result payloads.
 Current progress: app services that expose direct, collected-progress, and callback-based long-running
 operations now reuse one shared internal task-wrapper helper, and direct entrypoints route through the
 same task path instead of each façade rebuilding its own `NeverCancel` and progress plumbing.
