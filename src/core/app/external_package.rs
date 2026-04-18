@@ -1,18 +1,14 @@
 use std::path::Path;
 
-use crate::core::app::AppRuntime;
+use crate::core::app::{AppRuntime, task_support};
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,
-    PlanExternalPackageApplyRequest, PreparedExternalPackageBundle, analyze_external_package,
-    analyze_external_package_task, apply_external_package, apply_external_package_task,
-    create_external_package_bundle, plan_external_package_apply, plan_external_package_apply_task,
+    PlanExternalPackageApplyRequest, PreparedExternalPackageBundle, analyze_external_package_task,
+    apply_external_package_task, create_external_package_bundle, plan_external_package_apply_task,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{
-    CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun, run_task_with_callbacks,
-    run_task_with_collected_progress,
-};
+use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct ExternalPackageService {
@@ -36,7 +32,9 @@ impl ExternalPackageService {
         &self,
         request: AnalyzeExternalPackageRequest,
     ) -> AppResult<ExternalPackageAnalysis> {
-        analyze_external_package(request)
+        task_support::run_direct_task(|cancellation, progress| {
+            self.analyze_task(request, cancellation, progress)
+        })
     }
 
     pub fn analyze_task<TCancel, TProgress>(
@@ -56,7 +54,7 @@ impl ExternalPackageService {
         &self,
         request: AnalyzeExternalPackageRequest,
     ) -> AppResult<TaskRun<ExternalPackageAnalysis>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.analyze_task(request, cancellation, progress)
         })
     }
@@ -71,7 +69,7 @@ impl ExternalPackageService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.analyze_task(request, cancellation, progress)
         })
     }
@@ -87,7 +85,9 @@ impl ExternalPackageService {
         &self,
         request: PlanExternalPackageApplyRequest,
     ) -> AppResult<ExternalPackageApplyPlan> {
-        plan_external_package_apply(self.normalize_plan_request(request))
+        task_support::run_direct_task(|cancellation, progress| {
+            self.plan_apply_task(request, cancellation, progress)
+        })
     }
 
     pub fn plan_apply_task<TCancel, TProgress>(
@@ -111,7 +111,7 @@ impl ExternalPackageService {
         &self,
         request: PlanExternalPackageApplyRequest,
     ) -> AppResult<TaskRun<ExternalPackageApplyPlan>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.plan_apply_task(request, cancellation, progress)
         })
     }
@@ -126,13 +126,15 @@ impl ExternalPackageService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.plan_apply_task(request, cancellation, progress)
         })
     }
 
     pub fn apply(&self, request: ApplyExternalPackageRequest) -> AppResult<AppliedExternalPackage> {
-        apply_external_package(self.normalize_apply_request(request))
+        task_support::run_direct_task(|cancellation, progress| {
+            self.apply_task(request, cancellation, progress)
+        })
     }
 
     pub fn apply_task<TCancel, TProgress>(
@@ -156,7 +158,7 @@ impl ExternalPackageService {
         &self,
         request: ApplyExternalPackageRequest,
     ) -> AppResult<TaskRun<AppliedExternalPackage>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
     }
@@ -171,7 +173,7 @@ impl ExternalPackageService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
     }

@@ -229,6 +229,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery
   helpers no longer remain part of the public library hot path
+- app-facing task services now also share one internal wrapper contract for direct, collected-progress,
+  and callback-based execution, reducing façade duplication and making the non-GUI and future GUI paths
+  reuse the same cancellation and progress wiring
 
 ## M5 - Desktop Integration Readiness
 
@@ -254,3 +257,5 @@ Reach the point where an `egui` frontend can start without forcing another archi
   provider-cancellation correctness blockers are now addressed; the remaining desktop-readiness work
   is to stabilize explicit service contracts, improve long-running task reporting, and document what
   GUI callers may rely on as stable
+- the next contract cleanup should move beyond wrapper consolidation and make service request/result
+  semantics explicit enough that `egui` can depend on them without inheriting CLI-era façade leakage

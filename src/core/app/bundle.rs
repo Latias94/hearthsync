@@ -1,18 +1,15 @@
 use std::path::Path;
 
-use crate::core::app::AppRuntime;
+use crate::core::app::{AppRuntime, task_support};
 use crate::core::bundle::{
     BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,
     BundleApplyPlan, BundleInspection, CreatedBundle, PackBundleRequest, UnpackBundleRequest,
     UnpackedBundle, apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
-    plan_bundle_apply, unpack_bundle, unpack_bundle_task,
+    plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
-use crate::core::task::{
-    CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun, run_task_with_callbacks,
-    run_task_with_collected_progress,
-};
+use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct BundleService {
@@ -50,7 +47,9 @@ impl BundleService {
     }
 
     pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
-        unpack_bundle(self.normalize_unpack_request(request))
+        task_support::run_direct_task(|cancellation, progress| {
+            self.apply_task(request, cancellation, progress)
+        })
     }
 
     pub fn plan_addon_lock(
@@ -89,7 +88,7 @@ impl BundleService {
         &self,
         request: UnpackBundleRequest,
     ) -> AppResult<TaskRun<UnpackedBundle>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
     }
@@ -104,7 +103,7 @@ impl BundleService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
     }

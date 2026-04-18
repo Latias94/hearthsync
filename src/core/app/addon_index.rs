@@ -5,12 +5,9 @@ use crate::core::addon::index::{
     AddonIndexUpdateRequest, AddonIndexUpdateResult, inspect_addon_index,
     install_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
 };
-use crate::core::app::AppRuntime;
+use crate::core::app::{AppRuntime, task_support};
 use crate::core::error::AppResult;
-use crate::core::task::{
-    CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun, run_task_with_callbacks,
-    run_task_with_collected_progress,
-};
+use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct AddonIndexService {
@@ -35,9 +32,9 @@ impl AddonIndexService {
     }
 
     pub fn install(&self, request: AddonIndexInstallRequest) -> AppResult<AddonIndexInstallResult> {
-        let cancellation = crate::core::task::NeverCancel;
-        let mut progress = crate::core::task::NoopProgressSink;
-        self.install_task(request, &cancellation, &mut progress)
+        task_support::run_direct_task(|cancellation, progress| {
+            self.install_task(request, cancellation, progress)
+        })
     }
 
     pub fn install_task<TCancel, TProgress>(
@@ -62,7 +59,7 @@ impl AddonIndexService {
         &self,
         request: AddonIndexInstallRequest,
     ) -> AppResult<TaskRun<AddonIndexInstallResult>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.install_task(request, cancellation, progress)
         })
     }
@@ -77,15 +74,15 @@ impl AddonIndexService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.install_task(request, cancellation, progress)
         })
     }
 
     pub fn update(&self, request: AddonIndexUpdateRequest) -> AppResult<AddonIndexUpdateResult> {
-        let cancellation = crate::core::task::NeverCancel;
-        let mut progress = crate::core::task::NoopProgressSink;
-        self.update_task(request, &cancellation, &mut progress)
+        task_support::run_direct_task(|cancellation, progress| {
+            self.update_task(request, cancellation, progress)
+        })
     }
 
     pub fn update_task<TCancel, TProgress>(
@@ -110,7 +107,7 @@ impl AddonIndexService {
         &self,
         request: AddonIndexUpdateRequest,
     ) -> AppResult<TaskRun<AddonIndexUpdateResult>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.update_task(request, cancellation, progress)
         })
     }
@@ -125,7 +122,7 @@ impl AddonIndexService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.update_task(request, cancellation, progress)
         })
     }

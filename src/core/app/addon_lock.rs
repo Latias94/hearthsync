@@ -6,13 +6,10 @@ use crate::core::addon::lock::{
     apply_addon_lock_sync_task_with_provider, diff_addon_locks, inspect_addon_lock,
     plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
-use crate::core::app::AppRuntime;
+use crate::core::app::{AppRuntime, task_support};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
-use crate::core::task::{
-    CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun, run_task_with_callbacks,
-    run_task_with_collected_progress,
-};
+use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct AddonLockService {
@@ -67,9 +64,9 @@ impl AddonLockService {
     }
 
     pub fn apply_sync(&self, request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
-        let cancellation = crate::core::task::NeverCancel;
-        let mut progress = crate::core::task::NoopProgressSink;
-        self.apply_sync_task(request, &cancellation, &mut progress)
+        task_support::run_direct_task(|cancellation, progress| {
+            self.apply_sync_task(request, cancellation, progress)
+        })
     }
 
     pub fn apply_sync_task<TCancel, TProgress>(
@@ -94,7 +91,7 @@ impl AddonLockService {
         &self,
         request: AddonLockApplyRequest,
     ) -> AppResult<TaskRun<AddonLockApplyResult>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.apply_sync_task(request, cancellation, progress)
         })
     }
@@ -109,7 +106,7 @@ impl AddonLockService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.apply_sync_task(request, cancellation, progress)
         })
     }

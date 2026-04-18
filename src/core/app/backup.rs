@@ -1,15 +1,12 @@
 use std::path::Path;
 
-use crate::core::app::AppRuntime;
+use crate::core::app::{AppRuntime, task_support};
 use crate::core::backup::{
     BackupCatalog, BackupRequest, CreatedBackup, RestoreBackupRequest, RestoredBackup,
-    create_backup, list_backups, restore_backup_selection, restore_backup_selection_task,
+    create_backup, list_backups, restore_backup_selection_task,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{
-    CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun, run_task_with_callbacks,
-    run_task_with_collected_progress,
-};
+use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct BackupService {
@@ -38,7 +35,9 @@ impl BackupService {
     }
 
     pub fn restore(&self, request: RestoreBackupRequest) -> AppResult<RestoredBackup> {
-        restore_backup_selection(self.normalize_restore_request(request))
+        task_support::run_direct_task(|cancellation, progress| {
+            self.restore_task(request, cancellation, progress)
+        })
     }
 
     pub fn restore_task<TCancel, TProgress>(
@@ -62,7 +61,7 @@ impl BackupService {
         &self,
         request: RestoreBackupRequest,
     ) -> AppResult<TaskRun<RestoredBackup>> {
-        run_task_with_collected_progress(|cancellation, progress| {
+        task_support::run_collecting_task(|cancellation, progress| {
             self.restore_task(request, cancellation, progress)
         })
     }
@@ -77,7 +76,7 @@ impl BackupService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        run_task_with_callbacks(is_cancelled, on_progress, |cancellation, progress| {
+        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.restore_task(request, cancellation, progress)
         })
     }

@@ -226,3 +226,24 @@ one discovered account directory exists.
   unique target account
 - future GUI flows can surface “needs explicit account selection” as a deterministic planning state
   instead of silently writing common settings into the wrong account tree
+
+## ADR-014: App Task Entry Points Must Reuse One Wrapper Contract
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+`core::app` services that expose direct, collected-progress, and callback-based task entrypoints
+should reuse one shared wrapper helper instead of each façade manually reconstructing default
+`NeverCancel`, noop progress sinks, or callback plumbing.
+
+### Consequences
+
+- direct app-service calls and progress-aware app-service calls now route through the same task path
+  where a task contract already exists
+- future GUI work can depend on one consistent cancellation and progress entry shape instead of
+  service-specific wrapper behavior
+- the next refactor slices should target real service-contract semantics rather than preserving
+  duplicated façade plumbing

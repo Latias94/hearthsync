@@ -7,6 +7,7 @@ mod client;
 mod external_package;
 mod install;
 mod runtime;
+mod task_support;
 
 pub use addon::AddonService;
 pub use addon_index::AddonIndexService;
