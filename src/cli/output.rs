@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::core::addon::lock::AddonLockPlanResult;
+use crate::core::app::AddonLockPlanResult;
 use crate::core::error::AppResult;
 
 pub(super) fn render_addon_lock_plan_summary(header: &str, item: &AddonLockPlanResult) -> String {

@@ -1,11 +1,11 @@
 use crate::core::app::{
-    AppRuntime, BundleInspectionResult, InspectBundleRequest, PlanBundleAddonLockRequest,
-    PlanBundleApplyRequest, task_support,
+    AppRuntime, BundleAddonLockPlanResult, BundleApplyPlanResult, BundleInspectionResult,
+    InspectBundleRequest, PlanBundleAddonLockRequest, PlanBundleApplyRequest, task_support,
 };
 use crate::core::bundle::{
-    BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyPlan,
-    CreatedBundle, PackBundleRequest, UnpackBundleRequest, UnpackedBundle, apply_bundle_addon_lock,
-    inspect_bundle, pack_bundle, plan_bundle_addon_lock, plan_bundle_apply, unpack_bundle_task,
+    BundleAddonLockApply, BundleAddonLockApplyRequest, CreatedBundle, PackBundleRequest,
+    UnpackBundleRequest, UnpackedBundle, apply_bundle_addon_lock, inspect_bundle, pack_bundle,
+    plan_bundle_addon_lock, plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -37,12 +37,13 @@ impl BundleService {
         pack_bundle(self.normalize_pack_request(request))
     }
 
-    pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlan> {
-        plan_bundle_apply(
+    pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlanResult> {
+        let plan = plan_bundle_apply(
             &request.bundle_path,
             &request.installation,
             &request.apply_mappings,
-        )
+        )?;
+        Ok(BundleApplyPlanResult::from(plan))
     }
 
     pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
@@ -54,8 +55,9 @@ impl BundleService {
     pub fn plan_addon_lock(
         &self,
         request: PlanBundleAddonLockRequest,
-    ) -> AppResult<BundleAddonLockPlan> {
-        plan_bundle_addon_lock(&request.bundle_path, &request.installation)
+    ) -> AppResult<BundleAddonLockPlanResult> {
+        let plan = plan_bundle_addon_lock(&request.bundle_path, &request.installation)?;
+        Ok(BundleAddonLockPlanResult::from(plan))
     }
 
     pub fn apply_addon_lock(

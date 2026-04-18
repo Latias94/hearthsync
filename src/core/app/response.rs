@@ -3,17 +3,40 @@ use std::path::PathBuf;
 use serde::Serialize;
 
 use crate::core::addon::index::{AddonIndexInspection, AddonIndexPackage};
-use crate::core::addon::lock::{AddonLockInspection, AddonLockPackage};
+use crate::core::addon::lock::{
+    AddonLockDiffResult as DomainAddonLockDiffResult,
+    AddonLockFieldChange as DomainAddonLockFieldChange, AddonLockInspection, AddonLockPackage,
+    AddonLockPackageDiff as DomainAddonLockPackageDiff,
+    AddonLockPackageDirectoryIssue as DomainAddonLockPackageDirectoryIssue,
+    AddonLockPackageSnapshot as DomainAddonLockPackageSnapshot,
+    AddonLockPlanResult as DomainAddonLockPlanResult,
+    AddonLockSyncAction as DomainAddonLockSyncAction, AddonLockSyncActionKind,
+    AddonLockVerifyResult as DomainAddonLockVerifyResult,
+};
 use crate::core::addon::{
     AddonInventory, AddonPackageMetadata, AddonSourceRef, TrackedAddon, TrackedAddonPackage,
 };
 use crate::core::backup::{BackupCatalog, BackupCatalogEntry, BackupGroup};
-use crate::core::bundle::{BundleEntryCounts, BundleInspection};
-use crate::core::install::{
-    DetectedFlavorInstallation, HealthStatus, InstallationHealth, ProductInstallInspection,
-    WowFlavor,
+use crate::core::bundle::{
+    ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
+    BundleAddonLockPlan as DomainBundleAddonLockPlan, BundleApplyPlan as DomainBundleApplyPlan,
+    BundleEntryCounts, BundleInspection, ExternalPackageAnalysis as DomainExternalPackageAnalysis,
+    ExternalPackageApplyPlan as DomainExternalPackageApplyPlan,
+    ExternalPackageEntry as DomainExternalPackageEntry, ExternalPackageSourceKind,
+    ExternalPackageSummary as DomainExternalPackageSummary,
+    ExternalPackageWarning as DomainExternalPackageWarning, ExternalPackageWarningCategory,
+    ExternalPackageWarningCode, ExternalPackageWarningGroup as DomainExternalPackageWarningGroup,
+    GroupPolicy, HelperStrategy, WtfScope,
 };
-use crate::core::manifest::{CharacterResource, PackageMetadata, SourceInstallation};
+use crate::core::install::{
+    DetectedFlavorInstallation, HealthStatus, InstallationHealth, LocalWowAccount,
+    LocalWowCharacter, ProductInstallInspection, WowFlavor,
+};
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::{
+    ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
+    MappingRules, PackageMetadata, ResourceApplyPolicy, SourceInstallation,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InstallationResult {
@@ -499,6 +522,31 @@ pub struct BundleResourcesResult {
     pub addon_indexes: Vec<String>,
 }
 
+impl From<BundleResources> for BundleResourcesResult {
+    fn from(value: BundleResources) -> Self {
+        let addon_count = value.addons.len();
+        let wtf_character_count = value.wtf_characters.len();
+        let interface_asset_count = value.interface_assets.len();
+
+        Self {
+            addons: value.addons,
+            addon_count,
+            wtf_common: value.wtf_common,
+            wtf_character_count,
+            wtf_characters: value
+                .wtf_characters
+                .into_iter()
+                .map(BundleCharacterResourceResult::from)
+                .collect(),
+            fonts: value.fonts,
+            interface_assets: value.interface_assets,
+            interface_asset_count,
+            addon_lock: value.addon_lock,
+            addon_indexes: value.addon_indexes,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct BundleEntryCountsResult {
     pub total_files: usize,
@@ -535,33 +583,728 @@ pub struct BundleInspectionResult {
 
 impl From<BundleInspection> for BundleInspectionResult {
     fn from(value: BundleInspection) -> Self {
-        let addon_count = value.manifest.resources.addons.len();
-        let wtf_character_count = value.manifest.resources.wtf_characters.len();
-        let interface_asset_count = value.manifest.resources.interface_assets.len();
+        let package = BundlePackageResult::from(value.manifest.package);
+        let source = BundleSourceResult::from(value.manifest.source);
+        let resources = BundleResourcesResult::from(value.manifest.resources);
 
         Self {
             archive_path: value.archive_path,
-            package: BundlePackageResult::from(value.manifest.package),
-            source: BundleSourceResult::from(value.manifest.source),
-            resources: BundleResourcesResult {
-                addons: value.manifest.resources.addons,
-                addon_count,
-                wtf_common: value.manifest.resources.wtf_common,
-                wtf_character_count,
-                wtf_characters: value
-                    .manifest
-                    .resources
-                    .wtf_characters
-                    .into_iter()
-                    .map(BundleCharacterResourceResult::from)
-                    .collect(),
-                fonts: value.manifest.resources.fonts,
-                interface_assets: value.manifest.resources.interface_assets,
-                interface_asset_count,
-                addon_lock: value.manifest.resources.addon_lock,
-                addon_indexes: value.manifest.resources.addon_indexes,
-            },
+            package,
+            source,
+            resources,
             entries: BundleEntryCountsResult::from(value.entries),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LocalWowCharacterResult {
+    pub server: String,
+    pub character: String,
+    pub character_dir: PathBuf,
+}
+
+impl From<LocalWowCharacter> for LocalWowCharacterResult {
+    fn from(value: LocalWowCharacter) -> Self {
+        Self {
+            server: value.server,
+            character: value.character,
+            character_dir: value.character_dir,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LocalWowAccountResult {
+    pub account_name: String,
+    pub account_dir: PathBuf,
+    pub saved_variables_dir: PathBuf,
+    pub characters: Vec<LocalWowCharacterResult>,
+}
+
+impl From<LocalWowAccount> for LocalWowAccountResult {
+    fn from(value: LocalWowAccount) -> Self {
+        Self {
+            account_name: value.account_name,
+            account_dir: value.account_dir,
+            saved_variables_dir: value.saved_variables_dir,
+            characters: value
+                .characters
+                .into_iter()
+                .map(LocalWowCharacterResult::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CharacterMappingResult {
+    pub source_account: Option<String>,
+    pub source_server: String,
+    pub source_character: String,
+    pub target_account: String,
+    pub target_server: String,
+    pub target_character: String,
+}
+
+impl From<CharacterMapping> for CharacterMappingResult {
+    fn from(value: CharacterMapping) -> Self {
+        Self {
+            source_account: value.source_account,
+            source_server: value.source_server,
+            source_character: value.source_character,
+            target_account: value.target_account,
+            target_server: value.target_server,
+            target_character: value.target_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ApplyOperationResult {
+    pub group: ApplyGroup,
+    pub wtf_scope: Option<WtfScope>,
+    pub action: ApplyAction,
+    pub archive_name: String,
+    pub destination: PathBuf,
+    pub target_account: Option<String>,
+    pub target_server: Option<String>,
+    pub target_character: Option<String>,
+}
+
+impl From<ApplyOperation> for ApplyOperationResult {
+    fn from(value: ApplyOperation) -> Self {
+        Self {
+            group: value.group,
+            wtf_scope: value.wtf_scope,
+            action: value.action,
+            archive_name: value.archive_name,
+            destination: value.destination,
+            target_account: value.target_account,
+            target_server: value.target_server,
+            target_character: value.target_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ApplyPlanSummaryResult {
+    pub files_to_add: usize,
+    pub files_to_replace: usize,
+    pub files_to_skip: usize,
+    pub paths_to_remove: usize,
+    pub files_to_preserve: usize,
+}
+
+impl From<ApplyPlanSummary> for ApplyPlanSummaryResult {
+    fn from(value: ApplyPlanSummary) -> Self {
+        Self {
+            files_to_add: value.files_to_add,
+            files_to_replace: value.files_to_replace,
+            files_to_skip: value.files_to_skip,
+            paths_to_remove: value.paths_to_remove,
+            files_to_preserve: value.files_to_preserve,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GroupPolicyResult {
+    pub policy: ResourceApplyPolicy,
+}
+
+impl From<GroupPolicy> for GroupPolicyResult {
+    fn from(value: GroupPolicy) -> Self {
+        Self {
+            policy: value.policy,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ApplyGroupPoliciesResult {
+    pub addons: GroupPolicyResult,
+    pub wtf_common: GroupPolicyResult,
+    pub wtf_characters: GroupPolicyResult,
+    pub fonts: GroupPolicyResult,
+    pub interface_assets: GroupPolicyResult,
+    pub metadata: GroupPolicyResult,
+}
+
+impl From<ApplyGroupPolicies> for ApplyGroupPoliciesResult {
+    fn from(value: ApplyGroupPolicies) -> Self {
+        Self {
+            addons: GroupPolicyResult::from(value.addons),
+            wtf_common: GroupPolicyResult::from(value.wtf_common),
+            wtf_characters: GroupPolicyResult::from(value.wtf_characters),
+            fonts: GroupPolicyResult::from(value.fonts),
+            interface_assets: GroupPolicyResult::from(value.interface_assets),
+            metadata: GroupPolicyResult::from(value.metadata),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleMappingRulesResult {
+    pub character_mode: CharacterMappingMode,
+    pub rewrite_profile_keys: bool,
+    pub rewrite_identity_strings: bool,
+    pub allow_cross_platform: bool,
+}
+
+impl From<MappingRules> for BundleMappingRulesResult {
+    fn from(value: MappingRules) -> Self {
+        Self {
+            character_mode: value.character_mode,
+            rewrite_profile_keys: value.rewrite_profile_keys,
+            rewrite_identity_strings: value.rewrite_identity_strings,
+            allow_cross_platform: value.allow_cross_platform,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleApplyDefaultsResult {
+    pub create_backup: bool,
+    pub addons: ResourceApplyPolicy,
+    pub wtf_common: ResourceApplyPolicy,
+    pub wtf_characters: ResourceApplyPolicy,
+    pub fonts: ResourceApplyPolicy,
+    pub interface_assets: ResourceApplyPolicy,
+}
+
+impl From<ApplyDefaults> for BundleApplyDefaultsResult {
+    fn from(value: ApplyDefaults) -> Self {
+        Self {
+            create_backup: value.create_backup,
+            addons: value.addons,
+            wtf_common: value.wtf_common,
+            wtf_characters: value.wtf_characters,
+            fonts: value.fonts,
+            interface_assets: value.interface_assets,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleManifestResult {
+    pub schema_version: u32,
+    pub package: BundlePackageResult,
+    pub source: BundleSourceResult,
+    pub resources: BundleResourcesResult,
+    pub mapping: BundleMappingRulesResult,
+    pub apply: BundleApplyDefaultsResult,
+}
+
+impl From<BundleManifest> for BundleManifestResult {
+    fn from(value: BundleManifest) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            package: BundlePackageResult::from(value.package),
+            source: BundleSourceResult::from(value.source),
+            resources: BundleResourcesResult::from(value.resources),
+            mapping: BundleMappingRulesResult::from(value.mapping),
+            apply: BundleApplyDefaultsResult::from(value.apply),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleApplyPlanResult {
+    pub bundle_path: PathBuf,
+    pub target_flavor_root: PathBuf,
+    pub discovered_accounts: Vec<LocalWowAccountResult>,
+    pub selected_target_accounts: Vec<String>,
+    pub character_mappings: Vec<CharacterMappingResult>,
+    pub operations: Vec<ApplyOperationResult>,
+    pub summary: ApplyPlanSummaryResult,
+    pub helper_strategy: HelperStrategy,
+    pub group_policies: ApplyGroupPoliciesResult,
+    pub manifest: BundleManifestResult,
+}
+
+impl From<DomainBundleApplyPlan> for BundleApplyPlanResult {
+    fn from(value: DomainBundleApplyPlan) -> Self {
+        Self {
+            bundle_path: value.bundle_path,
+            target_flavor_root: value.target_flavor_root,
+            discovered_accounts: value
+                .discovered_accounts
+                .into_iter()
+                .map(LocalWowAccountResult::from)
+                .collect(),
+            selected_target_accounts: value.selected_target_accounts,
+            character_mappings: value
+                .character_mappings
+                .into_iter()
+                .map(CharacterMappingResult::from)
+                .collect(),
+            operations: value
+                .operations
+                .into_iter()
+                .map(ApplyOperationResult::from)
+                .collect(),
+            summary: ApplyPlanSummaryResult::from(value.summary),
+            helper_strategy: value.helper_strategy,
+            group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
+            manifest: BundleManifestResult::from(value.manifest),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockPackageSnapshotResult {
+    pub comparison_key: String,
+    pub package_id: String,
+    pub index_name: Option<String>,
+    pub index_package_id: Option<String>,
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub source: AddonSourceRef,
+    pub source_label: String,
+    pub source_url: Option<String>,
+    pub website_url: Option<String>,
+    pub source_sha256: Option<String>,
+    pub content_sha256: Option<String>,
+    pub addon_directories: Vec<String>,
+}
+
+impl From<DomainAddonLockPackageSnapshot> for AddonLockPackageSnapshotResult {
+    fn from(value: DomainAddonLockPackageSnapshot) -> Self {
+        let source_label = value.source.display_name();
+
+        Self {
+            comparison_key: value.comparison_key,
+            package_id: value.package_id,
+            index_name: value.index_name,
+            index_package_id: value.index_package_id,
+            name: value.name,
+            version: value.version,
+            source: value.source,
+            source_label,
+            source_url: value.source_url,
+            website_url: value.website_url,
+            source_sha256: value.source_sha256,
+            content_sha256: value.content_sha256,
+            addon_directories: value.addon_directories,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockFieldChangeResult {
+    pub field: String,
+    pub left: Option<String>,
+    pub right: Option<String>,
+}
+
+impl From<DomainAddonLockFieldChange> for AddonLockFieldChangeResult {
+    fn from(value: DomainAddonLockFieldChange) -> Self {
+        Self {
+            field: value.field,
+            left: value.left,
+            right: value.right,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockPackageDiffResult {
+    pub comparison_key: String,
+    pub left: AddonLockPackageSnapshotResult,
+    pub right: AddonLockPackageSnapshotResult,
+    pub changes: Vec<AddonLockFieldChangeResult>,
+}
+
+impl From<DomainAddonLockPackageDiff> for AddonLockPackageDiffResult {
+    fn from(value: DomainAddonLockPackageDiff) -> Self {
+        Self {
+            comparison_key: value.comparison_key,
+            left: AddonLockPackageSnapshotResult::from(value.left),
+            right: AddonLockPackageSnapshotResult::from(value.right),
+            changes: value
+                .changes
+                .into_iter()
+                .map(AddonLockFieldChangeResult::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockDiffResult {
+    pub left_label: String,
+    pub right_label: String,
+    pub left_package_count: usize,
+    pub right_package_count: usize,
+    pub identical: bool,
+    pub unchanged_packages: usize,
+    pub added_package_count: usize,
+    pub removed_package_count: usize,
+    pub changed_package_count: usize,
+    pub added_packages: Vec<AddonLockPackageSnapshotResult>,
+    pub removed_packages: Vec<AddonLockPackageSnapshotResult>,
+    pub changed_packages: Vec<AddonLockPackageDiffResult>,
+}
+
+impl From<DomainAddonLockDiffResult> for AddonLockDiffResult {
+    fn from(value: DomainAddonLockDiffResult) -> Self {
+        let added_package_count = value.added_packages.len();
+        let removed_package_count = value.removed_packages.len();
+        let changed_package_count = value.changed_packages.len();
+
+        Self {
+            left_label: value.left_label,
+            right_label: value.right_label,
+            left_package_count: value.left_package_count,
+            right_package_count: value.right_package_count,
+            identical: value.identical,
+            unchanged_packages: value.unchanged_packages,
+            added_package_count,
+            removed_package_count,
+            changed_package_count,
+            added_packages: value
+                .added_packages
+                .into_iter()
+                .map(AddonLockPackageSnapshotResult::from)
+                .collect(),
+            removed_packages: value
+                .removed_packages
+                .into_iter()
+                .map(AddonLockPackageSnapshotResult::from)
+                .collect(),
+            changed_packages: value
+                .changed_packages
+                .into_iter()
+                .map(AddonLockPackageDiffResult::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockPackageDirectoryIssueResult {
+    pub comparison_key: String,
+    pub package_id: String,
+    pub missing_addon_directories: Vec<String>,
+}
+
+impl From<DomainAddonLockPackageDirectoryIssue> for AddonLockPackageDirectoryIssueResult {
+    fn from(value: DomainAddonLockPackageDirectoryIssue) -> Self {
+        Self {
+            comparison_key: value.comparison_key,
+            package_id: value.package_id,
+            missing_addon_directories: value.missing_addon_directories,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockVerifyResult {
+    pub lock_path: PathBuf,
+    pub installation_root: PathBuf,
+    pub tracked_package_count: usize,
+    pub untracked_addon_count: usize,
+    pub untracked_addons: Vec<String>,
+    pub missing_package_count: usize,
+    pub missing_addon_directories: Vec<AddonLockPackageDirectoryIssueResult>,
+    pub diff: AddonLockDiffResult,
+    pub matches: bool,
+}
+
+impl From<DomainAddonLockVerifyResult> for AddonLockVerifyResult {
+    fn from(value: DomainAddonLockVerifyResult) -> Self {
+        let untracked_addon_count = value.untracked_addons.len();
+        let missing_package_count = value.missing_addon_directories.len();
+
+        Self {
+            lock_path: value.lock_path,
+            installation_root: value.installation_root,
+            tracked_package_count: value.tracked_package_count,
+            untracked_addon_count,
+            untracked_addons: value.untracked_addons,
+            missing_package_count,
+            missing_addon_directories: value
+                .missing_addon_directories
+                .into_iter()
+                .map(AddonLockPackageDirectoryIssueResult::from)
+                .collect(),
+            diff: AddonLockDiffResult::from(value.diff),
+            matches: value.matches,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockSyncActionResult {
+    pub kind: AddonLockSyncActionKind,
+    pub comparison_key: String,
+    pub package_id: String,
+    pub name: Option<String>,
+    pub addon_directories: Vec<String>,
+    pub source: Option<AddonSourceRef>,
+    pub source_label: Option<String>,
+    pub reasons: Vec<String>,
+    pub blocked_reasons: Vec<String>,
+    pub requires_replace_existing: bool,
+}
+
+impl From<DomainAddonLockSyncAction> for AddonLockSyncActionResult {
+    fn from(value: DomainAddonLockSyncAction) -> Self {
+        let source_label = value.source.as_ref().map(AddonSourceRef::display_name);
+
+        Self {
+            kind: value.kind,
+            comparison_key: value.comparison_key,
+            package_id: value.package_id,
+            name: value.name,
+            addon_directories: value.addon_directories,
+            source: value.source,
+            source_label,
+            reasons: value.reasons,
+            blocked_reasons: value.blocked_reasons,
+            requires_replace_existing: value.requires_replace_existing,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AddonLockPlanResult {
+    pub lock_path: PathBuf,
+    pub installation_root: PathBuf,
+    pub install_count: usize,
+    pub update_count: usize,
+    pub remove_count: usize,
+    pub metadata_only_count: usize,
+    pub unchanged_count: usize,
+    pub blocked_count: usize,
+    pub untracked_addon_count: usize,
+    pub untracked_addons: Vec<String>,
+    pub action_count: usize,
+    pub actions: Vec<AddonLockSyncActionResult>,
+}
+
+impl From<DomainAddonLockPlanResult> for AddonLockPlanResult {
+    fn from(value: DomainAddonLockPlanResult) -> Self {
+        let untracked_addon_count = value.untracked_addons.len();
+        let action_count = value.actions.len();
+
+        Self {
+            lock_path: value.lock_path,
+            installation_root: value.installation_root,
+            install_count: value.install_count,
+            update_count: value.update_count,
+            remove_count: value.remove_count,
+            metadata_only_count: value.metadata_only_count,
+            unchanged_count: value.unchanged_count,
+            blocked_count: value.blocked_count,
+            untracked_addon_count,
+            untracked_addons: value.untracked_addons,
+            action_count,
+            actions: value
+                .actions
+                .into_iter()
+                .map(AddonLockSyncActionResult::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleAddonLockPlanResult {
+    pub bundle_path: PathBuf,
+    pub embedded_lock_entry: String,
+    pub plan: AddonLockPlanResult,
+}
+
+impl From<DomainBundleAddonLockPlan> for BundleAddonLockPlanResult {
+    fn from(value: DomainBundleAddonLockPlan) -> Self {
+        Self {
+            bundle_path: value.bundle_path,
+            embedded_lock_entry: value.embedded_lock_entry,
+            plan: AddonLockPlanResult::from(value.plan),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageEntryResult {
+    pub source_path: String,
+    pub normalized_path: String,
+    pub group: ApplyGroup,
+    pub wtf_scope: Option<WtfScope>,
+    pub source_account: Option<String>,
+    pub source_server: Option<String>,
+    pub source_character: Option<String>,
+}
+
+impl From<DomainExternalPackageEntry> for ExternalPackageEntryResult {
+    fn from(value: DomainExternalPackageEntry) -> Self {
+        Self {
+            source_path: value.source_path,
+            normalized_path: value.normalized_path,
+            group: value.group,
+            wtf_scope: value.wtf_scope,
+            source_account: value.source_account,
+            source_server: value.source_server,
+            source_character: value.source_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageWarningGroupResult {
+    pub category: ExternalPackageWarningCategory,
+    pub code: ExternalPackageWarningCode,
+    pub count: usize,
+}
+
+impl From<DomainExternalPackageWarningGroup> for ExternalPackageWarningGroupResult {
+    fn from(value: DomainExternalPackageWarningGroup) -> Self {
+        Self {
+            category: value.category,
+            code: value.code,
+            count: value.count,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageWarningResult {
+    pub category: ExternalPackageWarningCategory,
+    pub code: ExternalPackageWarningCode,
+    pub source_path: String,
+    pub message: String,
+}
+
+impl From<DomainExternalPackageWarning> for ExternalPackageWarningResult {
+    fn from(value: DomainExternalPackageWarning) -> Self {
+        Self {
+            category: value.category,
+            code: value.code,
+            source_path: value.source_path,
+            message: value.message,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageSummaryResult {
+    pub total_files: usize,
+    pub normalized_files: usize,
+    pub ignored_files: usize,
+    pub addons: usize,
+    pub wtf_common: usize,
+    pub wtf_characters: usize,
+    pub fonts: usize,
+    pub interface_assets: usize,
+    pub warning_count: usize,
+    pub addon_warning_count: usize,
+    pub wtf_warning_count: usize,
+    pub warning_groups: Vec<ExternalPackageWarningGroupResult>,
+}
+
+impl From<DomainExternalPackageSummary> for ExternalPackageSummaryResult {
+    fn from(value: DomainExternalPackageSummary) -> Self {
+        Self {
+            total_files: value.total_files,
+            normalized_files: value.normalized_files,
+            ignored_files: value.ignored_files,
+            addons: value.addons,
+            wtf_common: value.wtf_common,
+            wtf_characters: value.wtf_characters,
+            fonts: value.fonts,
+            interface_assets: value.interface_assets,
+            warning_count: value.warning_count,
+            addon_warning_count: value.addon_warning_count,
+            wtf_warning_count: value.wtf_warning_count,
+            warning_groups: value
+                .warning_groups
+                .into_iter()
+                .map(ExternalPackageWarningGroupResult::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageAnalysisResult {
+    pub source_path: PathBuf,
+    pub source_kind: ExternalPackageSourceKind,
+    pub package_id: String,
+    pub package_name: String,
+    pub entry_count: usize,
+    pub entries: Vec<ExternalPackageEntryResult>,
+    pub resources: BundleResourcesResult,
+    pub summary: ExternalPackageSummaryResult,
+    pub warnings: Vec<ExternalPackageWarningResult>,
+}
+
+impl From<DomainExternalPackageAnalysis> for ExternalPackageAnalysisResult {
+    fn from(value: DomainExternalPackageAnalysis) -> Self {
+        let entry_count = value.entries.len();
+
+        Self {
+            source_path: value.source_path,
+            source_kind: value.source_kind,
+            package_id: value.package_id,
+            package_name: value.package_name,
+            entry_count,
+            entries: value
+                .entries
+                .into_iter()
+                .map(ExternalPackageEntryResult::from)
+                .collect(),
+            resources: BundleResourcesResult::from(value.resources),
+            summary: ExternalPackageSummaryResult::from(value.summary),
+            warnings: value
+                .warnings
+                .into_iter()
+                .map(ExternalPackageWarningResult::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageApplyPlanResult {
+    pub analysis: ExternalPackageAnalysisResult,
+    pub target_flavor_root: PathBuf,
+    pub discovered_accounts: Vec<LocalWowAccountResult>,
+    pub selected_target_accounts: Vec<String>,
+    pub character_mappings: Vec<CharacterMappingResult>,
+    pub operations: Vec<ApplyOperationResult>,
+    pub summary: ApplyPlanSummaryResult,
+    pub helper_strategy: HelperStrategy,
+    pub group_policies: ApplyGroupPoliciesResult,
+    pub manifest: BundleManifestResult,
+}
+
+impl From<DomainExternalPackageApplyPlan> for ExternalPackageApplyPlanResult {
+    fn from(value: DomainExternalPackageApplyPlan) -> Self {
+        Self {
+            analysis: ExternalPackageAnalysisResult::from(value.analysis),
+            target_flavor_root: value.target_flavor_root,
+            discovered_accounts: value
+                .discovered_accounts
+                .into_iter()
+                .map(LocalWowAccountResult::from)
+                .collect(),
+            selected_target_accounts: value.selected_target_accounts,
+            character_mappings: value
+                .character_mappings
+                .into_iter()
+                .map(CharacterMappingResult::from)
+                .collect(),
+            operations: value
+                .operations
+                .into_iter()
+                .map(ApplyOperationResult::from)
+                .collect(),
+            summary: ApplyPlanSummaryResult::from(value.summary),
+            helper_strategy: value.helper_strategy,
+            group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
+            manifest: BundleManifestResult::from(value.manifest),
         }
     }
 }

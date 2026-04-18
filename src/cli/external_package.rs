@@ -1,7 +1,10 @@
 use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
 use super::output::render;
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
-use crate::core::app::{HearthSyncApp, ResolveInstallationRequest};
+use crate::core::app::{
+    ExternalPackageSummaryResult, ExternalPackageWarningResult, HearthSyncApp,
+    ResolveInstallationRequest,
+};
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
     ExternalPackageSummary, ExternalPackageWarning,
@@ -301,24 +304,17 @@ fn build_external_package_apply_defaults(
 }
 
 fn format_external_package_warnings(
-    warnings: &[ExternalPackageWarning],
-    summary: &ExternalPackageSummary,
+    warnings: &[impl ExternalPackageWarningView],
+    summary: &impl ExternalPackageSummaryView,
 ) -> String {
     if warnings.is_empty() {
         return "none".to_string();
     }
 
     let groups = summary
-        .warning_groups
-        .iter()
-        .map(|group| {
-            format!(
-                "{}/{}={}",
-                group.category.as_str(),
-                group.code.as_str(),
-                group.count
-            )
-        })
+        .warning_groups()
+        .into_iter()
+        .map(|group| format!("{}/{}={}", group.0.as_str(), group.1.as_str(), group.2))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -327,9 +323,9 @@ fn format_external_package_warnings(
         .map(|warning| {
             format!(
                 "{}/{}: {}",
-                warning.category.as_str(),
-                warning.code.as_str(),
-                warning.source_path
+                warning.category().as_str(),
+                warning.code().as_str(),
+                warning.source_path()
             )
         })
         .collect::<Vec<_>>()
@@ -337,12 +333,113 @@ fn format_external_package_warnings(
 
     format!(
         "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
-        summary.warning_count,
-        summary.addon_warning_count,
-        summary.wtf_warning_count,
+        summary.warning_count(),
+        summary.addon_warning_count(),
+        summary.wtf_warning_count(),
         groups,
         details
     )
+}
+
+trait ExternalPackageWarningView {
+    fn category(&self) -> crate::core::bundle::ExternalPackageWarningCategory;
+    fn code(&self) -> crate::core::bundle::ExternalPackageWarningCode;
+    fn source_path(&self) -> &str;
+}
+
+impl ExternalPackageWarningView for ExternalPackageWarning {
+    fn category(&self) -> crate::core::bundle::ExternalPackageWarningCategory {
+        self.category
+    }
+
+    fn code(&self) -> crate::core::bundle::ExternalPackageWarningCode {
+        self.code
+    }
+
+    fn source_path(&self) -> &str {
+        &self.source_path
+    }
+}
+
+impl ExternalPackageWarningView for ExternalPackageWarningResult {
+    fn category(&self) -> crate::core::bundle::ExternalPackageWarningCategory {
+        self.category
+    }
+
+    fn code(&self) -> crate::core::bundle::ExternalPackageWarningCode {
+        self.code
+    }
+
+    fn source_path(&self) -> &str {
+        &self.source_path
+    }
+}
+
+trait ExternalPackageSummaryView {
+    fn warning_count(&self) -> usize;
+    fn addon_warning_count(&self) -> usize;
+    fn wtf_warning_count(&self) -> usize;
+    fn warning_groups(
+        &self,
+    ) -> Vec<(
+        crate::core::bundle::ExternalPackageWarningCategory,
+        crate::core::bundle::ExternalPackageWarningCode,
+        usize,
+    )>;
+}
+
+impl ExternalPackageSummaryView for ExternalPackageSummary {
+    fn warning_count(&self) -> usize {
+        self.warning_count
+    }
+
+    fn addon_warning_count(&self) -> usize {
+        self.addon_warning_count
+    }
+
+    fn wtf_warning_count(&self) -> usize {
+        self.wtf_warning_count
+    }
+
+    fn warning_groups(
+        &self,
+    ) -> Vec<(
+        crate::core::bundle::ExternalPackageWarningCategory,
+        crate::core::bundle::ExternalPackageWarningCode,
+        usize,
+    )> {
+        self.warning_groups
+            .iter()
+            .map(|group| (group.category, group.code, group.count))
+            .collect()
+    }
+}
+
+impl ExternalPackageSummaryView for ExternalPackageSummaryResult {
+    fn warning_count(&self) -> usize {
+        self.warning_count
+    }
+
+    fn addon_warning_count(&self) -> usize {
+        self.addon_warning_count
+    }
+
+    fn wtf_warning_count(&self) -> usize {
+        self.wtf_warning_count
+    }
+
+    fn warning_groups(
+        &self,
+    ) -> Vec<(
+        crate::core::bundle::ExternalPackageWarningCategory,
+        crate::core::bundle::ExternalPackageWarningCode,
+        usize,
+    )> {
+        self.warning_groups
+            .iter()
+            .map(|group| (group.category, group.code, group.count))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -484,7 +581,9 @@ mod tests {
 
     #[test]
     fn format_external_package_warnings_returns_none_for_empty_warnings() {
-        let rendered = format_external_package_warnings(&[], &ExternalPackageSummary::default());
+        let warnings: [ExternalPackageWarning; 0] = [];
+        let rendered =
+            format_external_package_warnings(&warnings, &ExternalPackageSummary::default());
 
         assert_eq!(rendered, "none");
     }

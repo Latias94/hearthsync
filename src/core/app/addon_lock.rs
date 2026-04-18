@@ -1,12 +1,12 @@
 use crate::core::addon::lock::{
-    AddonLockApplyRequest, AddonLockApplyResult, AddonLockDiffResult, AddonLockPlanResult,
-    AddonLockVerifyResult, AddonLockWriteResult, apply_addon_lock_sync_task_with_provider,
-    diff_addon_locks, inspect_addon_lock, plan_addon_lock_sync, verify_addon_lock,
-    write_addon_lock,
+    AddonLockApplyRequest, AddonLockApplyResult, AddonLockWriteResult,
+    apply_addon_lock_sync_task_with_provider, diff_addon_locks, inspect_addon_lock,
+    plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
 use crate::core::app::{
-    AddonLockInspectionResult, AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest,
-    PlanAddonLockSyncRequest, VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
+    AddonLockDiffResult, AddonLockInspectionResult, AddonLockPlanResult, AddonLockVerifyResult,
+    AppRuntime, DiffAddonLockRequest, InspectAddonLockRequest, PlanAddonLockSyncRequest,
+    VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -42,15 +42,18 @@ impl AddonLockService {
     }
 
     pub fn diff(&self, request: DiffAddonLockRequest) -> AppResult<AddonLockDiffResult> {
-        diff_addon_locks(&request.left_lock_path, &request.right_lock_path)
+        let diff = diff_addon_locks(&request.left_lock_path, &request.right_lock_path)?;
+        Ok(AddonLockDiffResult::from(diff))
     }
 
     pub fn verify(&self, request: VerifyAddonLockRequest) -> AppResult<AddonLockVerifyResult> {
-        verify_addon_lock(&request.installation, request.lock_path.as_deref())
+        let verification = verify_addon_lock(&request.installation, request.lock_path.as_deref())?;
+        Ok(AddonLockVerifyResult::from(verification))
     }
 
     pub fn plan_sync(&self, request: PlanAddonLockSyncRequest) -> AppResult<AddonLockPlanResult> {
-        plan_addon_lock_sync(&request.installation, request.lock_path.as_deref())
+        let plan = plan_addon_lock_sync(&request.installation, request.lock_path.as_deref())?;
+        Ok(AddonLockPlanResult::from(plan))
     }
 
     pub fn apply_sync(&self, request: AddonLockApplyRequest) -> AppResult<AddonLockApplyResult> {
