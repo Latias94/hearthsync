@@ -35,7 +35,7 @@ runtime policy instead of every caller constructing unrelated facades ad hoc.
 
 ## Phase 2 - Task Model
 
-- [ ] Define task input and result conventions
+- [x] Define task input and result conventions
 - [x] Define progress event model
 - [x] Define cancellation checks or token model
 - [x] Introduce task wrappers for bundle apply and addon lock apply
@@ -48,8 +48,12 @@ progress and honor cancellation inside the execution loop; addon install, update
 index install and update, addon lock apply, and backup restore now also emit execution-detail
 progress from inside their real mutation or restore loops and re-check cancellation during those
 loops.
-Current gap: long-running task semantics are now materially better, but task input/output contracts
-and GUI-stable progress expectations are still only implicit in code and tests.
+Current coverage: app-facing input and output contracts now also live in explicit
+`core::app::{request,response}` types instead of being scattered across domain modules or
+service-specific positional parameters.
+Current gap: long-running task semantics are now materially better, but GUI-stable progress
+expectations and which task/result contracts are intended to remain stable still need to be
+documented more explicitly.
 
 ## Phase 3 - Provider and Infrastructure Ports
 
@@ -103,7 +107,7 @@ character-level artifacts instead of trusting raw directory shape alone.
 
 ## Phase 7 - Integration Readiness
 
-- [ ] Rewire CLI handlers onto reusable service or task boundaries
+- [x] Rewire CLI handlers onto reusable service or task boundaries
 - [x] Introduce a shared `core::app::AppRuntime` and make addon-facing services consume injected addon-provider policy
 - [x] Introduce `core::app::InstallationService` and move installation discovery onto runtime-controlled host and scan-root policy
 - [ ] Turn `core::app` from forwarding facades into real service contracts with injected runtime policy
@@ -131,6 +135,9 @@ Current progress: app-facing inspect, resolve, list, and planning APIs that prev
 scattered path or reference arguments now use explicit owned request contracts, so CLI and future
 GUI callers can depend on stable `core::app` input shapes instead of service-specific parameter
 combinations.
+Current progress: app-facing mutation APIs for addon, addon index, addon lock apply, backup,
+bundle, and external-package flows now also use owned request contracts, and CLI handlers no
+longer construct domain mutation requests directly.
 Current progress: read-only app outputs for installation scan and inspect, addon inventory,
 addon-index inspect, addon-lock inspect, backup catalog list, and bundle inspect now also return
 app-defined result DTOs instead of exposing raw domain aggregate payloads directly to frontend

@@ -1,7 +1,8 @@
 use super::BundleCommands;
 use super::output::render;
-use crate::core::app::{HearthSyncApp, InspectBundleRequest, ResolveInstallationRequest};
-use crate::core::bundle::PackBundleRequest;
+use crate::core::app::{
+    HearthSyncApp, InspectBundleRequest, PackBundleAppRequest, ResolveInstallationRequest,
+};
 use crate::core::error::{AppError, AppResult};
 use crate::core::manifest::load_manifest;
 
@@ -23,7 +24,7 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             })?;
             let manifest_base_dir = manifest.parent().map(|path| path.to_path_buf());
             let manifest = load_manifest(&manifest)?;
-            let bundle = service.pack(PackBundleRequest {
+            let bundle = service.pack(PackBundleAppRequest {
                 installation,
                 manifest,
                 output_path: output,

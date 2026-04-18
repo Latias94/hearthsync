@@ -1,9 +1,9 @@
 use super::AddonCommands;
 use super::output::render;
-use crate::core::addon::{
-    InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest, UpdateAddonRequest,
+use crate::core::app::{
+    HearthSyncApp, InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest,
+    ResolveInstallationRequest, SearchAddonsRequest, UpdateAddonAppRequest,
 };
-use crate::core::app::{HearthSyncApp, ListAddonsRequest, ResolveInstallationRequest};
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> AppResult<()> {
@@ -22,7 +22,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let results = service.search(SearchAddonRequest {
+            let results = service.search(SearchAddonsRequest {
                 installation,
                 query,
                 limit,
@@ -110,7 +110,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.install(InstallAddonRequest {
+            let result = service.install(InstallAddonAppRequest {
                 installation,
                 source,
                 dry_run,
@@ -170,7 +170,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.update(UpdateAddonRequest {
+            let result = service.update(UpdateAddonAppRequest {
                 installation,
                 name,
                 dry_run,
@@ -232,7 +232,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.remove(RemoveAddonRequest {
+            let result = service.remove(RemoveAddonAppRequest {
                 installation,
                 name,
                 dry_run,

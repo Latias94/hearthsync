@@ -1,7 +1,10 @@
 use super::BackupCommands;
 use super::output::render;
-use crate::core::app::{HearthSyncApp, ListBackupsRequest, ResolveInstallationRequest};
-use crate::core::backup::{BackupGroup, BackupRequest, RestoreBackupRequest};
+use crate::core::app::{
+    CreateBackupAppRequest, HearthSyncApp, ListBackupsRequest, ResolveInstallationRequest,
+    RestoreBackupAppRequest,
+};
+use crate::core::backup::BackupGroup;
 use crate::core::error::AppResult;
 
 pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
@@ -19,7 +22,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let backup = service.create(BackupRequest {
+            let backup = service.create(CreateBackupAppRequest {
                 installation,
                 output_path: output,
                 groups: vec![
@@ -91,7 +94,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let restored = service.restore(RestoreBackupRequest {
+            let restored = service.restore(RestoreBackupAppRequest {
                 installation,
                 archive_path: archive,
                 backup_id: id,

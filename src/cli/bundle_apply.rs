@@ -1,8 +1,10 @@
 use super::BundleCommands;
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
-use crate::core::app::{HearthSyncApp, PlanBundleApplyRequest, ResolveInstallationRequest};
-use crate::core::bundle::{BundleApplyMappings, UnpackBundleRequest, load_apply_mappings};
+use crate::core::app::{
+    ApplyBundleAppRequest, HearthSyncApp, PlanBundleApplyRequest, ResolveInstallationRequest,
+};
+use crate::core::bundle::{BundleApplyMappings, load_apply_mappings};
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
@@ -104,7 +106,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = service.apply(UnpackBundleRequest {
+            let result = service.apply(ApplyBundleAppRequest {
                 bundle_path: bundle,
                 installation,
                 dry_run,

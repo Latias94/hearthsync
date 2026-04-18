@@ -1,10 +1,11 @@
 use crate::core::addon::index::{
-    AddonIndexInstallRequest, AddonIndexUpdateRequest, inspect_addon_index,
-    install_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
+    inspect_addon_index, install_addon_from_index_task_with_provider,
+    update_addons_from_index_task_with_provider,
 };
 use crate::core::app::{
     AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexUpdateResult, AppRuntime,
-    InspectAddonIndexRequest, task_support,
+    InspectAddonIndexRequest, InstallAddonIndexAppRequest, UpdateAddonIndexAppRequest,
+    task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -35,7 +36,10 @@ impl AddonIndexService {
         Ok(AddonIndexInspectionResult::from(inspection))
     }
 
-    pub fn install(&self, request: AddonIndexInstallRequest) -> AppResult<AddonIndexInstallResult> {
+    pub fn install(
+        &self,
+        request: InstallAddonIndexAppRequest,
+    ) -> AppResult<AddonIndexInstallResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.install_task(request, cancellation, progress)
         })
@@ -43,7 +47,7 @@ impl AddonIndexService {
 
     pub fn install_task<TCancel, TProgress>(
         &self,
-        request: AddonIndexInstallRequest,
+        request: InstallAddonIndexAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<AddonIndexInstallResult>
@@ -53,7 +57,7 @@ impl AddonIndexService {
     {
         let installed = install_addon_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request,
+            request.into(),
             cancellation,
             progress,
         )?;
@@ -62,7 +66,7 @@ impl AddonIndexService {
 
     pub fn install_collecting_progress(
         &self,
-        request: AddonIndexInstallRequest,
+        request: InstallAddonIndexAppRequest,
     ) -> AppResult<TaskRun<AddonIndexInstallResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.install_task(request, cancellation, progress)
@@ -71,7 +75,7 @@ impl AddonIndexService {
 
     pub fn install_with_callbacks<FCancel, FProgress>(
         &self,
-        request: AddonIndexInstallRequest,
+        request: InstallAddonIndexAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<AddonIndexInstallResult>
@@ -84,7 +88,7 @@ impl AddonIndexService {
         })
     }
 
-    pub fn update(&self, request: AddonIndexUpdateRequest) -> AppResult<AddonIndexUpdateResult> {
+    pub fn update(&self, request: UpdateAddonIndexAppRequest) -> AppResult<AddonIndexUpdateResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.update_task(request, cancellation, progress)
         })
@@ -92,7 +96,7 @@ impl AddonIndexService {
 
     pub fn update_task<TCancel, TProgress>(
         &self,
-        request: AddonIndexUpdateRequest,
+        request: UpdateAddonIndexAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<AddonIndexUpdateResult>
@@ -102,7 +106,7 @@ impl AddonIndexService {
     {
         let updated = update_addons_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request,
+            request.into(),
             cancellation,
             progress,
         )?;
@@ -111,7 +115,7 @@ impl AddonIndexService {
 
     pub fn update_collecting_progress(
         &self,
-        request: AddonIndexUpdateRequest,
+        request: UpdateAddonIndexAppRequest,
     ) -> AppResult<TaskRun<AddonIndexUpdateResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.update_task(request, cancellation, progress)
@@ -120,7 +124,7 @@ impl AddonIndexService {
 
     pub fn update_with_callbacks<FCancel, FProgress>(
         &self,
-        request: AddonIndexUpdateRequest,
+        request: UpdateAddonIndexAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<AddonIndexUpdateResult>
@@ -200,7 +204,7 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
 
         let service = AddonIndexService::new();
         let run = service
-            .install_collecting_progress(AddonIndexInstallRequest {
+            .install_collecting_progress(InstallAddonIndexAppRequest {
                 installation,
                 index_path,
                 name: "weakauras".to_string(),
@@ -252,7 +256,7 @@ supported_flavors = ["retail"]
                 archive_path: archive_path.clone(),
             }));
         let result = service
-            .install(AddonIndexInstallRequest {
+            .install(InstallAddonIndexAppRequest {
                 installation,
                 index_path,
                 name: "weakauras".to_string(),
@@ -308,7 +312,7 @@ supported_flavors = ["retail"]
         let cancellation_checks = std::cell::Cell::new(0usize);
         let result = service_update_with_callbacks(
             &AddonIndexService::new(),
-            AddonIndexUpdateRequest {
+            UpdateAddonIndexAppRequest {
                 installation,
                 index_path,
                 name: Some("details".to_string()),
@@ -332,7 +336,7 @@ supported_flavors = ["retail"]
 
     fn service_update_with_callbacks(
         service: &AddonIndexService,
-        request: AddonIndexUpdateRequest,
+        request: UpdateAddonIndexAppRequest,
         seen: &std::cell::RefCell<Vec<TaskProgressEvent>>,
         cancellation_checks: &std::cell::Cell<usize>,
     ) -> AppResult<AddonIndexUpdateResult> {

@@ -1,7 +1,9 @@
 use super::AddonIndexCommands;
 use super::output::render;
-use crate::core::addon::index::{AddonIndexInstallRequest, AddonIndexUpdateRequest};
-use crate::core::app::{HearthSyncApp, InspectAddonIndexRequest, ResolveInstallationRequest};
+use crate::core::app::{
+    HearthSyncApp, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
+    ResolveInstallationRequest, UpdateAddonIndexAppRequest,
+};
 use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands) -> AppResult<()> {
@@ -50,7 +52,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.install(AddonIndexInstallRequest {
+            let result = service.install(InstallAddonIndexAppRequest {
                 installation,
                 index_path: file,
                 name,
@@ -107,7 +109,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.update(AddonIndexUpdateRequest {
+            let result = service.update(UpdateAddonIndexAppRequest {
                 installation,
                 index_path: file,
                 name,

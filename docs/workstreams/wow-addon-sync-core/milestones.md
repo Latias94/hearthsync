@@ -231,6 +231,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - app-facing inspect, resolve, list, and planning APIs now also use explicit owned request
   contracts instead of mixing borrowed paths, optional references, and positional parameters across
   services
+- app-facing mutation APIs for addon, addon index, addon lock apply, backup, bundle, and
+  external-package flows now also use explicit owned request contracts, and CLI handlers no longer
+  construct domain mutation requests directly when crossing into `core::app`
 - read-only app outputs for installation scan and inspect, addon inventory, addon-index inspect,
   addon-lock inspect, backup catalog list, and bundle inspect now also flow through app-owned DTOs
   instead of returning raw domain aggregate structs directly
@@ -266,5 +269,6 @@ Reach the point where an `egui` frontend can start without forcing another archi
   provider-cancellation correctness blockers are now addressed; the remaining desktop-readiness work
   is to stabilize explicit service contracts, improve long-running task reporting, and document what
   GUI callers may rely on as stable
-- the next contract cleanup should move beyond wrapper consolidation and make service request/result
-  semantics explicit enough that `egui` can depend on them without inheriting CLI-era façade leakage
+- request/result ownership is now largely explicit at the app boundary; the next contract cleanup
+  should focus on documenting stability, pruning remaining thin façade behavior, and deciding which
+  shared value types still need app-owned wrappers before `egui` depends on them long term

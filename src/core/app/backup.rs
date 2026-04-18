@@ -1,10 +1,9 @@
 use crate::core::app::ListBackupsRequest;
 use crate::core::app::{
-    AppRuntime, BackupCatalogResult, CreatedBackupResult, RestoredBackupResult, task_support,
+    AppRuntime, BackupCatalogResult, CreateBackupAppRequest, CreatedBackupResult,
+    RestoreBackupAppRequest, RestoredBackupResult, task_support,
 };
-use crate::core::backup::{
-    BackupRequest, RestoreBackupRequest, create_backup, list_backups, restore_backup_selection_task,
-};
+use crate::core::backup::{create_backup, list_backups, restore_backup_selection_task};
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
@@ -26,8 +25,8 @@ impl BackupService {
         &self.runtime
     }
 
-    pub fn create(&self, request: BackupRequest) -> AppResult<CreatedBackupResult> {
-        let created = create_backup(self.normalize_backup_request(request))?;
+    pub fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
+        let created = create_backup(self.normalize_backup_request(request).into())?;
         Ok(CreatedBackupResult::from(created))
     }
 
@@ -37,7 +36,7 @@ impl BackupService {
         Ok(BackupCatalogResult::from(catalog))
     }
 
-    pub fn restore(&self, request: RestoreBackupRequest) -> AppResult<RestoredBackupResult> {
+    pub fn restore(&self, request: RestoreBackupAppRequest) -> AppResult<RestoredBackupResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.restore_task(request, cancellation, progress)
         })
@@ -45,7 +44,7 @@ impl BackupService {
 
     pub fn restore_task<TCancel, TProgress>(
         &self,
-        request: RestoreBackupRequest,
+        request: RestoreBackupAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<RestoredBackupResult>
@@ -54,7 +53,7 @@ impl BackupService {
         TProgress: TaskProgressSink,
     {
         let restored = restore_backup_selection_task(
-            self.normalize_restore_request(request),
+            self.normalize_restore_request(request).into(),
             cancellation,
             progress,
         )?;
@@ -63,7 +62,7 @@ impl BackupService {
 
     pub fn restore_collecting_progress(
         &self,
-        request: RestoreBackupRequest,
+        request: RestoreBackupAppRequest,
     ) -> AppResult<TaskRun<RestoredBackupResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.restore_task(request, cancellation, progress)
@@ -72,7 +71,7 @@ impl BackupService {
 
     pub fn restore_with_callbacks<FCancel, FProgress>(
         &self,
-        request: RestoreBackupRequest,
+        request: RestoreBackupAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<RestoredBackupResult>
@@ -85,12 +84,18 @@ impl BackupService {
         })
     }
 
-    fn normalize_backup_request(&self, mut request: BackupRequest) -> BackupRequest {
+    fn normalize_backup_request(
+        &self,
+        mut request: CreateBackupAppRequest,
+    ) -> CreateBackupAppRequest {
         request.output_path = self.runtime.backup_output_or_default(request.output_path);
         request
     }
 
-    fn normalize_restore_request(&self, mut request: RestoreBackupRequest) -> RestoreBackupRequest {
+    fn normalize_restore_request(
+        &self,
+        mut request: RestoreBackupAppRequest,
+    ) -> RestoreBackupAppRequest {
         request.backup_dir = self.runtime.backup_dir_or_default(request.backup_dir);
         request
     }
@@ -106,7 +111,7 @@ mod tests {
 
     use super::*;
     use crate::core::app::AppRuntime;
-    use crate::core::backup::{BackupGroup, BackupRequest};
+    use crate::core::backup::BackupGroup;
     use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 
@@ -127,7 +132,7 @@ mod tests {
 
         let service = BackupService::new();
         let backup = service
-            .create(BackupRequest {
+            .create(CreateBackupAppRequest {
                 installation: installation.clone(),
                 output_path: Some(temp.path().join("backups")),
                 groups: vec![BackupGroup::Addons],
@@ -145,7 +150,7 @@ mod tests {
         .expect("mutate addon");
 
         let run = service
-            .restore_collecting_progress(RestoreBackupRequest {
+            .restore_collecting_progress(RestoreBackupAppRequest {
                 installation,
                 archive_path: Some(backup.archive_path),
                 backup_id: None,
@@ -167,7 +172,7 @@ mod tests {
 
         let service = BackupService::new();
         let backup = service
-            .create(BackupRequest {
+            .create(CreateBackupAppRequest {
                 installation: installation.clone(),
                 output_path: Some(temp.path().join("backups")),
                 groups: vec![BackupGroup::Wtf],
@@ -181,7 +186,7 @@ mod tests {
         let cancellation_checks = Cell::new(0usize);
         let restored = service
             .restore_with_callbacks(
-                RestoreBackupRequest {
+                RestoreBackupAppRequest {
                     installation,
                     archive_path: Some(backup.archive_path),
                     backup_id: None,
@@ -227,7 +232,7 @@ mod tests {
             AppRuntime::new().with_default_backup_dir(Some(backup_dir.clone())),
         );
         let created = service
-            .create(BackupRequest {
+            .create(CreateBackupAppRequest {
                 installation: installation.clone(),
                 output_path: None,
                 groups: vec![BackupGroup::Addons],
@@ -254,7 +259,7 @@ mod tests {
             .expect("backup id")
             .to_string();
         let restored = service
-            .restore(RestoreBackupRequest {
+            .restore(RestoreBackupAppRequest {
                 installation,
                 archive_path: None,
                 backup_id: Some(backup_id),

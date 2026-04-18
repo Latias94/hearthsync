@@ -1,9 +1,9 @@
 use super::AddonLockCommands;
 use super::output::{render, render_addon_lock_plan_summary};
-use crate::core::addon::lock::AddonLockApplyRequest;
 use crate::core::app::{
-    DiffAddonLockRequest, HearthSyncApp, InspectAddonLockRequest, PlanAddonLockSyncRequest,
-    ResolveInstallationRequest, VerifyAddonLockRequest, WriteAddonLockRequest,
+    ApplyAddonLockAppRequest, DiffAddonLockRequest, HearthSyncApp, InspectAddonLockRequest,
+    PlanAddonLockSyncRequest, ResolveInstallationRequest, VerifyAddonLockRequest,
+    WriteAddonLockRequest,
 };
 use crate::core::error::AppResult;
 
@@ -261,7 +261,7 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.apply_sync(AddonLockApplyRequest {
+            let result = service.apply_sync(ApplyAddonLockAppRequest {
                 installation,
                 lock_path: file,
                 backup_output_path: backup_output,

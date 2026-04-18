@@ -1,11 +1,12 @@
 use crate::core::app::{
-    AppRuntime, BundleAddonLockApplyResult, BundleAddonLockPlanResult, BundleApplyPlanResult,
-    BundleApplyResult, BundleInspectionResult, CreatedBundleResult, InspectBundleRequest,
-    PlanBundleAddonLockRequest, PlanBundleApplyRequest, task_support,
+    AppRuntime, ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, BundleAddonLockApplyResult,
+    BundleAddonLockPlanResult, BundleApplyPlanResult, BundleApplyResult, BundleInspectionResult,
+    CreatedBundleResult, InspectBundleRequest, PackBundleAppRequest, PlanBundleAddonLockRequest,
+    PlanBundleApplyRequest, task_support,
 };
 use crate::core::bundle::{
-    BundleAddonLockApplyRequest, PackBundleRequest, UnpackBundleRequest, apply_bundle_addon_lock,
-    inspect_bundle, pack_bundle, plan_bundle_addon_lock, plan_bundle_apply, unpack_bundle_task,
+    apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
+    plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -33,8 +34,8 @@ impl BundleService {
         Ok(BundleInspectionResult::from(inspection))
     }
 
-    pub fn pack(&self, request: PackBundleRequest) -> AppResult<CreatedBundleResult> {
-        let bundle = pack_bundle(self.normalize_pack_request(request))?;
+    pub fn pack(&self, request: PackBundleAppRequest) -> AppResult<CreatedBundleResult> {
+        let bundle = pack_bundle(self.normalize_pack_request(request).into())?;
         Ok(CreatedBundleResult::from(bundle))
     }
 
@@ -47,7 +48,7 @@ impl BundleService {
         Ok(BundleApplyPlanResult::from(plan))
     }
 
-    pub fn apply(&self, request: UnpackBundleRequest) -> AppResult<BundleApplyResult> {
+    pub fn apply(&self, request: ApplyBundleAppRequest) -> AppResult<BundleApplyResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
@@ -63,15 +64,15 @@ impl BundleService {
 
     pub fn apply_addon_lock(
         &self,
-        request: BundleAddonLockApplyRequest,
+        request: ApplyBundleAddonLockAppRequest,
     ) -> AppResult<BundleAddonLockApplyResult> {
-        let applied = apply_bundle_addon_lock(self.normalize_addon_lock_request(request))?;
+        let applied = apply_bundle_addon_lock(self.normalize_addon_lock_request(request).into())?;
         Ok(BundleAddonLockApplyResult::from(applied))
     }
 
     pub fn apply_task<TCancel, TProgress>(
         &self,
-        request: UnpackBundleRequest,
+        request: ApplyBundleAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<BundleApplyResult>
@@ -80,7 +81,7 @@ impl BundleService {
         TProgress: TaskProgressSink,
     {
         let applied = unpack_bundle_task(
-            self.normalize_unpack_request(request),
+            self.normalize_unpack_request(request).into(),
             cancellation,
             progress,
         )?;
@@ -89,7 +90,7 @@ impl BundleService {
 
     pub fn apply_collecting_progress(
         &self,
-        request: UnpackBundleRequest,
+        request: ApplyBundleAppRequest,
     ) -> AppResult<TaskRun<BundleApplyResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
@@ -98,7 +99,7 @@ impl BundleService {
 
     pub fn apply_with_callbacks<FCancel, FProgress>(
         &self,
-        request: UnpackBundleRequest,
+        request: ApplyBundleAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<BundleApplyResult>
@@ -111,12 +112,15 @@ impl BundleService {
         })
     }
 
-    fn normalize_pack_request(&self, mut request: PackBundleRequest) -> PackBundleRequest {
+    fn normalize_pack_request(&self, mut request: PackBundleAppRequest) -> PackBundleAppRequest {
         request.output_path = self.runtime.bundle_output_or_default(request.output_path);
         request
     }
 
-    fn normalize_unpack_request(&self, mut request: UnpackBundleRequest) -> UnpackBundleRequest {
+    fn normalize_unpack_request(
+        &self,
+        mut request: ApplyBundleAppRequest,
+    ) -> ApplyBundleAppRequest {
         request.backup_output_path = self
             .runtime
             .backup_output_or_default(request.backup_output_path);
@@ -125,8 +129,8 @@ impl BundleService {
 
     fn normalize_addon_lock_request(
         &self,
-        mut request: BundleAddonLockApplyRequest,
-    ) -> BundleAddonLockApplyRequest {
+        mut request: ApplyBundleAddonLockAppRequest,
+    ) -> ApplyBundleAddonLockAppRequest {
         request.backup_output_path = self
             .runtime
             .backup_output_or_default(request.backup_output_path);
@@ -161,7 +165,7 @@ mod tests {
 
         let service = BundleService::new();
         service
-            .pack(PackBundleRequest {
+            .pack(PackBundleAppRequest {
                 installation: source_installation,
                 manifest: sample_bundle_manifest(),
                 output_path: Some(bundle_path.clone()),
@@ -195,7 +199,7 @@ mod tests {
 
         let service = BundleService::new();
         service
-            .pack(PackBundleRequest {
+            .pack(PackBundleAppRequest {
                 installation: source_installation,
                 manifest: sample_bundle_manifest(),
                 output_path: Some(bundle_path.clone()),
@@ -204,7 +208,7 @@ mod tests {
             .expect("pack bundle");
 
         let run = service
-            .apply_collecting_progress(UnpackBundleRequest {
+            .apply_collecting_progress(ApplyBundleAppRequest {
                 bundle_path,
                 installation: target_installation,
                 dry_run: true,
@@ -237,7 +241,7 @@ mod tests {
             AppRuntime::new().with_default_bundle_output_dir(Some(output.path().to_path_buf())),
         );
         let created = service
-            .pack(PackBundleRequest {
+            .pack(PackBundleAppRequest {
                 installation: source_installation,
                 manifest: sample_bundle_manifest(),
                 output_path: None,
@@ -262,7 +266,7 @@ mod tests {
             AppRuntime::new().with_default_backup_dir(Some(backup.path().to_path_buf())),
         );
         service
-            .pack(PackBundleRequest {
+            .pack(PackBundleAppRequest {
                 installation: source_installation,
                 manifest: sample_bundle_manifest(),
                 output_path: Some(bundle_path.clone()),
@@ -271,7 +275,7 @@ mod tests {
             .expect("pack bundle");
 
         let applied = service
-            .apply(UnpackBundleRequest {
+            .apply(ApplyBundleAppRequest {
                 bundle_path,
                 installation: target_installation,
                 dry_run: false,

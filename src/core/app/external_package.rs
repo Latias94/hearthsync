@@ -1,11 +1,12 @@
 use crate::core::app::{
-    AppRuntime, ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult,
-    ExternalPackageApplyResult, ExternalPackageBundleHandle, task_support,
+    AnalyzeExternalPackageAppRequest, AppRuntime, ApplyExternalPackageAppRequest,
+    CreateExternalPackageBundleAppRequest, ExternalPackageAnalysisResult,
+    ExternalPackageApplyPlanResult, ExternalPackageApplyResult, ExternalPackageBundleHandle,
+    PlanExternalPackageApplyAppRequest, task_support,
 };
 use crate::core::bundle::{
-    AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
-    PlanExternalPackageApplyRequest, analyze_external_package_task, apply_external_package_task,
-    create_external_package_bundle, plan_external_package_apply_task,
+    analyze_external_package_task, apply_external_package_task, create_external_package_bundle,
+    plan_external_package_apply_task,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -30,7 +31,7 @@ impl ExternalPackageService {
 
     pub fn analyze(
         &self,
-        request: AnalyzeExternalPackageRequest,
+        request: AnalyzeExternalPackageAppRequest,
     ) -> AppResult<ExternalPackageAnalysisResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.analyze_task(request, cancellation, progress)
@@ -39,7 +40,7 @@ impl ExternalPackageService {
 
     pub fn analyze_task<TCancel, TProgress>(
         &self,
-        request: AnalyzeExternalPackageRequest,
+        request: AnalyzeExternalPackageAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<ExternalPackageAnalysisResult>
@@ -47,13 +48,13 @@ impl ExternalPackageService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let analysis = analyze_external_package_task(request, cancellation, progress)?;
+        let analysis = analyze_external_package_task(request.into(), cancellation, progress)?;
         Ok(ExternalPackageAnalysisResult::from(analysis))
     }
 
     pub fn analyze_collecting_progress(
         &self,
-        request: AnalyzeExternalPackageRequest,
+        request: AnalyzeExternalPackageAppRequest,
     ) -> AppResult<TaskRun<ExternalPackageAnalysisResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.analyze_task(request, cancellation, progress)
@@ -62,7 +63,7 @@ impl ExternalPackageService {
 
     pub fn analyze_with_callbacks<FCancel, FProgress>(
         &self,
-        request: AnalyzeExternalPackageRequest,
+        request: AnalyzeExternalPackageAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<ExternalPackageAnalysisResult>
@@ -77,15 +78,15 @@ impl ExternalPackageService {
 
     pub fn create_bundle(
         &self,
-        request: CreateExternalPackageBundleRequest,
+        request: CreateExternalPackageBundleAppRequest,
     ) -> AppResult<ExternalPackageBundleHandle> {
-        let bundle = create_external_package_bundle(self.normalize_bundle_request(request))?;
+        let bundle = create_external_package_bundle(self.normalize_bundle_request(request).into())?;
         Ok(ExternalPackageBundleHandle::from(bundle))
     }
 
     pub fn plan_apply(
         &self,
-        request: PlanExternalPackageApplyRequest,
+        request: PlanExternalPackageApplyAppRequest,
     ) -> AppResult<ExternalPackageApplyPlanResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.plan_apply_task(request, cancellation, progress)
@@ -94,7 +95,7 @@ impl ExternalPackageService {
 
     pub fn plan_apply_task<TCancel, TProgress>(
         &self,
-        request: PlanExternalPackageApplyRequest,
+        request: PlanExternalPackageApplyAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<ExternalPackageApplyPlanResult>
@@ -103,7 +104,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let plan = plan_external_package_apply_task(
-            self.normalize_plan_request(request),
+            self.normalize_plan_request(request).into(),
             cancellation,
             progress,
         )?;
@@ -112,7 +113,7 @@ impl ExternalPackageService {
 
     pub fn plan_apply_collecting_progress(
         &self,
-        request: PlanExternalPackageApplyRequest,
+        request: PlanExternalPackageApplyAppRequest,
     ) -> AppResult<TaskRun<ExternalPackageApplyPlanResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.plan_apply_task(request, cancellation, progress)
@@ -121,7 +122,7 @@ impl ExternalPackageService {
 
     pub fn plan_apply_with_callbacks<FCancel, FProgress>(
         &self,
-        request: PlanExternalPackageApplyRequest,
+        request: PlanExternalPackageApplyAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<ExternalPackageApplyPlanResult>
@@ -136,7 +137,7 @@ impl ExternalPackageService {
 
     pub fn apply(
         &self,
-        request: ApplyExternalPackageRequest,
+        request: ApplyExternalPackageAppRequest,
     ) -> AppResult<ExternalPackageApplyResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
@@ -145,7 +146,7 @@ impl ExternalPackageService {
 
     pub fn apply_task<TCancel, TProgress>(
         &self,
-        request: ApplyExternalPackageRequest,
+        request: ApplyExternalPackageAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<ExternalPackageApplyResult>
@@ -154,7 +155,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let applied = apply_external_package_task(
-            self.normalize_apply_request(request),
+            self.normalize_apply_request(request).into(),
             cancellation,
             progress,
         )?;
@@ -163,7 +164,7 @@ impl ExternalPackageService {
 
     pub fn apply_collecting_progress(
         &self,
-        request: ApplyExternalPackageRequest,
+        request: ApplyExternalPackageAppRequest,
     ) -> AppResult<TaskRun<ExternalPackageApplyResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.apply_task(request, cancellation, progress)
@@ -172,7 +173,7 @@ impl ExternalPackageService {
 
     pub fn apply_with_callbacks<FCancel, FProgress>(
         &self,
-        request: ApplyExternalPackageRequest,
+        request: ApplyExternalPackageAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<ExternalPackageApplyResult>
@@ -187,8 +188,8 @@ impl ExternalPackageService {
 
     fn normalize_bundle_request(
         &self,
-        mut request: CreateExternalPackageBundleRequest,
-    ) -> CreateExternalPackageBundleRequest {
+        mut request: CreateExternalPackageBundleAppRequest,
+    ) -> CreateExternalPackageBundleAppRequest {
         request.source_platform = Some(
             self.runtime
                 .source_platform_or_host(request.source_platform),
@@ -199,16 +200,16 @@ impl ExternalPackageService {
 
     fn normalize_plan_request(
         &self,
-        mut request: PlanExternalPackageApplyRequest,
-    ) -> PlanExternalPackageApplyRequest {
+        mut request: PlanExternalPackageApplyAppRequest,
+    ) -> PlanExternalPackageApplyAppRequest {
         request.external_package = self.normalize_bundle_request(request.external_package);
         request
     }
 
     fn normalize_apply_request(
         &self,
-        mut request: ApplyExternalPackageRequest,
-    ) -> ApplyExternalPackageRequest {
+        mut request: ApplyExternalPackageAppRequest,
+    ) -> ApplyExternalPackageAppRequest {
         request.external_package = self.normalize_bundle_request(request.external_package);
         request.backup_output_path = self
             .runtime
@@ -238,7 +239,7 @@ mod tests {
 
         let service = ExternalPackageService::new();
         let analysis = service
-            .analyze(AnalyzeExternalPackageRequest {
+            .analyze(AnalyzeExternalPackageAppRequest {
                 source_path: package_root,
             })
             .expect("analyze package");
@@ -254,7 +255,7 @@ mod tests {
 
         let service = ExternalPackageService::new();
         let run = service
-            .analyze_collecting_progress(AnalyzeExternalPackageRequest {
+            .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
                 source_path: package_root,
             })
             .expect("analyze with collected progress");
@@ -283,7 +284,7 @@ mod tests {
         let cancellation_checks = Cell::new(0usize);
         let analysis = service
             .analyze_with_callbacks(
-                AnalyzeExternalPackageRequest {
+                AnalyzeExternalPackageAppRequest {
                     source_path: package_root,
                 },
                 || {
@@ -312,8 +313,8 @@ mod tests {
         let mut progress = VecTaskProgressSink::default();
         let result = service
             .apply_task(
-                ApplyExternalPackageRequest {
-                    external_package: CreateExternalPackageBundleRequest {
+                ApplyExternalPackageAppRequest {
+                    external_package: CreateExternalPackageBundleAppRequest {
                         source_path: package_root,
                         source_flavor: WowFlavor::Retail,
                         source_platform: Some(HostPlatform::Windows),
@@ -359,8 +360,8 @@ mod tests {
 
         let service = ExternalPackageService::new();
         let run = service
-            .apply_collecting_progress(ApplyExternalPackageRequest {
-                external_package: CreateExternalPackageBundleRequest {
+            .apply_collecting_progress(ApplyExternalPackageAppRequest {
+                external_package: CreateExternalPackageBundleAppRequest {
                     source_path: package_root,
                     source_flavor: WowFlavor::Retail,
                     source_platform: Some(HostPlatform::Windows),
@@ -405,7 +406,7 @@ mod tests {
                 .with_default_bundle_output_dir(Some(output.path().to_path_buf())),
         );
         let prepared = service
-            .create_bundle(CreateExternalPackageBundleRequest {
+            .create_bundle(CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
                 source_flavor: WowFlavor::Retail,
                 source_platform: None,
@@ -434,7 +435,7 @@ mod tests {
 
         let service = ExternalPackageService::new();
         let prepared = service
-            .create_bundle(CreateExternalPackageBundleRequest {
+            .create_bundle(CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
                 source_flavor: WowFlavor::Retail,
                 source_platform: None,

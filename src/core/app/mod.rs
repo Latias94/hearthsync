@@ -20,10 +20,16 @@ pub use client::HearthSyncApp;
 pub use external_package::ExternalPackageService;
 pub use install::InstallationService;
 pub use request::{
-    DiffAddonLockRequest, InspectAddonIndexRequest, InspectAddonLockRequest, InspectBundleRequest,
-    InspectInstallationRequest, ListAddonsRequest, ListBackupsRequest, PlanAddonLockSyncRequest,
-    PlanBundleAddonLockRequest, PlanBundleApplyRequest, ResolveInstallationRequest,
-    VerifyAddonLockRequest, WriteAddonLockRequest,
+    AddonLockSourceOverrideRequest, AnalyzeExternalPackageAppRequest, ApplyAddonLockAppRequest,
+    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyExternalPackageAppRequest,
+    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, DiffAddonLockRequest,
+    InspectAddonIndexRequest, InspectAddonLockRequest, InspectBundleRequest,
+    InspectInstallationRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
+    ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
+    PlanBundleAddonLockRequest, PlanBundleApplyRequest, PlanExternalPackageApplyAppRequest,
+    RemoveAddonAppRequest, ResolveInstallationRequest, RestoreBackupAppRequest,
+    SearchAddonsRequest, UpdateAddonAppRequest, UpdateAddonIndexAppRequest, VerifyAddonLockRequest,
+    WriteAddonLockRequest,
 };
 pub use response::*;
 pub use runtime::{AppRuntime, SharedAddonProvider};

@@ -287,3 +287,24 @@ over returning raw domain aggregate structs.
   from nested domain payloads
 - execution and mutation results may still transition in later slices, but the read-only surface now
   has a clearer ownership boundary
+
+## ADR-017: App Mutation APIs Use Owned Request Contracts
+
+### Status
+
+Accepted on 2026-04-18
+
+### Decision
+
+`core::app` mutation-oriented service APIs should accept app-owned request structs instead of
+exposing raw domain request types directly to CLI or future desktop callers.
+
+### Consequences
+
+- runtime-owned default injection and normalization stay inside the app boundary instead of leaking
+  through frontend code that constructs domain requests manually
+- CLI and future GUI code can depend on one stable app-facing input shape for addon, addon index,
+  addon lock, backup, bundle, and external-package mutations
+- further contract cleanup can now focus on which shared value objects should remain cross-layer
+  types and which ones still need app-owned wrappers, rather than first untangling raw domain
+  request leakage

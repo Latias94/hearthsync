@@ -1,11 +1,11 @@
 use crate::core::addon::{
-    AddonSearchCatalog, InstallAddonRequest, RemoveAddonRequest, SearchAddonRequest,
-    UpdateAddonRequest, install_addon_task_with_provider, list_addons, remove_addons_task,
+    AddonSearchCatalog, install_addon_task_with_provider, list_addons, remove_addons_task,
     search_addons_with_provider, update_addons_task_with_provider,
 };
 use crate::core::app::{
-    AddonInventoryResult, AppRuntime, InstalledAddonPackageResult, ListAddonsRequest,
-    RemovedAddonPackageResult, UpdatedAddonPackageResult, task_support,
+    AddonInventoryResult, AppRuntime, InstallAddonAppRequest, InstalledAddonPackageResult,
+    ListAddonsRequest, RemoveAddonAppRequest, RemovedAddonPackageResult, SearchAddonsRequest,
+    UpdateAddonAppRequest, UpdatedAddonPackageResult, task_support,
 };
 use crate::core::error::AppResult;
 use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
@@ -28,8 +28,8 @@ impl AddonService {
         &self.runtime
     }
 
-    pub fn search(&self, request: SearchAddonRequest) -> AppResult<AddonSearchCatalog> {
-        search_addons_with_provider(self.runtime.addon_provider(), request)
+    pub fn search(&self, request: SearchAddonsRequest) -> AppResult<AddonSearchCatalog> {
+        search_addons_with_provider(self.runtime.addon_provider(), request.into())
     }
 
     pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
@@ -37,7 +37,10 @@ impl AddonService {
         Ok(AddonInventoryResult::from(inventory))
     }
 
-    pub fn install(&self, request: InstallAddonRequest) -> AppResult<InstalledAddonPackageResult> {
+    pub fn install(
+        &self,
+        request: InstallAddonAppRequest,
+    ) -> AppResult<InstalledAddonPackageResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.install_task(request, cancellation, progress)
         })
@@ -45,7 +48,7 @@ impl AddonService {
 
     pub fn install_task<TCancel, TProgress>(
         &self,
-        request: InstallAddonRequest,
+        request: InstallAddonAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<InstalledAddonPackageResult>
@@ -55,7 +58,7 @@ impl AddonService {
     {
         let installed = install_addon_task_with_provider(
             self.runtime.addon_provider(),
-            request,
+            request.into(),
             cancellation,
             progress,
         )?;
@@ -64,7 +67,7 @@ impl AddonService {
 
     pub fn install_collecting_progress(
         &self,
-        request: InstallAddonRequest,
+        request: InstallAddonAppRequest,
     ) -> AppResult<TaskRun<InstalledAddonPackageResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.install_task(request, cancellation, progress)
@@ -73,7 +76,7 @@ impl AddonService {
 
     pub fn install_with_callbacks<FCancel, FProgress>(
         &self,
-        request: InstallAddonRequest,
+        request: InstallAddonAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<InstalledAddonPackageResult>
@@ -86,7 +89,7 @@ impl AddonService {
         })
     }
 
-    pub fn update(&self, request: UpdateAddonRequest) -> AppResult<UpdatedAddonPackageResult> {
+    pub fn update(&self, request: UpdateAddonAppRequest) -> AppResult<UpdatedAddonPackageResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.update_task(request, cancellation, progress)
         })
@@ -94,7 +97,7 @@ impl AddonService {
 
     pub fn update_task<TCancel, TProgress>(
         &self,
-        request: UpdateAddonRequest,
+        request: UpdateAddonAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<UpdatedAddonPackageResult>
@@ -104,7 +107,7 @@ impl AddonService {
     {
         let updated = update_addons_task_with_provider(
             self.runtime.addon_provider(),
-            request,
+            request.into(),
             cancellation,
             progress,
         )?;
@@ -113,7 +116,7 @@ impl AddonService {
 
     pub fn update_collecting_progress(
         &self,
-        request: UpdateAddonRequest,
+        request: UpdateAddonAppRequest,
     ) -> AppResult<TaskRun<UpdatedAddonPackageResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.update_task(request, cancellation, progress)
@@ -122,7 +125,7 @@ impl AddonService {
 
     pub fn update_with_callbacks<FCancel, FProgress>(
         &self,
-        request: UpdateAddonRequest,
+        request: UpdateAddonAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<UpdatedAddonPackageResult>
@@ -135,7 +138,7 @@ impl AddonService {
         })
     }
 
-    pub fn remove(&self, request: RemoveAddonRequest) -> AppResult<RemovedAddonPackageResult> {
+    pub fn remove(&self, request: RemoveAddonAppRequest) -> AppResult<RemovedAddonPackageResult> {
         task_support::run_direct_task(|cancellation, progress| {
             self.remove_task(request, cancellation, progress)
         })
@@ -143,7 +146,7 @@ impl AddonService {
 
     pub fn remove_task<TCancel, TProgress>(
         &self,
-        request: RemoveAddonRequest,
+        request: RemoveAddonAppRequest,
         cancellation: &TCancel,
         progress: &mut TProgress,
     ) -> AppResult<RemovedAddonPackageResult>
@@ -151,13 +154,13 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let removed = remove_addons_task(request, cancellation, progress)?;
+        let removed = remove_addons_task(request.into(), cancellation, progress)?;
         Ok(RemovedAddonPackageResult::from(removed))
     }
 
     pub fn remove_collecting_progress(
         &self,
-        request: RemoveAddonRequest,
+        request: RemoveAddonAppRequest,
     ) -> AppResult<TaskRun<RemovedAddonPackageResult>> {
         task_support::run_collecting_task(|cancellation, progress| {
             self.remove_task(request, cancellation, progress)
@@ -166,7 +169,7 @@ impl AddonService {
 
     pub fn remove_with_callbacks<FCancel, FProgress>(
         &self,
-        request: RemoveAddonRequest,
+        request: RemoveAddonAppRequest,
         is_cancelled: FCancel,
         on_progress: FProgress,
     ) -> AppResult<RemovedAddonPackageResult>
@@ -219,7 +222,7 @@ mod tests {
 
         let service = AddonService::new();
         let installed = service
-            .install(InstallAddonRequest {
+            .install(InstallAddonAppRequest {
                 installation: installation.clone(),
                 source: archive_path.display().to_string(),
                 dry_run: false,
@@ -252,7 +255,7 @@ mod tests {
 
         let service = AddonService::new();
         let run = service
-            .install_collecting_progress(InstallAddonRequest {
+            .install_collecting_progress(InstallAddonAppRequest {
                 installation,
                 source: archive_path.display().to_string(),
                 dry_run: false,
@@ -288,7 +291,7 @@ mod tests {
                 archive_path: archive_path.clone(),
             }));
         let installed = service
-            .install(InstallAddonRequest {
+            .install(InstallAddonAppRequest {
                 installation: installation.clone(),
                 source: "https://example.invalid/WeakAuras.zip".to_string(),
                 dry_run: false,
@@ -326,7 +329,7 @@ mod tests {
 
         let service = AddonService::new();
         service
-            .install(InstallAddonRequest {
+            .install(InstallAddonAppRequest {
                 installation: installation.clone(),
                 source: archive_path.display().to_string(),
                 dry_run: false,
@@ -351,7 +354,7 @@ mod tests {
         let cancellation_checks = Cell::new(0usize);
         let result = service
             .update_with_callbacks(
-                UpdateAddonRequest {
+                UpdateAddonAppRequest {
                     installation,
                     name: Some("Details".to_string()),
                     dry_run: false,
@@ -391,7 +394,7 @@ mod tests {
 
         let service = AddonService::new();
         service
-            .install(InstallAddonRequest {
+            .install(InstallAddonAppRequest {
                 installation: installation.clone(),
                 source: archive_path.display().to_string(),
                 dry_run: false,
@@ -405,7 +408,7 @@ mod tests {
         let mut progress = VecTaskProgressSink::default();
         let result = service
             .remove_task(
-                RemoveAddonRequest {
+                RemoveAddonAppRequest {
                     installation,
                     name: "Plater".to_string(),
                     dry_run: false,

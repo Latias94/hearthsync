@@ -2,11 +2,10 @@ use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
 use super::output::render;
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
 use crate::core::app::{
-    ExternalPackageSummaryResult, ExternalPackageWarningResult, HearthSyncApp,
+    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
+    CreateExternalPackageBundleAppRequest, ExternalPackageSummaryResult,
+    ExternalPackageWarningResult, HearthSyncApp, PlanExternalPackageApplyAppRequest,
     ResolveInstallationRequest,
-};
-use crate::core::bundle::{
-    AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
 };
 use crate::core::error::AppResult;
 use crate::core::manifest::{ApplyDefaults, ResourceApplyPolicy};
@@ -21,7 +20,7 @@ pub(super) fn handle_external_package_command(
 
     match command {
         ExternalPackageCommands::Inspect { source } => {
-            let analysis = service.analyze(AnalyzeExternalPackageRequest {
+            let analysis = service.analyze(AnalyzeExternalPackageAppRequest {
                 source_path: source,
             })?;
             render(json, &analysis, |item| {
@@ -100,12 +99,11 @@ pub(super) fn handle_external_package_command(
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan =
-                service.plan_apply(crate::core::bundle::PlanExternalPackageApplyRequest {
-                    external_package: build_external_package_bundle_request(bundle_options),
-                    installation,
-                    apply_mappings,
-                })?;
+            let plan = service.plan_apply(PlanExternalPackageApplyAppRequest {
+                external_package: build_external_package_bundle_request(bundle_options),
+                installation,
+                apply_mappings,
+            })?;
             render(json, &plan, |item| {
                 let accounts = if item.discovered_accounts.is_empty() {
                     "none".to_string()
@@ -175,7 +173,7 @@ pub(super) fn handle_external_package_command(
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = service.apply(ApplyExternalPackageRequest {
+            let result = service.apply(ApplyExternalPackageAppRequest {
                 external_package: build_external_package_bundle_request(bundle_options),
                 installation,
                 dry_run,
@@ -238,10 +236,10 @@ pub(super) fn handle_external_package_command(
 
 fn build_external_package_bundle_request(
     options: ExternalPackageBundleOptions,
-) -> CreateExternalPackageBundleRequest {
+) -> CreateExternalPackageBundleAppRequest {
     let apply_defaults = build_external_package_apply_defaults(&options);
 
-    CreateExternalPackageBundleRequest {
+    CreateExternalPackageBundleAppRequest {
         source_path: options.source,
         source_flavor: options.source_flavor.into(),
         source_platform: options.source_platform.map(Into::into),
