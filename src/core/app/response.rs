@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::{
-    ApplyActionValue, ApplyGroupValue, BackupGroupValue, HelperStrategyValue,
-    ResourceApplyPolicyValue, WtfScopeValue,
+    ApplyActionValue, ApplyGroupValue, BackupGroupValue, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue, HelperStrategyValue, ResourceApplyPolicyValue, WtfScopeValue,
 };
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallResult as DomainAddonIndexInstallResult,
@@ -42,9 +42,9 @@ use crate::core::bundle::{
     ExternalPackageApplyPlan as DomainExternalPackageApplyPlan,
     ExternalPackageEntry as DomainExternalPackageEntry, ExternalPackageSourceKind,
     ExternalPackageSummary as DomainExternalPackageSummary,
-    ExternalPackageWarning as DomainExternalPackageWarning, ExternalPackageWarningCategory,
-    ExternalPackageWarningCode, ExternalPackageWarningGroup as DomainExternalPackageWarningGroup,
-    GroupPolicy, PreparedExternalPackageBundle as DomainPreparedExternalPackageBundle,
+    ExternalPackageWarning as DomainExternalPackageWarning,
+    ExternalPackageWarningGroup as DomainExternalPackageWarningGroup, GroupPolicy,
+    PreparedExternalPackageBundle as DomainPreparedExternalPackageBundle,
     UnpackedBundle as DomainUnpackedBundle,
 };
 use crate::core::install::{
@@ -1729,16 +1729,16 @@ impl From<DomainExternalPackageEntry> for ExternalPackageEntryResult {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalPackageWarningGroupResult {
-    pub category: ExternalPackageWarningCategory,
-    pub code: ExternalPackageWarningCode,
+    pub category: ExternalPackageWarningCategoryValue,
+    pub code: ExternalPackageWarningCodeValue,
     pub count: usize,
 }
 
 impl From<DomainExternalPackageWarningGroup> for ExternalPackageWarningGroupResult {
     fn from(value: DomainExternalPackageWarningGroup) -> Self {
         Self {
-            category: value.category,
-            code: value.code,
+            category: ExternalPackageWarningCategoryValue::from(value.category),
+            code: ExternalPackageWarningCodeValue::from(value.code),
             count: value.count,
         }
     }
@@ -1746,8 +1746,8 @@ impl From<DomainExternalPackageWarningGroup> for ExternalPackageWarningGroupResu
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalPackageWarningResult {
-    pub category: ExternalPackageWarningCategory,
-    pub code: ExternalPackageWarningCode,
+    pub category: ExternalPackageWarningCategoryValue,
+    pub code: ExternalPackageWarningCodeValue,
     pub source_path: String,
     pub message: String,
 }
@@ -1755,8 +1755,8 @@ pub struct ExternalPackageWarningResult {
 impl From<DomainExternalPackageWarning> for ExternalPackageWarningResult {
     fn from(value: DomainExternalPackageWarning) -> Self {
         Self {
-            category: value.category,
-            code: value.code,
+            category: ExternalPackageWarningCategoryValue::from(value.category),
+            code: ExternalPackageWarningCodeValue::from(value.code),
             source_path: value.source_path,
             message: value.message,
         }

@@ -351,7 +351,7 @@ mod tests {
 
     use super::*;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
-    use crate::core::bundle::{ExternalPackageWarningCategory, ExternalPackageWarningCode};
+    use crate::core::app::{ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue};
 
     #[test]
     fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {
@@ -436,14 +436,14 @@ mod tests {
     fn format_external_package_warnings_renders_groups_and_details() {
         let warnings = vec![
             ExternalPackageWarningResult {
-                category: ExternalPackageWarningCategory::Addon,
-                code: ExternalPackageWarningCode::AddonRootNotDetected,
+                category: ExternalPackageWarningCategoryValue::Addon,
+                code: ExternalPackageWarningCodeValue::AddonRootNotDetected,
                 source_path: "AuthorUI/Interface/AddOns/BrokenAddon/README.txt".to_string(),
                 message: "ignored addon entry".to_string(),
             },
             ExternalPackageWarningResult {
-                category: ExternalPackageWarningCategory::Wtf,
-                code: ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
+                category: ExternalPackageWarningCategoryValue::Wtf,
+                code: ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables,
                 source_path: "AuthorUI/WTF/Account/SavedVariables/Broken.lua".to_string(),
                 message: "unsupported wtf entry".to_string(),
             },
@@ -454,13 +454,13 @@ mod tests {
             wtf_warning_count: 1,
             warning_groups: vec![
                 crate::core::app::ExternalPackageWarningGroupResult {
-                    category: ExternalPackageWarningCategory::Addon,
-                    code: ExternalPackageWarningCode::AddonRootNotDetected,
+                    category: ExternalPackageWarningCategoryValue::Addon,
+                    code: ExternalPackageWarningCodeValue::AddonRootNotDetected,
                     count: 1,
                 },
                 crate::core::app::ExternalPackageWarningGroupResult {
-                    category: ExternalPackageWarningCategory::Wtf,
-                    code: ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
+                    category: ExternalPackageWarningCategoryValue::Wtf,
+                    code: ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables,
                     count: 1,
                 },
             ],

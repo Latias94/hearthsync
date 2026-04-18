@@ -246,6 +246,9 @@ Make the CLI a thin consumer of reusable core services and tasks.
 - the same shared app-type layer now also owns bundle and external-package planning enums for apply
   actions, apply groups, WTF scopes, helper strategy, and resource policies, so app plan DTOs stop
   leaking those domain enum definitions directly
+- external-package warning payloads now also flow through app-owned warning category and warning
+  code enums, so GUI-facing diagnostics no longer treat bundle-domain warning enums as frontend
+  contract types
 - `core::app::InstallationService` now exposes scan, inspect, and resolve, `AppRuntime` can override installation scan roots plus host-platform policy, and CLI installation entrypoints now reach install discovery through the app service layer instead of calling `core::install` directly
 - CLI handlers that need multiple capabilities now construct them from `core::app::HearthSyncApp`
   instead of instantiating unrelated service facades independently, and direct install discovery

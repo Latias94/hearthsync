@@ -35,6 +35,6 @@ pub use request::{
 pub use response::*;
 pub use runtime::{AppRuntime, SharedAddonProvider};
 pub use types::{
-    ApplyActionValue, ApplyGroupValue, BackupGroupValue, HelperStrategyValue,
-    ResourceApplyPolicyValue, WtfScopeValue,
+    ApplyActionValue, ApplyGroupValue, BackupGroupValue, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue, HelperStrategyValue, ResourceApplyPolicyValue, WtfScopeValue,
 };

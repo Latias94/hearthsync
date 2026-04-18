@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::core::backup::BackupGroup as DomainBackupGroup;
 use crate::core::bundle::{
     ApplyAction as DomainApplyAction, ApplyGroup as DomainApplyGroup,
+    ExternalPackageWarningCategory as DomainExternalPackageWarningCategory,
+    ExternalPackageWarningCode as DomainExternalPackageWarningCode,
     HelperStrategy as DomainHelperStrategy, WtfScope as DomainWtfScope,
 };
 use crate::core::manifest::ResourceApplyPolicy as DomainResourceApplyPolicy;
@@ -157,6 +159,76 @@ impl From<DomainResourceApplyPolicy> for ResourceApplyPolicyValue {
             DomainResourceApplyPolicy::Mirror => Self::Mirror,
             DomainResourceApplyPolicy::ReplaceSelected => Self::ReplaceSelected,
             DomainResourceApplyPolicy::Preserve => Self::Preserve,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageWarningCategoryValue {
+    Addon,
+    Wtf,
+}
+
+impl ExternalPackageWarningCategoryValue {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Addon => "addon",
+            Self::Wtf => "wtf",
+        }
+    }
+}
+
+impl From<DomainExternalPackageWarningCategory> for ExternalPackageWarningCategoryValue {
+    fn from(value: DomainExternalPackageWarningCategory) -> Self {
+        match value {
+            DomainExternalPackageWarningCategory::Addon => Self::Addon,
+            DomainExternalPackageWarningCategory::Wtf => Self::Wtf,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageWarningCodeValue {
+    AddonRootNotDetected,
+    UnsupportedWtfLayout,
+    UnsupportedWtfRootSavedVariables,
+    WtfAccountPathWithoutFile,
+    WtfSavedVariablesPathWithoutFile,
+    UnsupportedWtfNestedAccountLayout,
+}
+
+impl ExternalPackageWarningCodeValue {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::AddonRootNotDetected => "addon_root_not_detected",
+            Self::UnsupportedWtfLayout => "unsupported_wtf_layout",
+            Self::UnsupportedWtfRootSavedVariables => "unsupported_wtf_root_savedvariables",
+            Self::WtfAccountPathWithoutFile => "wtf_account_path_without_file",
+            Self::WtfSavedVariablesPathWithoutFile => "wtf_savedvariables_path_without_file",
+            Self::UnsupportedWtfNestedAccountLayout => "unsupported_wtf_nested_account_layout",
+        }
+    }
+}
+
+impl From<DomainExternalPackageWarningCode> for ExternalPackageWarningCodeValue {
+    fn from(value: DomainExternalPackageWarningCode) -> Self {
+        match value {
+            DomainExternalPackageWarningCode::AddonRootNotDetected => Self::AddonRootNotDetected,
+            DomainExternalPackageWarningCode::UnsupportedWtfLayout => Self::UnsupportedWtfLayout,
+            DomainExternalPackageWarningCode::UnsupportedWtfRootSavedVariables => {
+                Self::UnsupportedWtfRootSavedVariables
+            }
+            DomainExternalPackageWarningCode::WtfAccountPathWithoutFile => {
+                Self::WtfAccountPathWithoutFile
+            }
+            DomainExternalPackageWarningCode::WtfSavedVariablesPathWithoutFile => {
+                Self::WtfSavedVariablesPathWithoutFile
+            }
+            DomainExternalPackageWarningCode::UnsupportedWtfNestedAccountLayout => {
+                Self::UnsupportedWtfNestedAccountLayout
+            }
         }
     }
 }
