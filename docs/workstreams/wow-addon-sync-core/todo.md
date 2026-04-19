@@ -144,6 +144,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: CLI service construction and installation-target resolution now share one
     `cli::app_support` helper, so command handlers no longer duplicate `ResolveInstallationRequest`
     assembly or drift on which app boundary they should enter through.
+    Current cleanup: addon-lock CLI output now shares formatter helpers under `cli::output`, so
+    repeated diff/verify/apply package rendering stays at the presentation edge instead of being
+    copied across command handlers.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access are now
     crate-visible only, so external callers stay on stable direct/task entrypoints instead of
     treating the stable boundary as another service factory.

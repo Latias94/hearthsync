@@ -196,6 +196,9 @@ desktop work.
 - CLI command handlers now share one `cli::app_support` entry helper for service construction and
   installation resolution, reducing duplicate app-boundary glue around both stable and extension
   flows
+- addon-lock CLI output now shares formatter helpers in `cli::output`, keeping command handlers
+  focused on app orchestration while repeated diff/verify/apply text rendering logic lives at the
+  presentation edge
 - raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
   the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
   service-factory-style API
