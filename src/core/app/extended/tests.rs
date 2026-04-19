@@ -12,7 +12,7 @@ use crate::core::app::{
 };
 
 #[test]
-fn hearthsync_app_builds_services_with_shared_runtime() {
+fn extended_app_services_builds_services_with_shared_runtime() {
     let temp = tempdir().expect("temp dir");
     let scan_root = temp.path().join("scan-root");
     let backup_dir = temp.path().join("backups");
@@ -23,7 +23,7 @@ fn hearthsync_app_builds_services_with_shared_runtime() {
         .with_default_backup_dir(Some(backup_dir.clone()))
         .with_default_bundle_output_dir(Some(bundle_dir.clone()));
 
-    let app = HearthSyncApp::with_runtime(runtime);
+    let app = ExtendedAppServices::with_runtime(runtime);
     let stable = app.stable();
 
     assert_eq!(
@@ -64,7 +64,7 @@ fn hearthsync_app_builds_services_with_shared_runtime() {
 }
 
 #[test]
-fn hearthsync_app_exposes_first_wave_stable_services() {
+fn extended_app_services_exposes_first_wave_stable_services() {
     let temp = tempdir().expect("temp dir");
     let backup_dir = temp.path().join("backups");
     let bundle_dir = temp.path().join("bundles");
@@ -73,7 +73,7 @@ fn hearthsync_app_exposes_first_wave_stable_services() {
         .with_default_backup_dir(Some(backup_dir.clone()))
         .with_default_bundle_output_dir(Some(bundle_dir.clone()));
 
-    let app = HearthSyncApp::with_runtime(runtime);
+    let app = ExtendedAppServices::with_runtime(runtime);
     let stable = app.stable();
 
     assert_eq!(stable.runtime().host_platform(), HostPlatformValue::MacOs);
@@ -92,11 +92,11 @@ fn hearthsync_app_exposes_first_wave_stable_services() {
 }
 
 #[test]
-fn hearthsync_app_exposes_runtime_capabilities_as_app_owned_value() {
+fn extended_app_services_exposes_runtime_capabilities_as_app_owned_value() {
     let runtime = AppRuntime::new()
         .with_host_platform(HostPlatformValue::MacOs)
         .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal);
-    let app = HearthSyncApp::with_runtime(runtime);
+    let app = ExtendedAppServices::with_runtime(runtime);
 
     assert_eq!(
         app.stable().capabilities(),
@@ -117,7 +117,7 @@ fn hearthsync_app_exposes_runtime_capabilities_as_app_owned_value() {
 }
 
 #[test]
-fn hearthsync_app_stable_bridge_uses_shared_runtime_for_installation_flows() {
+fn extended_app_services_stable_bridge_uses_shared_runtime_for_installation_flows() {
     let temp = tempdir().expect("temp dir");
     let product_root = temp.path().join("World of Warcraft");
     let flavor_root = product_root.join("_retail_");
@@ -130,7 +130,7 @@ fn hearthsync_app_stable_bridge_uses_shared_runtime_for_installation_flows() {
     )
     .expect("config");
 
-    let app = HearthSyncApp::with_runtime(
+    let app = ExtendedAppServices::with_runtime(
         AppRuntime::new()
             .with_host_platform(HostPlatformValue::MacOs)
             .with_install_scan_roots(Some(vec![product_root.clone()])),

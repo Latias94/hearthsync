@@ -130,13 +130,16 @@ ways that a future frontend can depend on without learning internal domain seams
   and external-package flows doing so. `StableAppServices` now owns the first-wave stable direct/
     task surface for installation, addon, bundle, external-package, and backup flows, so future GUI
     work has one explicit stable app contract for both direct results and long-running task
-    behavior. `HearthSyncApp` remains available as the broader extension root for addon-index,
+    behavior. `ExtendedAppServices` remains available as the broader extension root for addon-index,
     addon-lock, and bundle-addon-lock operations that are still outside that stable wave.
-    Current cleanup: `HearthSyncApp` now composes the stable boundary explicitly instead of
+    Current cleanup: `ExtendedAppServices` now composes the stable boundary explicitly instead of
     inheriting it through implicit `Deref` compatibility, which keeps stable and non-stable app
     promises visible at call sites.
+    Current cleanup: the broader non-stable app root is now named `ExtendedAppServices`, so
+    callers no longer infer from the old `HearthSyncApp` name that it is the default stable
+    frontend entrypoint.
     Current cleanup: stable CLI handlers now construct `StableAppServices` directly for
-    installation/addon/backup/bundle/external-package flows, while `HearthSyncApp` remains the
+    installation/addon/backup/bundle/external-package flows, while `ExtendedAppServices` remains the
     fuller root only for less-stable addon-index/addon-lock/bundle-addon-lock operations.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access are now
     crate-visible only, so external callers stay on stable direct/task entrypoints instead of
@@ -147,7 +150,7 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: raw `runtime()` access on individual app services is now test-only, so app
     runtime wiring stays an internal assembly concern rather than another public extension seam.
     Current cleanup: internal `*Service` implementations are no longer publicly re-exported from
-    `core::app`, so external callers naturally converge on `HearthSyncApp` / `StableAppServices`
+    `core::app`, so external callers naturally converge on `ExtendedAppServices` / `StableAppServices`
     instead of bypassing the intended app-owned boundary.
     Current cleanup: internal service convenience constructors now stay test-only as well, so the
     remaining production-facing entrypoints are the app roots rather than implementation helpers.
@@ -184,7 +187,7 @@ ways that a future frontend can depend on without learning internal domain seams
     submodules instead of interleaving fixtures with production code, which makes the stable app
     boundary easier to review while keeping app-level regression coverage intact.
     Current cleanup: runtime path/default projection helpers are crate-internal again, and
-    `HearthSyncApp` now exposes an explicit `stable()` bridge instead of implicit `Deref`
+    `ExtendedAppServices` now exposes an explicit `stable()` bridge instead of implicit `Deref`
     compatibility with the stable app boundary.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
@@ -212,7 +215,7 @@ ways that a future frontend can depend on without learning internal domain seams
   boundary. Default provider cache/retry configuration now uses app-owned
   `AddonProviderOptionsValue` and `AddonProviderRetryPolicyValue`, custom provider injection is
   crate-internal, and helper strategy lives on runtime instead of bundle-domain plan DTOs.
-  `AppRuntime`, `HearthSyncApp`, and `StableAppServices` now expose one app-owned
+  `AppRuntime`, `ExtendedAppServices`, and `StableAppServices` now expose one app-owned
   `AppRuntimeCapabilitiesValue` snapshot so frontend callers can read provider/helper capability
   state without inferring it from ad hoc `Option` semantics or planner details. Any future
   non-native helper capability should extend that runtime-owned contract rather than reappearing as
@@ -220,7 +223,7 @@ ways that a future frontend can depend on without learning internal domain seams
 
 Exit criteria:
 
-- `core::app::StableAppServices` is the credible stable frontend root, while `HearthSyncApp`
+- `core::app::StableAppServices` is the credible stable frontend root, while `ExtendedAppServices`
   remains the explicit extension root for less-stable app operations
 - CLI and future `egui` code can depend on the same task and service contracts
 

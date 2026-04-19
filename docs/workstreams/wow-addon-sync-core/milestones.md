@@ -129,12 +129,12 @@ desktop work.
 
 ### Current Notes
 
-- the project already has the right direction: `StableAppServices`, `HearthSyncApp`,
+- the project already has the right direction: `StableAppServices`, `ExtendedAppServices`,
   `AppRuntime`, and app-owned DTOs
 - the remaining work is about contract ownership and stability, not about inventing another façade layer
 - the first-wave GUI-stable service set is now explicit: installation, addon, bundle,
   external-package, and backup services
-- `HearthSyncApp` now composes a dedicated stable-service boundary so future frontend work does
+- `ExtendedAppServices` now composes a dedicated stable-service boundary so future frontend work does
   not need to treat addon-index and addon-lock as equally stable day-one contracts
 - the first shared app-owned input value is now explicit too: resolved installations flow through
   one reusable app value object instead of leaking domain `DetectedFlavorInstallation` through app
@@ -178,7 +178,7 @@ desktop work.
   planner boundary
 - runtime capability state is now also exposed through one app-owned `AppRuntimeCapabilitiesValue`
   snapshot, so frontend callers can inspect provider/helper mode from `AppRuntime`,
-  `HearthSyncApp`, or `StableAppServices` without reading planner details or inferring custom
+  `ExtendedAppServices`, or `StableAppServices` without reading planner details or inferring custom
   provider injection from optional fields
 - bundle and external-package app responses now build from crate-internal domain projection helpers
   instead of public `From<domain>` trait impls, reducing the stable app boundary's visible domain
@@ -188,20 +188,22 @@ desktop work.
   conversion traits for these main response payloads either
 - `StableAppServices` now exposes the first-wave stable direct/task entrypoints, so the explicit
   GUI-stable boundary is a real stable frontend contract instead of only a named service container
-- `HearthSyncApp` now focuses on the less-stable addon-index, addon-lock, and bundle-addon-lock
+- `ExtendedAppServices` now focuses on the less-stable addon-index, addon-lock, and bundle-addon-lock
   operations while composing `StableAppServices` explicitly for shared runtime policy
 - stable CLI handlers now construct `StableAppServices` directly for installation/addon/backup/
-  bundle/external-package flows, leaving `HearthSyncApp` focused on the less-stable addon-index,
+  bundle/external-package flows, leaving `ExtendedAppServices` focused on the less-stable addon-index,
   addon-lock, and bundle-addon-lock entrypoints that still sit outside the first stable wave
 - raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
   the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
   service-factory-style API
-- `HearthSyncApp` now composes `StableAppServices` through an explicit stable bridge instead of
+- `ExtendedAppServices` now composes `StableAppServices` through an explicit stable bridge instead of
   `Deref` compatibility, so the app root no longer masquerades as the stable surface by accident
+- the broader non-stable app root is now named `ExtendedAppServices`, which makes its role as an
+  extension boundary clearer than the previous `HearthSyncApp` name
 - raw `runtime()` access on individual app services is now test-only, so runtime wiring is kept as
   an internal assembly detail instead of a public extension seam
 - internal `*Service` implementation types are now crate-only re-exports, so public consumers are
-  steered toward `HearthSyncApp` / `StableAppServices` instead of depending on internal app wiring
+  steered toward `ExtendedAppServices` / `StableAppServices` instead of depending on internal app wiring
 - internal service convenience constructors are now test-only, so production assembly routes
   through the explicit app roots instead of scattered implementation helpers
 - request-side `apply_runtime_defaults()` helpers are now crate-only, so runtime default projection
@@ -226,10 +228,10 @@ desktop work.
   owned by the install domain, while CLI-only display slugs remain crate-internal
 - large `core::app` modules now keep regression tests in sibling `*/tests.rs` files, so
   production contract/service code is easier to review without weakening app-layer coverage
-- runtime default/path projection helpers are crate-visible only again, and `HearthSyncApp`
+- runtime default/path projection helpers are crate-visible only again, and `ExtendedAppServices`
   now exposes an explicit stable bridge instead of `Deref<Target = StableAppServices>`
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
-  treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
+  treat `ExtendedAppServices` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers

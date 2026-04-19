@@ -271,7 +271,7 @@ Prepare the core for a future frontend.
 ### Current Notes
 
 - stable CLI handlers that need shared runtime policy now construct `core::app::StableAppServices`,
-  while addon-index/addon-lock/bundle-addon-lock commands still use `core::app::HearthSyncApp`
+  while addon-index/addon-lock/bundle-addon-lock commands still use `core::app::ExtendedAppServices`
   for the less-stable app surface
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers

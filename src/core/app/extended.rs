@@ -2,11 +2,11 @@ use super::{AddonIndexService, AddonLockService, AppRuntime, StableAppServices};
 use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
-pub struct HearthSyncApp {
+pub struct ExtendedAppServices {
     stable: StableAppServices,
 }
 
-impl HearthSyncApp {
+impl ExtendedAppServices {
     pub fn new() -> Self {
         Self::default()
     }

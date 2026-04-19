@@ -3,7 +3,7 @@ mod addon_index;
 mod addon_lock;
 mod backup;
 mod bundle;
-mod client;
+mod extended;
 mod external_package;
 mod install;
 mod request;
@@ -21,7 +21,7 @@ pub(crate) use addon_index::AddonIndexService;
 pub(crate) use addon_lock::AddonLockService;
 pub(crate) use backup::BackupService;
 pub(crate) use bundle::BundleService;
-pub use client::HearthSyncApp;
+pub use extended::ExtendedAppServices;
 pub(crate) use external_package::ExternalPackageService;
 pub(crate) use install::InstallationService;
 pub use request::{

@@ -1,13 +1,13 @@
 use super::BundleCommands;
 use super::output::{render, render_addon_lock_plan_summary};
 use crate::core::app::{
-    ApplyBundleAddonLockAppRequest, HearthSyncApp, PlanBundleAddonLockRequest,
+    ApplyBundleAddonLockAppRequest, ExtendedAppServices, PlanBundleAddonLockRequest,
     ResolveInstallationRequest,
 };
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = ExtendedAppServices::new();
 
     match command {
         BundleCommands::AddonPlan {

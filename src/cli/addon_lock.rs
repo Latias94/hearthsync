@@ -1,14 +1,14 @@
 use super::AddonLockCommands;
 use super::output::{render, render_addon_lock_plan_summary};
 use crate::core::app::{
-    ApplyAddonLockAppRequest, DiffAddonLockRequest, HearthSyncApp, InspectAddonLockRequest,
+    ApplyAddonLockAppRequest, DiffAddonLockRequest, ExtendedAppServices, InspectAddonLockRequest,
     PlanAddonLockSyncRequest, ResolveInstallationRequest, VerifyAddonLockRequest,
     WriteAddonLockRequest,
 };
 use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = ExtendedAppServices::new();
 
     match command {
         AddonLockCommands::Inspect { install, flavor } => {

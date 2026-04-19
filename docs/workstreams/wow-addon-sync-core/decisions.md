@@ -174,7 +174,7 @@ The first stable top-level reusable API surface is `core::app::StableAppServices
 CLI and future desktop code should enter the stable installation, addon, bundle,
 external-package, and backup flows through that shared app boundary instead of treating domain
 install helpers as frontend-facing public API.
-`HearthSyncApp` remains the broader app root for less-stable addon-index, addon-lock, and related
+`ExtendedAppServices` remains the broader app root for less-stable addon-index, addon-lock, and related
 extension flows that should not be part of the first stable contract wave.
 
 ### Consequences
@@ -184,7 +184,7 @@ extension flows that should not be part of the first stable contract wave.
 - `core::install::{scan_installations, inspect_installation, resolve_installation}` can move to
   crate-internal support status while the stable installation contract lives under
   `core::app::StableAppServices`
-- callers that truly need addon-index or addon-lock behavior can opt into `HearthSyncApp`
+- callers that truly need addon-index or addon-lock behavior can opt into `ExtendedAppServices`
   explicitly instead of inheriting those stability assumptions by default
 - future `egui` work can start from one explicit application root instead of a loose set of
   unrelated façades
@@ -418,7 +418,7 @@ the first-wave GUI-stable contract yet.
   external-package, and backup flows
 - advanced curation and reproducibility flows can continue evolving without forcing premature
   stability promises on addon-index and addon-lock contracts
-- `HearthSyncApp` should expose an explicit code boundary for the stable service set instead of
+- `ExtendedAppServices` should expose an explicit code boundary for the stable service set instead of
   relying on documentation alone
 - `StableAppServices` should expose explicit direct and task entrypoints for that stable service set
   so the GUI-stable boundary is a real callable contract, not just a container of lower-level
@@ -739,7 +739,7 @@ capability contract instead of a mix of ad hoc getters, optional provider-option
 planner-projected details.
 
 `core::app::AppRuntime` now exposes `AppRuntimeCapabilitiesValue`, and the same snapshot is also
-available from `HearthSyncApp` and `StableAppServices`.
+available from `ExtendedAppServices` and `StableAppServices`.
 That snapshot owns:
 
 - provider mode: configured default provider options vs. internal custom provider
@@ -754,7 +754,7 @@ That snapshot owns:
 - future non-native helper integration can extend one runtime-owned capability contract instead of
   surfacing first through planner DTOs or service-local composition details
 
-## ADR-034: HearthSyncApp Exposes Direct Frontend Entry Points
+## ADR-034: ExtendedAppServices Exposes Explicit Extension Entry Points
 
 ### Status
 
@@ -762,11 +762,11 @@ Accepted on 2026-04-19
 
 ### Decision
 
-`HearthSyncApp` should not remain only a service factory, but it also should not silently become
+`ExtendedAppServices` should not remain only a service factory, but it also should not silently become
 the stable API surface through implicit compatibility behavior.
 
 The stable installation/addon/bundle/external-package/backup contract belongs on
-`StableAppServices`. `HearthSyncApp` should compose that boundary explicitly and add the
+`StableAppServices`. `ExtendedAppServices` should compose that boundary explicitly and add the
 less-stable addon-index, addon-lock, and bundle-addon-lock entrypoints on top.
 
 When callers need both surfaces, they should cross the boundary intentionally through an explicit
@@ -776,7 +776,7 @@ stable bridge instead of relying on `Deref`-style implicit forwarding.
 
 - stable CLI and future `egui` callers converge on `StableAppServices` as the default reusable
   contract instead of picking up addon-index/addon-lock stability by accident
-- `HearthSyncApp` remains available as the broader extension root when advanced reproducibility or
+- `ExtendedAppServices` remains available as the broader extension root when advanced reproducibility or
   curation workflows are explicitly needed
 - composition between the two boundaries is now visible in code review, which makes API stability
   promises easier to reason about than implicit `Deref` forwarding

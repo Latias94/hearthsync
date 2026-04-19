@@ -1,13 +1,13 @@
 use super::AddonIndexCommands;
 use super::output::render;
 use crate::core::app::{
-    HearthSyncApp, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
+    ExtendedAppServices, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
     ResolveInstallationRequest, UpdateAddonIndexAppRequest,
 };
 use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = ExtendedAppServices::new();
 
     match command {
         AddonIndexCommands::Inspect { file } => {
