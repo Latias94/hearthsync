@@ -8,8 +8,6 @@ use crate::core::error::AppResult;
 
 pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.backups();
-    let installation_service = app.installations();
 
     match command {
         BackupCommands::Create {
@@ -17,11 +15,11 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             flavor,
             output,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let backup = service.create(CreateBackupAppRequest {
+            let backup = app.create_backup(CreateBackupAppRequest {
                 installation,
                 output_path: output,
                 groups: vec![
@@ -47,7 +45,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             })?;
         }
         BackupCommands::List { dir } => {
-            let backups = service.list(ListBackupsRequest { backup_dir: dir })?;
+            let backups = app.list_backups(ListBackupsRequest { backup_dir: dir })?;
             render(json, &backups, |item| {
                 if item.entries.is_empty() {
                     format!(
@@ -89,11 +87,11 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             id,
             dir,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let restored = service.restore(RestoreBackupAppRequest {
+            let restored = app.restore_backup(RestoreBackupAppRequest {
                 installation,
                 archive_path: archive,
                 backup_id: id,

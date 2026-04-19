@@ -14,12 +14,10 @@ pub(super) fn handle_external_package_command(
     command: ExternalPackageCommands,
 ) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.external_packages();
-    let installation_service = app.installations();
 
     match command {
         ExternalPackageCommands::Inspect { source } => {
-            let analysis = service.analyze(AnalyzeExternalPackageAppRequest {
+            let analysis = app.analyze_external_package(AnalyzeExternalPackageAppRequest {
                 source_path: source,
             })?;
             render(json, &analysis, |item| {
@@ -86,7 +84,7 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
@@ -98,7 +96,7 @@ pub(super) fn handle_external_package_command(
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan = service.plan_apply(PlanExternalPackageApplyAppRequest {
+            let plan = app.plan_external_package_apply(PlanExternalPackageApplyAppRequest {
                 external_package: build_external_package_bundle_request(bundle_options),
                 installation,
                 apply_mappings,
@@ -160,7 +158,7 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
@@ -172,7 +170,7 @@ pub(super) fn handle_external_package_command(
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = service.apply(ApplyExternalPackageAppRequest {
+            let result = app.apply_external_package(ApplyExternalPackageAppRequest {
                 external_package: build_external_package_bundle_request(bundle_options),
                 installation,
                 dry_run,

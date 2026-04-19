@@ -124,8 +124,12 @@ ways that a future frontend can depend on without learning internal domain seams
   `apply_runtime_defaults` instead of being split across private service-local `normalize_*`
   helpers. This closes a real behavior gap too: addon, addon-index, and addon-lock mutation
   services now honor the shared runtime default backup directory instead of only bundle, backup,
-  and external-package flows doing so. The remaining work in this area is narrower and mostly about
-  higher-level orchestration ownership rather than scattered path/default patching.
+  and external-package flows doing so. `HearthSyncApp` now also exposes direct frontend entrypoints
+  for installation, addon, bundle, external-package, backup, addon-index, and addon-lock direct
+  operations, so CLI no longer needs to compose service selection and installation resolution
+  manually around the app boundary. The remaining work in this area is narrower and mostly about
+  service-internal policy ownership rather than scattered path/default patching or root-level
+  orchestration gaps.
 - [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
   Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls

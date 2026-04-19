@@ -8,12 +8,11 @@ use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.addon_indexes();
-    let installation_service = app.installations();
 
     match command {
         AddonIndexCommands::Inspect { file } => {
-            let inspection = service.inspect(InspectAddonIndexRequest { index_path: file })?;
+            let inspection =
+                app.inspect_addon_index(InspectAddonIndexRequest { index_path: file })?;
             render(json, &inspection, |item| {
                 let packages = item
                     .packages
@@ -48,11 +47,11 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.install(InstallAddonIndexAppRequest {
+            let result = app.install_addon_index(InstallAddonIndexAppRequest {
                 installation,
                 index_path: file,
                 name,
@@ -105,11 +104,11 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             dry_run,
             backup_output,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.update(UpdateAddonIndexAppRequest {
+            let result = app.update_addon_index(UpdateAddonIndexAppRequest {
                 installation,
                 index_path: file,
                 name,

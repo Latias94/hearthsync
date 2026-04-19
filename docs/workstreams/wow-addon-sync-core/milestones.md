@@ -177,6 +177,9 @@ desktop work.
 - installation, addon, backup, addon-index, addon-lock, and bundle-addon-lock app responses now
   follow the same rule too, so the remaining response boundary no longer advertises public domain
   conversion traits for these main response payloads either
+- `HearthSyncApp` now also exposes direct app-operation entrypoints for the flows the CLI actually
+  drives, so callers can stay on one frontend root instead of stitching together installation
+  resolution and per-service dispatch by hand
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers
 

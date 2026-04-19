@@ -8,8 +8,6 @@ use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.bundles();
-    let installation_service = app.installations();
 
     match command {
         BundleCommands::AddonPlan {
@@ -17,11 +15,11 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             install,
             flavor,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.plan_addon_lock(PlanBundleAddonLockRequest {
+            let result = app.plan_bundle_addon_lock(PlanBundleAddonLockRequest {
                 bundle_path: bundle,
                 installation,
             })?;
@@ -39,11 +37,11 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.apply_addon_lock(ApplyBundleAddonLockAppRequest {
+            let result = app.apply_bundle_addon_lock(ApplyBundleAddonLockAppRequest {
                 bundle_path: bundle,
                 installation,
                 backup_output_path: backup_output,

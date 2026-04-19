@@ -2,6 +2,7 @@ use super::{
     AddonIndexService, AddonLockService, AddonService, AppRuntime, AppRuntimeCapabilitiesValue,
     BackupService, BundleService, ExternalPackageService, InstallationService, StableAppServices,
 };
+use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
 pub struct HearthSyncApp {
@@ -23,6 +24,213 @@ impl HearthSyncApp {
 
     pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
         self.runtime.capabilities()
+    }
+
+    pub fn scan_installations(&self) -> AppResult<super::InstallationScanResult> {
+        self.installations().scan()
+    }
+
+    pub fn inspect_installation(
+        &self,
+        request: super::InspectInstallationRequest,
+    ) -> AppResult<super::InstallationInspectionResult> {
+        self.installations().inspect(request)
+    }
+
+    pub fn resolve_installation(
+        &self,
+        request: super::ResolveInstallationRequest,
+    ) -> AppResult<super::ResolvedInstallationValue> {
+        self.installations().resolve(request)
+    }
+
+    pub fn search_addons(
+        &self,
+        request: super::SearchAddonsRequest,
+    ) -> AppResult<super::AddonSearchCatalogResult> {
+        self.addons().search(request)
+    }
+
+    pub fn list_addons(
+        &self,
+        request: super::ListAddonsRequest,
+    ) -> AppResult<super::AddonInventoryResult> {
+        self.addons().list(request)
+    }
+
+    pub fn install_addon(
+        &self,
+        request: super::InstallAddonAppRequest,
+    ) -> AppResult<super::InstalledAddonPackageResult> {
+        self.addons().install(request)
+    }
+
+    pub fn update_addons(
+        &self,
+        request: super::UpdateAddonAppRequest,
+    ) -> AppResult<super::UpdatedAddonPackageResult> {
+        self.addons().update(request)
+    }
+
+    pub fn remove_addons(
+        &self,
+        request: super::RemoveAddonAppRequest,
+    ) -> AppResult<super::RemovedAddonPackageResult> {
+        self.addons().remove(request)
+    }
+
+    pub fn inspect_addon_index(
+        &self,
+        request: super::InspectAddonIndexRequest,
+    ) -> AppResult<super::AddonIndexInspectionResult> {
+        self.addon_indexes().inspect(request)
+    }
+
+    pub fn install_addon_index(
+        &self,
+        request: super::InstallAddonIndexAppRequest,
+    ) -> AppResult<super::AddonIndexInstallResult> {
+        self.addon_indexes().install(request)
+    }
+
+    pub fn update_addon_index(
+        &self,
+        request: super::UpdateAddonIndexAppRequest,
+    ) -> AppResult<super::AddonIndexUpdateResult> {
+        self.addon_indexes().update(request)
+    }
+
+    pub fn inspect_addon_lock(
+        &self,
+        request: super::InspectAddonLockRequest,
+    ) -> AppResult<super::AddonLockInspectionResult> {
+        self.addon_locks().inspect(request)
+    }
+
+    pub fn write_addon_lock(
+        &self,
+        request: super::WriteAddonLockRequest,
+    ) -> AppResult<super::AddonLockWriteResult> {
+        self.addon_locks().write(request)
+    }
+
+    pub fn diff_addon_locks(
+        &self,
+        request: super::DiffAddonLockRequest,
+    ) -> AppResult<super::AddonLockDiffResult> {
+        self.addon_locks().diff(request)
+    }
+
+    pub fn verify_addon_lock(
+        &self,
+        request: super::VerifyAddonLockRequest,
+    ) -> AppResult<super::AddonLockVerifyResult> {
+        self.addon_locks().verify(request)
+    }
+
+    pub fn plan_addon_lock_sync(
+        &self,
+        request: super::PlanAddonLockSyncRequest,
+    ) -> AppResult<super::AddonLockPlanResult> {
+        self.addon_locks().plan_sync(request)
+    }
+
+    pub fn apply_addon_lock_sync(
+        &self,
+        request: super::ApplyAddonLockAppRequest,
+    ) -> AppResult<super::AddonLockApplyResult> {
+        self.addon_locks().apply_sync(request)
+    }
+
+    pub fn create_backup(
+        &self,
+        request: super::CreateBackupAppRequest,
+    ) -> AppResult<super::CreatedBackupResult> {
+        self.backups().create(request)
+    }
+
+    pub fn list_backups(
+        &self,
+        request: super::ListBackupsRequest,
+    ) -> AppResult<super::BackupCatalogResult> {
+        self.backups().list(request)
+    }
+
+    pub fn restore_backup(
+        &self,
+        request: super::RestoreBackupAppRequest,
+    ) -> AppResult<super::RestoredBackupResult> {
+        self.backups().restore(request)
+    }
+
+    pub fn inspect_bundle(
+        &self,
+        request: super::InspectBundleRequest,
+    ) -> AppResult<super::BundleInspectionResult> {
+        self.bundles().inspect(request)
+    }
+
+    pub fn pack_bundle(
+        &self,
+        request: super::PackBundleAppRequest,
+    ) -> AppResult<super::CreatedBundleResult> {
+        self.bundles().pack(request)
+    }
+
+    pub fn plan_bundle_apply(
+        &self,
+        request: super::PlanBundleApplyRequest,
+    ) -> AppResult<super::BundleApplyPlanResult> {
+        self.bundles().plan_apply(request)
+    }
+
+    pub fn apply_bundle(
+        &self,
+        request: super::ApplyBundleAppRequest,
+    ) -> AppResult<super::BundleApplyResult> {
+        self.bundles().apply(request)
+    }
+
+    pub fn plan_bundle_addon_lock(
+        &self,
+        request: super::PlanBundleAddonLockRequest,
+    ) -> AppResult<super::BundleAddonLockPlanResult> {
+        self.bundles().plan_addon_lock(request)
+    }
+
+    pub fn apply_bundle_addon_lock(
+        &self,
+        request: super::ApplyBundleAddonLockAppRequest,
+    ) -> AppResult<super::BundleAddonLockApplyResult> {
+        self.bundles().apply_addon_lock(request)
+    }
+
+    pub fn analyze_external_package(
+        &self,
+        request: super::AnalyzeExternalPackageAppRequest,
+    ) -> AppResult<super::ExternalPackageAnalysisResult> {
+        self.external_packages().analyze(request)
+    }
+
+    pub fn create_external_package_bundle(
+        &self,
+        request: super::CreateExternalPackageBundleAppRequest,
+    ) -> AppResult<super::ExternalPackageBundleHandle> {
+        self.external_packages().create_bundle(request)
+    }
+
+    pub fn plan_external_package_apply(
+        &self,
+        request: super::PlanExternalPackageApplyAppRequest,
+    ) -> AppResult<super::ExternalPackageApplyPlanResult> {
+        self.external_packages().plan_apply(request)
+    }
+
+    pub fn apply_external_package(
+        &self,
+        request: super::ApplyExternalPackageAppRequest,
+    ) -> AppResult<super::ExternalPackageApplyResult> {
+        self.external_packages().apply(request)
     }
 
     pub fn stable_services(&self) -> StableAppServices {
@@ -60,12 +268,16 @@ impl HearthSyncApp {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::Path;
+
     use tempfile::tempdir;
 
     use super::*;
     use crate::core::app::{
         AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-        HelperStrategyValue, HostPlatformValue,
+        HealthStatusValue, HelperStrategyValue, HostPlatformValue, InspectInstallationRequest,
+        ResolveInstallationRequest, WowFlavorValue,
     };
 
     #[test]
@@ -164,6 +376,52 @@ mod tests {
                 },
                 helper_strategy: HelperStrategyValue::NativeRust,
             }
+        );
+    }
+
+    #[test]
+    fn hearthsync_app_direct_installation_entrypoints_use_shared_runtime() {
+        let temp = tempdir().expect("temp dir");
+        let product_root = temp.path().join("World of Warcraft");
+        let flavor_root = product_root.join("_retail_");
+
+        fs::create_dir_all(flavor_root.join("Interface").join("AddOns")).expect("addons dir");
+        fs::create_dir_all(flavor_root.join("WTF")).expect("wtf dir");
+        fs::write(
+            flavor_root.join("WTF").join("Config.wtf"),
+            "SET locale enUS",
+        )
+        .expect("config");
+
+        let app = HearthSyncApp::with_runtime(
+            AppRuntime::new()
+                .with_host_platform(HostPlatformValue::MacOs)
+                .with_install_scan_roots(Some(vec![product_root.clone()])),
+        );
+
+        let scanned = app.scan_installations().expect("scan installations");
+        let inspected = app
+            .inspect_installation(InspectInstallationRequest {
+                path: product_root.clone(),
+                flavor: Some(WowFlavorValue::Retail),
+            })
+            .expect("inspect installation");
+        let resolved = app
+            .resolve_installation(ResolveInstallationRequest {
+                path: product_root,
+                flavor: Some(WowFlavorValue::Retail),
+            })
+            .expect("resolve installation");
+
+        assert_eq!(scanned.installation_count, 1);
+        assert_eq!(scanned.installations[0].platform, HostPlatformValue::MacOs);
+        assert_eq!(inspected.installation.platform, HostPlatformValue::MacOs);
+        assert_eq!(inspected.health.status, HealthStatusValue::Warning);
+        assert_eq!(resolved.platform, HostPlatformValue::MacOs);
+        assert!(
+            resolved
+                .flavor_root
+                .ends_with(Path::new("World of Warcraft").join("_retail_"))
         );
     }
 }

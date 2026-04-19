@@ -7,8 +7,8 @@ use crate::core::error::AppResult;
 use crate::core::manifest::{example_manifest, load_manifest};
 
 pub(super) fn handle_scan(json: bool) -> AppResult<()> {
-    let service = HearthSyncApp::new().installations();
-    let installations = service.scan()?;
+    let app = HearthSyncApp::new();
+    let installations = app.scan_installations()?;
     render(json, &installations, |item| {
         if item.installations.is_empty() {
             "No World of Warcraft installations detected.".to_string()
@@ -34,8 +34,8 @@ pub(super) fn handle_inspect(
     install: PathBuf,
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
-    let service = HearthSyncApp::new().installations();
-    let inspection = service.inspect(InspectInstallationRequest {
+    let app = HearthSyncApp::new();
+    let inspection = app.inspect_installation(InspectInstallationRequest {
         path: install,
         flavor: flavor.map(Into::into),
     })?;
@@ -58,8 +58,8 @@ pub(super) fn handle_doctor(
     install: PathBuf,
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
-    let service = HearthSyncApp::new().installations();
-    let inspection = service.inspect(InspectInstallationRequest {
+    let app = HearthSyncApp::new();
+    let inspection = app.inspect_installation(InspectInstallationRequest {
         path: install,
         flavor: flavor.map(Into::into),
     })?;

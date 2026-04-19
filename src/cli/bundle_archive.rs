@@ -8,8 +8,6 @@ use crate::core::manifest::load_manifest;
 
 pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.bundles();
-    let installation_service = app.installations();
 
     match command {
         BundleCommands::Pack {
@@ -18,13 +16,13 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             manifest,
             output,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
             let manifest_base_dir = manifest.parent().map(|path| path.to_path_buf());
             let manifest = load_manifest(&manifest)?.into();
-            let bundle = service.pack(PackBundleAppRequest {
+            let bundle = app.pack_bundle(PackBundleAppRequest {
                 installation,
                 manifest,
                 output_path: output,
@@ -40,7 +38,7 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
             })?;
         }
         BundleCommands::Inspect { bundle } => {
-            let inspection = service.inspect(InspectBundleRequest {
+            let inspection = app.inspect_bundle(InspectBundleRequest {
                 bundle_path: bundle,
             })?;
             render(json, &inspection, |item| {

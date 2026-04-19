@@ -10,8 +10,6 @@ use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.bundles();
-    let installation_service = app.installations();
 
     match command {
         BundleCommands::Plan {
@@ -25,7 +23,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
@@ -37,7 +35,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan = service.plan_apply(PlanBundleApplyRequest {
+            let plan = app.plan_bundle_apply(PlanBundleApplyRequest {
                 bundle_path: bundle,
                 installation,
                 apply_mappings,
@@ -95,7 +93,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
@@ -107,7 +105,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = service.apply(ApplyBundleAppRequest {
+            let result = app.apply_bundle(ApplyBundleAppRequest {
                 bundle_path: bundle,
                 installation,
                 dry_run,

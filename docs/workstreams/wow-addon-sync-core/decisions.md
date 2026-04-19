@@ -746,3 +746,29 @@ That snapshot owns:
   work can share
 - future non-native helper integration can extend one runtime-owned capability contract instead of
   surfacing first through planner DTOs or service-local composition details
+
+## ADR-034: HearthSyncApp Exposes Direct Frontend Entry Points
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+`HearthSyncApp` should not remain only a service factory.
+
+The frontend root may still expose raw service accessors for advanced composition and specialized
+task entrypoints, but common direct app operations should also be callable from `HearthSyncApp`
+itself.
+
+That direct entry surface now covers the primary installation, addon, bundle, external-package, and
+backup flows, plus the current CLI-facing addon-index and addon-lock direct operations.
+
+### Consequences
+
+- CLI callers can stay on one app-root import surface instead of manually coordinating
+  `installations()` plus another service for routine flows
+- future `egui` code can start from `HearthSyncApp` as a credible frontend root and only drop down
+  to raw services when it actually needs task-specific or advanced composition seams
+- service accessors remain available, but they are now a secondary composition API instead of the
+  only practical entry path

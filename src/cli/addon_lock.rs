@@ -9,16 +9,14 @@ use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.addon_locks();
-    let installation_service = app.installations();
 
     match command {
         AddonLockCommands::Inspect { install, flavor } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let inspection = service.inspect(InspectAddonLockRequest { installation })?;
+            let inspection = app.inspect_addon_lock(InspectAddonLockRequest { installation })?;
             render(json, &inspection, |item| {
                 let packages = item
                     .packages
@@ -48,11 +46,11 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             })?;
         }
         AddonLockCommands::Write { install, flavor } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.write(WriteAddonLockRequest { installation })?;
+            let result = app.write_addon_lock(WriteAddonLockRequest { installation })?;
             render(json, &result, |item| {
                 if item.removed {
                     format!(
@@ -72,7 +70,7 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             left_file,
             right_file,
         } => {
-            let result = service.diff(DiffAddonLockRequest {
+            let result = app.diff_addon_locks(DiffAddonLockRequest {
                 left_lock_path: left_file,
                 right_lock_path: right_file,
             })?;
@@ -143,11 +141,11 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             flavor,
             file,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.verify(VerifyAddonLockRequest {
+            let result = app.verify_addon_lock(VerifyAddonLockRequest {
                 installation,
                 lock_path: file,
             })?;
@@ -238,11 +236,11 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             flavor,
             file,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.plan_sync(PlanAddonLockSyncRequest {
+            let result = app.plan_addon_lock_sync(PlanAddonLockSyncRequest {
                 installation,
                 lock_path: file,
             })?;
@@ -257,11 +255,11 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.apply_sync(ApplyAddonLockAppRequest {
+            let result = app.apply_addon_lock_sync(ApplyAddonLockAppRequest {
                 installation,
                 lock_path: file,
                 backup_output_path: backup_output,

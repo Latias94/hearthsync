@@ -8,8 +8,6 @@ use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> AppResult<()> {
     let app = HearthSyncApp::new();
-    let service = app.addons();
-    let installation_service = app.installations();
 
     match command {
         AddonCommands::Search {
@@ -18,11 +16,11 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             query,
             limit,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let results = service.search(SearchAddonsRequest {
+            let results = app.search_addons(SearchAddonsRequest {
                 installation,
                 query,
                 limit,
@@ -55,11 +53,11 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             })?;
         }
         AddonCommands::List { install, flavor } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let inventory = service.list(ListAddonsRequest { installation })?;
+            let inventory = app.list_addons(ListAddonsRequest { installation })?;
             render(json, &inventory, |item| {
                 let tracked = if item.tracked_packages.is_empty() {
                     "none".to_string()
@@ -106,11 +104,11 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             backup_output,
             replace_existing,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.install(InstallAddonAppRequest {
+            let result = app.install_addon(InstallAddonAppRequest {
                 installation,
                 source,
                 dry_run,
@@ -166,11 +164,11 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             dry_run,
             backup_output,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.update(UpdateAddonAppRequest {
+            let result = app.update_addons(UpdateAddonAppRequest {
                 installation,
                 name,
                 dry_run,
@@ -228,11 +226,11 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             dry_run,
             backup_output,
         } => {
-            let installation = installation_service.resolve(ResolveInstallationRequest {
+            let installation = app.resolve_installation(ResolveInstallationRequest {
                 path: install,
                 flavor: flavor.map(Into::into),
             })?;
-            let result = service.remove(RemoveAddonAppRequest {
+            let result = app.remove_addons(RemoveAddonAppRequest {
                 installation,
                 name,
                 dry_run,
