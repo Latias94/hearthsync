@@ -26,13 +26,13 @@ impl BackupService {
     }
 
     pub fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
-        let created = create_backup(self.normalize_backup_request(request).into())?;
+        let created = create_backup(request.apply_runtime_defaults(&self.runtime).into())?;
         Ok(CreatedBackupResult::from(created))
     }
 
     pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
-        let backup_dir = self.runtime.backup_dir_or_default(request.backup_dir);
-        let catalog = list_backups(backup_dir.as_deref())?;
+        let request = request.apply_runtime_defaults(&self.runtime);
+        let catalog = list_backups(request.backup_dir.as_deref())?;
         Ok(BackupCatalogResult::from(catalog))
     }
 
@@ -53,7 +53,7 @@ impl BackupService {
         TProgress: TaskProgressSink,
     {
         let restored = restore_backup_selection_task(
-            self.normalize_restore_request(request).into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;
@@ -82,22 +82,6 @@ impl BackupService {
         task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.restore_task(request, cancellation, progress)
         })
-    }
-
-    fn normalize_backup_request(
-        &self,
-        mut request: CreateBackupAppRequest,
-    ) -> CreateBackupAppRequest {
-        request.output_path = self.runtime.backup_output_or_default(request.output_path);
-        request
-    }
-
-    fn normalize_restore_request(
-        &self,
-        mut request: RestoreBackupAppRequest,
-    ) -> RestoreBackupAppRequest {
-        request.backup_dir = self.runtime.backup_dir_or_default(request.backup_dir);
-        request
     }
 }
 

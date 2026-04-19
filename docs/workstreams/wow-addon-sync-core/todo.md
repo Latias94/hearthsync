@@ -115,6 +115,13 @@ ways that a future frontend can depend on without learning internal domain seams
   rules, or installation-health state.
 - [ ] remove remaining thin-forwarder service behavior by moving real normalization and policy
   ownership into the app boundary
+  Current progress: runtime-backed default injection for backup directories, bundle output
+  directories, and author-package source platform now lives on app request contracts via
+  `apply_runtime_defaults` instead of being split across private service-local `normalize_*`
+  helpers. This closes a real behavior gap too: addon, addon-index, and addon-lock mutation
+  services now honor the shared runtime default backup directory instead of only bundle, backup,
+  and external-package flows doing so. The remaining work in this area is narrower and mostly about
+  higher-level orchestration ownership rather than scattered path/default patching.
 - [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
   Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls

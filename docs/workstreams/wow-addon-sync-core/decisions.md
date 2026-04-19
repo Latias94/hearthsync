@@ -554,3 +554,33 @@ express host defaults, selected installation flavor, or source compatibility met
 - this decision narrows later cleanup so the remaining `R3` work can focus on service behavior and
   runtime policy ownership instead of keeping `HostPlatform` and `WowFlavor` as ambient boundary
   leaks
+
+## ADR-027: Runtime-Backed Default Injection Belongs to App Request Contracts
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+When a frontend-facing app operation depends on runtime defaults such as backup destination,
+bundle output destination, or external-package source platform, that default injection should live
+on the app request contract rather than being reimplemented as scattered private normalization
+helpers in each service wrapper.
+
+This applies at least to:
+
+- addon, addon-index, and addon-lock mutation requests that can create backups
+- backup create/list/restore requests
+- bundle pack/apply requests
+- external-package bundle/create/plan/apply requests
+
+### Consequences
+
+- shared runtime defaults are now applied consistently across the app boundary, including addon,
+  addon-index, and addon-lock mutation flows that previously did not honor the default backup
+  directory
+- service wrappers become thinner in the right direction: they call app-owned request normalization
+  instead of each carrying fragmented path/default patching logic
+- remaining `R3` behavior cleanup can focus on orchestration ownership and capability boundaries
+  instead of repeating simple runtime default injection in multiple services

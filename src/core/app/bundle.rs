@@ -35,7 +35,7 @@ impl BundleService {
     }
 
     pub fn pack(&self, request: PackBundleAppRequest) -> AppResult<CreatedBundleResult> {
-        let bundle = pack_bundle(self.normalize_pack_request(request).into())?;
+        let bundle = pack_bundle(request.apply_runtime_defaults(&self.runtime).into())?;
         Ok(CreatedBundleResult::from(bundle))
     }
 
@@ -70,7 +70,8 @@ impl BundleService {
         &self,
         request: ApplyBundleAddonLockAppRequest,
     ) -> AppResult<BundleAddonLockApplyResult> {
-        let applied = apply_bundle_addon_lock(self.normalize_addon_lock_request(request).into())?;
+        let applied =
+            apply_bundle_addon_lock(request.apply_runtime_defaults(&self.runtime).into())?;
         Ok(BundleAddonLockApplyResult::from(applied))
     }
 
@@ -85,7 +86,7 @@ impl BundleService {
         TProgress: TaskProgressSink,
     {
         let applied = unpack_bundle_task(
-            self.normalize_unpack_request(request).into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;
@@ -114,31 +115,6 @@ impl BundleService {
         task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
-    }
-
-    fn normalize_pack_request(&self, mut request: PackBundleAppRequest) -> PackBundleAppRequest {
-        request.output_path = self.runtime.bundle_output_or_default(request.output_path);
-        request
-    }
-
-    fn normalize_unpack_request(
-        &self,
-        mut request: ApplyBundleAppRequest,
-    ) -> ApplyBundleAppRequest {
-        request.backup_output_path = self
-            .runtime
-            .backup_output_or_default(request.backup_output_path);
-        request
-    }
-
-    fn normalize_addon_lock_request(
-        &self,
-        mut request: ApplyBundleAddonLockAppRequest,
-    ) -> ApplyBundleAddonLockAppRequest {
-        request.backup_output_path = self
-            .runtime
-            .backup_output_or_default(request.backup_output_path);
-        request
     }
 }
 

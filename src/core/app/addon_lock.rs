@@ -79,7 +79,7 @@ impl AddonLockService {
     {
         let applied = apply_addon_lock_sync_task_with_provider(
             self.runtime.addon_provider(),
-            request.into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;

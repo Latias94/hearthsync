@@ -155,6 +155,9 @@ desktop work.
   the frontend-facing app boundary
 - long-running addon, bundle, external-package, addon-index, addon-lock, and backup app tasks now
   share one documented progress contract across direct, collected-progress, and callback entrypoints
+- runtime-backed backup/output/source-platform default injection now lives on shared app request
+  contracts, so addon, addon-index, addon-lock, backup, bundle, and external-package services no
+  longer each carry fragmented service-local normalization for those defaults
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers, plus explicit progress/capability ownership
 

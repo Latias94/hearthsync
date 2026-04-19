@@ -141,6 +141,13 @@ It should own:
 - task entrypoints, progress shapes, and cancellation expectations
 - orchestration rules that frontends should not rebuild locally
 
+Stable app request contracts should also own runtime-backed default injection where the caller-
+visible contract depends on it.
+Backup destination defaults, bundle output defaults, and external-package source-platform defaults
+should not be reimplemented ad hoc in each service wrapper or in CLI orchestration.
+Those defaults belong to the app boundary because they are part of how a frontend experiences the
+operation contract, not just an internal filesystem detail.
+
 ### Domain Boundary
 
 Domain modules remain responsible for WoW semantics:

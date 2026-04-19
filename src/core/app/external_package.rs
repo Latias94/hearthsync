@@ -80,7 +80,8 @@ impl ExternalPackageService {
         &self,
         request: CreateExternalPackageBundleAppRequest,
     ) -> AppResult<ExternalPackageBundleHandle> {
-        let bundle = create_external_package_bundle(self.normalize_bundle_request(request).into())?;
+        let bundle =
+            create_external_package_bundle(request.apply_runtime_defaults(&self.runtime).into())?;
         Ok(ExternalPackageBundleHandle::from(bundle))
     }
 
@@ -104,7 +105,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let plan = plan_external_package_apply_task(
-            self.normalize_plan_request(request).into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;
@@ -155,7 +156,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let applied = apply_external_package_task(
-            self.normalize_apply_request(request).into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;
@@ -184,37 +185,6 @@ impl ExternalPackageService {
         task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
             self.apply_task(request, cancellation, progress)
         })
-    }
-
-    fn normalize_bundle_request(
-        &self,
-        mut request: CreateExternalPackageBundleAppRequest,
-    ) -> CreateExternalPackageBundleAppRequest {
-        request.source_platform = Some(
-            self.runtime
-                .source_platform_or_host(request.source_platform),
-        );
-        request.output_path = self.runtime.bundle_output_or_default(request.output_path);
-        request
-    }
-
-    fn normalize_plan_request(
-        &self,
-        mut request: PlanExternalPackageApplyAppRequest,
-    ) -> PlanExternalPackageApplyAppRequest {
-        request.external_package = self.normalize_bundle_request(request.external_package);
-        request
-    }
-
-    fn normalize_apply_request(
-        &self,
-        mut request: ApplyExternalPackageAppRequest,
-    ) -> ApplyExternalPackageAppRequest {
-        request.external_package = self.normalize_bundle_request(request.external_package);
-        request.backup_output_path = self
-            .runtime
-            .backup_output_or_default(request.backup_output_path);
-        request
     }
 }
 

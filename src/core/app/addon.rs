@@ -61,7 +61,7 @@ impl AddonService {
     {
         let installed = install_addon_task_with_provider(
             self.runtime.addon_provider(),
-            request.into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;
@@ -110,7 +110,7 @@ impl AddonService {
     {
         let updated = update_addons_task_with_provider(
             self.runtime.addon_provider(),
-            request.into(),
+            request.apply_runtime_defaults(&self.runtime).into(),
             cancellation,
             progress,
         )?;
@@ -157,7 +157,11 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let removed = remove_addons_task(request.into(), cancellation, progress)?;
+        let removed = remove_addons_task(
+            request.apply_runtime_defaults(&self.runtime).into(),
+            cancellation,
+            progress,
+        )?;
         Ok(RemovedAddonPackageResult::from(removed))
     }
 

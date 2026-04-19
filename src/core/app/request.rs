@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use super::{
-    AddonPackageMetadataValue, BackupGroupValue, BundleApplyDefaultsValue,
+    AddonPackageMetadataValue, AppRuntime, BackupGroupValue, BundleApplyDefaultsValue,
     BundleApplyMappingsValue, BundleManifestValue, HostPlatformValue, ResolvedInstallationValue,
     WowFlavorValue,
 };
@@ -110,6 +110,13 @@ pub struct ApplyAddonLockAppRequest {
     pub source_overrides: Vec<AddonLockSourceOverrideRequest>,
 }
 
+impl ApplyAddonLockAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
+}
+
 impl From<ApplyAddonLockAppRequest> for DomainAddonLockApplyRequest {
     fn from(request: ApplyAddonLockAppRequest) -> Self {
         Self {
@@ -136,6 +143,13 @@ pub struct InstallAddonAppRequest {
     pub metadata: Option<AddonPackageMetadataValue>,
 }
 
+impl InstallAddonAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
+}
+
 impl From<InstallAddonAppRequest> for DomainInstallAddonRequest {
     fn from(request: InstallAddonAppRequest) -> Self {
         Self {
@@ -157,6 +171,13 @@ pub struct UpdateAddonAppRequest {
     pub backup_output_path: Option<PathBuf>,
 }
 
+impl UpdateAddonAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
+}
+
 impl From<UpdateAddonAppRequest> for DomainUpdateAddonRequest {
     fn from(request: UpdateAddonAppRequest) -> Self {
         Self {
@@ -174,6 +195,13 @@ pub struct RemoveAddonAppRequest {
     pub name: String,
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
+}
+
+impl RemoveAddonAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
 }
 
 impl From<RemoveAddonAppRequest> for DomainRemoveAddonRequest {
@@ -195,6 +223,13 @@ pub struct InstallAddonIndexAppRequest {
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,
+}
+
+impl InstallAddonIndexAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
 }
 
 impl From<InstallAddonIndexAppRequest> for DomainAddonIndexInstallRequest {
@@ -219,6 +254,13 @@ pub struct UpdateAddonIndexAppRequest {
     pub backup_output_path: Option<PathBuf>,
 }
 
+impl UpdateAddonIndexAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
+}
+
 impl From<UpdateAddonIndexAppRequest> for DomainAddonIndexUpdateRequest {
     fn from(request: UpdateAddonIndexAppRequest) -> Self {
         Self {
@@ -236,12 +278,26 @@ pub struct ListBackupsRequest {
     pub backup_dir: Option<PathBuf>,
 }
 
+impl ListBackupsRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CreateBackupAppRequest {
     pub installation: ResolvedInstallationValue,
     pub output_path: Option<PathBuf>,
     pub groups: Vec<BackupGroupValue>,
     pub label: Option<String>,
+}
+
+impl CreateBackupAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.output_path = runtime.backup_output_or_default(self.output_path);
+        self
+    }
 }
 
 impl From<CreateBackupAppRequest> for DomainBackupRequest {
@@ -261,6 +317,13 @@ pub struct RestoreBackupAppRequest {
     pub archive_path: Option<PathBuf>,
     pub backup_id: Option<String>,
     pub backup_dir: Option<PathBuf>,
+}
+
+impl RestoreBackupAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
+        self
+    }
 }
 
 impl From<RestoreBackupAppRequest> for DomainRestoreBackupRequest {
@@ -285,6 +348,13 @@ pub struct PackBundleAppRequest {
     pub manifest: BundleManifestValue,
     pub output_path: Option<PathBuf>,
     pub manifest_base_dir: Option<PathBuf>,
+}
+
+impl PackBundleAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.output_path = runtime.bundle_output_or_default(self.output_path);
+        self
+    }
 }
 
 impl From<PackBundleAppRequest> for DomainPackBundleRequest {
@@ -314,6 +384,13 @@ pub struct ApplyBundleAppRequest {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
+impl ApplyBundleAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
+}
+
 impl From<ApplyBundleAppRequest> for DomainUnpackBundleRequest {
     fn from(request: ApplyBundleAppRequest) -> Self {
         Self {
@@ -338,6 +415,13 @@ pub struct ApplyBundleAddonLockAppRequest {
     pub installation: ResolvedInstallationValue,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,
+}
+
+impl ApplyBundleAddonLockAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
 }
 
 impl From<ApplyBundleAddonLockAppRequest> for DomainBundleAddonLockApplyRequest {
@@ -378,6 +462,14 @@ pub struct CreateExternalPackageBundleAppRequest {
     pub apply_defaults: Option<BundleApplyDefaultsValue>,
 }
 
+impl CreateExternalPackageBundleAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.source_platform = Some(runtime.source_platform_or_host(self.source_platform));
+        self.output_path = runtime.bundle_output_or_default(self.output_path);
+        self
+    }
+}
+
 impl From<CreateExternalPackageBundleAppRequest> for DomainCreateExternalPackageBundleRequest {
     fn from(request: CreateExternalPackageBundleAppRequest) -> Self {
         Self {
@@ -406,6 +498,13 @@ pub struct PlanExternalPackageApplyAppRequest {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
+impl PlanExternalPackageApplyAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.external_package = self.external_package.apply_runtime_defaults(runtime);
+        self
+    }
+}
+
 impl From<PlanExternalPackageApplyAppRequest> for DomainPlanExternalPackageApplyRequest {
     fn from(request: PlanExternalPackageApplyAppRequest) -> Self {
         Self {
@@ -423,6 +522,14 @@ pub struct ApplyExternalPackageAppRequest {
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
     pub apply_mappings: BundleApplyMappingsValue,
+}
+
+impl ApplyExternalPackageAppRequest {
+    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.external_package = self.external_package.apply_runtime_defaults(runtime);
+        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        self
+    }
 }
 
 impl From<ApplyExternalPackageAppRequest> for DomainApplyExternalPackageRequest {
@@ -453,12 +560,205 @@ pub struct ResolveInstallationRequest {
 mod tests {
     use super::*;
     use crate::core::app::{
-        AddonPackageMetadataValue, BundleApplyDefaultsValue, BundleCharacterMappingOverrideValue,
+        AddonPackageMetadataValue, AppRuntime, BackupGroupValue, BundleApplyDefaultsValue,
+        BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
         BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue,
         BundlePackageValue, BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue,
         HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue,
     };
     use crate::core::manifest::{CharacterMappingMode, ResourceApplyPolicy};
+
+    #[test]
+    fn addon_family_requests_apply_runtime_backup_defaults() {
+        let runtime =
+            AppRuntime::new().with_default_backup_dir(Some(PathBuf::from("runtime-backups")));
+
+        let install = InstallAddonAppRequest {
+            installation: sample_installation(),
+            source: "https://example.invalid/weakauras.zip".to_string(),
+            dry_run: false,
+            backup_output_path: None,
+            replace_existing: true,
+            metadata: None,
+        }
+        .apply_runtime_defaults(&runtime);
+        let update = UpdateAddonAppRequest {
+            installation: sample_installation(),
+            name: Some("WeakAuras".to_string()),
+            dry_run: false,
+            backup_output_path: None,
+        }
+        .apply_runtime_defaults(&runtime);
+        let remove = RemoveAddonAppRequest {
+            installation: sample_installation(),
+            name: "WeakAuras".to_string(),
+            dry_run: false,
+            backup_output_path: None,
+        }
+        .apply_runtime_defaults(&runtime);
+        let index_install = InstallAddonIndexAppRequest {
+            installation: sample_installation(),
+            index_path: PathBuf::from("addon-index.toml"),
+            name: "WeakAuras".to_string(),
+            dry_run: false,
+            backup_output_path: None,
+            replace_existing: true,
+        }
+        .apply_runtime_defaults(&runtime);
+        let index_update = UpdateAddonIndexAppRequest {
+            installation: sample_installation(),
+            index_path: PathBuf::from("addon-index.toml"),
+            name: None,
+            dry_run: false,
+            backup_output_path: None,
+        }
+        .apply_runtime_defaults(&runtime);
+        let lock_apply = ApplyAddonLockAppRequest {
+            installation: sample_installation(),
+            lock_path: None,
+            backup_output_path: None,
+            replace_existing: true,
+            source_overrides: Vec::new(),
+        }
+        .apply_runtime_defaults(&runtime);
+
+        assert_eq!(
+            install.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(
+            update.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(
+            remove.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(
+            index_install.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(
+            index_update.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(
+            lock_apply.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+    }
+
+    #[test]
+    fn backup_requests_apply_runtime_defaults() {
+        let runtime =
+            AppRuntime::new().with_default_backup_dir(Some(PathBuf::from("runtime-backups")));
+
+        let list = ListBackupsRequest { backup_dir: None }.apply_runtime_defaults(&runtime);
+        let create = CreateBackupAppRequest {
+            installation: sample_installation(),
+            output_path: None,
+            groups: vec![BackupGroupValue::Addons],
+            label: Some("nightly".to_string()),
+        }
+        .apply_runtime_defaults(&runtime);
+        let restore = RestoreBackupAppRequest {
+            installation: sample_installation(),
+            archive_path: None,
+            backup_id: Some("backup-001".to_string()),
+            backup_dir: None,
+        }
+        .apply_runtime_defaults(&runtime);
+
+        assert_eq!(list.backup_dir, Some(PathBuf::from("runtime-backups")));
+        assert_eq!(create.output_path, Some(PathBuf::from("runtime-backups")));
+        assert_eq!(restore.backup_dir, Some(PathBuf::from("runtime-backups")));
+    }
+
+    #[test]
+    fn bundle_requests_apply_runtime_defaults() {
+        let runtime = AppRuntime::new()
+            .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
+            .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+
+        let pack = PackBundleAppRequest {
+            installation: sample_installation(),
+            manifest: sample_manifest(),
+            output_path: None,
+            manifest_base_dir: None,
+        }
+        .apply_runtime_defaults(&runtime);
+        let apply = ApplyBundleAppRequest {
+            bundle_path: PathBuf::from("bundle.zip"),
+            installation: sample_installation(),
+            dry_run: false,
+            backup_output_path: None,
+            apply_mappings: BundleApplyMappingsValue::default(),
+        }
+        .apply_runtime_defaults(&runtime);
+        let addon_lock = ApplyBundleAddonLockAppRequest {
+            bundle_path: PathBuf::from("bundle.zip"),
+            installation: sample_installation(),
+            backup_output_path: None,
+            replace_existing: true,
+        }
+        .apply_runtime_defaults(&runtime);
+
+        assert_eq!(pack.output_path, Some(PathBuf::from("runtime-bundles")));
+        assert_eq!(
+            apply.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(
+            addon_lock.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+    }
+
+    #[test]
+    fn external_package_requests_apply_runtime_defaults() {
+        let runtime = AppRuntime::new()
+            .with_host_platform(HostPlatformValue::MacOs)
+            .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
+            .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+
+        let bundle_request =
+            sample_external_package_bundle_request().apply_runtime_defaults(&runtime);
+        let plan_request = PlanExternalPackageApplyAppRequest {
+            external_package: sample_external_package_bundle_request(),
+            installation: sample_installation(),
+            apply_mappings: BundleApplyMappingsValue::default(),
+        }
+        .apply_runtime_defaults(&runtime);
+        let apply_request = ApplyExternalPackageAppRequest {
+            external_package: sample_external_package_bundle_request(),
+            installation: sample_installation(),
+            dry_run: false,
+            backup_output_path: None,
+            apply_mappings: BundleApplyMappingsValue::default(),
+        }
+        .apply_runtime_defaults(&runtime);
+
+        assert_eq!(
+            bundle_request.source_platform,
+            Some(HostPlatformValue::MacOs)
+        );
+        assert_eq!(
+            bundle_request.output_path,
+            Some(PathBuf::from("runtime-bundles"))
+        );
+        assert_eq!(
+            plan_request.external_package.source_platform,
+            Some(HostPlatformValue::MacOs)
+        );
+        assert_eq!(
+            apply_request.external_package.output_path,
+            Some(PathBuf::from("runtime-bundles"))
+        );
+        assert_eq!(
+            apply_request.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+    }
 
     #[test]
     fn apply_bundle_request_converts_app_owned_apply_mappings() {
@@ -660,6 +960,21 @@ mod tests {
                 fonts: ResourceApplyPolicyValue::Mirror,
                 interface_assets: ResourceApplyPolicyValue::Mirror,
             },
+        }
+    }
+
+    fn sample_external_package_bundle_request() -> CreateExternalPackageBundleAppRequest {
+        CreateExternalPackageBundleAppRequest {
+            source_path: PathBuf::from("author-ui.zip"),
+            source_flavor: WowFlavorValue::Retail,
+            source_platform: None,
+            supported_targets: vec![WowFlavorValue::Retail],
+            output_path: None,
+            package_id: Some("author-ui".to_string()),
+            package_name: Some("Author UI".to_string()),
+            created_by: Some("tester".to_string()),
+            description: Some("fixture".to_string()),
+            apply_defaults: None,
         }
     }
 }
