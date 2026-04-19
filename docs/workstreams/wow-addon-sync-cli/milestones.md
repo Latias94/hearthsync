@@ -273,6 +273,9 @@ Prepare the core for a future frontend.
 - stable CLI handlers that need shared runtime policy now construct `core::app::StableAppServices`,
   while addon-index/addon-lock/bundle-addon-lock commands still use `core::app::ExtendedAppServices`
   for the less-stable app surface
+- CLI command handlers now share one `cli::app_support` helper for service construction and
+  installation resolution, so command modules no longer duplicate `ResolveInstallationRequest`
+  assembly or drift on which app boundary they should enter through
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

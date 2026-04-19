@@ -96,6 +96,7 @@ The current blocking sequence is:
 - [ ] Remove dead or duplicated transition paths after planner/executor boundaries are stable
   - Current cleanup: bundle archives and direct external packages now share one internal apply-source boundary for entry enumeration, preview byte reads, and execution materialization.
   - Current cleanup: the remaining low-level planner byte-reader seam is now test-only; stable CLI/frontend callers should stay on `core::app::StableAppServices`, and only reach for `core::app::ExtendedAppServices` plus its explicit `stable()` bridge when they need addon-index/addon-lock/bundle-addon-lock behavior.
+  - Current cleanup: CLI service construction and installation-target resolution now share `cli::app_support`, so stable and extension commands no longer hand-roll slightly different app-entry glue.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

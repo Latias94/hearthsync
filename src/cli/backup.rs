@@ -1,13 +1,13 @@
 use super::BackupCommands;
+use super::app_support::{resolve_cli_installation, stable_services};
 use super::output::render;
 use crate::core::app::{
-    BackupGroupValue, CreateBackupAppRequest, ListBackupsRequest, ResolveInstallationRequest,
-    RestoreBackupAppRequest, StableAppServices,
+    BackupGroupValue, CreateBackupAppRequest, ListBackupsRequest, RestoreBackupAppRequest,
 };
 use crate::core::error::AppResult;
 
 pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
-    let app = StableAppServices::new();
+    let app = stable_services();
 
     match command {
         BackupCommands::Create {
@@ -15,10 +15,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             flavor,
             output,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let backup = app.create_backup(CreateBackupAppRequest {
                 installation,
                 output_path: output,
@@ -87,10 +84,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             id,
             dir,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let restored = app.restore_backup(RestoreBackupAppRequest {
                 installation,
                 archive_path: archive,

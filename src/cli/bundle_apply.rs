@@ -1,15 +1,13 @@
 use super::BundleCommands;
+use super::app_support::{resolve_cli_installation, stable_services};
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
-use crate::core::app::{
-    ApplyBundleAppRequest, BundleApplyMappingsValue, PlanBundleApplyRequest,
-    ResolveInstallationRequest, StableAppServices,
-};
+use crate::core::app::{ApplyBundleAppRequest, BundleApplyMappingsValue, PlanBundleApplyRequest};
 use crate::core::bundle::load_apply_mappings;
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
-    let app = StableAppServices::new();
+    let app = stable_services();
 
     match command {
         BundleCommands::Plan {
@@ -23,10 +21,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,
@@ -93,10 +88,7 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             selected_accounts,
             all_accounts,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,

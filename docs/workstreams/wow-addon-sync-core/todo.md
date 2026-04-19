@@ -141,6 +141,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: stable CLI handlers now construct `StableAppServices` directly for
     installation/addon/backup/bundle/external-package flows, while `ExtendedAppServices` remains the
     fuller root only for less-stable addon-index/addon-lock/bundle-addon-lock operations.
+    Current cleanup: CLI service construction and installation-target resolution now share one
+    `cli::app_support` helper, so command handlers no longer duplicate `ResolveInstallationRequest`
+    assembly or drift on which app boundary they should enter through.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access are now
     crate-visible only, so external callers stay on stable direct/task entrypoints instead of
     treating the stable boundary as another service factory.

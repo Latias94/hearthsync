@@ -1,13 +1,13 @@
 use super::AddonIndexCommands;
+use super::app_support::{extended_services, resolve_cli_installation};
 use super::output::render;
 use crate::core::app::{
-    ExtendedAppServices, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
-    ResolveInstallationRequest, UpdateAddonIndexAppRequest,
+    InspectAddonIndexRequest, InstallAddonIndexAppRequest, UpdateAddonIndexAppRequest,
 };
 use crate::core::error::AppResult;
 
 pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands) -> AppResult<()> {
-    let app = ExtendedAppServices::new();
+    let app = extended_services();
 
     match command {
         AddonIndexCommands::Inspect { file } => {
@@ -47,12 +47,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             backup_output,
             replace_existing,
         } => {
-            let installation = app
-                .stable()
-                .resolve_installation(ResolveInstallationRequest {
-                    path: install,
-                    flavor: flavor.map(Into::into),
-                })?;
+            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
             let result = app.install_addon_index(InstallAddonIndexAppRequest {
                 installation,
                 index_path: file,
@@ -106,12 +101,7 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             dry_run,
             backup_output,
         } => {
-            let installation = app
-                .stable()
-                .resolve_installation(ResolveInstallationRequest {
-                    path: install,
-                    flavor: flavor.map(Into::into),
-                })?;
+            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
             let result = app.update_addon_index(UpdateAddonIndexAppRequest {
                 installation,
                 index_path: file,

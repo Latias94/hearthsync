@@ -1,3 +1,4 @@
+use super::app_support::{resolve_cli_installation, stable_services};
 use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
 use super::output::render;
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
@@ -5,8 +6,7 @@ use crate::core::app::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
     CreateExternalPackageBundleAppRequest, ExternalPackageSummaryResult,
     ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-    ExternalPackageWarningResult, PlanExternalPackageApplyAppRequest, ResolveInstallationRequest,
-    ResourceApplyPolicyValue, StableAppServices,
+    ExternalPackageWarningResult, PlanExternalPackageApplyAppRequest, ResourceApplyPolicyValue,
 };
 use crate::core::error::AppResult;
 
@@ -14,7 +14,7 @@ pub(super) fn handle_external_package_command(
     json: bool,
     command: ExternalPackageCommands,
 ) -> AppResult<()> {
-    let app = StableAppServices::new();
+    let app = stable_services();
 
     match command {
         ExternalPackageCommands::Inspect { source } => {
@@ -85,10 +85,7 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,
@@ -159,10 +156,7 @@ pub(super) fn handle_external_package_command(
             selected_accounts,
             all_accounts,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let apply_mappings = resolve_apply_mappings(
                 mapping_file.as_deref(),
                 target_account,

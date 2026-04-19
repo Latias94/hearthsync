@@ -193,6 +193,9 @@ desktop work.
 - stable CLI handlers now construct `StableAppServices` directly for installation/addon/backup/
   bundle/external-package flows, leaving `ExtendedAppServices` focused on the less-stable addon-index,
   addon-lock, and bundle-addon-lock entrypoints that still sit outside the first stable wave
+- CLI command handlers now share one `cli::app_support` entry helper for service construction and
+  installation resolution, reducing duplicate app-boundary glue around both stable and extension
+  flows
 - raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
   the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
   service-factory-style API

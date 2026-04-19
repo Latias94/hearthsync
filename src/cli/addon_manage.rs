@@ -1,13 +1,14 @@
 use super::AddonCommands;
+use super::app_support::{resolve_cli_installation, stable_services};
 use super::output::render;
 use crate::core::app::{
-    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, ResolveInstallationRequest,
-    SearchAddonsRequest, StableAppServices, UpdateAddonAppRequest,
+    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, SearchAddonsRequest,
+    UpdateAddonAppRequest,
 };
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> AppResult<()> {
-    let app = StableAppServices::new();
+    let app = stable_services();
 
     match command {
         AddonCommands::Search {
@@ -16,10 +17,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             query,
             limit,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let results = app.search_addons(SearchAddonsRequest {
                 installation,
                 query,
@@ -53,10 +51,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             })?;
         }
         AddonCommands::List { install, flavor } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let inventory = app.list_addons(ListAddonsRequest { installation })?;
             render(json, &inventory, |item| {
                 let tracked = if item.tracked_packages.is_empty() {
@@ -104,10 +99,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             backup_output,
             replace_existing,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let result = app.install_addon(InstallAddonAppRequest {
                 installation,
                 source,
@@ -164,10 +156,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             dry_run,
             backup_output,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let result = app.update_addons(UpdateAddonAppRequest {
                 installation,
                 name,
@@ -226,10 +215,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             dry_run,
             backup_output,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = resolve_cli_installation(&app, install, flavor)?;
             let result = app.remove_addons(RemoveAddonAppRequest {
                 installation,
                 name,
