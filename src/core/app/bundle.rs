@@ -1,15 +1,15 @@
 use crate::core::app::{
     AppRuntime, ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, BundleAddonLockApplyResult,
     BundleAddonLockPlanResult, BundleApplyPlanResult, BundleApplyResult, BundleInspectionResult,
-    CreatedBundleResult, InspectBundleRequest, PackBundleAppRequest, PlanBundleAddonLockRequest,
-    PlanBundleApplyRequest, task_support,
+    CancellationToken, CreatedBundleResult, InspectBundleRequest, PackBundleAppRequest,
+    PlanBundleAddonLockRequest, PlanBundleApplyRequest, TaskProgressEvent, TaskProgressSink,
+    TaskRun, task_support,
 };
 use crate::core::bundle::{
     apply_bundle_addon_lock, inspect_bundle, pack_bundle, plan_bundle_addon_lock,
     plan_bundle_apply, unpack_bundle_task,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct BundleService {

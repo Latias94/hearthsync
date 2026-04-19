@@ -278,6 +278,9 @@ The stable entry shapes are:
 - callback-based calls that stream the same `TaskProgressEvent` payloads while polling a caller-
   supplied cancellation closure
 
+Those task contract types should be consumed through `core::app`, so frontend callers do not need
+to depend on the lower-level `core::task` module directly just to drive stable app services.
+
 Stable progress event fields are:
 
 - `task`

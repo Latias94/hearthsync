@@ -5,11 +5,11 @@ use crate::core::addon::lock::{
 use crate::core::app::{
     AddonLockApplyResult, AddonLockDiffResult, AddonLockInspectionResult, AddonLockPlanResult,
     AddonLockVerifyResult, AddonLockWriteResult, AppRuntime, ApplyAddonLockAppRequest,
-    DiffAddonLockRequest, InspectAddonLockRequest, PlanAddonLockSyncRequest,
-    VerifyAddonLockRequest, WriteAddonLockRequest, task_support,
+    CancellationToken, DiffAddonLockRequest, InspectAddonLockRequest, PlanAddonLockSyncRequest,
+    TaskProgressEvent, TaskProgressSink, TaskRun, VerifyAddonLockRequest, WriteAddonLockRequest,
+    task_support,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct AddonLockService {

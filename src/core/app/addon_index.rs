@@ -4,11 +4,10 @@ use crate::core::addon::index::{
 };
 use crate::core::app::{
     AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexUpdateResult, AppRuntime,
-    InspectAddonIndexRequest, InstallAddonIndexAppRequest, UpdateAddonIndexAppRequest,
-    task_support,
+    CancellationToken, InspectAddonIndexRequest, InstallAddonIndexAppRequest, TaskProgressEvent,
+    TaskProgressSink, TaskRun, UpdateAddonIndexAppRequest, task_support,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct AddonIndexService {

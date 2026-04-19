@@ -129,7 +129,9 @@ ways that a future frontend can depend on without learning internal domain seams
   with ordered `TaskProgressEvent` payloads, and callback-based calls stream the same event shape
   while honoring caller-supplied cancellation checks. Successful long-running tasks begin with
   `Preparing`, end with `Completed`, and may report task-specific intermediate phases such as
-  `Planning`, `BackingUp`, `Executing`, or `Verifying`.
+  `Planning`, `BackingUp`, `Executing`, or `Verifying`. Those stable task-contract types are now
+  also surfaced from `core::app`, so frontend callers do not need to import `core::task`
+  separately just to consume app-service progress behavior.
 - [ ] keep optional provider/helper capability switches behind runtime/service boundaries instead of
   leaking them into CLI orchestration
   Current progress: `AppRuntime` no longer requires addon-provider domain option types at the

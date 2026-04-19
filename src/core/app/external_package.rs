@@ -1,15 +1,14 @@
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, AppRuntime, ApplyExternalPackageAppRequest,
-    CreateExternalPackageBundleAppRequest, ExternalPackageAnalysisResult,
+    CancellationToken, CreateExternalPackageBundleAppRequest, ExternalPackageAnalysisResult,
     ExternalPackageApplyPlanResult, ExternalPackageApplyResult, ExternalPackageBundleHandle,
-    PlanExternalPackageApplyAppRequest, task_support,
+    PlanExternalPackageApplyAppRequest, TaskProgressEvent, TaskProgressSink, TaskRun, task_support,
 };
 use crate::core::bundle::{
     analyze_external_package_task, apply_external_package_task, create_external_package_bundle,
     plan_external_package_apply_task,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct ExternalPackageService {

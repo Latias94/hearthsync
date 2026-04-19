@@ -637,3 +637,33 @@ while direct custom provider injection is restricted to crate-internal compositi
   same trait seam into the public app API
 - future optional helper capabilities should follow the same rule: frontend-facing contracts expose
   stable app-owned capability settings, while low-level injected implementations stay internal
+
+## ADR-030: Stable Task Contracts Are Published Through `core::app`
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+Long-running app-service contracts should not require frontend callers to import the lower-level
+`core::task` module directly just to collect progress, stream callbacks, or satisfy task-related
+trait bounds.
+
+The stable task contract is now published through `core::app`:
+
+- `CancellationToken`
+- `TaskProgressSink`
+- `TaskRun`
+- `TaskProgressEvent`
+- `TaskKind`
+- `TaskPhase`
+
+### Consequences
+
+- CLI and future `egui` code can stay on the `core::app` import surface for runtime, services,
+  requests, results, and task progress contracts
+- `core::task` remains reusable internal infrastructure, but it is no longer the frontend-facing
+  path for stable app-service progress behavior
+- future task-behavior refactors can keep the same app-facing import surface even if internal task
+  plumbing changes underneath

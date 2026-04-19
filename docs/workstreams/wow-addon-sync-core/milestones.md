@@ -162,6 +162,8 @@ desktop work.
   instead of leaking provider-domain option structs through `core::app::AppRuntime`
 - custom addon-provider injection is now crate-internal runtime composition, so the public app
   boundary no longer exposes provider trait seams just to support tests
+- stable task contract types are now surfaced from `core::app`, so app-service callers no longer
+  need to import `core::task` directly for progress collection or callback streaming
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers, plus explicit progress/capability ownership
 

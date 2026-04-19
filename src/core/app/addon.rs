@@ -3,13 +3,12 @@ use crate::core::addon::{
     update_addons_task_with_provider,
 };
 use crate::core::app::{
-    AddonInventoryResult, AddonSearchCatalogResult, AppRuntime, InstallAddonAppRequest,
-    InstalledAddonPackageResult, ListAddonsRequest, RemoveAddonAppRequest,
-    RemovedAddonPackageResult, SearchAddonsRequest, UpdateAddonAppRequest,
-    UpdatedAddonPackageResult, task_support,
+    AddonInventoryResult, AddonSearchCatalogResult, AppRuntime, CancellationToken,
+    InstallAddonAppRequest, InstalledAddonPackageResult, ListAddonsRequest, RemoveAddonAppRequest,
+    RemovedAddonPackageResult, SearchAddonsRequest, TaskProgressEvent, TaskProgressSink, TaskRun,
+    UpdateAddonAppRequest, UpdatedAddonPackageResult, task_support,
 };
 use crate::core::error::AppResult;
-use crate::core::task::{CancellationToken, TaskProgressEvent, TaskProgressSink, TaskRun};
 
 #[derive(Debug, Clone, Default)]
 pub struct AddonService {

@@ -13,6 +13,9 @@ mod stable;
 mod task_support;
 mod types;
 
+pub use crate::core::task::{
+    CancellationToken, TaskKind, TaskPhase, TaskProgressEvent, TaskProgressSink, TaskRun,
+};
 pub use addon::AddonService;
 pub use addon_index::AddonIndexService;
 pub use addon_lock::AddonLockService;
