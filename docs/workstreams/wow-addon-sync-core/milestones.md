@@ -209,6 +209,8 @@ desktop work.
   steered toward `HearthSyncApp` / `StableAppServices` instead of depending on internal app wiring
 - internal service convenience constructors are now test-only, so production assembly routes
   through the explicit app roots instead of scattered implementation helpers
+- request-side `apply_runtime_defaults()` helpers are now crate-only, so runtime default projection
+  remains an internal app assembly concern instead of part of the public request API surface
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

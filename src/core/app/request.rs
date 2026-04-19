@@ -147,7 +147,7 @@ pub struct ApplyAddonLockAppRequest {
 }
 
 impl ApplyAddonLockAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -184,7 +184,7 @@ pub struct InstallAddonAppRequest {
 }
 
 impl InstallAddonAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -216,7 +216,7 @@ pub struct UpdateAddonAppRequest {
 }
 
 impl UpdateAddonAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -246,7 +246,7 @@ pub struct RemoveAddonAppRequest {
 }
 
 impl RemoveAddonAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -278,7 +278,7 @@ pub struct InstallAddonIndexAppRequest {
 }
 
 impl InstallAddonIndexAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -314,7 +314,7 @@ pub struct UpdateAddonIndexAppRequest {
 }
 
 impl UpdateAddonIndexAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -342,7 +342,7 @@ pub struct ListBackupsRequest {
 }
 
 impl ListBackupsRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
         self
     }
@@ -361,7 +361,7 @@ pub struct CreateBackupAppRequest {
 }
 
 impl CreateBackupAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.output_path = runtime.backup_output_or_default(self.output_path);
         self
     }
@@ -391,7 +391,7 @@ pub struct RestoreBackupAppRequest {
 }
 
 impl RestoreBackupAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
         self
     }
@@ -426,7 +426,7 @@ pub struct PackBundleAppRequest {
 }
 
 impl PackBundleAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.output_path = runtime.bundle_output_or_default(self.output_path);
         self
     }
@@ -480,7 +480,7 @@ pub struct ApplyBundleAppRequest {
 }
 
 impl ApplyBundleAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -523,7 +523,7 @@ pub struct ApplyBundleAddonLockAppRequest {
 }
 
 impl ApplyBundleAddonLockAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
@@ -575,7 +575,7 @@ pub struct CreateExternalPackageBundleAppRequest {
 }
 
 impl CreateExternalPackageBundleAppRequest {
-    pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.source_platform = Some(runtime.source_platform_or_host(self.source_platform));
         self.output_path = runtime.bundle_output_or_default(self.output_path);
         self

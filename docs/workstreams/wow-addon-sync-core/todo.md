@@ -151,6 +151,9 @@ ways that a future frontend can depend on without learning internal domain seams
     instead of bypassing the intended app-owned boundary.
     Current cleanup: internal service convenience constructors now stay test-only as well, so the
     remaining production-facing entrypoints are the app roots rather than implementation helpers.
+    Current cleanup: request-side `apply_runtime_defaults()` helpers are now crate-visible only, so
+    runtime default projection stays inside app assembly instead of leaking onto the public request
+    API surface.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of
