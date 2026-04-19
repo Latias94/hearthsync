@@ -194,6 +194,9 @@ desktop work.
 - `StableAppServices` now exposes the same first-wave stable direct/task entrypoints, so the
   explicit GUI-stable boundary is no longer just a named service container but a real stable
   frontend contract
+- `HearthSyncApp` now delegates those first-wave stable direct/task entrypoints through
+  `StableAppServices`, so future GUI-facing behavior has one stable implementation path while the
+  full app root can still expose less-stable addon-index and addon-lock operations
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

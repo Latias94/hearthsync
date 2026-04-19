@@ -23,53 +23,54 @@ impl HearthSyncApp {
     }
 
     pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
-        self.runtime.capabilities()
+        self.stable_services().capabilities()
     }
 
     pub fn scan_installations(&self) -> AppResult<super::InstallationScanResult> {
-        self.installations().scan()
+        self.stable_services().scan_installations()
     }
 
     pub fn inspect_installation(
         &self,
         request: super::InspectInstallationRequest,
     ) -> AppResult<super::InstallationInspectionResult> {
-        self.installations().inspect(request)
+        self.stable_services().inspect_installation(request)
     }
 
     pub fn resolve_installation(
         &self,
         request: super::ResolveInstallationRequest,
     ) -> AppResult<super::ResolvedInstallationValue> {
-        self.installations().resolve(request)
+        self.stable_services().resolve_installation(request)
     }
 
     pub fn search_addons(
         &self,
         request: super::SearchAddonsRequest,
     ) -> AppResult<super::AddonSearchCatalogResult> {
-        self.addons().search(request)
+        self.stable_services().search_addons(request)
     }
 
     pub fn list_addons(
         &self,
         request: super::ListAddonsRequest,
     ) -> AppResult<super::AddonInventoryResult> {
-        self.addons().list(request)
+        self.stable_services().list_addons(request)
     }
 
     pub fn install_addon(
         &self,
         request: super::InstallAddonAppRequest,
     ) -> AppResult<super::InstalledAddonPackageResult> {
-        self.addons().install(request)
+        self.stable_services().install_addon(request)
     }
 
     pub fn install_addon_collecting_progress(
         &self,
         request: super::InstallAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::InstalledAddonPackageResult>> {
-        self.addons().install_collecting_progress(request)
+        self.stable_services()
+            .install_addon_collecting_progress(request)
     }
 
     pub fn install_addon_with_callbacks<FCancel, FProgress>(
@@ -82,22 +83,23 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.addons()
-            .install_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .install_addon_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn update_addons(
         &self,
         request: super::UpdateAddonAppRequest,
     ) -> AppResult<super::UpdatedAddonPackageResult> {
-        self.addons().update(request)
+        self.stable_services().update_addons(request)
     }
 
     pub fn update_addons_collecting_progress(
         &self,
         request: super::UpdateAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::UpdatedAddonPackageResult>> {
-        self.addons().update_collecting_progress(request)
+        self.stable_services()
+            .update_addons_collecting_progress(request)
     }
 
     pub fn update_addons_with_callbacks<FCancel, FProgress>(
@@ -110,22 +112,23 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.addons()
-            .update_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .update_addons_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn remove_addons(
         &self,
         request: super::RemoveAddonAppRequest,
     ) -> AppResult<super::RemovedAddonPackageResult> {
-        self.addons().remove(request)
+        self.stable_services().remove_addons(request)
     }
 
     pub fn remove_addons_collecting_progress(
         &self,
         request: super::RemoveAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::RemovedAddonPackageResult>> {
-        self.addons().remove_collecting_progress(request)
+        self.stable_services()
+            .remove_addons_collecting_progress(request)
     }
 
     pub fn remove_addons_with_callbacks<FCancel, FProgress>(
@@ -138,8 +141,8 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.addons()
-            .remove_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .remove_addons_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn inspect_addon_index(
@@ -272,28 +275,29 @@ impl HearthSyncApp {
         &self,
         request: super::CreateBackupAppRequest,
     ) -> AppResult<super::CreatedBackupResult> {
-        self.backups().create(request)
+        self.stable_services().create_backup(request)
     }
 
     pub fn list_backups(
         &self,
         request: super::ListBackupsRequest,
     ) -> AppResult<super::BackupCatalogResult> {
-        self.backups().list(request)
+        self.stable_services().list_backups(request)
     }
 
     pub fn restore_backup(
         &self,
         request: super::RestoreBackupAppRequest,
     ) -> AppResult<super::RestoredBackupResult> {
-        self.backups().restore(request)
+        self.stable_services().restore_backup(request)
     }
 
     pub fn restore_backup_collecting_progress(
         &self,
         request: super::RestoreBackupAppRequest,
     ) -> AppResult<super::TaskRun<super::RestoredBackupResult>> {
-        self.backups().restore_collecting_progress(request)
+        self.stable_services()
+            .restore_backup_collecting_progress(request)
     }
 
     pub fn restore_backup_with_callbacks<FCancel, FProgress>(
@@ -306,43 +310,44 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.backups()
-            .restore_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .restore_backup_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn inspect_bundle(
         &self,
         request: super::InspectBundleRequest,
     ) -> AppResult<super::BundleInspectionResult> {
-        self.bundles().inspect(request)
+        self.stable_services().inspect_bundle(request)
     }
 
     pub fn pack_bundle(
         &self,
         request: super::PackBundleAppRequest,
     ) -> AppResult<super::CreatedBundleResult> {
-        self.bundles().pack(request)
+        self.stable_services().pack_bundle(request)
     }
 
     pub fn plan_bundle_apply(
         &self,
         request: super::PlanBundleApplyRequest,
     ) -> AppResult<super::BundleApplyPlanResult> {
-        self.bundles().plan_apply(request)
+        self.stable_services().plan_bundle_apply(request)
     }
 
     pub fn apply_bundle(
         &self,
         request: super::ApplyBundleAppRequest,
     ) -> AppResult<super::BundleApplyResult> {
-        self.bundles().apply(request)
+        self.stable_services().apply_bundle(request)
     }
 
     pub fn apply_bundle_collecting_progress(
         &self,
         request: super::ApplyBundleAppRequest,
     ) -> AppResult<super::TaskRun<super::BundleApplyResult>> {
-        self.bundles().apply_collecting_progress(request)
+        self.stable_services()
+            .apply_bundle_collecting_progress(request)
     }
 
     pub fn apply_bundle_with_callbacks<FCancel, FProgress>(
@@ -355,8 +360,8 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.bundles()
-            .apply_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .apply_bundle_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn plan_bundle_addon_lock(
@@ -377,15 +382,15 @@ impl HearthSyncApp {
         &self,
         request: super::AnalyzeExternalPackageAppRequest,
     ) -> AppResult<super::ExternalPackageAnalysisResult> {
-        self.external_packages().analyze(request)
+        self.stable_services().analyze_external_package(request)
     }
 
     pub fn analyze_external_package_collecting_progress(
         &self,
         request: super::AnalyzeExternalPackageAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageAnalysisResult>> {
-        self.external_packages()
-            .analyze_collecting_progress(request)
+        self.stable_services()
+            .analyze_external_package_collecting_progress(request)
     }
 
     pub fn analyze_external_package_with_callbacks<FCancel, FProgress>(
@@ -398,30 +403,31 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.external_packages()
-            .analyze_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .analyze_external_package_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn create_external_package_bundle(
         &self,
         request: super::CreateExternalPackageBundleAppRequest,
     ) -> AppResult<super::ExternalPackageBundleHandle> {
-        self.external_packages().create_bundle(request)
+        self.stable_services()
+            .create_external_package_bundle(request)
     }
 
     pub fn plan_external_package_apply(
         &self,
         request: super::PlanExternalPackageApplyAppRequest,
     ) -> AppResult<super::ExternalPackageApplyPlanResult> {
-        self.external_packages().plan_apply(request)
+        self.stable_services().plan_external_package_apply(request)
     }
 
     pub fn plan_external_package_apply_collecting_progress(
         &self,
         request: super::PlanExternalPackageApplyAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageApplyPlanResult>> {
-        self.external_packages()
-            .plan_apply_collecting_progress(request)
+        self.stable_services()
+            .plan_external_package_apply_collecting_progress(request)
     }
 
     pub fn plan_external_package_apply_with_callbacks<FCancel, FProgress>(
@@ -434,22 +440,23 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.external_packages()
-            .plan_apply_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .plan_external_package_apply_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn apply_external_package(
         &self,
         request: super::ApplyExternalPackageAppRequest,
     ) -> AppResult<super::ExternalPackageApplyResult> {
-        self.external_packages().apply(request)
+        self.stable_services().apply_external_package(request)
     }
 
     pub fn apply_external_package_collecting_progress(
         &self,
         request: super::ApplyExternalPackageAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageApplyResult>> {
-        self.external_packages().apply_collecting_progress(request)
+        self.stable_services()
+            .apply_external_package_collecting_progress(request)
     }
 
     pub fn apply_external_package_with_callbacks<FCancel, FProgress>(
@@ -462,8 +469,8 @@ impl HearthSyncApp {
         FCancel: Fn() -> bool,
         FProgress: FnMut(super::TaskProgressEvent),
     {
-        self.external_packages()
-            .apply_with_callbacks(request, is_cancelled, on_progress)
+        self.stable_services()
+            .apply_external_package_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn stable_services(&self) -> StableAppServices {
