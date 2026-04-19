@@ -145,11 +145,11 @@ impl AppRuntime {
         self.default_backup_dir.as_deref()
     }
 
-    pub fn backup_output_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
+    pub(crate) fn backup_output_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
         path.or_else(|| self.default_backup_dir.clone())
     }
 
-    pub fn backup_dir_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
+    pub(crate) fn backup_dir_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
         path.or_else(|| self.default_backup_dir.clone())
     }
 
@@ -165,11 +165,11 @@ impl AppRuntime {
         self.default_bundle_output_dir.as_deref()
     }
 
-    pub fn bundle_output_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
+    pub(crate) fn bundle_output_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
         path.or_else(|| self.default_bundle_output_dir.clone())
     }
 
-    pub fn source_platform_or_host(
+    pub(crate) fn source_platform_or_host(
         &self,
         platform: Option<HostPlatformValue>,
     ) -> HostPlatformValue {

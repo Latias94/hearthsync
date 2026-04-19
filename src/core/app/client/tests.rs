@@ -1,4 +1,3 @@
-
 use std::fs;
 use std::path::Path;
 
@@ -73,7 +72,7 @@ fn hearthsync_app_exposes_first_wave_stable_services() {
         .with_default_bundle_output_dir(Some(bundle_dir.clone()));
 
     let app = HearthSyncApp::with_runtime(runtime);
-    let stable = app.stable_services();
+    let stable: &StableAppServices = &app;
 
     assert_eq!(stable.runtime().host_platform(), HostPlatformValue::MacOs);
     assert_eq!(

@@ -183,6 +183,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: large `core::app` modules now also keep tests in sibling `*/tests.rs`
     submodules instead of interleaving fixtures with production code, which makes the stable app
     boundary easier to review while keeping app-level regression coverage intact.
+    Current cleanup: runtime path/default projection helpers are crate-internal again, and
+    `HearthSyncApp` no longer exposes a redundant `stable_services()` accessor because deref to the
+    stable app boundary already covers that use case.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

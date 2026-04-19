@@ -231,6 +231,9 @@ desktop work.
   owned by the install domain, while CLI-only display slugs remain crate-internal
 - large `core::app` modules now keep regression tests in sibling `*/tests.rs` files, so
   production contract/service code is easier to review without weakening app-layer coverage
+- runtime default/path projection helpers are crate-visible only again, and `HearthSyncApp`
+  no longer exposes a redundant `stable_services()` accessor on top of its `Deref<Target =
+  StableAppServices>` surface
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

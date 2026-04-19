@@ -159,10 +159,6 @@ impl HearthSyncApp {
         self.stable.bundles().apply_addon_lock(request)
     }
 
-    pub fn stable_services(&self) -> &StableAppServices {
-        &self.stable
-    }
-
     pub(crate) fn addon_indexes(&self) -> AddonIndexService {
         AddonIndexService::with_runtime(self.stable.runtime.clone())
     }
