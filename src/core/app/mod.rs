@@ -45,7 +45,8 @@ pub use types::{
     BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
     BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
     BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-    CharacterMappingModeValue, ExternalPackageWarningCategoryValue,
+    CharacterMappingModeValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    ExternalHelperPolicyValue, ExternalPackageWarningCategoryValue,
     ExternalPackageWarningCodeValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
     ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue, WtfScopeValue,
 };

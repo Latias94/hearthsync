@@ -739,7 +739,7 @@ available from `HearthSyncApp` and `StableAppServices`.
 That snapshot owns:
 
 - provider mode: configured default provider options vs. internal custom provider
-- helper strategy: current runtime-selected helper capability
+- helper capability reporting owned by app runtime, not planner or service-local state
 
 ### Consequences
 
@@ -832,3 +832,31 @@ App services should not keep coordinating this as a repeated two-step protocol s
   every service wrapper that executes the mutation
 - the remaining `core::app` cleanup can focus on meaningful policy or orchestration seams instead of
   preserving duplicated request-normalization choreography in service bodies
+
+## ADR-037: External-Helper Capability State Is Explicitly Separate from Active Strategy
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+The app runtime capability contract should not use one `helper_strategy` field to represent all of
+the following at once:
+
+- whether the frontend wants to allow an external helper
+- whether such a helper is currently available
+- which strategy is actually active for the current runtime
+
+`AppRuntimeCapabilitiesValue` now exposes an explicit `external_helper` snapshot with policy and
+availability, while bundle and external-package plan/apply results continue to report the active
+`helper_strategy`.
+
+### Consequences
+
+- future optional helper backends can be integrated without overloading one enum with both desired
+  policy and actual execution state
+- frontend callers can distinguish “prefer external helper, but none is available” from “never
+  requested an external helper” while still reading the currently active `helper_strategy`
+- helper-assisted paths remain optional accelerators instead of becoming ambient planner or service
+  assumptions before a concrete helper backend exists

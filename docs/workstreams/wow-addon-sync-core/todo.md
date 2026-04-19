@@ -174,7 +174,13 @@ Exit criteria:
 Goal: finish the remaining cross-platform and helper-boundary gaps after the architecture is clean
 enough that these rules live in one place.
 
-- [ ] define the optional external-helper capability boundary explicitly
+- [x] define the optional external-helper capability boundary explicitly
+  Completed: runtime capability reporting now distinguishes external-helper policy and
+  availability from the currently active `helper_strategy`. `AppRuntimeCapabilitiesValue`
+  exposes an explicit `external_helper` snapshot, while plan/apply result payloads continue to
+  report the actual active strategy. This keeps external helpers optional accelerators instead of
+  turning them into ambient planner or service assumptions before any concrete helper backend
+  exists.
 - [ ] broaden archive-compatibility coverage for author packages and large real-world inputs
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
 - [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and

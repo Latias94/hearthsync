@@ -357,8 +357,9 @@ mod tests {
     use super::*;
     use crate::core::app::{
         AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-        HealthStatusValue, HelperStrategyValue, HostPlatformValue, InspectInstallationRequest,
-        ResolveInstallationRequest, WowFlavorValue,
+        ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+        ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
+        InspectInstallationRequest, ResolveInstallationRequest, WowFlavorValue,
     };
 
     #[test]
@@ -408,7 +409,7 @@ mod tests {
     fn stable_app_services_expose_runtime_capabilities_as_app_owned_value() {
         let runtime = AppRuntime::new()
             .with_host_platform(HostPlatformValue::MacOs)
-            .with_helper_strategy(HelperStrategyValue::NativeRust);
+            .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal);
         let services = StableAppServices::with_runtime(runtime);
 
         assert_eq!(
@@ -420,7 +421,11 @@ mod tests {
                         retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                     },
                 },
-                helper_strategy: HelperStrategyValue::NativeRust,
+                external_helper: ExternalHelperCapabilitiesValue {
+                    policy: ExternalHelperPolicyValue::PreferExternal,
+                    availability: ExternalHelperAvailabilityValue::Unavailable,
+                    active_strategy: HelperStrategyValue::NativeRust,
+                },
             }
         );
     }

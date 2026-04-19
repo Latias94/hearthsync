@@ -201,7 +201,7 @@ desktop work.
 
 ### Status
 
-Planned
+Active
 
 ### Goal
 
@@ -218,3 +218,13 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 
 - Windows and macOS callers share one deterministic author-package import contract
 - helper-assisted paths remain optional accelerators instead of becoming architecture owners
+
+### Current Notes
+
+- `AppRuntimeCapabilitiesValue` now distinguishes external-helper policy and availability from the
+  active `helper_strategy`, so future helper backends can be added as optional accelerators without
+  overloading one runtime field with both desired policy and actual execution state
+- public bundle and external-package plan/apply payloads still report the active
+  `helper_strategy`, which remains `NativeRust` until a real helper backend exists
+- the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
+  coverage, and remaining path-portability hardening

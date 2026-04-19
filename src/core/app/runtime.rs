@@ -10,6 +10,7 @@ use crate::core::install::{
 
 use super::{
     AddonProviderModeValue, AddonProviderOptionsValue, AppRuntimeCapabilitiesValue,
+    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
     HelperStrategyValue, HostPlatformValue,
 };
 
@@ -19,7 +20,7 @@ type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 pub struct AppRuntime {
     addon_provider: SharedAddonProvider,
     default_addon_provider_options: Option<AddonProviderOptionsValue>,
-    helper_strategy: HelperStrategyValue,
+    external_helper_policy: ExternalHelperPolicyValue,
     host_platform: HostPlatformValue,
     install_scan_roots: Option<Vec<PathBuf>>,
     default_backup_dir: Option<PathBuf>,
@@ -37,7 +38,7 @@ impl AppRuntime {
                 DefaultAddonProvider::default().with_options(options.clone().into()),
             ),
             default_addon_provider_options: Some(options),
-            helper_strategy: HelperStrategyValue::default(),
+            external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
             default_backup_dir: None,
@@ -53,7 +54,7 @@ impl AppRuntime {
         Self {
             addon_provider: Arc::new(provider),
             default_addon_provider_options: None,
-            helper_strategy: HelperStrategyValue::default(),
+            external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
             default_backup_dir: None,
@@ -65,8 +66,11 @@ impl AppRuntime {
         self.addon_provider.as_ref()
     }
 
-    pub fn with_helper_strategy(mut self, helper_strategy: HelperStrategyValue) -> Self {
-        self.helper_strategy = helper_strategy;
+    pub fn with_external_helper_policy(
+        mut self,
+        external_helper_policy: ExternalHelperPolicyValue,
+    ) -> Self {
+        self.external_helper_policy = external_helper_policy;
         self
     }
 
@@ -80,12 +84,31 @@ impl AppRuntime {
 
         AppRuntimeCapabilitiesValue {
             addon_provider,
-            helper_strategy: self.helper_strategy,
+            external_helper: self.external_helper_capabilities(),
         }
     }
 
     pub fn helper_strategy(&self) -> HelperStrategyValue {
-        self.helper_strategy
+        self.external_helper_capabilities().active_strategy
+    }
+
+    pub fn external_helper_policy(&self) -> ExternalHelperPolicyValue {
+        self.external_helper_policy
+    }
+
+    pub fn external_helper_capabilities(&self) -> ExternalHelperCapabilitiesValue {
+        let availability = match self.external_helper_policy {
+            ExternalHelperPolicyValue::NativeOnly => ExternalHelperAvailabilityValue::NotRequested,
+            ExternalHelperPolicyValue::PreferExternal => {
+                ExternalHelperAvailabilityValue::Unavailable
+            }
+        };
+
+        ExternalHelperCapabilitiesValue {
+            policy: self.external_helper_policy,
+            availability,
+            active_strategy: HelperStrategyValue::NativeRust,
+        }
     }
 
     pub fn with_host_platform(mut self, host_platform: HostPlatformValue) -> Self {
@@ -167,7 +190,7 @@ impl fmt::Debug for AppRuntime {
                 "default_addon_provider_options",
                 &self.default_addon_provider_options,
             )
-            .field("helper_strategy", &self.helper_strategy)
+            .field("external_helper_policy", &self.external_helper_policy)
             .field("host_platform", &self.host_platform)
             .field("install_scan_roots", &self.install_scan_roots)
             .field("default_backup_dir", &self.default_backup_dir)
@@ -184,7 +207,11 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::{AddonProviderRetryPolicyValue, HelperStrategyValue, HostPlatformValue};
+    use crate::core::app::{
+        AddonProviderRetryPolicyValue, ExternalHelperAvailabilityValue,
+        ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HelperStrategyValue,
+        HostPlatformValue,
+    };
 
     #[test]
     fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
@@ -252,12 +279,12 @@ mod tests {
     }
 
     #[test]
-    fn runtime_capabilities_report_configured_default_provider_and_helper_strategy() {
+    fn runtime_capabilities_report_configured_default_provider_and_external_helper_state() {
         let runtime = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
             download_cache_dir: Some(PathBuf::from("cache")),
             retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
         })
-        .with_helper_strategy(HelperStrategyValue::NativeRust);
+        .with_external_helper_policy(ExternalHelperPolicyValue::NativeOnly);
 
         assert_eq!(
             runtime.capabilities(),
@@ -268,7 +295,11 @@ mod tests {
                         retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
                     },
                 },
-                helper_strategy: HelperStrategyValue::NativeRust,
+                external_helper: ExternalHelperCapabilitiesValue {
+                    policy: ExternalHelperPolicyValue::NativeOnly,
+                    availability: ExternalHelperAvailabilityValue::NotRequested,
+                    active_strategy: HelperStrategyValue::NativeRust,
+                },
             }
         );
     }
@@ -281,13 +312,17 @@ mod tests {
             runtime.capabilities(),
             AppRuntimeCapabilitiesValue {
                 addon_provider: AddonProviderModeValue::InternalCustom,
-                helper_strategy: HelperStrategyValue::NativeRust,
+                external_helper: ExternalHelperCapabilitiesValue {
+                    policy: ExternalHelperPolicyValue::NativeOnly,
+                    availability: ExternalHelperAvailabilityValue::NotRequested,
+                    active_strategy: HelperStrategyValue::NativeRust,
+                },
             }
         );
     }
 
     #[test]
-    fn runtime_defaults_helper_strategy_to_native_rust() {
+    fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_support() {
         assert_eq!(
             AppRuntime::new().capabilities(),
             AppRuntimeCapabilitiesValue {
@@ -297,13 +332,37 @@ mod tests {
                         retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                     },
                 },
-                helper_strategy: HelperStrategyValue::NativeRust,
+                external_helper: ExternalHelperCapabilitiesValue {
+                    policy: ExternalHelperPolicyValue::NativeOnly,
+                    availability: ExternalHelperAvailabilityValue::NotRequested,
+                    active_strategy: HelperStrategyValue::NativeRust,
+                },
             }
         );
         assert_eq!(
             AppRuntime::new().helper_strategy(),
             HelperStrategyValue::NativeRust
         );
+    }
+
+    #[test]
+    fn runtime_capabilities_report_unavailable_external_helper_when_preferred() {
+        let runtime = AppRuntime::new()
+            .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal);
+
+        assert_eq!(
+            runtime.external_helper_policy(),
+            ExternalHelperPolicyValue::PreferExternal
+        );
+        assert_eq!(
+            runtime.external_helper_capabilities(),
+            ExternalHelperCapabilitiesValue {
+                policy: ExternalHelperPolicyValue::PreferExternal,
+                availability: ExternalHelperAvailabilityValue::Unavailable,
+                active_strategy: HelperStrategyValue::NativeRust,
+            }
+        );
+        assert_eq!(runtime.helper_strategy(), HelperStrategyValue::NativeRust);
     }
 
     #[test]

@@ -96,7 +96,8 @@ Current architectural constraints:
 
 - public planning still keeps too much execution-shaped preparation internally
 - `core::app` services still need stronger contract ownership and fewer thin-forwarder behaviors
-- optional external-helper capability is not yet modeled as an explicit boundary
+- optional external-helper capability now has an explicit runtime boundary, but no concrete helper
+  backend exists yet
 - archive compatibility and portability coverage still need more real-world hardening
 
 ## Target Architecture
@@ -175,6 +176,14 @@ Helper capability reporting follows the same rule.
 The selected helper strategy belongs to app runtime state, not to bundle-planner DTOs.
 Public plan results may expose helper strategy as frontend-facing status, but the planner should not
 invent or own that capability state itself.
+Runtime capability reporting should also distinguish:
+
+- external-helper policy requested by the frontend
+- whether an external helper is currently available
+- which helper strategy is actually active for the current runtime
+
+That separation prevents future optional helpers from overloading one enum with both desired
+policy and actual execution state.
 
 The same ownership rule applies to response projection.
 Domain-to-app result mapping may still exist internally, but stable app result types should not
@@ -434,7 +443,7 @@ thin-forwarder normalization, progress expectations, and runtime capability inje
 
 ## Open Questions
 
-- which app services should be declared GUI-stable first
-- what minimal external-helper capability boundary is worth keeping
+- which first concrete external-helper backend, if any, is worth integrating after the runtime
+  boundary is explicit
 - how much additional archive compatibility hardening is needed before real public release
 - whether a workspace split becomes worthwhile after the planner and app-contract refactors are done
