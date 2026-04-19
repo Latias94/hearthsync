@@ -183,6 +183,9 @@ desktop work.
 - the same frontend root now forwards stable long-running task entrypoints too, so addon, backup
   restore, bundle apply, and external-package progress/callback flows no longer require callers to
   drop down to raw service accessors just to stay on the `core::app` boundary
+- `StableAppServices` now exposes the same first-wave stable direct/task entrypoints, so the
+  explicit GUI-stable boundary is no longer just a named service container but a real stable
+  frontend contract
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers
 

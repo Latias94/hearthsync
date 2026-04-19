@@ -416,6 +416,9 @@ the first-wave GUI-stable contract yet.
   stability promises on addon-index and addon-lock contracts
 - `HearthSyncApp` should expose an explicit code boundary for the stable service set instead of
   relying on documentation alone
+- `StableAppServices` should expose explicit direct and task entrypoints for that stable service set
+  so the GUI-stable boundary is a real callable contract, not just a container of lower-level
+  services
 
 ## ADR-022: App Service Requests Share an App-Owned Resolved Installation Value
 

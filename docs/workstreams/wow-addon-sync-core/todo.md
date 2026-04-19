@@ -130,8 +130,10 @@ ways that a future frontend can depend on without learning internal domain seams
   manually around the app boundary. The same frontend root now also forwards the stable long-
   running task entrypoints for addon, backup restore, bundle apply, and external-package flows, so
   future GUI work does not need to drop back to raw services just to collect progress or stream
-  callbacks. The remaining work in this area is narrower and mostly about service-internal policy
-  ownership rather than scattered path/default patching or root-level orchestration gaps.
+  callbacks. `StableAppServices` now mirrors that first-wave stable direct/task surface too, so the
+  smaller GUI-stable boundary is an explicit code contract instead of a service-factory-only hint.
+  The remaining work in this area is narrower and mostly about service-internal policy ownership
+  rather than scattered path/default patching or root-level orchestration gaps.
 - [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
   Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls
