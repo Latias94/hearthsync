@@ -112,10 +112,11 @@ ways that a future frontend can depend on without learning internal domain seams
   `WowFlavorValue`, while manifest mapping rules and installation-health payloads now also use
   app-owned `CharacterMappingModeValue` and `HealthStatusValue`. Frontend callers no longer need
   domain install or manifest enums just to express host policy, selected flavor, manifest mapping
-  rules, or installation-health state. Bundle and external-package app response projection now also
-  uses crate-internal `from_domain` factories instead of public `From<domain>` impls, so stable
-  result types no longer advertise those domain conversions as part of the frontend-facing trait
-  surface.
+  rules, or installation-health state. The same response-boundary cleanup now covers the first-wave
+  stable result families too: installation, addon, backup, bundle, and external-package app
+  responses use crate-internal `from_domain` factories instead of public `From<domain>` impls, so
+  stable result types no longer advertise those domain conversions as part of the frontend-facing
+  trait surface.
 - [ ] remove remaining thin-forwarder service behavior by moving real normalization and policy
   ownership into the app boundary
   Current progress: runtime-backed default injection for backup directories, bundle output

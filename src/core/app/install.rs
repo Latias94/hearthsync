@@ -47,7 +47,7 @@ impl InstallationService {
             request.flavor.map(Into::into),
             self.runtime.host_platform().into(),
         )?;
-        Ok(InstallationInspectionResult::from(inspection))
+        Ok(InstallationInspectionResult::from_domain(inspection))
     }
 
     pub fn resolve(

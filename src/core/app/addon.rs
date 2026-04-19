@@ -30,13 +30,13 @@ impl AddonService {
 
     pub fn search(&self, request: SearchAddonsRequest) -> AppResult<AddonSearchCatalogResult> {
         let results = search_addons_with_provider(self.runtime.addon_provider(), request.into())?;
-        Ok(AddonSearchCatalogResult::from(results))
+        Ok(AddonSearchCatalogResult::from_domain(results))
     }
 
     pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
         let installation = request.installation.into();
         let inventory = list_addons(&installation)?;
-        Ok(AddonInventoryResult::from(inventory))
+        Ok(AddonInventoryResult::from_domain(inventory))
     }
 
     pub fn install(
@@ -64,7 +64,7 @@ impl AddonService {
             cancellation,
             progress,
         )?;
-        Ok(InstalledAddonPackageResult::from(installed))
+        Ok(InstalledAddonPackageResult::from_domain(installed))
     }
 
     pub fn install_collecting_progress(
@@ -113,7 +113,7 @@ impl AddonService {
             cancellation,
             progress,
         )?;
-        Ok(UpdatedAddonPackageResult::from(updated))
+        Ok(UpdatedAddonPackageResult::from_domain(updated))
     }
 
     pub fn update_collecting_progress(
@@ -161,7 +161,7 @@ impl AddonService {
             cancellation,
             progress,
         )?;
-        Ok(RemovedAddonPackageResult::from(removed))
+        Ok(RemovedAddonPackageResult::from_domain(removed))
     }
 
     pub fn remove_collecting_progress(

@@ -27,13 +27,13 @@ impl BackupService {
 
     pub fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
         let created = create_backup(request.apply_runtime_defaults(&self.runtime).into())?;
-        Ok(CreatedBackupResult::from(created))
+        Ok(CreatedBackupResult::from_domain(created))
     }
 
     pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
         let request = request.apply_runtime_defaults(&self.runtime);
         let catalog = list_backups(request.backup_dir.as_deref())?;
-        Ok(BackupCatalogResult::from(catalog))
+        Ok(BackupCatalogResult::from_domain(catalog))
     }
 
     pub fn restore(&self, request: RestoreBackupAppRequest) -> AppResult<RestoredBackupResult> {
@@ -57,7 +57,7 @@ impl BackupService {
             cancellation,
             progress,
         )?;
-        Ok(RestoredBackupResult::from(restored))
+        Ok(RestoredBackupResult::from_domain(restored))
     }
 
     pub fn restore_collecting_progress(

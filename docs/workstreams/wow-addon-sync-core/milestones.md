@@ -170,6 +170,8 @@ desktop work.
 - bundle and external-package app responses now build from crate-internal domain projection helpers
   instead of public `From<domain>` trait impls, reducing the stable app boundary's visible domain
   coupling
+- installation, addon, and backup stable responses now follow the same rule, so the first-wave GUI
+  service set no longer advertises public domain conversion traits for its main response payloads
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers, plus explicit progress/capability ownership
 

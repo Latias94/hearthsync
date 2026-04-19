@@ -51,7 +51,8 @@ use crate::core::bundle::{
     UnpackedBundle as DomainUnpackedBundle,
 };
 use crate::core::install::{
-    InstallationHealth, LocalWowAccount, LocalWowCharacter, ProductInstallInspection,
+    DetectedFlavorInstallation, InstallationHealth, LocalWowAccount, LocalWowCharacter,
+    ProductInstallInspection,
 };
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::BundleResources;
@@ -63,9 +64,7 @@ pub struct InstallationScanResult {
 }
 
 impl InstallationScanResult {
-    pub fn from_installations(
-        installations: Vec<crate::core::install::DetectedFlavorInstallation>,
-    ) -> Self {
+    pub(crate) fn from_installations(installations: Vec<DetectedFlavorInstallation>) -> Self {
         let installation_count = installations.len();
         let installations = installations
             .into_iter()
@@ -113,8 +112,8 @@ impl InstallationHealthResult {
     }
 }
 
-impl From<InstallationHealth> for InstallationHealthResult {
-    fn from(value: InstallationHealth) -> Self {
+impl InstallationHealthResult {
+    pub(crate) fn from_domain(value: InstallationHealth) -> Self {
         let status_label = value.summary().to_string();
 
         Self {
@@ -135,8 +134,8 @@ pub struct InstallationInspectionResult {
     pub health: InstallationHealthResult,
 }
 
-impl From<ProductInstallInspection> for InstallationInspectionResult {
-    fn from(value: ProductInstallInspection) -> Self {
+impl InstallationInspectionResult {
+    pub(crate) fn from_domain(value: ProductInstallInspection) -> Self {
         Self {
             requested_path: value.requested_path,
             product_root: value.product_root,
@@ -146,7 +145,7 @@ impl From<ProductInstallInspection> for InstallationInspectionResult {
                 .map(Into::into)
                 .collect(),
             installation: ResolvedInstallationValue::from(value.installation),
-            health: InstallationHealthResult::from(value.health),
+            health: InstallationHealthResult::from_domain(value.health),
         }
     }
 }
@@ -180,8 +179,8 @@ impl AddonSourceResult {
     }
 }
 
-impl From<DomainAddonSourceRef> for AddonSourceResult {
-    fn from(value: DomainAddonSourceRef) -> Self {
+impl AddonSourceResult {
+    fn from_domain(value: DomainAddonSourceRef) -> Self {
         let display_name = value.display_name();
 
         match value {
@@ -250,8 +249,8 @@ pub struct TrackedAddonResult {
     pub version: Option<String>,
 }
 
-impl From<TrackedAddon> for TrackedAddonResult {
-    fn from(value: TrackedAddon) -> Self {
+impl TrackedAddonResult {
+    fn from_domain(value: TrackedAddon) -> Self {
         Self {
             directory_name: value.directory_name,
             toc_file: value.toc_file,
@@ -273,9 +272,9 @@ pub struct TrackedAddonPackageResult {
     pub metadata: Option<AddonPackageMetadataValue>,
 }
 
-impl From<TrackedAddonPackage> for TrackedAddonPackageResult {
-    fn from(value: TrackedAddonPackage) -> Self {
-        let source = AddonSourceResult::from(value.source);
+impl TrackedAddonPackageResult {
+    fn from_domain(value: TrackedAddonPackage) -> Self {
+        let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
 
@@ -289,7 +288,7 @@ impl From<TrackedAddonPackage> for TrackedAddonPackageResult {
             addons: value
                 .addons
                 .into_iter()
-                .map(TrackedAddonResult::from)
+                .map(TrackedAddonResult::from_domain)
                 .collect(),
             metadata: value.metadata.map(AddonPackageMetadataValue::from),
         }
@@ -306,8 +305,8 @@ pub struct AddonInventoryResult {
     pub untracked_addons: Vec<String>,
 }
 
-impl From<AddonInventory> for AddonInventoryResult {
-    fn from(value: AddonInventory) -> Self {
+impl AddonInventoryResult {
+    pub(crate) fn from_domain(value: AddonInventory) -> Self {
         let tracked_package_count = value.tracked_packages.len();
         let tracked_addon_count = value
             .tracked_packages
@@ -323,7 +322,7 @@ impl From<AddonInventory> for AddonInventoryResult {
             tracked_packages: value
                 .tracked_packages
                 .into_iter()
-                .map(TrackedAddonPackageResult::from)
+                .map(TrackedAddonPackageResult::from_domain)
                 .collect(),
             untracked_addons: value.untracked_addons,
         }
@@ -344,9 +343,9 @@ pub struct AddonSearchResult {
     pub download_count: u64,
 }
 
-impl From<DomainAddonSearchResult> for AddonSearchResult {
-    fn from(value: DomainAddonSearchResult) -> Self {
-        let source = AddonSourceResult::from(value.source);
+impl AddonSearchResult {
+    fn from_domain(value: DomainAddonSearchResult) -> Self {
+        let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
 
         Self {
@@ -371,8 +370,8 @@ pub struct AddonSearchCatalogResult {
     pub results: Vec<AddonSearchResult>,
 }
 
-impl From<DomainAddonSearchCatalog> for AddonSearchCatalogResult {
-    fn from(value: DomainAddonSearchCatalog) -> Self {
+impl AddonSearchCatalogResult {
+    pub(crate) fn from_domain(value: DomainAddonSearchCatalog) -> Self {
         let result_count = value.results.len();
 
         Self {
@@ -381,7 +380,7 @@ impl From<DomainAddonSearchCatalog> for AddonSearchCatalogResult {
             results: value
                 .results
                 .into_iter()
-                .map(AddonSearchResult::from)
+                .map(AddonSearchResult::from_domain)
                 .collect(),
         }
     }
@@ -403,9 +402,9 @@ pub struct InstalledAddonPackageResult {
     pub backup_path: Option<PathBuf>,
 }
 
-impl From<DomainInstalledAddonPackageResult> for InstalledAddonPackageResult {
-    fn from(value: DomainInstalledAddonPackageResult) -> Self {
-        let source = AddonSourceResult::from(value.source);
+impl InstalledAddonPackageResult {
+    pub(crate) fn from_domain(value: DomainInstalledAddonPackageResult) -> Self {
+        let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
         let replaced_addon_count = value.replaced_addons.len();
@@ -419,7 +418,7 @@ impl From<DomainInstalledAddonPackageResult> for InstalledAddonPackageResult {
             addons: value
                 .addons
                 .into_iter()
-                .map(TrackedAddonResult::from)
+                .map(TrackedAddonResult::from_domain)
                 .collect(),
             files_to_write: value.files_to_write,
             written_files: value.written_files,
@@ -442,8 +441,8 @@ pub struct UpdatedAddonPackageResult {
     pub backup_path: Option<PathBuf>,
 }
 
-impl From<DomainUpdatedAddonPackageResult> for UpdatedAddonPackageResult {
-    fn from(value: DomainUpdatedAddonPackageResult) -> Self {
+impl UpdatedAddonPackageResult {
+    pub(crate) fn from_domain(value: DomainUpdatedAddonPackageResult) -> Self {
         let updated_package_count = value.updated_packages.len();
 
         Self {
@@ -455,7 +454,7 @@ impl From<DomainUpdatedAddonPackageResult> for UpdatedAddonPackageResult {
             updated_packages: value
                 .updated_packages
                 .into_iter()
-                .map(TrackedAddonPackageResult::from)
+                .map(TrackedAddonPackageResult::from_domain)
                 .collect(),
             backup_path: value.backup_path,
         }
@@ -474,8 +473,8 @@ pub struct RemovedAddonPackageResult {
     pub backup_path: Option<PathBuf>,
 }
 
-impl From<DomainRemovedAddonPackageResult> for RemovedAddonPackageResult {
-    fn from(value: DomainRemovedAddonPackageResult) -> Self {
+impl RemovedAddonPackageResult {
+    pub(crate) fn from_domain(value: DomainRemovedAddonPackageResult) -> Self {
         let removed_package_count = value.removed_packages.len();
         let removed_addon_count = value.removed_addons.len();
 
@@ -486,7 +485,7 @@ impl From<DomainRemovedAddonPackageResult> for RemovedAddonPackageResult {
             removed_packages: value
                 .removed_packages
                 .into_iter()
-                .map(TrackedAddonPackageResult::from)
+                .map(TrackedAddonPackageResult::from_domain)
                 .collect(),
             removed_addon_count,
             removed_addons: value.removed_addons,
@@ -512,7 +511,7 @@ pub struct AddonIndexPackageResult {
 
 impl From<AddonIndexPackage> for AddonIndexPackageResult {
     fn from(value: AddonIndexPackage) -> Self {
-        let source = AddonSourceResult::from(value.source);
+        let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
 
         Self {
@@ -568,7 +567,7 @@ impl From<DomainAddonIndexInstallResult> for AddonIndexInstallResult {
         Self {
             index_path: value.index_path,
             package: AddonIndexPackageResult::from(value.package),
-            install: InstalledAddonPackageResult::from(value.install),
+            install: InstalledAddonPackageResult::from_domain(value.install),
         }
     }
 }
@@ -593,7 +592,7 @@ impl From<DomainAddonIndexUpdateResult> for AddonIndexUpdateResult {
                 .into_iter()
                 .map(AddonIndexPackageResult::from)
                 .collect(),
-            update: UpdatedAddonPackageResult::from(value.update),
+            update: UpdatedAddonPackageResult::from_domain(value.update),
         }
     }
 }
@@ -620,7 +619,7 @@ pub struct AddonLockPackageResult {
 
 impl From<AddonLockPackage> for AddonLockPackageResult {
     fn from(value: AddonLockPackage) -> Self {
-        let source = AddonSourceResult::from(value.source);
+        let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
 
@@ -643,7 +642,7 @@ impl From<AddonLockPackage> for AddonLockPackageResult {
             addons: value
                 .addons
                 .into_iter()
-                .map(TrackedAddonResult::from)
+                .map(TrackedAddonResult::from_domain)
                 .collect(),
         }
     }
@@ -702,8 +701,8 @@ pub struct BackupEntryResult {
     pub groups: Vec<BackupGroupValue>,
 }
 
-impl From<BackupCatalogEntry> for BackupEntryResult {
-    fn from(value: BackupCatalogEntry) -> Self {
+impl BackupEntryResult {
+    fn from_domain(value: BackupCatalogEntry) -> Self {
         Self {
             backup_id: value.backup_id,
             archive_path: value.archive_path,
@@ -733,8 +732,8 @@ pub struct BackupMetadataResult {
     pub groups: Vec<BackupGroupValue>,
 }
 
-impl From<BackupMetadata> for BackupMetadataResult {
-    fn from(value: BackupMetadata) -> Self {
+impl BackupMetadataResult {
+    fn from_domain(value: BackupMetadata) -> Self {
         let group_count = value.groups.len();
 
         Self {
@@ -760,12 +759,12 @@ pub struct CreatedBackupResult {
     pub metadata: BackupMetadataResult,
 }
 
-impl From<DomainCreatedBackup> for CreatedBackupResult {
-    fn from(value: DomainCreatedBackup) -> Self {
+impl CreatedBackupResult {
+    pub(crate) fn from_domain(value: DomainCreatedBackup) -> Self {
         Self {
             archive_path: value.archive_path,
             archived_files: value.archived_files,
-            metadata: BackupMetadataResult::from(value.metadata),
+            metadata: BackupMetadataResult::from_domain(value.metadata),
         }
     }
 }
@@ -777,12 +776,12 @@ pub struct RestoredBackupResult {
     pub metadata: BackupMetadataResult,
 }
 
-impl From<DomainRestoredBackup> for RestoredBackupResult {
-    fn from(value: DomainRestoredBackup) -> Self {
+impl RestoredBackupResult {
+    pub(crate) fn from_domain(value: DomainRestoredBackup) -> Self {
         Self {
             archive_path: value.archive_path,
             restored_files: value.restored_files,
-            metadata: BackupMetadataResult::from(value.metadata),
+            metadata: BackupMetadataResult::from_domain(value.metadata),
         }
     }
 }
@@ -794,8 +793,8 @@ pub struct BackupCatalogResult {
     pub entries: Vec<BackupEntryResult>,
 }
 
-impl From<BackupCatalog> for BackupCatalogResult {
-    fn from(value: BackupCatalog) -> Self {
+impl BackupCatalogResult {
+    pub(crate) fn from_domain(value: BackupCatalog) -> Self {
         let entry_count = value.entries.len();
 
         Self {
@@ -804,7 +803,7 @@ impl From<BackupCatalog> for BackupCatalogResult {
             entries: value
                 .entries
                 .into_iter()
-                .map(BackupEntryResult::from)
+                .map(BackupEntryResult::from_domain)
                 .collect(),
         }
     }
@@ -1222,7 +1221,7 @@ pub struct AddonLockPackageSnapshotResult {
 
 impl From<DomainAddonLockPackageSnapshot> for AddonLockPackageSnapshotResult {
     fn from(value: DomainAddonLockPackageSnapshot) -> Self {
-        let source = AddonSourceResult::from(value.source);
+        let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
 
         Self {
@@ -1403,7 +1402,7 @@ pub struct AddonLockSyncActionResult {
 
 impl From<DomainAddonLockSyncAction> for AddonLockSyncActionResult {
     fn from(value: DomainAddonLockSyncAction) -> Self {
-        let source = value.source.map(AddonSourceResult::from);
+        let source = value.source.map(AddonSourceResult::from_domain);
         let source_label = source.as_ref().map(|source| source.display_name.clone());
 
         Self {
