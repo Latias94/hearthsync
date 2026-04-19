@@ -346,6 +346,12 @@ Key concerns:
 - account and character remapping
 - author packages produced on one platform and applied on the other
 
+Portable bundle export should also avoid ambient process-state assumptions.
+Default output paths, relative output references, and manifest-relative sidecar references such as
+bundle addon indexes should resolve from explicit product inputs like runtime defaults,
+`manifest_base_dir`, or installation-derived base directories rather than the caller's current
+working directory.
+
 The product should prefer deterministic refusal over ambiguous or destructive guesses.
 
 ## Current Refactor Sequence

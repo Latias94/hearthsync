@@ -226,5 +226,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   overloading one runtime field with both desired policy and actual execution state
 - public bundle and external-package plan/apply payloads still report the active
   `helper_strategy`, which remains `NativeRust` until a real helper backend exists
+- bundle export no longer depends on ambient `cwd` for default output paths, relative output
+  references, or relative addon-index metadata resolution; those flows now use explicit base-dir
+  rules instead of process-global state
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

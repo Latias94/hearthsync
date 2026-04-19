@@ -185,6 +185,11 @@ enough that these rules live in one place.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
 - [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and
   caller-working-directory assumptions
+  Current progress: bundle export no longer defaults output paths or relative output references
+  against the ambient process working directory, and relative bundle addon-index references now
+  require an explicit `manifest_base_dir` instead of silently resolving against `cwd`. Remaining
+  work is mainly broader archive-metadata hardening plus any other case-folding or ambient-path
+  edges outside the bundle export path.
 
 Exit criteria:
 

@@ -860,3 +860,30 @@ availability, while bundle and external-package plan/apply results continue to r
   requested an external helper” while still reading the currently active `helper_strategy`
 - helper-assisted paths remain optional accelerators instead of becoming ambient planner or service
   assumptions before a concrete helper backend exists
+
+## ADR-038: Bundle Export Paths Must Not Depend on Caller Working Directory
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+Bundle export and bundle sidecar resolution should not silently depend on `std::env::current_dir()`
+for portable behavior.
+
+Specifically:
+
+- default bundle output paths should resolve from explicit product inputs such as
+  `manifest_base_dir`, runtime output defaults, or installation-derived base directories
+- relative explicit output paths should resolve against the same explicit base rules
+- relative addon-index references embedded through bundle metadata should require an explicit
+  `manifest_base_dir` instead of falling back to ambient process state
+
+### Consequences
+
+- CLI, GUI, and tests now share one deterministic bundle-export contract instead of inheriting
+  whatever working directory the caller process happened to use
+- portable bundle metadata no longer smuggles relative sidecar resolution through ambient `cwd`
+- the remaining portability hardening can focus on true archive metadata and case-folding edges
+  instead of preserving process-global path assumptions in bundle export

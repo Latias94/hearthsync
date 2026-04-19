@@ -62,6 +62,94 @@ fn pack_bundle_writes_normalized_layout() {
 }
 
 #[test]
+fn pack_bundle_defaults_output_path_relative_to_manifest_base_dir() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), true);
+    let manifest_dir = temp.path().join("manifest-root");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+
+    let bundle = pack_bundle(PackBundleRequest {
+        installation,
+        manifest: sample_manifest(),
+        output_path: None,
+        manifest_base_dir: Some(manifest_dir.clone()),
+    })
+    .expect("pack bundle");
+
+    assert_eq!(bundle.archive_path.parent(), Some(manifest_dir.as_path()));
+    assert_eq!(
+        bundle
+            .archive_path
+            .extension()
+            .and_then(|item| item.to_str()),
+        Some("zip")
+    );
+    assert!(bundle.archive_path.is_file());
+}
+
+#[test]
+fn pack_bundle_resolves_relative_output_path_against_manifest_base_dir() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), true);
+    let manifest_dir = temp.path().join("manifest-root");
+    let expected_output_dir = manifest_dir.join("exports");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+
+    let bundle = pack_bundle(PackBundleRequest {
+        installation,
+        manifest: sample_manifest(),
+        output_path: Some(std::path::PathBuf::from("exports")),
+        manifest_base_dir: Some(manifest_dir.clone()),
+    })
+    .expect("pack bundle");
+
+    assert_eq!(
+        bundle.archive_path.parent(),
+        Some(expected_output_dir.as_path())
+    );
+    assert!(bundle.archive_path.is_file());
+}
+
+#[test]
+fn pack_bundle_defaults_output_path_next_to_installation_without_manifest_base_dir() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), true);
+
+    let bundle = pack_bundle(PackBundleRequest {
+        installation,
+        manifest: sample_manifest(),
+        output_path: None,
+        manifest_base_dir: None,
+    })
+    .expect("pack bundle");
+
+    assert_eq!(bundle.archive_path.parent(), Some(temp.path()));
+    assert!(bundle.archive_path.is_file());
+}
+
+#[test]
+fn pack_bundle_rejects_relative_addon_index_without_manifest_base_dir() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), true);
+    let mut manifest = sample_manifest();
+    manifest.resources.addon_indexes = vec!["indexes/addon-index.toml".to_string()];
+
+    let error = pack_bundle(PackBundleRequest {
+        installation,
+        manifest,
+        output_path: Some(temp.path().join("bundle.zip")),
+        manifest_base_dir: None,
+    })
+    .expect_err("relative addon index without manifest base dir should fail");
+
+    assert!(
+        error
+            .to_string()
+            .contains("relative addon index path requires `manifest_base_dir`")
+    );
+}
+
+#[test]
 fn analyze_external_package_zip_normalizes_wrapped_ui_layout() {
     let temp = tempdir().expect("temp dir");
     let package_path = temp.path().join("author-ui-pack.zip");

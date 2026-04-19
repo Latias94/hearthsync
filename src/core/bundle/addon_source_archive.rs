@@ -20,7 +20,9 @@ pub(super) fn resolve_addon_index_paths(
         } else if let Some(base_dir) = manifest_base_dir {
             base_dir.join(reference)
         } else {
-            std::env::current_dir()?.join(reference)
+            return Err(AppError::Validation(format!(
+                "relative addon index path requires `manifest_base_dir`: {addon_index}"
+            )));
         };
 
         if !source_path.is_file() {

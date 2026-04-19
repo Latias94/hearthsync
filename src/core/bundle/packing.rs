@@ -24,10 +24,13 @@ pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
     request.manifest.source.exported_at = Some(timestamp.clone());
     request.manifest.source.platform = Some(request.installation.platform);
 
+    let default_output_base_dir =
+        default_bundle_output_base_dir(&request.installation, request.manifest_base_dir.as_deref());
     let archive_path = resolve_bundle_output_path(
         request.output_path.as_deref(),
         &request.manifest,
         &timestamp,
+        &default_output_base_dir,
     )?;
     if let Some(parent) = archive_path.parent() {
         fs::create_dir_all(parent)?;
@@ -148,6 +151,7 @@ fn resolve_bundle_output_path(
     output_path: Option<&Path>,
     manifest: &BundleManifest,
     timestamp: &str,
+    default_base_dir: &Path,
 ) -> AppResult<PathBuf> {
     let file_name = format!(
         "bundle-{}-{}.zip",
@@ -157,10 +161,28 @@ fn resolve_bundle_output_path(
 
     match output_path {
         Some(path) if path.extension().is_some_and(|extension| extension == "zip") => {
-            Ok(path.to_path_buf())
+            Ok(resolve_output_reference(path, default_base_dir))
         }
-        Some(path) => Ok(path.join(file_name)),
-        None => Ok(std::env::current_dir()?.join(file_name)),
+        Some(path) => Ok(resolve_output_reference(path, default_base_dir).join(file_name)),
+        None => Ok(default_base_dir.join(file_name)),
+    }
+}
+
+fn default_bundle_output_base_dir(
+    installation: &DetectedFlavorInstallation,
+    manifest_base_dir: Option<&Path>,
+) -> PathBuf {
+    manifest_base_dir
+        .map(Path::to_path_buf)
+        .or_else(|| installation.product_root.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| installation.product_root.clone())
+}
+
+fn resolve_output_reference(path: &Path, default_base_dir: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        default_base_dir.join(path)
     }
 }
 
