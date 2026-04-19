@@ -19,7 +19,8 @@ impl InstallationService {
         Self { runtime }
     }
 
-    pub fn runtime(&self) -> &AppRuntime {
+    #[cfg(test)]
+    pub(crate) fn runtime(&self) -> &AppRuntime {
         &self.runtime
     }
 

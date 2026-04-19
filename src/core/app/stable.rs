@@ -6,7 +6,7 @@ use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
 pub struct StableAppServices {
-    runtime: AppRuntime,
+    pub(super) runtime: AppRuntime,
 }
 
 impl StableAppServices {

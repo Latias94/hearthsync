@@ -141,6 +141,11 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access are now
     crate-visible only, so external callers stay on stable direct/task entrypoints instead of
     treating the stable boundary as another service factory.
+    Current cleanup: `HearthSyncApp` now composes and dereferences the stable boundary instead of
+    repeating first-wave direct/task wrappers, so the full app root only adds non-stable addon
+    index / addon lock entrypoints on top of one shared GUI-facing surface.
+    Current cleanup: raw `runtime()` access on individual app services is now test-only, so app
+    runtime wiring stays an internal assembly concern rather than another public extension seam.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

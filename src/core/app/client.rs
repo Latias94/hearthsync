@@ -1,12 +1,11 @@
-use super::{
-    AddonIndexService, AddonLockService, AddonService, AppRuntime, AppRuntimeCapabilitiesValue,
-    BackupService, BundleService, ExternalPackageService, InstallationService, StableAppServices,
-};
+use std::ops::Deref;
+
+use super::{AddonIndexService, AddonLockService, AppRuntime, StableAppServices};
 use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
 pub struct HearthSyncApp {
-    runtime: AppRuntime,
+    stable: StableAppServices,
 }
 
 impl HearthSyncApp {
@@ -15,134 +14,9 @@ impl HearthSyncApp {
     }
 
     pub fn with_runtime(runtime: AppRuntime) -> Self {
-        Self { runtime }
-    }
-
-    pub fn runtime(&self) -> &AppRuntime {
-        &self.runtime
-    }
-
-    pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
-        self.stable_services().capabilities()
-    }
-
-    pub fn scan_installations(&self) -> AppResult<super::InstallationScanResult> {
-        self.stable_services().scan_installations()
-    }
-
-    pub fn inspect_installation(
-        &self,
-        request: super::InspectInstallationRequest,
-    ) -> AppResult<super::InstallationInspectionResult> {
-        self.stable_services().inspect_installation(request)
-    }
-
-    pub fn resolve_installation(
-        &self,
-        request: super::ResolveInstallationRequest,
-    ) -> AppResult<super::ResolvedInstallationValue> {
-        self.stable_services().resolve_installation(request)
-    }
-
-    pub fn search_addons(
-        &self,
-        request: super::SearchAddonsRequest,
-    ) -> AppResult<super::AddonSearchCatalogResult> {
-        self.stable_services().search_addons(request)
-    }
-
-    pub fn list_addons(
-        &self,
-        request: super::ListAddonsRequest,
-    ) -> AppResult<super::AddonInventoryResult> {
-        self.stable_services().list_addons(request)
-    }
-
-    pub fn install_addon(
-        &self,
-        request: super::InstallAddonAppRequest,
-    ) -> AppResult<super::InstalledAddonPackageResult> {
-        self.stable_services().install_addon(request)
-    }
-
-    pub fn install_addon_collecting_progress(
-        &self,
-        request: super::InstallAddonAppRequest,
-    ) -> AppResult<super::TaskRun<super::InstalledAddonPackageResult>> {
-        self.stable_services()
-            .install_addon_collecting_progress(request)
-    }
-
-    pub fn install_addon_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::InstallAddonAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::InstalledAddonPackageResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .install_addon_with_callbacks(request, is_cancelled, on_progress)
-    }
-
-    pub fn update_addons(
-        &self,
-        request: super::UpdateAddonAppRequest,
-    ) -> AppResult<super::UpdatedAddonPackageResult> {
-        self.stable_services().update_addons(request)
-    }
-
-    pub fn update_addons_collecting_progress(
-        &self,
-        request: super::UpdateAddonAppRequest,
-    ) -> AppResult<super::TaskRun<super::UpdatedAddonPackageResult>> {
-        self.stable_services()
-            .update_addons_collecting_progress(request)
-    }
-
-    pub fn update_addons_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::UpdateAddonAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::UpdatedAddonPackageResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .update_addons_with_callbacks(request, is_cancelled, on_progress)
-    }
-
-    pub fn remove_addons(
-        &self,
-        request: super::RemoveAddonAppRequest,
-    ) -> AppResult<super::RemovedAddonPackageResult> {
-        self.stable_services().remove_addons(request)
-    }
-
-    pub fn remove_addons_collecting_progress(
-        &self,
-        request: super::RemoveAddonAppRequest,
-    ) -> AppResult<super::TaskRun<super::RemovedAddonPackageResult>> {
-        self.stable_services()
-            .remove_addons_collecting_progress(request)
-    }
-
-    pub fn remove_addons_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::RemoveAddonAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::RemovedAddonPackageResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .remove_addons_with_callbacks(request, is_cancelled, on_progress)
+        Self {
+            stable: StableAppServices::with_runtime(runtime),
+        }
     }
 
     pub fn inspect_addon_index(
@@ -271,238 +145,38 @@ impl HearthSyncApp {
             .apply_sync_with_callbacks(request, is_cancelled, on_progress)
     }
 
-    pub fn create_backup(
-        &self,
-        request: super::CreateBackupAppRequest,
-    ) -> AppResult<super::CreatedBackupResult> {
-        self.stable_services().create_backup(request)
-    }
-
-    pub fn list_backups(
-        &self,
-        request: super::ListBackupsRequest,
-    ) -> AppResult<super::BackupCatalogResult> {
-        self.stable_services().list_backups(request)
-    }
-
-    pub fn restore_backup(
-        &self,
-        request: super::RestoreBackupAppRequest,
-    ) -> AppResult<super::RestoredBackupResult> {
-        self.stable_services().restore_backup(request)
-    }
-
-    pub fn restore_backup_collecting_progress(
-        &self,
-        request: super::RestoreBackupAppRequest,
-    ) -> AppResult<super::TaskRun<super::RestoredBackupResult>> {
-        self.stable_services()
-            .restore_backup_collecting_progress(request)
-    }
-
-    pub fn restore_backup_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::RestoreBackupAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::RestoredBackupResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .restore_backup_with_callbacks(request, is_cancelled, on_progress)
-    }
-
-    pub fn inspect_bundle(
-        &self,
-        request: super::InspectBundleRequest,
-    ) -> AppResult<super::BundleInspectionResult> {
-        self.stable_services().inspect_bundle(request)
-    }
-
-    pub fn pack_bundle(
-        &self,
-        request: super::PackBundleAppRequest,
-    ) -> AppResult<super::CreatedBundleResult> {
-        self.stable_services().pack_bundle(request)
-    }
-
-    pub fn plan_bundle_apply(
-        &self,
-        request: super::PlanBundleApplyRequest,
-    ) -> AppResult<super::BundleApplyPlanResult> {
-        self.stable_services().plan_bundle_apply(request)
-    }
-
-    pub fn apply_bundle(
-        &self,
-        request: super::ApplyBundleAppRequest,
-    ) -> AppResult<super::BundleApplyResult> {
-        self.stable_services().apply_bundle(request)
-    }
-
-    pub fn apply_bundle_collecting_progress(
-        &self,
-        request: super::ApplyBundleAppRequest,
-    ) -> AppResult<super::TaskRun<super::BundleApplyResult>> {
-        self.stable_services()
-            .apply_bundle_collecting_progress(request)
-    }
-
-    pub fn apply_bundle_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::ApplyBundleAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::BundleApplyResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .apply_bundle_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn plan_bundle_addon_lock(
         &self,
         request: super::PlanBundleAddonLockRequest,
     ) -> AppResult<super::BundleAddonLockPlanResult> {
-        self.bundles().plan_addon_lock(request)
+        self.stable.bundles().plan_addon_lock(request)
     }
 
     pub fn apply_bundle_addon_lock(
         &self,
         request: super::ApplyBundleAddonLockAppRequest,
     ) -> AppResult<super::BundleAddonLockApplyResult> {
-        self.bundles().apply_addon_lock(request)
+        self.stable.bundles().apply_addon_lock(request)
     }
 
-    pub fn analyze_external_package(
-        &self,
-        request: super::AnalyzeExternalPackageAppRequest,
-    ) -> AppResult<super::ExternalPackageAnalysisResult> {
-        self.stable_services().analyze_external_package(request)
+    pub fn stable_services(&self) -> &StableAppServices {
+        &self.stable
     }
 
-    pub fn analyze_external_package_collecting_progress(
-        &self,
-        request: super::AnalyzeExternalPackageAppRequest,
-    ) -> AppResult<super::TaskRun<super::ExternalPackageAnalysisResult>> {
-        self.stable_services()
-            .analyze_external_package_collecting_progress(request)
+    pub(crate) fn addon_indexes(&self) -> AddonIndexService {
+        AddonIndexService::with_runtime(self.stable.runtime.clone())
     }
 
-    pub fn analyze_external_package_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::AnalyzeExternalPackageAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ExternalPackageAnalysisResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .analyze_external_package_with_callbacks(request, is_cancelled, on_progress)
+    pub(crate) fn addon_locks(&self) -> AddonLockService {
+        AddonLockService::with_runtime(self.stable.runtime.clone())
     }
+}
 
-    pub fn create_external_package_bundle(
-        &self,
-        request: super::CreateExternalPackageBundleAppRequest,
-    ) -> AppResult<super::ExternalPackageBundleHandle> {
-        self.stable_services()
-            .create_external_package_bundle(request)
-    }
+impl Deref for HearthSyncApp {
+    type Target = StableAppServices;
 
-    pub fn plan_external_package_apply(
-        &self,
-        request: super::PlanExternalPackageApplyAppRequest,
-    ) -> AppResult<super::ExternalPackageApplyPlanResult> {
-        self.stable_services().plan_external_package_apply(request)
-    }
-
-    pub fn plan_external_package_apply_collecting_progress(
-        &self,
-        request: super::PlanExternalPackageApplyAppRequest,
-    ) -> AppResult<super::TaskRun<super::ExternalPackageApplyPlanResult>> {
-        self.stable_services()
-            .plan_external_package_apply_collecting_progress(request)
-    }
-
-    pub fn plan_external_package_apply_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::PlanExternalPackageApplyAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ExternalPackageApplyPlanResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .plan_external_package_apply_with_callbacks(request, is_cancelled, on_progress)
-    }
-
-    pub fn apply_external_package(
-        &self,
-        request: super::ApplyExternalPackageAppRequest,
-    ) -> AppResult<super::ExternalPackageApplyResult> {
-        self.stable_services().apply_external_package(request)
-    }
-
-    pub fn apply_external_package_collecting_progress(
-        &self,
-        request: super::ApplyExternalPackageAppRequest,
-    ) -> AppResult<super::TaskRun<super::ExternalPackageApplyResult>> {
-        self.stable_services()
-            .apply_external_package_collecting_progress(request)
-    }
-
-    pub fn apply_external_package_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::ApplyExternalPackageAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ExternalPackageApplyResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.stable_services()
-            .apply_external_package_with_callbacks(request, is_cancelled, on_progress)
-    }
-
-    pub fn stable_services(&self) -> StableAppServices {
-        StableAppServices::with_runtime(self.runtime.clone())
-    }
-
-    pub fn installations(&self) -> InstallationService {
-        InstallationService::with_runtime(self.runtime.clone())
-    }
-
-    pub fn addons(&self) -> AddonService {
-        AddonService::with_runtime(self.runtime.clone())
-    }
-
-    pub fn addon_indexes(&self) -> AddonIndexService {
-        AddonIndexService::with_runtime(self.runtime.clone())
-    }
-
-    pub fn addon_locks(&self) -> AddonLockService {
-        AddonLockService::with_runtime(self.runtime.clone())
-    }
-
-    pub fn backups(&self) -> BackupService {
-        BackupService::with_runtime(self.runtime.clone())
-    }
-
-    pub fn bundles(&self) -> BundleService {
-        BundleService::with_runtime(self.runtime.clone())
-    }
-
-    pub fn external_packages(&self) -> ExternalPackageService {
-        ExternalPackageService::with_runtime(self.runtime.clone())
+    fn deref(&self) -> &Self::Target {
+        &self.stable
     }
 }
 
@@ -516,9 +190,10 @@ mod tests {
     use super::*;
     use crate::core::app::{
         AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-        ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-        ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
-        InspectInstallationRequest, ResolveInstallationRequest, WowFlavorValue,
+        AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue,
+        ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HealthStatusValue,
+        HelperStrategyValue, HostPlatformValue, InspectInstallationRequest,
+        ResolveInstallationRequest, WowFlavorValue,
     };
 
     #[test]

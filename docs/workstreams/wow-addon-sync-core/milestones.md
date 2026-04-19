@@ -200,6 +200,11 @@ desktop work.
 - raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
   the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
   service-factory-style API
+- `HearthSyncApp` now composes and dereferences `StableAppServices` instead of repeating the same
+  first-wave direct/task wrappers, so the app root only adds the less-stable addon-index and
+  addon-lock operations beyond the shared GUI-facing surface
+- raw `runtime()` access on individual app services is now test-only, so runtime wiring is kept as
+  an internal assembly detail instead of a public extension seam
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers
