@@ -138,6 +138,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: `HearthSyncApp` now delegates those first-wave stable direct/task entrypoints
     through `StableAppServices`, leaving one stable implementation path for future GUI-facing
     operations while keeping addon-index/addon-lock access available from the full app root.
+    Current cleanup: raw `StableAppServices` service accessors and direct runtime access are now
+    crate-visible only, so external callers stay on stable direct/task entrypoints instead of
+    treating the stable boundary as another service factory.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

@@ -18,7 +18,8 @@ impl StableAppServices {
         Self { runtime }
     }
 
-    pub fn runtime(&self) -> &AppRuntime {
+    #[cfg(test)]
+    pub(crate) fn runtime(&self) -> &AppRuntime {
         &self.runtime
     }
 
@@ -326,23 +327,23 @@ impl StableAppServices {
             .apply_with_callbacks(request, is_cancelled, on_progress)
     }
 
-    pub fn installations(&self) -> InstallationService {
+    pub(crate) fn installations(&self) -> InstallationService {
         InstallationService::with_runtime(self.runtime.clone())
     }
 
-    pub fn addons(&self) -> AddonService {
+    pub(crate) fn addons(&self) -> AddonService {
         AddonService::with_runtime(self.runtime.clone())
     }
 
-    pub fn backups(&self) -> BackupService {
+    pub(crate) fn backups(&self) -> BackupService {
         BackupService::with_runtime(self.runtime.clone())
     }
 
-    pub fn bundles(&self) -> BundleService {
+    pub(crate) fn bundles(&self) -> BundleService {
         BundleService::with_runtime(self.runtime.clone())
     }
 
-    pub fn external_packages(&self) -> ExternalPackageService {
+    pub(crate) fn external_packages(&self) -> ExternalPackageService {
         ExternalPackageService::with_runtime(self.runtime.clone())
     }
 }
