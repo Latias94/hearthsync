@@ -152,9 +152,10 @@ The same principle applies to provider capability configuration.
 If the frontend needs to configure default addon acquisition behavior such as download cache
 location or retry policy, that configuration should use app-owned runtime value types rather than
 provider-domain structs.
-Custom provider injection may still exist for tests or advanced embedding, but the stable runtime
-contract should make it explicit whether the app is using configurable default-provider options or a
-fully injected provider implementation.
+Custom provider injection may still exist as an internal crate seam for tests or specialized
+composition, but it should not remain part of the stable frontend runtime contract.
+The stable runtime contract should make it explicit whether the app is using configurable
+default-provider options or a fully internal custom provider implementation.
 
 ### Domain Boundary
 

@@ -613,3 +613,27 @@ provider implementation.
   learning provider-domain structs
 - any future helper-capability work should follow the same pattern: runtime-owned app values first,
   planner or provider internals second
+
+## ADR-029: Custom Addon-Provider Injection Is Not a Stable Frontend Contract
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+`core::app::AppRuntime` may still need a seam for injecting a fake or specialized addon provider
+inside the crate, especially for app-service tests.
+That seam should not remain part of the public frontend-facing runtime contract.
+
+The public app boundary now exposes provider configuration only through app-owned runtime values,
+while direct custom provider injection is restricted to crate-internal composition.
+
+### Consequences
+
+- CLI and future `egui` callers configure addon acquisition through stable runtime values instead of
+  domain provider traits
+- fake-provider and specialized-provider wiring still exists for app-layer tests without forcing the
+  same trait seam into the public app API
+- future optional helper capabilities should follow the same rule: frontend-facing contracts expose
+  stable app-owned capability settings, while low-level injected implementations stay internal

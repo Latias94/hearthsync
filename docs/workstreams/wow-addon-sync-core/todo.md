@@ -136,9 +136,11 @@ ways that a future frontend can depend on without learning internal domain seams
   frontend boundary. Default provider cache/retry configuration now uses app-owned
   `AddonProviderOptionsValue` and `AddonProviderRetryPolicyValue`, and runtime explicitly records
   when it is using configurable default-provider options versus a fully injected custom provider.
-  The remaining gap in this area is now mostly on the helper side: helper strategy is already
-  exposed as app-owned output, but any future non-native helper capability should enter through an
-  explicit runtime-owned contract instead of appearing first as an ad hoc planner detail.
+  That custom-provider seam is now crate-internal instead of a public frontend API, so stable app
+  callers no longer see provider trait injection just to configure runtime behavior. The remaining
+  gap in this area is now mostly on the helper side: helper strategy is already exposed as
+  app-owned output, but any future non-native helper capability should enter through an explicit
+  runtime-owned contract instead of appearing first as an ad hoc planner detail.
 
 Exit criteria:
 

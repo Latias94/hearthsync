@@ -36,7 +36,8 @@ impl AppRuntime {
         }
     }
 
-    pub fn with_addon_provider<P>(provider: P) -> Self
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn with_addon_provider<P>(provider: P) -> Self
     where
         P: AddonProvider + Send + Sync + 'static,
     {
@@ -50,7 +51,7 @@ impl AppRuntime {
         }
     }
 
-    pub fn addon_provider(&self) -> &(dyn AddonProvider + Send + Sync) {
+    pub(crate) fn addon_provider(&self) -> &(dyn AddonProvider + Send + Sync) {
         self.addon_provider.as_ref()
     }
 

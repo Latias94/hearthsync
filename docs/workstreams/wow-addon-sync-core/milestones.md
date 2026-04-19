@@ -160,6 +160,8 @@ desktop work.
   longer each carry fragmented service-local normalization for those defaults
 - default addon-provider cache and retry configuration now also uses app-owned runtime values
   instead of leaking provider-domain option structs through `core::app::AppRuntime`
+- custom addon-provider injection is now crate-internal runtime composition, so the public app
+  boundary no longer exposes provider trait seams just to support tests
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers, plus explicit progress/capability ownership
 
