@@ -4,11 +4,14 @@ use crate::core::app::{
     AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexUpdateResult,
     AddonLockApplyResult, AddonLockDiffResult, AddonLockInspectionResult,
     AddonLockPackageDiffResult, AddonLockPackageSnapshotResult, AddonLockPlanResult,
-    AddonLockVerifyResult, AddonLockWriteResult, BundleApplyPlanResult, BundleApplyResult,
-    BundleCharacterResourceResult, BundleInspectionResult, CharacterMappingResult,
-    CreatedBundleResult, ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult,
-    ExternalPackageApplyResult, ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, ExternalPackageWarningResult, LocalWowAccountResult,
+    AddonLockVerifyResult, AddonLockWriteResult, BackupCatalogResult, BackupGroupValue,
+    BundleApplyPlanResult, BundleApplyResult, BundleCharacterResourceResult,
+    BundleInspectionResult, CharacterMappingResult, CreatedBackupResult, CreatedBundleResult,
+    ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
+    ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue, ExternalPackageWarningResult, InstallationHealthResult,
+    InstallationInspectionResult, InstallationScanResult, LocalWowAccountResult,
+    RestoredBackupResult,
 };
 use crate::core::error::AppResult;
 
@@ -268,6 +271,110 @@ pub(super) fn render_external_package_apply(item: &ExternalPackageApplyResult) -
             backup
         )
     }
+}
+
+pub(super) fn render_installation_scan(item: &InstallationScanResult) -> String {
+    if item.installations.is_empty() {
+        "No World of Warcraft installations detected.".to_string()
+    } else {
+        let mut lines = vec![format!(
+            "Detected {} installation(s):",
+            item.installation_count
+        )];
+        for installation in &item.installations {
+            lines.push(format!(
+                "- {} => {}",
+                installation.flavor.as_str(),
+                installation.flavor_root.display()
+            ));
+        }
+        lines.join("\n")
+    }
+}
+
+pub(super) fn render_installation_inspection(item: &InstallationInspectionResult) -> String {
+    format!(
+        "Flavor: {}\nProduct root: {}\nFlavor root: {}\nAddOns: {}\nWTF: {}\nFonts: {}\nHealth: {}",
+        item.installation.flavor.as_str(),
+        item.product_root.display(),
+        item.installation.flavor_root.display(),
+        item.installation.addon_dir.display(),
+        item.installation.wtf_dir.display(),
+        item.installation.fonts_dir.display(),
+        item.health.status_label
+    )
+}
+
+pub(super) fn render_installation_health_report(health: &InstallationHealthResult) -> String {
+    let mut lines = vec![format!("Status: {}", health.status_label)];
+
+    if health.missing_paths.is_empty() {
+        lines.push("Missing required paths: none".to_string());
+    } else {
+        lines.push("Missing required paths:".to_string());
+        for path in &health.missing_paths {
+            lines.push(format!("- {}", path.display()));
+        }
+    }
+
+    if health.warnings.is_empty() {
+        lines.push("Warnings: none".to_string());
+    } else {
+        lines.push("Warnings:".to_string());
+        for warning in &health.warnings {
+            lines.push(format!("- {warning}"));
+        }
+    }
+
+    lines.join("\n")
+}
+
+pub(super) fn render_backup_created(item: &CreatedBackupResult) -> String {
+    format!(
+        "Created backup: {}\nArchived files: {}\nGroups: {}",
+        item.archive_path.display(),
+        item.archived_files,
+        format_backup_groups(&item.metadata.groups)
+    )
+}
+
+pub(super) fn render_backup_catalog(item: &BackupCatalogResult) -> String {
+    if item.entries.is_empty() {
+        format!(
+            "Backup dir: {}\nNo backups found.",
+            item.backup_dir.display()
+        )
+    } else {
+        let mut lines = vec![
+            format!("Backup dir: {}", item.backup_dir.display()),
+            format!("Found {} backup(s):", item.entry_count),
+        ];
+        for entry in &item.entries {
+            let label = entry.label.as_deref().unwrap_or("none");
+            lines.push(format!(
+                "- {} | label: {} | created: {} | flavor: {} | groups: {} | size: {} bytes | path: {}",
+                entry.backup_id,
+                label,
+                entry.created_at,
+                entry.flavor,
+                format_backup_groups(&entry.groups),
+                entry.archive_size_bytes,
+                entry.archive_path.display()
+            ));
+        }
+        lines.join("\n")
+    }
+}
+
+pub(super) fn render_backup_restored(item: &RestoredBackupResult) -> String {
+    format!(
+        "Restored backup: {}\nRestored files: {}\nCreated at: {}\nLabel: {}\nGroups: {}",
+        item.archive_path.display(),
+        item.restored_files,
+        item.metadata.created_at,
+        item.metadata.label.as_deref().unwrap_or("none"),
+        format_backup_groups(&item.metadata.groups)
+    )
 }
 
 pub(super) fn render_addon_lock_inspection(item: &AddonLockInspectionResult) -> String {
@@ -661,6 +768,23 @@ fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
     }
 }
 
+fn format_backup_groups(groups: &[BackupGroupValue]) -> String {
+    groups
+        .iter()
+        .map(format_backup_group)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_backup_group(group: &BackupGroupValue) -> &'static str {
+    match group {
+        BackupGroupValue::Addons => "addons",
+        BackupGroupValue::Wtf => "wtf",
+        BackupGroupValue::Fonts => "fonts",
+        BackupGroupValue::InterfaceAssets => "interface_assets",
+    }
+}
+
 fn format_addon_lock_verification_summary(item: &AddonLockVerifyResult) -> String {
     if item.matches {
         "Verification: matches".to_string()
@@ -697,17 +821,20 @@ mod tests {
         AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexPackageResult,
         AddonIndexUpdateResult, AddonLockFieldChangeResult, AddonLockPackageDirectoryIssueResult,
         AddonSourceKindResult, AddonSourceResult, ApplyGroupPoliciesResult, ApplyPlanSummaryResult,
+        BackupCatalogResult, BackupEntryResult, BackupGroupValue, BackupMetadataResult,
         BundleApplyDefaultsValue, BundleApplyPlanResult, BundleApplyResult,
         BundleCharacterResourceValue, BundleEntryCountsResult, BundleInspectionResult,
         BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesResult,
         BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, CharacterMappingResult,
-        CreatedBundleResult, ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult,
-        ExternalPackageApplyResult, ExternalPackageEntryResult, ExternalPackageSummaryResult,
-        ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-        ExternalPackageWarningGroupResult, ExternalPackageWarningResult, GroupPolicyResult,
-        HelperStrategyValue, HostPlatformValue, InstalledAddonPackageResult, LocalWowAccountResult,
-        LocalWowCharacterResult, ResourceApplyPolicyValue, TrackedAddonResult,
-        UpdatedAddonPackageResult, WowFlavorValue,
+        CreatedBackupResult, CreatedBundleResult, ExternalPackageAnalysisResult,
+        ExternalPackageApplyPlanResult, ExternalPackageApplyResult, ExternalPackageEntryResult,
+        ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
+        ExternalPackageWarningCodeValue, ExternalPackageWarningGroupResult,
+        ExternalPackageWarningResult, GroupPolicyResult, HealthStatusValue, HelperStrategyValue,
+        HostPlatformValue, InstallationHealthResult, InstallationInspectionResult,
+        InstallationScanResult, InstalledAddonPackageResult, LocalWowAccountResult,
+        LocalWowCharacterResult, ResolvedInstallationValue, ResourceApplyPolicyValue,
+        RestoredBackupResult, TrackedAddonResult, UpdatedAddonPackageResult, WowFlavorValue,
     };
     use crate::core::bundle::ExternalPackageSourceKind;
 
@@ -974,6 +1101,98 @@ mod tests {
     }
 
     #[test]
+    fn render_installation_scan_lists_detected_installations() {
+        let rendered = render_installation_scan(&InstallationScanResult {
+            installation_count: 1,
+            installations: vec![sample_installation()],
+        });
+
+        assert!(rendered.contains("Detected 1 installation(s):"));
+        assert!(rendered.contains("- retail => C:\\Games\\World of Warcraft\\_retail_"));
+    }
+
+    #[test]
+    fn render_installation_health_report_lists_missing_paths_and_warnings() {
+        let rendered = render_installation_health_report(&InstallationHealthResult {
+            status: HealthStatusValue::Warning,
+            status_label: "warning".to_string(),
+            missing_paths: vec![PathBuf::from("Fonts")],
+            warnings: vec!["WTF folder is empty".to_string()],
+        });
+
+        assert!(rendered.contains("Status: warning"));
+        assert!(rendered.contains("Missing required paths:"));
+        assert!(rendered.contains("- Fonts"));
+        assert!(rendered.contains("Warnings:"));
+        assert!(rendered.contains("- WTF folder is empty"));
+    }
+
+    #[test]
+    fn render_installation_inspection_reports_selected_flavor() {
+        let rendered = render_installation_inspection(&InstallationInspectionResult {
+            requested_path: PathBuf::from("C:\\Games\\World of Warcraft"),
+            product_root: PathBuf::from("C:\\Games\\World of Warcraft"),
+            available_flavors: vec![WowFlavorValue::Retail],
+            installation: sample_installation(),
+            health: InstallationHealthResult {
+                status: HealthStatusValue::Healthy,
+                status_label: "healthy".to_string(),
+                missing_paths: Vec::new(),
+                warnings: Vec::new(),
+            },
+        });
+
+        assert!(rendered.contains("Flavor: retail"));
+        assert!(rendered.contains("Product root: C:\\Games\\World of Warcraft"));
+        assert!(rendered.contains("Health: healthy"));
+    }
+
+    #[test]
+    fn render_backup_catalog_lists_entries() {
+        let rendered = render_backup_catalog(&BackupCatalogResult {
+            backup_dir: PathBuf::from("backups"),
+            entry_count: 1,
+            entries: vec![BackupEntryResult {
+                backup_id: "backup-1".to_string(),
+                archive_path: PathBuf::from("backups/backup-1.zip"),
+                archive_size_bytes: 1024,
+                created_at: "2026-04-19T12:00:00Z".to_string(),
+                label: Some("before apply".to_string()),
+                flavor: "retail".to_string(),
+                flavor_root: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_"),
+                groups: vec![BackupGroupValue::Addons, BackupGroupValue::Wtf],
+            }],
+        });
+
+        assert!(rendered.contains("Backup dir: backups"));
+        assert!(rendered.contains("Found 1 backup(s):"));
+        assert!(rendered.contains("backup-1 | label: before apply"));
+        assert!(rendered.contains("groups: addons, wtf"));
+    }
+
+    #[test]
+    fn render_backup_created_and_restored_report_groups() {
+        let metadata = sample_backup_metadata();
+
+        let created = render_backup_created(&CreatedBackupResult {
+            archive_path: PathBuf::from("backup.zip"),
+            archived_files: 12,
+            metadata: metadata.clone(),
+        });
+        let restored = render_backup_restored(&RestoredBackupResult {
+            archive_path: PathBuf::from("backup.zip"),
+            restored_files: 10,
+            metadata,
+        });
+
+        assert!(created.contains("Created backup: backup.zip"));
+        assert!(created.contains("Groups: addons, wtf"));
+        assert!(restored.contains("Restored backup: backup.zip"));
+        assert!(restored.contains("Restored files: 10"));
+        assert!(restored.contains("Groups: addons, wtf"));
+    }
+
+    #[test]
     fn render_addon_lock_diff_groups_changed_added_and_removed_packages() {
         let rendered = render_addon_lock_diff(&AddonLockDiffResult {
             left_label: "left.lock".to_string(),
@@ -1236,6 +1455,31 @@ mod tests {
                 source_path: "AuthorUI/README.txt".to_string(),
                 message: "ignored addon entry".to_string(),
             }],
+        }
+    }
+
+    fn sample_installation() -> ResolvedInstallationValue {
+        ResolvedInstallationValue {
+            platform: HostPlatformValue::Windows,
+            flavor: WowFlavorValue::Retail,
+            product_root: PathBuf::from("C:\\Games\\World of Warcraft"),
+            flavor_root: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_"),
+            interface_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface"),
+            addon_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface\\AddOns"),
+            wtf_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\WTF"),
+            fonts_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Fonts"),
+        }
+    }
+
+    fn sample_backup_metadata() -> BackupMetadataResult {
+        BackupMetadataResult {
+            schema_version: 1,
+            created_at: "2026-04-19T12:00:00Z".to_string(),
+            label: Some("before apply".to_string()),
+            flavor: "retail".to_string(),
+            flavor_root: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_"),
+            group_count: 2,
+            groups: vec![BackupGroupValue::Addons, BackupGroupValue::Wtf],
         }
     }
 

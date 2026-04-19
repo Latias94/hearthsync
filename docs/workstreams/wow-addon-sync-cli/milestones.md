@@ -282,6 +282,9 @@ Prepare the core for a future frontend.
 - addon-index CLI text rendering now also shares formatter helpers under `cli::output`, so
   inspect/install/update handlers keep only request assembly, app calls, and the final shared
   `render(...)` dispatch
+- stable system/backup CLI text rendering now also shares formatter helpers under `cli::output`,
+  so install scan/inspect/doctor and backup create/list/restore stop carrying one-off text
+  formatting logic in their command handlers
 - bundle archive/apply/external-package CLI text rendering now also shares formatter helpers under
   `cli::output`, and character-mapping plus external-package warning text formatting is owned there
   too, so those command handlers no longer duplicate account, mapping, or warning summary assembly
