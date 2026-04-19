@@ -1,6 +1,6 @@
 use super::BundleCommands;
 use super::app_support::{resolve_cli_installation, stable_services};
-use super::output::render;
+use super::output::{render, render_bundle_archive_created, render_bundle_archive_inspection};
 use crate::core::app::{BundleManifestValue, InspectBundleRequest, PackBundleAppRequest};
 use crate::core::error::{AppError, AppResult};
 use crate::core::manifest::load_manifest;
@@ -24,54 +24,13 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
                 output_path: output,
                 manifest_base_dir,
             })?;
-            render(json, &bundle, |item| {
-                format!(
-                    "Created bundle: {}\nArchived files: {}\nPackage: {}",
-                    item.archive_path.display(),
-                    item.archived_files,
-                    item.manifest.package.name
-                )
-            })?;
+            render(json, &bundle, render_bundle_archive_created)?;
         }
         BundleCommands::Inspect { bundle } => {
             let inspection = app.inspect_bundle(InspectBundleRequest {
                 bundle_path: bundle,
             })?;
-            render(json, &inspection, |item| {
-                let characters = item
-                    .resources
-                    .wtf_characters
-                    .iter()
-                    .map(|character| {
-                        format!(
-                            "{}/{}/{}",
-                            character
-                                .source_account
-                                .as_deref()
-                                .unwrap_or("<unknown-account>"),
-                            character.source_server,
-                            character.source_character
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                format!(
-                    "Bundle: {}\nPackage: {}\nSource flavor: {}\nFiles: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}",
-                    item.archive_path.display(),
-                    item.package.name,
-                    item.source.flavor.as_str(),
-                    item.entries.total_files,
-                    item.entries.addons,
-                    item.entries.wtf_common,
-                    item.entries.wtf_characters,
-                    item.entries.fonts,
-                    item.entries.interface_assets,
-                    if characters.is_empty() {
-                        "none".to_string()
-                    } else {
-                        characters.join(", ")
-                    }
-                )
-            })?;
+            render(json, &inspection, render_bundle_archive_inspection)?;
         }
         _ => {
             return Err(AppError::Validation(

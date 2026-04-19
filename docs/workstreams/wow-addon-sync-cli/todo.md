@@ -98,6 +98,8 @@ The current blocking sequence is:
   - Current cleanup: the remaining low-level planner byte-reader seam is now test-only; stable CLI/frontend callers should stay on `core::app::StableAppServices`, and only reach for `core::app::ExtendedAppServices` plus its explicit `stable()` bridge when they need addon-index/addon-lock/bundle-addon-lock behavior.
   - Current cleanup: CLI service construction and installation-target resolution now share `cli::app_support`, so stable and extension commands no longer hand-roll slightly different app-entry glue.
   - Current cleanup: addon-lock CLI output now shares formatter helpers in `cli::output`, reducing duplicate diff/verify/apply package rendering and making future text-output changes cheaper to keep consistent.
+  - Current cleanup: addon-index CLI output now also shares formatter helpers in `cli::output`, so inspect/install/update handlers no longer carry inline string assembly closures.
+  - Current cleanup: bundle archive/apply/external-package CLI output now also shares formatter helpers in `cli::output`, and the shared character-mapping plus external-package warning formatters now live there so those command modules stop depending on helper ownership scattered across sibling files.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

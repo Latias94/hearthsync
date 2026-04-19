@@ -279,6 +279,12 @@ Prepare the core for a future frontend.
 - addon-lock CLI text rendering now also shares formatter helpers under `cli::output`, so diff,
   verify, apply, and plan views no longer keep near-duplicate package/change rendering logic in
   individual command handlers
+- addon-index CLI text rendering now also shares formatter helpers under `cli::output`, so
+  inspect/install/update handlers keep only request assembly, app calls, and the final shared
+  `render(...)` dispatch
+- bundle archive/apply/external-package CLI text rendering now also shares formatter helpers under
+  `cli::output`, and character-mapping plus external-package warning text formatting is owned there
+  too, so those command handlers no longer duplicate account, mapping, or warning summary assembly
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

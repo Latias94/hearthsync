@@ -1,12 +1,14 @@
 use super::app_support::{resolve_cli_installation, stable_services};
-use super::bundle_apply::{format_character_mappings, resolve_apply_mappings};
-use super::output::render;
+use super::bundle_apply::resolve_apply_mappings;
+use super::output::{
+    render, render_external_package_analysis, render_external_package_apply,
+    render_external_package_plan,
+};
 use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
-    CreateExternalPackageBundleAppRequest, ExternalPackageSummaryResult,
-    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-    ExternalPackageWarningResult, PlanExternalPackageApplyAppRequest, ResourceApplyPolicyValue,
+    CreateExternalPackageBundleAppRequest, PlanExternalPackageApplyAppRequest,
+    ResourceApplyPolicyValue,
 };
 use crate::core::error::AppResult;
 
@@ -21,58 +23,7 @@ pub(super) fn handle_external_package_command(
             let analysis = app.analyze_external_package(AnalyzeExternalPackageAppRequest {
                 source_path: source,
             })?;
-            render(json, &analysis, |item| {
-                let warnings = format_external_package_warnings(&item.warnings, &item.summary);
-                let characters = if item.resources.wtf_characters.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.resources
-                        .wtf_characters
-                        .iter()
-                        .map(|character| {
-                            format!(
-                                "{}/{}/{}",
-                                character
-                                    .source_account
-                                    .as_deref()
-                                    .unwrap_or("<unknown-account>"),
-                                character.source_server,
-                                character.source_character
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                };
-                format!(
-                    "Source: {}\nDetected kind: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
-                    item.source_path.display(),
-                    item.source_kind,
-                    item.package_id,
-                    item.package_name,
-                    item.summary.total_files,
-                    item.summary.normalized_files,
-                    item.summary.ignored_files,
-                    if item.resources.addons.is_empty() {
-                        "none".to_string()
-                    } else {
-                        item.resources.addons.join(", ")
-                    },
-                    if item.resources.wtf_common {
-                        "yes"
-                    } else {
-                        "no"
-                    },
-                    item.resources.wtf_characters.len(),
-                    if item.resources.fonts { "yes" } else { "no" },
-                    if item.resources.interface_assets.is_empty() {
-                        "none".to_string()
-                    } else {
-                        item.resources.interface_assets.join(", ")
-                    },
-                    characters,
-                    warnings
-                )
-            })?;
+            render(json, &analysis, render_external_package_analysis)?;
         }
         ExternalPackageCommands::Plan {
             bundle_options,
@@ -99,49 +50,7 @@ pub(super) fn handle_external_package_command(
                 installation,
                 apply_mappings,
             })?;
-            render(json, &plan, |item| {
-                let accounts = if item.discovered_accounts.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.discovered_accounts
-                        .iter()
-                        .map(|account| {
-                            format!(
-                                "{}({} chars)",
-                                account.account_name,
-                                account.characters.len()
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                };
-                let selected_accounts = if item.selected_target_accounts.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.selected_target_accounts.join(", ")
-                };
-                format!(
-                    "External package: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nWarnings: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}",
-                    item.analysis.source_path.display(),
-                    item.target_flavor_root.display(),
-                    accounts,
-                    selected_accounts,
-                    format_external_package_warnings(
-                        &item.analysis.warnings,
-                        &item.analysis.summary,
-                    ),
-                    item.summary.paths_to_remove,
-                    item.summary.files_to_add,
-                    item.summary.files_to_replace,
-                    item.summary.files_to_skip,
-                    item.summary.files_to_preserve,
-                    if item.character_mappings.is_empty() {
-                        "none".to_string()
-                    } else {
-                        format_character_mappings(&item.character_mappings)
-                    }
-                )
-            })?;
+            render(json, &plan, render_external_package_plan)?;
         }
         ExternalPackageCommands::Apply {
             bundle_options,
@@ -172,54 +81,7 @@ pub(super) fn handle_external_package_command(
                 backup_output_path: backup_output,
                 apply_mappings,
             })?;
-            render(json, &result, |item| {
-                let backup = item
-                    .backup_path
-                    .as_ref()
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "none".to_string());
-                let selected_accounts = if item.selected_target_accounts.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.selected_target_accounts.join(", ")
-                };
-                let mapping_summary = if item.character_mappings.is_empty() {
-                    "none".to_string()
-                } else {
-                    format_character_mappings(&item.character_mappings)
-                };
-                if item.dry_run {
-                    format!(
-                        "Dry run only.\nExternal package: {}\nTarget: {}\nWarnings: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}\nBackup: {}",
-                        item.analysis.source_path.display(),
-                        item.target_flavor_root.display(),
-                        format_external_package_warnings(
-                            &item.analysis.warnings,
-                            &item.analysis.summary,
-                        ),
-                        item.planned_files,
-                        selected_accounts,
-                        item.plan_summary.paths_to_remove,
-                        item.plan_summary.files_to_add,
-                        item.plan_summary.files_to_replace,
-                        item.plan_summary.files_to_skip,
-                        item.plan_summary.files_to_preserve,
-                        mapping_summary,
-                        backup
-                    )
-                } else {
-                    format!(
-                        "Applied external package: {}\nTarget: {}\nWritten files: {}\nRewritten files: {}\nSelected accounts: {}\nCharacter mappings: {}\nBackup: {}",
-                        item.analysis.source_path.display(),
-                        item.target_flavor_root.display(),
-                        item.written_files,
-                        item.rewritten_files,
-                        selected_accounts,
-                        mapping_summary,
-                        backup
-                    )
-                }
-            })?;
+            render(json, &result, render_external_package_apply)?;
         }
     }
 
@@ -298,85 +160,16 @@ fn build_external_package_apply_defaults(
     Some(defaults)
 }
 
-fn format_external_package_warnings(
-    warnings: &[ExternalPackageWarningResult],
-    summary: &ExternalPackageSummaryResult,
-) -> String {
-    if warnings.is_empty() {
-        return "none".to_string();
-    }
-
-    let groups = summary
-        .warning_groups
-        .iter()
-        .map(|group| {
-            format!(
-                "{}/{}={}",
-                format_warning_category(group.category),
-                format_warning_code(group.code),
-                group.count
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let details = warnings
-        .iter()
-        .map(|warning| {
-            format!(
-                "{}/{}: {}",
-                format_warning_category(warning.category),
-                format_warning_code(warning.code),
-                warning.source_path
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" | ");
-
-    format!(
-        "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
-        summary.warning_count,
-        summary.addon_warning_count,
-        summary.wtf_warning_count,
-        groups,
-        details
-    )
-}
-
-fn format_warning_category(category: ExternalPackageWarningCategoryValue) -> &'static str {
-    match category {
-        ExternalPackageWarningCategoryValue::Addon => "addon",
-        ExternalPackageWarningCategoryValue::Wtf => "wtf",
-    }
-}
-
-fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
-    match code {
-        ExternalPackageWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
-        ExternalPackageWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
-        ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables => {
-            "unsupported_wtf_root_savedvariables"
-        }
-        ExternalPackageWarningCodeValue::WtfAccountPathWithoutFile => {
-            "wtf_account_path_without_file"
-        }
-        ExternalPackageWarningCodeValue::WtfSavedVariablesPathWithoutFile => {
-            "wtf_savedvariables_path_without_file"
-        }
-        ExternalPackageWarningCodeValue::UnsupportedWtfNestedAccountLayout => {
-            "unsupported_wtf_nested_account_layout"
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use crate::cli::output::format_external_package_warnings;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
     use crate::core::app::{
-        ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue, HostPlatformValue,
+        ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
+        ExternalPackageWarningCodeValue, ExternalPackageWarningResult, HostPlatformValue,
         ResourceApplyPolicyValue, WowFlavorValue,
     };
 
