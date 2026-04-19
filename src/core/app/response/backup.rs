@@ -34,7 +34,7 @@ impl BackupEntryResult {
                 .metadata
                 .groups
                 .into_iter()
-                .map(BackupGroupValue::from)
+                .map(BackupGroupValue::from_domain)
                 .collect(),
         }
     }
@@ -65,7 +65,7 @@ impl BackupMetadataResult {
             groups: value
                 .groups
                 .into_iter()
-                .map(BackupGroupValue::from)
+                .map(BackupGroupValue::from_domain)
                 .collect(),
         }
     }

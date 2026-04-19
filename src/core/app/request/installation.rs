@@ -20,8 +20,8 @@ impl InspectInstallationRequest {
     ) -> AppResult<ProductInstallInspection> {
         inspect_installation_on_host(
             &self.path,
-            self.flavor.map(Into::into),
-            runtime.host_platform().into(),
+            self.flavor.map(WowFlavorValue::into_domain),
+            runtime.host_platform().into_domain(),
         )
     }
 }
@@ -39,8 +39,8 @@ impl ResolveInstallationRequest {
     ) -> AppResult<DetectedFlavorInstallation> {
         resolve_installation_on_host(
             &self.path,
-            self.flavor.map(Into::into),
-            runtime.host_platform().into(),
+            self.flavor.map(WowFlavorValue::into_domain),
+            runtime.host_platform().into_domain(),
         )
     }
 }

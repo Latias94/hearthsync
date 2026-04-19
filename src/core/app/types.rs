@@ -30,37 +30,24 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::core::addon::{
-        AddonPackageMetadata as DomainAddonPackageMetadata,
-        AddonProviderOptions as DomainAddonProviderOptions,
-        AddonProviderRetryPolicy as DomainAddonProviderRetryPolicy,
-    };
-    use crate::core::bundle::BundleApplyMappings as DomainBundleApplyMappings;
-    use crate::core::install::{
-        HealthStatus as DomainHealthStatus, HostPlatform as DomainHostPlatform,
-        WowFlavor as DomainWowFlavor,
-    };
-    use crate::core::manifest::{
-        ApplyDefaults as DomainApplyDefaults, BundleManifest as DomainBundleManifest,
-        CharacterMappingMode as DomainCharacterMappingMode, ResourceApplyPolicy,
-    };
+    use crate::core::manifest::ResourceApplyPolicy;
 
     #[test]
     fn host_platform_value_roundtrips_domain_shape() {
         let value = HostPlatformValue::MacOs;
 
-        let domain: DomainHostPlatform = value.into();
+        let domain = value.into_domain();
 
-        assert_eq!(HostPlatformValue::from(domain), value);
+        assert_eq!(HostPlatformValue::from_domain(domain), value);
     }
 
     #[test]
     fn wow_flavor_value_roundtrips_domain_shape() {
         let value = WowFlavorValue::ClassicEra;
 
-        let domain: DomainWowFlavor = value.into();
+        let domain = value.into_domain();
 
-        assert_eq!(WowFlavorValue::from(domain), value);
+        assert_eq!(WowFlavorValue::from_domain(domain), value);
     }
 
     #[test]
@@ -74,27 +61,27 @@ mod tests {
     fn character_mapping_mode_value_roundtrips_domain_shape() {
         let value = CharacterMappingModeValue::Prompt;
 
-        let domain: DomainCharacterMappingMode = value.into();
+        let domain = value.into_domain();
 
-        assert_eq!(CharacterMappingModeValue::from(domain), value);
+        assert_eq!(CharacterMappingModeValue::from_domain(domain), value);
     }
 
     #[test]
     fn health_status_value_roundtrips_domain_shape() {
         let value = HealthStatusValue::Warning;
 
-        let domain: DomainHealthStatus = value.into();
+        let domain = value.into_domain();
 
-        assert_eq!(HealthStatusValue::from(domain), value);
+        assert_eq!(HealthStatusValue::from_domain(domain), value);
     }
 
     #[test]
     fn addon_provider_retry_policy_value_roundtrips_domain_shape() {
         let value = AddonProviderRetryPolicyValue { max_attempts: 3 };
 
-        let domain: DomainAddonProviderRetryPolicy = value.clone().into();
+        let domain = value.clone().into_domain();
 
-        assert_eq!(AddonProviderRetryPolicyValue::from(domain), value);
+        assert_eq!(AddonProviderRetryPolicyValue::from_domain(domain), value);
     }
 
     #[test]
@@ -104,9 +91,9 @@ mod tests {
             retry_policy: AddonProviderRetryPolicyValue { max_attempts: 2 },
         };
 
-        let domain: DomainAddonProviderOptions = value.clone().into();
+        let domain = value.clone().into_domain();
 
-        assert_eq!(AddonProviderOptionsValue::from(domain), value);
+        assert_eq!(AddonProviderOptionsValue::from_domain(domain), value);
     }
 
     #[test]
@@ -122,9 +109,9 @@ mod tests {
             supported_flavors: vec!["retail".to_string(), "classic".to_string()],
         };
 
-        let domain: DomainAddonPackageMetadata = value.clone().into();
+        let domain = value.clone().into_domain();
 
-        assert_eq!(AddonPackageMetadataValue::from(domain), value);
+        assert_eq!(AddonPackageMetadataValue::from_domain(domain), value);
     }
 
     #[test]
@@ -145,9 +132,9 @@ mod tests {
             }],
         };
 
-        let domain: DomainBundleApplyMappings = value.clone().into();
+        let domain = value.clone().into_domain();
 
-        assert_eq!(BundleApplyMappingsValue::from(domain), value);
+        assert_eq!(BundleApplyMappingsValue::from_domain(domain), value);
     }
 
     #[test]
@@ -176,7 +163,7 @@ mod tests {
             interface_assets: ResourceApplyPolicyValue::ReplaceSelected,
         };
 
-        let domain: DomainApplyDefaults = value.clone().into();
+        let domain = value.clone().into_domain();
 
         assert!(!domain.create_backup);
         assert_eq!(domain.addons, ResourceApplyPolicy::Merge);
@@ -187,7 +174,7 @@ mod tests {
             domain.interface_assets,
             ResourceApplyPolicy::ReplaceSelected
         );
-        assert_eq!(BundleApplyDefaultsValue::from(domain), value);
+        assert_eq!(BundleApplyDefaultsValue::from_domain(domain), value);
     }
 
     #[test]
@@ -236,8 +223,8 @@ mod tests {
             },
         };
 
-        let domain: DomainBundleManifest = value.clone().into();
+        let domain = value.clone().into_domain();
 
-        assert_eq!(BundleManifestValue::from(domain), value);
+        assert_eq!(BundleManifestValue::from_domain(domain), value);
     }
 }

@@ -145,7 +145,7 @@ impl TrackedAddonPackageResult {
                 .into_iter()
                 .map(TrackedAddonResult::from_domain)
                 .collect(),
-            metadata: value.metadata.map(AddonPackageMetadataValue::from),
+            metadata: value.metadata.map(AddonPackageMetadataValue::from_domain),
         }
     }
 }

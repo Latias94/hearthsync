@@ -33,8 +33,8 @@ impl PackBundleAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainPackBundleRequest {
-            installation: request.installation.into(),
-            manifest: request.manifest.into(),
+            installation: request.installation.into_domain(),
+            manifest: request.manifest.into_domain(),
             output_path: request.output_path,
             manifest_base_dir: request.manifest_base_dir,
         }
@@ -58,8 +58,8 @@ impl PlanBundleApplyRequest {
     ) {
         (
             self.bundle_path,
-            self.installation.into(),
-            self.apply_mappings.into(),
+            self.installation.into_domain(),
+            self.apply_mappings.into_domain(),
         )
     }
 }
@@ -84,10 +84,10 @@ impl ApplyBundleAppRequest {
 
         DomainUnpackBundleRequest {
             bundle_path: request.bundle_path,
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
-            apply_mappings: request.apply_mappings.into(),
+            apply_mappings: request.apply_mappings.into_domain(),
         }
     }
 }
@@ -100,7 +100,7 @@ pub struct PlanBundleAddonLockRequest {
 
 impl PlanBundleAddonLockRequest {
     pub(crate) fn into_domain_inputs(self) -> (PathBuf, DetectedFlavorInstallation) {
-        (self.bundle_path, self.installation.into())
+        (self.bundle_path, self.installation.into_domain())
     }
 }
 
@@ -126,7 +126,7 @@ impl ApplyBundleAddonLockAppRequest {
 
         DomainBundleAddonLockApplyRequest {
             bundle_path: request.bundle_path,
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             backup_output_path: request.backup_output_path,
             replace_existing: request.replace_existing,
         }

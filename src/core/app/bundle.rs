@@ -298,7 +298,7 @@ mod tests {
             .expect("lua");
         }
 
-        crate::core::install::DetectedFlavorInstallation {
+        ResolvedInstallationValue::from_domain(crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -307,8 +307,7 @@ mod tests {
             addon_dir,
             wtf_dir,
             fonts_dir,
-        }
-        .into()
+        })
     }
 
     fn sample_bundle_manifest() -> BundleManifestValue {

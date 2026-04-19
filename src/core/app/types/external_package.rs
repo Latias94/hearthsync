@@ -12,8 +12,8 @@ pub enum ExternalPackageWarningCategoryValue {
     Wtf,
 }
 
-impl From<DomainExternalPackageWarningCategory> for ExternalPackageWarningCategoryValue {
-    fn from(value: DomainExternalPackageWarningCategory) -> Self {
+impl ExternalPackageWarningCategoryValue {
+    pub(crate) fn from_domain(value: DomainExternalPackageWarningCategory) -> Self {
         match value {
             DomainExternalPackageWarningCategory::Addon => Self::Addon,
             DomainExternalPackageWarningCategory::Wtf => Self::Wtf,
@@ -32,8 +32,8 @@ pub enum ExternalPackageWarningCodeValue {
     UnsupportedWtfNestedAccountLayout,
 }
 
-impl From<DomainExternalPackageWarningCode> for ExternalPackageWarningCodeValue {
-    fn from(value: DomainExternalPackageWarningCode) -> Self {
+impl ExternalPackageWarningCodeValue {
+    pub(crate) fn from_domain(value: DomainExternalPackageWarningCode) -> Self {
         match value {
             DomainExternalPackageWarningCode::AddonRootNotDetected => Self::AddonRootNotDetected,
             DomainExternalPackageWarningCode::UnsupportedWtfLayout => Self::UnsupportedWtfLayout,

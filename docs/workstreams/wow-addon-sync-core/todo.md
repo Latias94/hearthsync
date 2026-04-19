@@ -173,6 +173,10 @@ ways that a future frontend can depend on without learning internal domain seams
     conversions. Crate-internal projection now lives on explicit `into_domain_*` helpers so the
     stable frontend boundary no longer advertises domain request types as part of its public trait
     surface.
+    Current cleanup: app value contracts now follow the same rule. Domain projection is expressed
+    through crate-internal `from_domain()` / `into_domain()` helpers instead of public
+    `From<domain>` / `From<value>` trait impls, so CLI and services can still assemble domain
+    requests internally without making those conversions part of the frontend-facing contract.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

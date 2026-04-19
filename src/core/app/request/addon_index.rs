@@ -34,7 +34,7 @@ impl InstallAddonIndexAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainAddonIndexInstallRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             index_path: request.index_path,
             name: request.name,
             dry_run: request.dry_run,
@@ -63,7 +63,7 @@ impl UpdateAddonIndexAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainAddonIndexUpdateRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             index_path: request.index_path,
             name: request.name,
             dry_run: request.dry_run,

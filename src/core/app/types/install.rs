@@ -18,12 +18,10 @@ pub enum HostPlatformValue {
 
 impl HostPlatformValue {
     pub(crate) fn current() -> Self {
-        DomainHostPlatform::current().into()
+        Self::from_domain(DomainHostPlatform::current())
     }
-}
 
-impl From<DomainHostPlatform> for HostPlatformValue {
-    fn from(value: DomainHostPlatform) -> Self {
+    pub(crate) fn from_domain(value: DomainHostPlatform) -> Self {
         match value {
             DomainHostPlatform::Windows => Self::Windows,
             DomainHostPlatform::MacOs => Self::MacOs,
@@ -31,15 +29,13 @@ impl From<DomainHostPlatform> for HostPlatformValue {
             DomainHostPlatform::Unknown => Self::Unknown,
         }
     }
-}
 
-impl From<HostPlatformValue> for DomainHostPlatform {
-    fn from(value: HostPlatformValue) -> Self {
-        match value {
-            HostPlatformValue::Windows => Self::Windows,
-            HostPlatformValue::MacOs => Self::MacOs,
-            HostPlatformValue::Linux => Self::Linux,
-            HostPlatformValue::Unknown => Self::Unknown,
+    pub(crate) fn into_domain(self) -> DomainHostPlatform {
+        match self {
+            Self::Windows => DomainHostPlatform::Windows,
+            Self::MacOs => DomainHostPlatform::MacOs,
+            Self::Linux => DomainHostPlatform::Linux,
+            Self::Unknown => DomainHostPlatform::Unknown,
         }
     }
 }
@@ -77,10 +73,8 @@ impl WowFlavorValue {
             Self::Xptr => "_xptr_",
         }
     }
-}
 
-impl From<DomainWowFlavor> for WowFlavorValue {
-    fn from(value: DomainWowFlavor) -> Self {
+    pub(crate) fn from_domain(value: DomainWowFlavor) -> Self {
         match value {
             DomainWowFlavor::Retail => Self::Retail,
             DomainWowFlavor::Classic => Self::Classic,
@@ -90,17 +84,15 @@ impl From<DomainWowFlavor> for WowFlavorValue {
             DomainWowFlavor::Xptr => Self::Xptr,
         }
     }
-}
 
-impl From<WowFlavorValue> for DomainWowFlavor {
-    fn from(value: WowFlavorValue) -> Self {
-        match value {
-            WowFlavorValue::Retail => Self::Retail,
-            WowFlavorValue::Classic => Self::Classic,
-            WowFlavorValue::ClassicEra => Self::ClassicEra,
-            WowFlavorValue::Ptr => Self::Ptr,
-            WowFlavorValue::Beta => Self::Beta,
-            WowFlavorValue::Xptr => Self::Xptr,
+    pub(crate) fn into_domain(self) -> DomainWowFlavor {
+        match self {
+            Self::Retail => DomainWowFlavor::Retail,
+            Self::Classic => DomainWowFlavor::Classic,
+            Self::ClassicEra => DomainWowFlavor::ClassicEra,
+            Self::Ptr => DomainWowFlavor::Ptr,
+            Self::Beta => DomainWowFlavor::Beta,
+            Self::Xptr => DomainWowFlavor::Xptr,
         }
     }
 }
@@ -113,22 +105,21 @@ pub enum HealthStatusValue {
     Broken,
 }
 
-impl From<DomainHealthStatus> for HealthStatusValue {
-    fn from(value: DomainHealthStatus) -> Self {
+impl HealthStatusValue {
+    pub(crate) fn from_domain(value: DomainHealthStatus) -> Self {
         match value {
             DomainHealthStatus::Healthy => Self::Healthy,
             DomainHealthStatus::Warning => Self::Warning,
             DomainHealthStatus::Broken => Self::Broken,
         }
     }
-}
 
-impl From<HealthStatusValue> for DomainHealthStatus {
-    fn from(value: HealthStatusValue) -> Self {
-        match value {
-            HealthStatusValue::Healthy => Self::Healthy,
-            HealthStatusValue::Warning => Self::Warning,
-            HealthStatusValue::Broken => Self::Broken,
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn into_domain(self) -> DomainHealthStatus {
+        match self {
+            Self::Healthy => DomainHealthStatus::Healthy,
+            Self::Warning => DomainHealthStatus::Warning,
+            Self::Broken => DomainHealthStatus::Broken,
         }
     }
 }
@@ -145,11 +136,11 @@ pub struct ResolvedInstallationValue {
     pub fonts_dir: PathBuf,
 }
 
-impl From<DetectedFlavorInstallation> for ResolvedInstallationValue {
-    fn from(value: DetectedFlavorInstallation) -> Self {
+impl ResolvedInstallationValue {
+    pub(crate) fn from_domain(value: DetectedFlavorInstallation) -> Self {
         Self {
-            platform: value.platform.into(),
-            flavor: value.flavor.into(),
+            platform: HostPlatformValue::from_domain(value.platform),
+            flavor: WowFlavorValue::from_domain(value.flavor),
             product_root: value.product_root,
             flavor_root: value.flavor_root,
             interface_dir: value.interface_dir,
@@ -158,19 +149,17 @@ impl From<DetectedFlavorInstallation> for ResolvedInstallationValue {
             fonts_dir: value.fonts_dir,
         }
     }
-}
 
-impl From<ResolvedInstallationValue> for DetectedFlavorInstallation {
-    fn from(value: ResolvedInstallationValue) -> Self {
-        Self {
-            platform: value.platform.into(),
-            flavor: value.flavor.into(),
-            product_root: value.product_root,
-            flavor_root: value.flavor_root,
-            interface_dir: value.interface_dir,
-            addon_dir: value.addon_dir,
-            wtf_dir: value.wtf_dir,
-            fonts_dir: value.fonts_dir,
+    pub(crate) fn into_domain(self) -> DetectedFlavorInstallation {
+        DetectedFlavorInstallation {
+            platform: self.platform.into_domain(),
+            flavor: self.flavor.into_domain(),
+            product_root: self.product_root,
+            flavor_root: self.flavor_root,
+            interface_dir: self.interface_dir,
+            addon_dir: self.addon_dir,
+            wtf_dir: self.wtf_dir,
+            fonts_dir: self.fonts_dir,
         }
     }
 }

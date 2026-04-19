@@ -18,7 +18,7 @@ impl InstallationScanResult {
         let installation_count = installations.len();
         let installations = installations
             .into_iter()
-            .map(ResolvedInstallationValue::from)
+            .map(ResolvedInstallationValue::from_domain)
             .collect();
 
         Self {
@@ -41,7 +41,7 @@ impl InstallationHealthResult {
         let status_label = value.summary().to_string();
 
         Self {
-            status: value.status.into(),
+            status: HealthStatusValue::from_domain(value.status),
             status_label,
             missing_paths: value.missing_paths,
             warnings: value.warnings,
@@ -66,9 +66,9 @@ impl InstallationInspectionResult {
             available_flavors: value
                 .available_flavors
                 .into_iter()
-                .map(Into::into)
+                .map(WowFlavorValue::from_domain)
                 .collect(),
-            installation: ResolvedInstallationValue::from(value.installation),
+            installation: ResolvedInstallationValue::from_domain(value.installation),
             health: InstallationHealthResult::from_domain(value.health),
         }
     }

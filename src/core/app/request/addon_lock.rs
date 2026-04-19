@@ -14,7 +14,7 @@ pub struct InspectAddonLockRequest {
 
 impl InspectAddonLockRequest {
     pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
-        self.installation.into()
+        self.installation.into_domain()
     }
 }
 
@@ -25,7 +25,7 @@ pub struct WriteAddonLockRequest {
 
 impl WriteAddonLockRequest {
     pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
-        self.installation.into()
+        self.installation.into_domain()
     }
 }
 
@@ -43,7 +43,7 @@ pub struct VerifyAddonLockRequest {
 
 impl VerifyAddonLockRequest {
     pub(crate) fn into_domain_inputs(self) -> (DetectedFlavorInstallation, Option<PathBuf>) {
-        (self.installation.into(), self.lock_path)
+        (self.installation.into_domain(), self.lock_path)
     }
 }
 
@@ -55,7 +55,7 @@ pub struct PlanAddonLockSyncRequest {
 
 impl PlanAddonLockSyncRequest {
     pub(crate) fn into_domain_inputs(self) -> (DetectedFlavorInstallation, Option<PathBuf>) {
-        (self.installation.into(), self.lock_path)
+        (self.installation.into_domain(), self.lock_path)
     }
 }
 
@@ -93,7 +93,7 @@ impl ApplyAddonLockAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainAddonLockApplyRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             lock_path: request.lock_path,
             backup_output_path: request.backup_output_path,
             replace_existing: request.replace_existing,

@@ -224,6 +224,9 @@ desktop work.
 - app request contracts no longer rely on public `From<app request> for domain request` trait
   impls; domain projection now stays on crate-internal helper methods, matching the response-side
   boundary cleanup and reducing visible frontend coupling to domain request types
+- app value contracts now also use crate-internal `from_domain()` / `into_domain()` helpers instead
+  of public domain conversion trait impls, so frontend-facing value shapes no longer advertise
+  domain types as part of their stable contract surface
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

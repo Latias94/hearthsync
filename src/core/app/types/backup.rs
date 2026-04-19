@@ -11,8 +11,8 @@ pub enum BackupGroupValue {
     InterfaceAssets,
 }
 
-impl From<DomainBackupGroup> for BackupGroupValue {
-    fn from(value: DomainBackupGroup) -> Self {
+impl BackupGroupValue {
+    pub(crate) fn from_domain(value: DomainBackupGroup) -> Self {
         match value {
             DomainBackupGroup::Addons => Self::Addons,
             DomainBackupGroup::Wtf => Self::Wtf,
@@ -20,15 +20,13 @@ impl From<DomainBackupGroup> for BackupGroupValue {
             DomainBackupGroup::InterfaceAssets => Self::InterfaceAssets,
         }
     }
-}
 
-impl From<BackupGroupValue> for DomainBackupGroup {
-    fn from(value: BackupGroupValue) -> Self {
-        match value {
-            BackupGroupValue::Addons => Self::Addons,
-            BackupGroupValue::Wtf => Self::Wtf,
-            BackupGroupValue::Fonts => Self::Fonts,
-            BackupGroupValue::InterfaceAssets => Self::InterfaceAssets,
+    pub(crate) fn into_domain(self) -> DomainBackupGroup {
+        match self {
+            Self::Addons => DomainBackupGroup::Addons,
+            Self::Wtf => DomainBackupGroup::Wtf,
+            Self::Fonts => DomainBackupGroup::Fonts,
+            Self::InterfaceAssets => DomainBackupGroup::InterfaceAssets,
         }
     }
 }

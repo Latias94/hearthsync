@@ -232,7 +232,7 @@ mod tests {
         fs::create_dir_all(&wtf_dir).expect("wtf dir");
         fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
-        crate::core::install::DetectedFlavorInstallation {
+        ResolvedInstallationValue::from_domain(crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -241,7 +241,6 @@ mod tests {
             addon_dir,
             wtf_dir,
             fonts_dir,
-        }
-        .into()
+        })
     }
 }

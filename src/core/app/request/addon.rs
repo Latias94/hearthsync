@@ -18,7 +18,7 @@ pub struct SearchAddonsRequest {
 impl SearchAddonsRequest {
     pub(crate) fn into_domain_request(self) -> DomainSearchAddonRequest {
         DomainSearchAddonRequest {
-            installation: self.installation.into(),
+            installation: self.installation.into_domain(),
             query: self.query,
             limit: self.limit,
         }
@@ -32,7 +32,7 @@ pub struct ListAddonsRequest {
 
 impl ListAddonsRequest {
     pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
-        self.installation.into()
+        self.installation.into_domain()
     }
 }
 
@@ -56,12 +56,12 @@ impl InstallAddonAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainInstallAddonRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             source: request.source,
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
             replace_existing: request.replace_existing,
-            metadata: request.metadata.map(Into::into),
+            metadata: request.metadata.map(AddonPackageMetadataValue::into_domain),
         }
     }
 }
@@ -84,7 +84,7 @@ impl UpdateAddonAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainUpdateAddonRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             name: request.name,
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
@@ -110,7 +110,7 @@ impl RemoveAddonAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainRemoveAddonRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             name: request.name,
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,

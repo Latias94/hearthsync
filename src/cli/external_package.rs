@@ -276,27 +276,27 @@ fn build_external_package_apply_defaults(
     let mut defaults = BundleApplyDefaultsValue::author_package_defaults();
     defaults.create_backup = !options.no_backup;
     if let Some(policy) = options.addons_policy {
-        defaults.addons = ResourceApplyPolicyValue::from(
+        defaults.addons = ResourceApplyPolicyValue::from_domain(
             crate::core::manifest::ResourceApplyPolicy::from(policy),
         );
     }
     if let Some(policy) = options.wtf_common_policy {
-        defaults.wtf_common = ResourceApplyPolicyValue::from(
+        defaults.wtf_common = ResourceApplyPolicyValue::from_domain(
             crate::core::manifest::ResourceApplyPolicy::from(policy),
         );
     }
     if let Some(policy) = options.wtf_characters_policy {
-        defaults.wtf_characters = ResourceApplyPolicyValue::from(
+        defaults.wtf_characters = ResourceApplyPolicyValue::from_domain(
             crate::core::manifest::ResourceApplyPolicy::from(policy),
         );
     }
     if let Some(policy) = options.fonts_policy {
-        defaults.fonts = ResourceApplyPolicyValue::from(
+        defaults.fonts = ResourceApplyPolicyValue::from_domain(
             crate::core::manifest::ResourceApplyPolicy::from(policy),
         );
     }
     if let Some(policy) = options.interface_assets_policy {
-        defaults.interface_assets = ResourceApplyPolicyValue::from(
+        defaults.interface_assets = ResourceApplyPolicyValue::from_domain(
             crate::core::manifest::ResourceApplyPolicy::from(policy),
         );
     }

@@ -35,7 +35,7 @@ impl AppRuntime {
     pub fn with_addon_provider_options(options: AddonProviderOptionsValue) -> Self {
         Self {
             addon_provider: Arc::new(
-                DefaultAddonProvider::default().with_options(options.clone().into()),
+                DefaultAddonProvider::default().with_options(options.clone().into_domain()),
             ),
             default_addon_provider_options: Some(options),
             external_helper_policy: ExternalHelperPolicyValue::default(),
@@ -131,8 +131,8 @@ impl AppRuntime {
 
     pub(crate) fn scan_installations(&self) -> AppResult<Vec<DetectedFlavorInstallation>> {
         match self.install_scan_roots() {
-            Some(roots) => scan_installations_with_roots(roots, self.host_platform.into()),
-            None => scan_installations_for_host(self.host_platform.into()),
+            Some(roots) => scan_installations_with_roots(roots, self.host_platform.into_domain()),
+            None => scan_installations_for_host(self.host_platform.into_domain()),
         }
     }
 

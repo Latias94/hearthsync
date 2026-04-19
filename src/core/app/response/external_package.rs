@@ -40,7 +40,7 @@ impl ExternalPackageBundleHandle {
     pub(crate) fn from_domain(value: DomainPreparedExternalPackageBundle) -> Self {
         let result = ExternalPackageBundleResult {
             analysis: ExternalPackageAnalysisResult::from_domain(value.analysis.clone()),
-            manifest: BundleManifestResult::from(value.manifest.clone()),
+            manifest: BundleManifestResult::from_domain(value.manifest.clone()),
             bundle: CreatedBundleResult::from_domain(value.bundle.clone()),
         };
 
@@ -81,8 +81,8 @@ impl ExternalPackageEntryResult {
         Self {
             source_path: value.source_path,
             normalized_path: value.normalized_path,
-            group: ApplyGroupValue::from(value.group),
-            wtf_scope: value.wtf_scope.map(WtfScopeValue::from),
+            group: ApplyGroupValue::from_domain(value.group),
+            wtf_scope: value.wtf_scope.map(WtfScopeValue::from_domain),
             source_account: value.source_account,
             source_server: value.source_server,
             source_character: value.source_character,
@@ -100,8 +100,8 @@ pub struct ExternalPackageWarningGroupResult {
 impl ExternalPackageWarningGroupResult {
     pub(crate) fn from_domain(value: DomainExternalPackageWarningGroup) -> Self {
         Self {
-            category: ExternalPackageWarningCategoryValue::from(value.category),
-            code: ExternalPackageWarningCodeValue::from(value.code),
+            category: ExternalPackageWarningCategoryValue::from_domain(value.category),
+            code: ExternalPackageWarningCodeValue::from_domain(value.code),
             count: value.count,
         }
     }
@@ -118,8 +118,8 @@ pub struct ExternalPackageWarningResult {
 impl ExternalPackageWarningResult {
     pub(crate) fn from_domain(value: DomainExternalPackageWarning) -> Self {
         Self {
-            category: ExternalPackageWarningCategoryValue::from(value.category),
-            code: ExternalPackageWarningCodeValue::from(value.code),
+            category: ExternalPackageWarningCategoryValue::from_domain(value.category),
+            code: ExternalPackageWarningCodeValue::from_domain(value.code),
             source_path: value.source_path,
             message: value.message,
         }
@@ -245,7 +245,7 @@ impl ExternalPackageApplyPlanResult {
             summary: ApplyPlanSummaryResult::from_domain(value.summary),
             helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from_domain(value.group_policies),
-            manifest: BundleManifestResult::from(value.manifest),
+            manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }
 }
@@ -282,7 +282,7 @@ impl ExternalPackageApplyResult {
                 .into_iter()
                 .map(CharacterMappingResult::from_domain)
                 .collect(),
-            manifest: BundleManifestResult::from(value.manifest),
+            manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }
 }

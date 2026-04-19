@@ -52,7 +52,7 @@ impl BundleResourcesResult {
             wtf_characters: value
                 .wtf_characters
                 .into_iter()
-                .map(BundleCharacterResourceResult::from)
+                .map(BundleCharacterResourceResult::from_domain)
                 .collect(),
             fonts: value.fonts,
             interface_assets: value.interface_assets,
@@ -99,8 +99,8 @@ pub struct BundleInspectionResult {
 
 impl BundleInspectionResult {
     pub(crate) fn from_domain(value: BundleInspection) -> Self {
-        let package = BundlePackageResult::from(value.manifest.package);
-        let source = BundleSourceResult::from(value.manifest.source);
+        let package = BundlePackageResult::from_domain(value.manifest.package);
+        let source = BundleSourceResult::from_domain(value.manifest.source);
         let resources = BundleResourcesResult::from_domain(value.manifest.resources);
 
         Self {
@@ -125,7 +125,7 @@ impl CreatedBundleResult {
         Self {
             archive_path: value.archive_path,
             archived_files: value.archived_files,
-            manifest: BundleManifestResult::from(value.manifest),
+            manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }
 }
@@ -208,9 +208,9 @@ pub struct ApplyOperationResult {
 impl ApplyOperationResult {
     pub(crate) fn from_domain(value: ApplyOperation) -> Self {
         Self {
-            group: ApplyGroupValue::from(value.group),
-            wtf_scope: value.wtf_scope.map(WtfScopeValue::from),
-            action: ApplyActionValue::from(value.action),
+            group: ApplyGroupValue::from_domain(value.group),
+            wtf_scope: value.wtf_scope.map(WtfScopeValue::from_domain),
+            action: ApplyActionValue::from_domain(value.action),
             archive_name: value.archive_name,
             destination: value.destination,
             target_account: value.target_account,
@@ -249,7 +249,7 @@ pub struct GroupPolicyResult {
 impl GroupPolicyResult {
     pub(crate) fn from_domain(value: GroupPolicy) -> Self {
         Self {
-            policy: ResourceApplyPolicyValue::from(value.policy),
+            policy: ResourceApplyPolicyValue::from_domain(value.policy),
         }
     }
 }
@@ -321,7 +321,7 @@ impl BundleApplyPlanResult {
             summary: ApplyPlanSummaryResult::from_domain(value.summary),
             helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from_domain(value.group_policies),
-            manifest: BundleManifestResult::from(value.manifest),
+            manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }
 }
@@ -358,7 +358,7 @@ impl BundleApplyResult {
                 .into_iter()
                 .map(CharacterMappingResult::from_domain)
                 .collect(),
-            manifest: BundleManifestResult::from(value.manifest),
+            manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }
 }

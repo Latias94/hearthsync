@@ -56,15 +56,21 @@ impl CreateExternalPackageBundleAppRequest {
     fn into_domain_request_after_defaults(self) -> DomainCreateExternalPackageBundleRequest {
         DomainCreateExternalPackageBundleRequest {
             source_path: self.source_path,
-            source_flavor: self.source_flavor.into(),
-            source_platform: self.source_platform.map(Into::into),
-            supported_targets: self.supported_targets.into_iter().map(Into::into).collect(),
+            source_flavor: self.source_flavor.into_domain(),
+            source_platform: self.source_platform.map(HostPlatformValue::into_domain),
+            supported_targets: self
+                .supported_targets
+                .into_iter()
+                .map(WowFlavorValue::into_domain)
+                .collect(),
             output_path: self.output_path,
             package_id: self.package_id,
             package_name: self.package_name,
             created_by: self.created_by,
             description: self.description,
-            apply_defaults: self.apply_defaults.map(Into::into),
+            apply_defaults: self
+                .apply_defaults
+                .map(BundleApplyDefaultsValue::into_domain),
         }
     }
 }
@@ -92,8 +98,8 @@ impl PlanExternalPackageApplyAppRequest {
             external_package: request
                 .external_package
                 .into_domain_request_after_defaults(),
-            installation: request.installation.into(),
-            apply_mappings: request.apply_mappings.into(),
+            installation: request.installation.into_domain(),
+            apply_mappings: request.apply_mappings.into_domain(),
         }
     }
 }
@@ -124,10 +130,10 @@ impl ApplyExternalPackageAppRequest {
             external_package: request
                 .external_package
                 .into_domain_request_after_defaults(),
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
-            apply_mappings: request.apply_mappings.into(),
+            apply_mappings: request.apply_mappings.into_domain(),
         }
     }
 }

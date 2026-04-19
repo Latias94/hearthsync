@@ -30,8 +30,8 @@ pub struct AddonPackageMetadataValue {
     pub supported_flavors: Vec<String>,
 }
 
-impl From<DomainAddonPackageMetadata> for AddonPackageMetadataValue {
-    fn from(value: DomainAddonPackageMetadata) -> Self {
+impl AddonPackageMetadataValue {
+    pub(crate) fn from_domain(value: DomainAddonPackageMetadata) -> Self {
         Self {
             index_name: value.index_name,
             index_package_id: value.index_package_id,
@@ -43,19 +43,17 @@ impl From<DomainAddonPackageMetadata> for AddonPackageMetadataValue {
             supported_flavors: value.supported_flavors,
         }
     }
-}
 
-impl From<AddonPackageMetadataValue> for DomainAddonPackageMetadata {
-    fn from(value: AddonPackageMetadataValue) -> Self {
-        Self {
-            index_name: value.index_name,
-            index_package_id: value.index_package_id,
-            package_name: value.package_name,
-            version: value.version,
-            source_url: value.source_url,
-            website_url: value.website_url,
-            source_sha256: value.source_sha256,
-            supported_flavors: value.supported_flavors,
+    pub(crate) fn into_domain(self) -> DomainAddonPackageMetadata {
+        DomainAddonPackageMetadata {
+            index_name: self.index_name,
+            index_package_id: self.index_package_id,
+            package_name: self.package_name,
+            version: self.version,
+            source_url: self.source_url,
+            website_url: self.website_url,
+            source_sha256: self.source_sha256,
+            supported_flavors: self.supported_flavors,
         }
     }
 }
@@ -84,18 +82,17 @@ impl Default for AddonProviderRetryPolicyValue {
     }
 }
 
-impl From<DomainAddonProviderRetryPolicy> for AddonProviderRetryPolicyValue {
-    fn from(value: DomainAddonProviderRetryPolicy) -> Self {
+impl AddonProviderRetryPolicyValue {
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn from_domain(value: DomainAddonProviderRetryPolicy) -> Self {
         Self {
             max_attempts: value.max_attempts,
         }
     }
-}
 
-impl From<AddonProviderRetryPolicyValue> for DomainAddonProviderRetryPolicy {
-    fn from(value: AddonProviderRetryPolicyValue) -> Self {
-        Self {
-            max_attempts: value.max_attempts,
+    pub(crate) fn into_domain(self) -> DomainAddonProviderRetryPolicy {
+        DomainAddonProviderRetryPolicy {
+            max_attempts: self.max_attempts,
         }
     }
 }
@@ -106,20 +103,19 @@ pub struct AddonProviderOptionsValue {
     pub retry_policy: AddonProviderRetryPolicyValue,
 }
 
-impl From<DomainAddonProviderOptions> for AddonProviderOptionsValue {
-    fn from(value: DomainAddonProviderOptions) -> Self {
+impl AddonProviderOptionsValue {
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn from_domain(value: DomainAddonProviderOptions) -> Self {
         Self {
             download_cache_dir: value.download_cache_dir,
-            retry_policy: value.retry_policy.into(),
+            retry_policy: AddonProviderRetryPolicyValue::from_domain(value.retry_policy),
         }
     }
-}
 
-impl From<AddonProviderOptionsValue> for DomainAddonProviderOptions {
-    fn from(value: AddonProviderOptionsValue) -> Self {
-        Self {
-            download_cache_dir: value.download_cache_dir,
-            retry_policy: value.retry_policy.into(),
+    pub(crate) fn into_domain(self) -> DomainAddonProviderOptions {
+        DomainAddonProviderOptions {
+            download_cache_dir: self.download_cache_dir,
+            retry_policy: self.retry_policy.into_domain(),
         }
     }
 }

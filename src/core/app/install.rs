@@ -38,7 +38,7 @@ impl InstallationService {
         request: ResolveInstallationRequest,
     ) -> AppResult<ResolvedInstallationValue> {
         let installation = request.resolve_with_runtime(&self.runtime)?;
-        Ok(ResolvedInstallationValue::from(installation))
+        Ok(ResolvedInstallationValue::from_domain(installation))
     }
 }
 

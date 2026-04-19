@@ -302,7 +302,7 @@ supported_flavors = ["retail"]
         let index_path = write_index(temp.path(), &updated_archive_path);
 
         install_addon(InstallAddonRequest {
-            installation: installation.clone().into(),
+            installation: installation.clone().into_domain(),
             source: installed_archive_path.display().to_string(),
             dry_run: false,
             backup_output_path: Some(temp.path().join("backups")),
@@ -366,7 +366,7 @@ supported_flavors = ["retail"]
         fs::create_dir_all(&wtf_dir).expect("wtf dir");
         fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
-        crate::core::install::DetectedFlavorInstallation {
+        ResolvedInstallationValue::from_domain(crate::core::install::DetectedFlavorInstallation {
             platform: HostPlatform::Windows,
             product_root,
             flavor_root,
@@ -375,8 +375,7 @@ supported_flavors = ["retail"]
             addon_dir,
             wtf_dir,
             fonts_dir,
-        }
-        .into()
+        })
     }
 
     fn write_index(root: &Path, archive_path: &Path) -> std::path::PathBuf {

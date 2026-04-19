@@ -23,22 +23,20 @@ pub enum CharacterMappingModeValue {
     Prompt,
 }
 
-impl From<DomainCharacterMappingMode> for CharacterMappingModeValue {
-    fn from(value: DomainCharacterMappingMode) -> Self {
+impl CharacterMappingModeValue {
+    pub(crate) fn from_domain(value: DomainCharacterMappingMode) -> Self {
         match value {
             DomainCharacterMappingMode::KeepOriginal => Self::KeepOriginal,
             DomainCharacterMappingMode::Explicit => Self::Explicit,
             DomainCharacterMappingMode::Prompt => Self::Prompt,
         }
     }
-}
 
-impl From<CharacterMappingModeValue> for DomainCharacterMappingMode {
-    fn from(value: CharacterMappingModeValue) -> Self {
-        match value {
-            CharacterMappingModeValue::KeepOriginal => Self::KeepOriginal,
-            CharacterMappingModeValue::Explicit => Self::Explicit,
-            CharacterMappingModeValue::Prompt => Self::Prompt,
+    pub(crate) fn into_domain(self) -> DomainCharacterMappingMode {
+        match self {
+            Self::KeepOriginal => DomainCharacterMappingMode::KeepOriginal,
+            Self::Explicit => DomainCharacterMappingMode::Explicit,
+            Self::Prompt => DomainCharacterMappingMode::Prompt,
         }
     }
 }
@@ -51,8 +49,8 @@ pub struct BundlePackageValue {
     pub description: Option<String>,
 }
 
-impl From<DomainPackageMetadata> for BundlePackageValue {
-    fn from(value: DomainPackageMetadata) -> Self {
+impl BundlePackageValue {
+    pub(crate) fn from_domain(value: DomainPackageMetadata) -> Self {
         Self {
             id: value.id,
             name: value.name,
@@ -60,15 +58,13 @@ impl From<DomainPackageMetadata> for BundlePackageValue {
             description: value.description,
         }
     }
-}
 
-impl From<BundlePackageValue> for DomainPackageMetadata {
-    fn from(value: BundlePackageValue) -> Self {
-        Self {
-            id: value.id,
-            name: value.name,
-            created_by: value.created_by,
-            description: value.description,
+    pub(crate) fn into_domain(self) -> DomainPackageMetadata {
+        DomainPackageMetadata {
+            id: self.id,
+            name: self.name,
+            created_by: self.created_by,
+            description: self.description,
         }
     }
 }
@@ -81,31 +77,29 @@ pub struct BundleSourceValue {
     pub supported_targets: Vec<WowFlavorValue>,
 }
 
-impl From<DomainSourceInstallation> for BundleSourceValue {
-    fn from(value: DomainSourceInstallation) -> Self {
+impl BundleSourceValue {
+    pub(crate) fn from_domain(value: DomainSourceInstallation) -> Self {
         Self {
-            flavor: value.flavor.into(),
-            platform: value.platform.map(Into::into),
+            flavor: WowFlavorValue::from_domain(value.flavor),
+            platform: value.platform.map(HostPlatformValue::from_domain),
             exported_at: value.exported_at,
             supported_targets: value
                 .supported_targets
                 .into_iter()
-                .map(Into::into)
+                .map(WowFlavorValue::from_domain)
                 .collect(),
         }
     }
-}
 
-impl From<BundleSourceValue> for DomainSourceInstallation {
-    fn from(value: BundleSourceValue) -> Self {
-        Self {
-            flavor: value.flavor.into(),
-            platform: value.platform.map(Into::into),
-            exported_at: value.exported_at,
-            supported_targets: value
+    pub(crate) fn into_domain(self) -> DomainSourceInstallation {
+        DomainSourceInstallation {
+            flavor: self.flavor.into_domain(),
+            platform: self.platform.map(HostPlatformValue::into_domain),
+            exported_at: self.exported_at,
+            supported_targets: self
                 .supported_targets
                 .into_iter()
-                .map(Into::into)
+                .map(WowFlavorValue::into_domain)
                 .collect(),
         }
     }
@@ -119,8 +113,8 @@ pub struct BundleCharacterResourceValue {
     pub target_hint: Option<String>,
 }
 
-impl From<DomainCharacterResource> for BundleCharacterResourceValue {
-    fn from(value: DomainCharacterResource) -> Self {
+impl BundleCharacterResourceValue {
+    pub(crate) fn from_domain(value: DomainCharacterResource) -> Self {
         Self {
             source_account: value.source_account,
             source_server: value.source_server,
@@ -128,15 +122,13 @@ impl From<DomainCharacterResource> for BundleCharacterResourceValue {
             target_hint: value.target_hint,
         }
     }
-}
 
-impl From<BundleCharacterResourceValue> for DomainCharacterResource {
-    fn from(value: BundleCharacterResourceValue) -> Self {
-        Self {
-            source_account: value.source_account,
-            source_server: value.source_server,
-            source_character: value.source_character,
-            target_hint: value.target_hint,
+    pub(crate) fn into_domain(self) -> DomainCharacterResource {
+        DomainCharacterResource {
+            source_account: self.source_account,
+            source_server: self.source_server,
+            source_character: self.source_character,
+            target_hint: self.target_hint,
         }
     }
 }
@@ -152,15 +144,15 @@ pub struct BundleResourcesValue {
     pub addon_indexes: Vec<String>,
 }
 
-impl From<DomainBundleResources> for BundleResourcesValue {
-    fn from(value: DomainBundleResources) -> Self {
+impl BundleResourcesValue {
+    pub(crate) fn from_domain(value: DomainBundleResources) -> Self {
         Self {
             addons: value.addons,
             wtf_common: value.wtf_common,
             wtf_characters: value
                 .wtf_characters
                 .into_iter()
-                .map(BundleCharacterResourceValue::from)
+                .map(BundleCharacterResourceValue::from_domain)
                 .collect(),
             fonts: value.fonts,
             interface_assets: value.interface_assets,
@@ -168,18 +160,20 @@ impl From<DomainBundleResources> for BundleResourcesValue {
             addon_indexes: value.addon_indexes,
         }
     }
-}
 
-impl From<BundleResourcesValue> for DomainBundleResources {
-    fn from(value: BundleResourcesValue) -> Self {
-        Self {
-            addons: value.addons,
-            wtf_common: value.wtf_common,
-            wtf_characters: value.wtf_characters.into_iter().map(Into::into).collect(),
-            fonts: value.fonts,
-            interface_assets: value.interface_assets,
-            addon_lock: value.addon_lock,
-            addon_indexes: value.addon_indexes,
+    pub(crate) fn into_domain(self) -> DomainBundleResources {
+        DomainBundleResources {
+            addons: self.addons,
+            wtf_common: self.wtf_common,
+            wtf_characters: self
+                .wtf_characters
+                .into_iter()
+                .map(BundleCharacterResourceValue::into_domain)
+                .collect(),
+            fonts: self.fonts,
+            interface_assets: self.interface_assets,
+            addon_lock: self.addon_lock,
+            addon_indexes: self.addon_indexes,
         }
     }
 }
@@ -192,24 +186,22 @@ pub struct BundleMappingRulesValue {
     pub allow_cross_platform: bool,
 }
 
-impl From<DomainMappingRules> for BundleMappingRulesValue {
-    fn from(value: DomainMappingRules) -> Self {
+impl BundleMappingRulesValue {
+    pub(crate) fn from_domain(value: DomainMappingRules) -> Self {
         Self {
-            character_mode: value.character_mode.into(),
+            character_mode: CharacterMappingModeValue::from_domain(value.character_mode),
             rewrite_profile_keys: value.rewrite_profile_keys,
             rewrite_identity_strings: value.rewrite_identity_strings,
             allow_cross_platform: value.allow_cross_platform,
         }
     }
-}
 
-impl From<BundleMappingRulesValue> for DomainMappingRules {
-    fn from(value: BundleMappingRulesValue) -> Self {
-        Self {
-            character_mode: value.character_mode.into(),
-            rewrite_profile_keys: value.rewrite_profile_keys,
-            rewrite_identity_strings: value.rewrite_identity_strings,
-            allow_cross_platform: value.allow_cross_platform,
+    pub(crate) fn into_domain(self) -> DomainMappingRules {
+        DomainMappingRules {
+            character_mode: self.character_mode.into_domain(),
+            rewrite_profile_keys: self.rewrite_profile_keys,
+            rewrite_identity_strings: self.rewrite_identity_strings,
+            allow_cross_platform: self.allow_cross_platform,
         }
     }
 }
@@ -224,8 +216,8 @@ pub struct BundleCharacterMappingOverrideValue {
     pub target_character: String,
 }
 
-impl From<DomainCharacterMappingOverride> for BundleCharacterMappingOverrideValue {
-    fn from(value: DomainCharacterMappingOverride) -> Self {
+impl BundleCharacterMappingOverrideValue {
+    pub(crate) fn from_domain(value: DomainCharacterMappingOverride) -> Self {
         Self {
             source_account: value.source_account,
             source_server: value.source_server,
@@ -235,17 +227,15 @@ impl From<DomainCharacterMappingOverride> for BundleCharacterMappingOverrideValu
             target_character: value.target_character,
         }
     }
-}
 
-impl From<BundleCharacterMappingOverrideValue> for DomainCharacterMappingOverride {
-    fn from(value: BundleCharacterMappingOverrideValue) -> Self {
-        Self {
-            source_account: value.source_account,
-            source_server: value.source_server,
-            source_character: value.source_character,
-            target_account: value.target_account,
-            target_server: value.target_server,
-            target_character: value.target_character,
+    pub(crate) fn into_domain(self) -> DomainCharacterMappingOverride {
+        DomainCharacterMappingOverride {
+            source_account: self.source_account,
+            source_server: self.source_server,
+            source_character: self.source_character,
+            target_account: self.target_account,
+            target_server: self.target_server,
+            target_character: self.target_character,
         }
     }
 }
@@ -260,8 +250,8 @@ pub struct BundleApplyMappingsValue {
     pub characters: Vec<BundleCharacterMappingOverrideValue>,
 }
 
-impl From<DomainBundleApplyMappings> for BundleApplyMappingsValue {
-    fn from(value: DomainBundleApplyMappings) -> Self {
+impl BundleApplyMappingsValue {
+    pub(crate) fn from_domain(value: DomainBundleApplyMappings) -> Self {
         Self {
             target_account: value.target_account,
             target_server: value.target_server,
@@ -271,21 +261,23 @@ impl From<DomainBundleApplyMappings> for BundleApplyMappingsValue {
             characters: value
                 .characters
                 .into_iter()
-                .map(BundleCharacterMappingOverrideValue::from)
+                .map(BundleCharacterMappingOverrideValue::from_domain)
                 .collect(),
         }
     }
-}
 
-impl From<BundleApplyMappingsValue> for DomainBundleApplyMappings {
-    fn from(value: BundleApplyMappingsValue) -> Self {
-        Self {
-            target_account: value.target_account,
-            target_server: value.target_server,
-            target_character: value.target_character,
-            selected_accounts: value.selected_accounts,
-            all_accounts: value.all_accounts,
-            characters: value.characters.into_iter().map(Into::into).collect(),
+    pub(crate) fn into_domain(self) -> DomainBundleApplyMappings {
+        DomainBundleApplyMappings {
+            target_account: self.target_account,
+            target_server: self.target_server,
+            target_character: self.target_character,
+            selected_accounts: self.selected_accounts,
+            all_accounts: self.all_accounts,
+            characters: self
+                .characters
+                .into_iter()
+                .map(BundleCharacterMappingOverrideValue::into_domain)
+                .collect(),
         }
     }
 }
@@ -300,8 +292,8 @@ pub enum ApplyActionValue {
     Preserve,
 }
 
-impl From<DomainApplyAction> for ApplyActionValue {
-    fn from(value: DomainApplyAction) -> Self {
+impl ApplyActionValue {
+    pub(crate) fn from_domain(value: DomainApplyAction) -> Self {
         match value {
             DomainApplyAction::Remove => Self::Remove,
             DomainApplyAction::Add => Self::Add,
@@ -323,8 +315,8 @@ pub enum ApplyGroupValue {
     Metadata,
 }
 
-impl From<DomainApplyGroup> for ApplyGroupValue {
-    fn from(value: DomainApplyGroup) -> Self {
+impl ApplyGroupValue {
+    pub(crate) fn from_domain(value: DomainApplyGroup) -> Self {
         match value {
             DomainApplyGroup::Addons => Self::Addons,
             DomainApplyGroup::WtfCommon => Self::WtfCommon,
@@ -349,8 +341,8 @@ pub enum WtfScopeValue {
     Unknown,
 }
 
-impl From<DomainWtfScope> for WtfScopeValue {
-    fn from(value: DomainWtfScope) -> Self {
+impl WtfScopeValue {
+    pub(crate) fn from_domain(value: DomainWtfScope) -> Self {
         match value {
             DomainWtfScope::GlobalConfig => Self::GlobalConfig,
             DomainWtfScope::RootSavedVariables => Self::RootSavedVariables,
@@ -375,8 +367,8 @@ pub enum ResourceApplyPolicyValue {
     Preserve,
 }
 
-impl From<DomainResourceApplyPolicy> for ResourceApplyPolicyValue {
-    fn from(value: DomainResourceApplyPolicy) -> Self {
+impl ResourceApplyPolicyValue {
+    pub(crate) fn from_domain(value: DomainResourceApplyPolicy) -> Self {
         match value {
             DomainResourceApplyPolicy::Merge => Self::Merge,
             DomainResourceApplyPolicy::Share => Self::Share,
@@ -386,17 +378,15 @@ impl From<DomainResourceApplyPolicy> for ResourceApplyPolicyValue {
             DomainResourceApplyPolicy::Preserve => Self::Preserve,
         }
     }
-}
 
-impl From<ResourceApplyPolicyValue> for DomainResourceApplyPolicy {
-    fn from(value: ResourceApplyPolicyValue) -> Self {
-        match value {
-            ResourceApplyPolicyValue::Merge => Self::Merge,
-            ResourceApplyPolicyValue::Share => Self::Share,
-            ResourceApplyPolicyValue::Sync => Self::Sync,
-            ResourceApplyPolicyValue::Mirror => Self::Mirror,
-            ResourceApplyPolicyValue::ReplaceSelected => Self::ReplaceSelected,
-            ResourceApplyPolicyValue::Preserve => Self::Preserve,
+    pub(crate) fn into_domain(self) -> DomainResourceApplyPolicy {
+        match self {
+            Self::Merge => DomainResourceApplyPolicy::Merge,
+            Self::Share => DomainResourceApplyPolicy::Share,
+            Self::Sync => DomainResourceApplyPolicy::Sync,
+            Self::Mirror => DomainResourceApplyPolicy::Mirror,
+            Self::ReplaceSelected => DomainResourceApplyPolicy::ReplaceSelected,
+            Self::Preserve => DomainResourceApplyPolicy::Preserve,
         }
     }
 }
@@ -413,32 +403,28 @@ pub struct BundleApplyDefaultsValue {
 
 impl BundleApplyDefaultsValue {
     pub fn author_package_defaults() -> Self {
-        crate::core::bundle::author_package_apply_defaults().into()
+        Self::from_domain(crate::core::bundle::author_package_apply_defaults())
     }
-}
 
-impl From<DomainApplyDefaults> for BundleApplyDefaultsValue {
-    fn from(value: DomainApplyDefaults) -> Self {
+    pub(crate) fn from_domain(value: DomainApplyDefaults) -> Self {
         Self {
             create_backup: value.create_backup,
-            addons: ResourceApplyPolicyValue::from(value.addons),
-            wtf_common: ResourceApplyPolicyValue::from(value.wtf_common),
-            wtf_characters: ResourceApplyPolicyValue::from(value.wtf_characters),
-            fonts: ResourceApplyPolicyValue::from(value.fonts),
-            interface_assets: ResourceApplyPolicyValue::from(value.interface_assets),
+            addons: ResourceApplyPolicyValue::from_domain(value.addons),
+            wtf_common: ResourceApplyPolicyValue::from_domain(value.wtf_common),
+            wtf_characters: ResourceApplyPolicyValue::from_domain(value.wtf_characters),
+            fonts: ResourceApplyPolicyValue::from_domain(value.fonts),
+            interface_assets: ResourceApplyPolicyValue::from_domain(value.interface_assets),
         }
     }
-}
 
-impl From<BundleApplyDefaultsValue> for DomainApplyDefaults {
-    fn from(value: BundleApplyDefaultsValue) -> Self {
-        Self {
-            create_backup: value.create_backup,
-            addons: value.addons.into(),
-            wtf_common: value.wtf_common.into(),
-            wtf_characters: value.wtf_characters.into(),
-            fonts: value.fonts.into(),
-            interface_assets: value.interface_assets.into(),
+    pub(crate) fn into_domain(self) -> DomainApplyDefaults {
+        DomainApplyDefaults {
+            create_backup: self.create_backup,
+            addons: self.addons.into_domain(),
+            wtf_common: self.wtf_common.into_domain(),
+            wtf_characters: self.wtf_characters.into_domain(),
+            fonts: self.fonts.into_domain(),
+            interface_assets: self.interface_assets.into_domain(),
         }
     }
 }
@@ -453,28 +439,26 @@ pub struct BundleManifestValue {
     pub apply: BundleApplyDefaultsValue,
 }
 
-impl From<DomainBundleManifest> for BundleManifestValue {
-    fn from(value: DomainBundleManifest) -> Self {
+impl BundleManifestValue {
+    pub(crate) fn from_domain(value: DomainBundleManifest) -> Self {
         Self {
             schema_version: value.schema_version,
-            package: BundlePackageValue::from(value.package),
-            source: BundleSourceValue::from(value.source),
-            resources: BundleResourcesValue::from(value.resources),
-            mapping: BundleMappingRulesValue::from(value.mapping),
-            apply: BundleApplyDefaultsValue::from(value.apply),
+            package: BundlePackageValue::from_domain(value.package),
+            source: BundleSourceValue::from_domain(value.source),
+            resources: BundleResourcesValue::from_domain(value.resources),
+            mapping: BundleMappingRulesValue::from_domain(value.mapping),
+            apply: BundleApplyDefaultsValue::from_domain(value.apply),
         }
     }
-}
 
-impl From<BundleManifestValue> for DomainBundleManifest {
-    fn from(value: BundleManifestValue) -> Self {
-        Self {
-            schema_version: value.schema_version,
-            package: value.package.into(),
-            source: value.source.into(),
-            resources: value.resources.into(),
-            mapping: value.mapping.into(),
-            apply: value.apply.into(),
+    pub(crate) fn into_domain(self) -> DomainBundleManifest {
+        DomainBundleManifest {
+            schema_version: self.schema_version,
+            package: self.package.into_domain(),
+            source: self.source.into_domain(),
+            resources: self.resources.into_domain(),
+            mapping: self.mapping.into_domain(),
+            apply: self.apply.into_domain(),
         }
     }
 }

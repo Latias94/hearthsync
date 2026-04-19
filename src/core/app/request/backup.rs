@@ -39,9 +39,13 @@ impl CreateBackupAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainBackupRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             output_path: request.output_path,
-            groups: request.groups.into_iter().map(Into::into).collect(),
+            groups: request
+                .groups
+                .into_iter()
+                .map(BackupGroupValue::into_domain)
+                .collect(),
             label: request.label,
         }
     }
@@ -65,7 +69,7 @@ impl RestoreBackupAppRequest {
         let request = self.apply_runtime_defaults(runtime);
 
         DomainRestoreBackupRequest {
-            installation: request.installation.into(),
+            installation: request.installation.into_domain(),
             archive_path: request.archive_path,
             backup_id: request.backup_id,
             backup_dir: request.backup_dir,

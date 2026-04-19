@@ -177,7 +177,7 @@ pub(super) fn resolve_apply_mappings(
     all_accounts: bool,
 ) -> AppResult<BundleApplyMappingsValue> {
     let mut apply_mappings = if let Some(path) = mapping_file {
-        load_apply_mappings(path)?.into()
+        BundleApplyMappingsValue::from_domain(load_apply_mappings(path)?)
     } else {
         BundleApplyMappingsValue::default()
     };
