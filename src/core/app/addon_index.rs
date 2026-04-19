@@ -56,7 +56,7 @@ impl AddonIndexService {
     {
         let installed = install_addon_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;
@@ -105,7 +105,7 @@ impl AddonIndexService {
     {
         let updated = update_addons_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;

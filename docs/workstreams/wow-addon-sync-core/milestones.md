@@ -163,6 +163,9 @@ desktop work.
 - the remaining thin installation-targeted read/plan conversions now sit on app request helpers,
   so addon list, addon-lock read/plan flows, and bundle plan helpers no longer keep
   `request.installation.into()` glue in service bodies
+- runtime-backed mutation requests now also own the final normalized domain projection, so addon,
+  addon-index, addon-lock, backup, bundle, and external-package services no longer coordinate
+  `apply_runtime_defaults(...).into()` as a separate service-local step
 - default addon-provider cache and retry configuration now also uses app-owned runtime values
   instead of leaking provider-domain option structs through `core::app::AppRuntime`
 - custom addon-provider injection is now crate-internal runtime composition, so the public app

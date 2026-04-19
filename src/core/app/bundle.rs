@@ -35,7 +35,7 @@ impl BundleService {
     }
 
     pub fn pack(&self, request: PackBundleAppRequest) -> AppResult<CreatedBundleResult> {
-        let bundle = pack_bundle(request.apply_runtime_defaults(&self.runtime).into())?;
+        let bundle = pack_bundle(request.into_domain_request(&self.runtime))?;
         Ok(CreatedBundleResult::from_domain(bundle))
     }
 
@@ -67,8 +67,7 @@ impl BundleService {
         &self,
         request: ApplyBundleAddonLockAppRequest,
     ) -> AppResult<BundleAddonLockApplyResult> {
-        let applied =
-            apply_bundle_addon_lock(request.apply_runtime_defaults(&self.runtime).into())?;
+        let applied = apply_bundle_addon_lock(request.into_domain_request(&self.runtime))?;
         Ok(BundleAddonLockApplyResult::from_domain(applied))
     }
 
@@ -83,7 +82,7 @@ impl BundleService {
         TProgress: TaskProgressSink,
     {
         let applied = unpack_bundle_task(
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;

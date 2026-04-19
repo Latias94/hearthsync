@@ -805,3 +805,30 @@ This applies at least to:
   part of the stable app input contract rather than service-specific behavior
 - future frontend contract cleanup can focus on real policy ownership gaps instead of preserving
   service-local argument reshaping that belongs to runtime or request helpers
+
+## ADR-036: Runtime-Backed Mutation Requests Own Normalized Domain Projection
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+When an app-facing mutation request depends on runtime defaults before it can become a domain
+request, that request contract should expose one normalized projection helper that performs both:
+
+- runtime-backed default injection
+- final projection into the domain mutation request
+
+App services should not keep coordinating this as a repeated two-step protocol such as
+`request.apply_runtime_defaults(&self.runtime).into()`.
+
+### Consequences
+
+- addon, addon-index, addon-lock, backup, bundle, and external-package mutation services now read
+  more clearly as boundary callers because request normalization and domain projection live on the
+  request contract itself
+- future request evolution can change defaulting or projection details in one place without touching
+  every service wrapper that executes the mutation
+- the remaining `core::app` cleanup can focus on meaningful policy or orchestration seams instead of
+  preserving duplicated request-normalization choreography in service bodies

@@ -79,8 +79,7 @@ impl ExternalPackageService {
         &self,
         request: CreateExternalPackageBundleAppRequest,
     ) -> AppResult<ExternalPackageBundleHandle> {
-        let bundle =
-            create_external_package_bundle(request.apply_runtime_defaults(&self.runtime).into())?;
+        let bundle = create_external_package_bundle(request.into_domain_request(&self.runtime))?;
         Ok(ExternalPackageBundleHandle::from_domain(bundle))
     }
 
@@ -104,7 +103,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let plan = plan_external_package_apply_task(
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;
@@ -158,7 +157,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let applied = apply_external_package_task(
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;

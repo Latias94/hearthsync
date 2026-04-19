@@ -157,6 +157,11 @@ Runtime or request-side app helpers should own that normalization so services do
 rebuilding the same domain inputs for installation scan/inspect/resolve, addon inventory reads,
 addon-lock reads or plans, or bundle preview planning.
 
+Runtime-backed mutation requests should follow the same rule all the way to the domain boundary.
+If a request needs runtime defaults before becoming a domain mutation input, the request contract
+should expose one normalized projection helper instead of leaving each service to coordinate
+`apply_runtime_defaults(...).into()` as a repeated two-step protocol.
+
 The same principle applies to provider capability configuration.
 If the frontend needs to configure default addon acquisition behavior such as download cache
 location or retry policy, that configuration should use app-owned runtime value types rather than

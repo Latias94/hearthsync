@@ -135,9 +135,13 @@ ways that a future frontend can depend on without learning internal domain seams
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of
-    service-local `let installation = request.installation.into()` glue. The remaining work in this
-    area is narrower and mostly about any still-meaningful behavioral policy that services own,
-    rather than scattered path/default patching, host injection, or root-level orchestration gaps.
+    service-local `let installation = request.installation.into()` glue. Runtime-backed mutation
+    requests now also own the full "apply defaults, then project into the domain request" step, so
+    services no longer coordinate `request.apply_runtime_defaults(&self.runtime).into()` by hand
+    across addon, addon-index, addon-lock, backup, bundle, and external-package flows. The
+    remaining work in this area is narrower and mostly about any still-meaningful behavioral policy
+    that services own, rather than scattered path/default patching, host injection, or root-level
+    orchestration gaps.
 - [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
   Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls

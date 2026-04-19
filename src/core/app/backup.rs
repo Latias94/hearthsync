@@ -26,13 +26,13 @@ impl BackupService {
     }
 
     pub fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
-        let created = create_backup(request.apply_runtime_defaults(&self.runtime).into())?;
+        let created = create_backup(request.into_domain_request(&self.runtime))?;
         Ok(CreatedBackupResult::from_domain(created))
     }
 
     pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
-        let request = request.apply_runtime_defaults(&self.runtime);
-        let catalog = list_backups(request.backup_dir.as_deref())?;
+        let backup_dir = request.into_backup_dir(&self.runtime);
+        let catalog = list_backups(backup_dir.as_deref())?;
         Ok(BackupCatalogResult::from_domain(catalog))
     }
 
@@ -53,7 +53,7 @@ impl BackupService {
         TProgress: TaskProgressSink,
     {
         let restored = restore_backup_selection_task(
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;

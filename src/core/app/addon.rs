@@ -60,7 +60,7 @@ impl AddonService {
     {
         let installed = install_addon_task_with_provider(
             self.runtime.addon_provider(),
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;
@@ -109,7 +109,7 @@ impl AddonService {
     {
         let updated = update_addons_task_with_provider(
             self.runtime.addon_provider(),
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;
@@ -157,7 +157,7 @@ impl AddonService {
         TProgress: TaskProgressSink,
     {
         let removed = remove_addons_task(
-            request.apply_runtime_defaults(&self.runtime).into(),
+            request.into_domain_request(&self.runtime),
             cancellation,
             progress,
         )?;

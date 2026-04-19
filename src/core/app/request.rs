@@ -151,6 +151,10 @@ impl ApplyAddonLockAppRequest {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonLockApplyRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<ApplyAddonLockAppRequest> for DomainAddonLockApplyRequest {
@@ -184,6 +188,10 @@ impl InstallAddonAppRequest {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainInstallAddonRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<InstallAddonAppRequest> for DomainInstallAddonRequest {
@@ -212,6 +220,10 @@ impl UpdateAddonAppRequest {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUpdateAddonRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<UpdateAddonAppRequest> for DomainUpdateAddonRequest {
@@ -237,6 +249,10 @@ impl RemoveAddonAppRequest {
     pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
+    }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRemoveAddonRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -265,6 +281,13 @@ impl InstallAddonIndexAppRequest {
     pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
+    }
+
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> DomainAddonIndexInstallRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -295,6 +318,10 @@ impl UpdateAddonIndexAppRequest {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonIndexUpdateRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<UpdateAddonIndexAppRequest> for DomainAddonIndexUpdateRequest {
@@ -319,6 +346,10 @@ impl ListBackupsRequest {
         self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
         self
     }
+
+    pub(crate) fn into_backup_dir(self, runtime: &AppRuntime) -> Option<PathBuf> {
+        self.apply_runtime_defaults(runtime).backup_dir
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -333,6 +364,10 @@ impl CreateBackupAppRequest {
     pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.output_path = runtime.backup_output_or_default(self.output_path);
         self
+    }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainBackupRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -359,6 +394,10 @@ impl RestoreBackupAppRequest {
     pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
         self
+    }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRestoreBackupRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -390,6 +429,10 @@ impl PackBundleAppRequest {
     pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.output_path = runtime.bundle_output_or_default(self.output_path);
         self
+    }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainPackBundleRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -441,6 +484,10 @@ impl ApplyBundleAppRequest {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
     }
+
+    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUnpackBundleRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<ApplyBundleAppRequest> for DomainUnpackBundleRequest {
@@ -479,6 +526,13 @@ impl ApplyBundleAddonLockAppRequest {
     pub fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
+    }
+
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> DomainBundleAddonLockApplyRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -526,6 +580,13 @@ impl CreateExternalPackageBundleAppRequest {
         self.output_path = runtime.bundle_output_or_default(self.output_path);
         self
     }
+
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> DomainCreateExternalPackageBundleRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<CreateExternalPackageBundleAppRequest> for DomainCreateExternalPackageBundleRequest {
@@ -561,6 +622,13 @@ impl PlanExternalPackageApplyAppRequest {
         self.external_package = self.external_package.apply_runtime_defaults(runtime);
         self
     }
+
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> DomainPlanExternalPackageApplyRequest {
+        self.apply_runtime_defaults(runtime).into()
+    }
 }
 
 impl From<PlanExternalPackageApplyAppRequest> for DomainPlanExternalPackageApplyRequest {
@@ -587,6 +655,13 @@ impl ApplyExternalPackageAppRequest {
         self.external_package = self.external_package.apply_runtime_defaults(runtime);
         self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
         self
+    }
+
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> DomainApplyExternalPackageRequest {
+        self.apply_runtime_defaults(runtime).into()
     }
 }
 
@@ -841,6 +916,41 @@ mod tests {
         assert_eq!(
             apply_request.backup_output_path,
             Some(PathBuf::from("runtime-backups"))
+        );
+    }
+
+    #[test]
+    fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
+        let runtime = AppRuntime::new()
+            .with_host_platform(HostPlatformValue::MacOs)
+            .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
+            .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+
+        let install = InstallAddonAppRequest {
+            installation: sample_installation(),
+            source: "https://example.invalid/weakauras.zip".to_string(),
+            dry_run: false,
+            backup_output_path: None,
+            replace_existing: true,
+            metadata: None,
+        }
+        .into_domain_request(&runtime);
+        let backup_dir = ListBackupsRequest { backup_dir: None }.into_backup_dir(&runtime);
+        let external_bundle =
+            sample_external_package_bundle_request().into_domain_request(&runtime);
+
+        assert_eq!(
+            install.backup_output_path,
+            Some(PathBuf::from("runtime-backups"))
+        );
+        assert_eq!(backup_dir, Some(PathBuf::from("runtime-backups")));
+        assert_eq!(
+            external_bundle.source_platform,
+            Some(crate::core::install::HostPlatform::MacOs)
+        );
+        assert_eq!(
+            external_bundle.output_path,
+            Some(PathBuf::from("runtime-bundles"))
         );
     }
 
