@@ -205,6 +205,10 @@ desktop work.
   addon-lock operations beyond the shared GUI-facing surface
 - raw `runtime()` access on individual app services is now test-only, so runtime wiring is kept as
   an internal assembly detail instead of a public extension seam
+- internal `*Service` implementation types are now crate-only re-exports, so public consumers are
+  steered toward `HearthSyncApp` / `StableAppServices` instead of depending on internal app wiring
+- internal service convenience constructors are now test-only, so production assembly routes
+  through the explicit app roots instead of scattered implementation helpers
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

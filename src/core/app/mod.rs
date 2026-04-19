@@ -16,14 +16,14 @@ mod types;
 pub use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressEvent, TaskProgressSink, TaskRun,
 };
-pub use addon::AddonService;
-pub use addon_index::AddonIndexService;
-pub use addon_lock::AddonLockService;
-pub use backup::BackupService;
-pub use bundle::BundleService;
+pub(crate) use addon::AddonService;
+pub(crate) use addon_index::AddonIndexService;
+pub(crate) use addon_lock::AddonLockService;
+pub(crate) use backup::BackupService;
+pub(crate) use bundle::BundleService;
 pub use client::HearthSyncApp;
-pub use external_package::ExternalPackageService;
-pub use install::InstallationService;
+pub(crate) use external_package::ExternalPackageService;
+pub(crate) use install::InstallationService;
 pub use request::{
     AddonLockSourceOverrideRequest, AnalyzeExternalPackageAppRequest, ApplyAddonLockAppRequest,
     ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyExternalPackageAppRequest,

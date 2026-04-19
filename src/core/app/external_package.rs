@@ -16,7 +16,8 @@ pub struct ExternalPackageService {
 }
 
 impl ExternalPackageService {
-    pub fn new() -> Self {
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 

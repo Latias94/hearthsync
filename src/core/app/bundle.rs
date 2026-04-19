@@ -17,7 +17,8 @@ pub struct BundleService {
 }
 
 impl BundleService {
-    pub fn new() -> Self {
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 

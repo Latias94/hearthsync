@@ -15,7 +15,8 @@ pub struct AddonIndexService {
 }
 
 impl AddonIndexService {
-    pub fn new() -> Self {
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 

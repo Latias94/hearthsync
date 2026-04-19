@@ -146,6 +146,11 @@ ways that a future frontend can depend on without learning internal domain seams
     index / addon lock entrypoints on top of one shared GUI-facing surface.
     Current cleanup: raw `runtime()` access on individual app services is now test-only, so app
     runtime wiring stays an internal assembly concern rather than another public extension seam.
+    Current cleanup: internal `*Service` implementations are no longer publicly re-exported from
+    `core::app`, so external callers naturally converge on `HearthSyncApp` / `StableAppServices`
+    instead of bypassing the intended app-owned boundary.
+    Current cleanup: internal service convenience constructors now stay test-only as well, so the
+    remaining production-facing entrypoints are the app roots rather than implementation helpers.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

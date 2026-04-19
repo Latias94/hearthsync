@@ -11,10 +11,6 @@ pub struct InstallationService {
 }
 
 impl InstallationService {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn with_runtime(runtime: AppRuntime) -> Self {
         Self { runtime }
     }
