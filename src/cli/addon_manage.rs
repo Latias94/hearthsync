@@ -1,6 +1,9 @@
 use super::AddonCommands;
 use super::app_support::{resolve_cli_installation, stable_services};
-use super::output::render;
+use super::output::{
+    render, render_addon_install, render_addon_inventory, render_addon_remove,
+    render_addon_search_catalog, render_addon_update,
+};
 use crate::core::app::{
     InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, SearchAddonsRequest,
     UpdateAddonAppRequest,
@@ -23,73 +26,12 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 query,
                 limit,
             })?;
-            render(json, &results, |item| {
-                if item.results.is_empty() {
-                    format!("Query: {}\nNo addons found.", item.query)
-                } else {
-                    let mut lines = vec![
-                        format!("Query: {}", item.query),
-                        format!("Found {} result(s):", item.results.len()),
-                    ];
-                    for result in &item.results {
-                        lines.push(format!(
-                            "- {} | provider: {} | source: {} | downloads: {} | website: {}{}",
-                            result.name,
-                            result.provider,
-                            result.install_hint,
-                            result.download_count,
-                            result.website_url.as_deref().unwrap_or("none"),
-                            result
-                                .summary
-                                .as_deref()
-                                .map(|summary| format!(" | summary: {summary}"))
-                                .unwrap_or_default()
-                        ));
-                    }
-                    lines.join("\n")
-                }
-            })?;
+            render(json, &results, render_addon_search_catalog)?;
         }
         AddonCommands::List { install, flavor } => {
             let installation = resolve_cli_installation(&app, install, flavor)?;
             let inventory = app.list_addons(ListAddonsRequest { installation })?;
-            render(json, &inventory, |item| {
-                let tracked = if item.tracked_packages.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.tracked_packages
-                        .iter()
-                        .map(|package| {
-                            format!(
-                                "{} => {} [{}]",
-                                package.package_id,
-                                package.source_label,
-                                package
-                                    .addons
-                                    .iter()
-                                    .map(|addon| addon.directory_name.clone())
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                };
-                let untracked = if item.untracked_addons.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.untracked_addons.join(", ")
-                };
-                format!(
-                    "Target: {}\nRegistry: {}\nTracked packages: {}\nTracked addons: {}\nTracked package details:\n{}\nUntracked addon directories: {}",
-                    item.target_addon_root.display(),
-                    item.registry_path.display(),
-                    item.tracked_package_count,
-                    item.tracked_addon_count,
-                    tracked,
-                    untracked
-                )
-            })?;
+            render(json, &inventory, render_addon_inventory)?;
         }
         AddonCommands::Install {
             install,
@@ -108,46 +50,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 replace_existing,
                 metadata: None,
             })?;
-            render(json, &result, |item| {
-                let backup = item
-                    .backup_path
-                    .as_ref()
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "none".to_string());
-                let replaced = if item.replaced_addons.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.replaced_addons.join(", ")
-                };
-                let addons = item
-                    .addons
-                    .iter()
-                    .map(|addon| addon.directory_name.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                if item.dry_run {
-                    format!(
-                        "Dry run only.\nSource: {}\nPackage: {}\nAddons: {}\nFiles to write: {}\nWould replace: {}\nBackup: {}",
-                        item.source.display_name,
-                        item.package_id,
-                        addons,
-                        item.files_to_write,
-                        replaced,
-                        backup
-                    )
-                } else {
-                    format!(
-                        "Installed package: {}\nSource: {}\nAddons: {}\nWritten files: {}\nReplaced addons: {}\nRegistry: {}\nBackup: {}",
-                        item.package_id,
-                        item.source.display_name,
-                        addons,
-                        item.written_files,
-                        replaced,
-                        item.registry_path.display(),
-                        backup
-                    )
-                }
-            })?;
+            render(json, &result, render_addon_install)?;
         }
         AddonCommands::Update {
             install,
@@ -163,50 +66,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 dry_run,
                 backup_output_path: backup_output,
             })?;
-            render(json, &result, |item| {
-                let backup = item
-                    .backup_path
-                    .as_ref()
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "none".to_string());
-                let packages = if item.updated_packages.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.updated_packages
-                        .iter()
-                        .map(|package| {
-                            format!(
-                                "{} [{}]",
-                                package.package_id,
-                                package
-                                    .addons
-                                    .iter()
-                                    .map(|addon| addon.directory_name.clone())
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                };
-                if item.dry_run {
-                    format!(
-                        "Dry run only.\nRegistry: {}\nPackages: {}\nFiles to write: {}\nBackup: {}",
-                        item.registry_path.display(),
-                        packages,
-                        item.files_to_write,
-                        backup
-                    )
-                } else {
-                    format!(
-                        "Updated packages: {}\nWritten files: {}\nRegistry: {}\nBackup: {}",
-                        packages,
-                        item.written_files,
-                        item.registry_path.display(),
-                        backup
-                    )
-                }
-            })?;
+            render(json, &result, render_addon_update)?;
         }
         AddonCommands::Remove {
             install,
@@ -222,45 +82,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 dry_run,
                 backup_output_path: backup_output,
             })?;
-            render(json, &result, |item| {
-                let backup = item
-                    .backup_path
-                    .as_ref()
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "none".to_string());
-                let packages = if item.removed_packages.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.removed_packages
-                        .iter()
-                        .map(|package| package.package_id.clone())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                };
-                let addons = if item.removed_addons.is_empty() {
-                    "none".to_string()
-                } else {
-                    item.removed_addons.join(", ")
-                };
-                if item.dry_run {
-                    format!(
-                        "Dry run only.\nRegistry: {}\nPackages: {}\nAddon directories: {}\nBackup: {}",
-                        item.registry_path.display(),
-                        packages,
-                        addons,
-                        backup
-                    )
-                } else {
-                    format!(
-                        "Removed packages: {}\nRemoved addon directories: {}\nRegistry: {}\nRegistry cleaned: {}\nBackup: {}",
-                        packages,
-                        addons,
-                        item.registry_path.display(),
-                        item.registry_cleaned,
-                        backup
-                    )
-                }
-            })?;
+            render(json, &result, render_addon_remove)?;
         }
         AddonCommands::Index { .. } | AddonCommands::Lock { .. } => {
             return Err(AppError::Validation(

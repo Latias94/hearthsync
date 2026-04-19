@@ -282,12 +282,17 @@ Prepare the core for a future frontend.
 - addon-index CLI text rendering now also shares formatter helpers under `cli::output`, so
   inspect/install/update handlers keep only request assembly, app calls, and the final shared
   `render(...)` dispatch
+- addon search/list/install/update/remove CLI text rendering now also shares formatter helpers
+  under `cli::output`, so addon management handlers no longer keep one-off inventory, package, or
+  backup-summary string assembly inline
 - stable system/backup CLI text rendering now also shares formatter helpers under `cli::output`,
   so install scan/inspect/doctor and backup create/list/restore stop carrying one-off text
   formatting logic in their command handlers
 - bundle archive/apply/external-package CLI text rendering now also shares formatter helpers under
   `cli::output`, and character-mapping plus external-package warning text formatting is owned there
   too, so those command handlers no longer duplicate account, mapping, or warning summary assembly
+- the current CLI command handlers no longer keep inline `render(json, ..., |item| ...)` text
+  closures; human-readable rendering is now concentrated under `cli::output`
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
