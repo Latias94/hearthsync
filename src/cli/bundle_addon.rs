@@ -15,10 +15,12 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             install,
             flavor,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.plan_bundle_addon_lock(PlanBundleAddonLockRequest {
                 bundle_path: bundle,
                 installation,
@@ -37,10 +39,12 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
             backup_output,
             replace_existing,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.apply_bundle_addon_lock(ApplyBundleAddonLockAppRequest {
                 bundle_path: bundle,
                 installation,

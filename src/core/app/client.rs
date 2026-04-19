@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use super::{AddonIndexService, AddonLockService, AppRuntime, StableAppServices};
 use crate::core::error::AppResult;
 
@@ -17,6 +15,10 @@ impl HearthSyncApp {
         Self {
             stable: StableAppServices::with_runtime(runtime),
         }
+    }
+
+    pub fn stable(&self) -> &StableAppServices {
+        &self.stable
     }
 
     pub fn inspect_addon_index(
@@ -165,14 +167,6 @@ impl HearthSyncApp {
 
     pub(crate) fn addon_locks(&self) -> AddonLockService {
         AddonLockService::with_runtime(self.stable.runtime.clone())
-    }
-}
-
-impl Deref for HearthSyncApp {
-    type Target = StableAppServices;
-
-    fn deref(&self) -> &Self::Target {
-        &self.stable
     }
 }
 #[cfg(test)]

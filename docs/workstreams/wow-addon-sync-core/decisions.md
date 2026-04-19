@@ -170,18 +170,22 @@ Accepted on 2026-04-17
 
 ### Decision
 
-The first stable top-level reusable API surface is `core::app::HearthSyncApp`.
-CLI and future desktop code should obtain `InstallationService`, `BundleService`,
-`ExternalPackageService`, `AddonService`, `AddonIndexService`, `AddonLockService`, and
-`BackupService` from that shared app entrypoint instead of treating domain install helpers as
-frontend-facing public API.
+The first stable top-level reusable API surface is `core::app::StableAppServices`.
+CLI and future desktop code should enter the stable installation, addon, bundle,
+external-package, and backup flows through that shared app boundary instead of treating domain
+install helpers as frontend-facing public API.
+`HearthSyncApp` remains the broader app root for less-stable addon-index, addon-lock, and related
+extension flows that should not be part of the first stable contract wave.
 
 ### Consequences
 
 - one shared `AppRuntime` becomes the canonical place for host-platform, install-scan, provider,
   backup, and bundle-output policy
 - `core::install::{scan_installations, inspect_installation, resolve_installation}` can move to
-  crate-internal support status while `core::app::InstallationService` owns the frontend contract
+  crate-internal support status while the stable installation contract lives under
+  `core::app::StableAppServices`
+- callers that truly need addon-index or addon-lock behavior can opt into `HearthSyncApp`
+  explicitly instead of inheriting those stability assumptions by default
 - future `egui` work can start from one explicit application root instead of a loose set of
   unrelated façades
 
@@ -758,25 +762,24 @@ Accepted on 2026-04-19
 
 ### Decision
 
-`HearthSyncApp` should not remain only a service factory.
+`HearthSyncApp` should not remain only a service factory, but it also should not silently become
+the stable API surface through implicit compatibility behavior.
 
-The frontend root may still expose raw service accessors for advanced composition and specialized
-task entrypoints, but common direct app operations should also be callable from `HearthSyncApp`
-itself.
+The stable installation/addon/bundle/external-package/backup contract belongs on
+`StableAppServices`. `HearthSyncApp` should compose that boundary explicitly and add the
+less-stable addon-index, addon-lock, and bundle-addon-lock entrypoints on top.
 
-That direct entry surface now covers the primary installation, addon, bundle, external-package, and
-backup flows, plus the current CLI-facing addon-index and addon-lock direct operations.
-For the stable long-running flows, `HearthSyncApp` should also forward collecting-progress and
-callback entrypoints so a frontend can stay on the app root while consuming task behavior.
+When callers need both surfaces, they should cross the boundary intentionally through an explicit
+stable bridge instead of relying on `Deref`-style implicit forwarding.
 
 ### Consequences
 
-- CLI callers can stay on one app-root import surface instead of manually coordinating
-  `installations()` plus another service for routine flows
-- future `egui` code can start from `HearthSyncApp` as a credible frontend root and only drop down
-  to raw services when it actually needs task-specific or advanced composition seams
-- service accessors remain available, but they are now a secondary composition API instead of the
-  only practical entry path
+- stable CLI and future `egui` callers converge on `StableAppServices` as the default reusable
+  contract instead of picking up addon-index/addon-lock stability by accident
+- `HearthSyncApp` remains available as the broader extension root when advanced reproducibility or
+  curation workflows are explicitly needed
+- composition between the two boundaries is now visible in code review, which makes API stability
+  promises easier to reason about than implicit `Deref` forwarding
 
 ## ADR-035: App Inputs Own Installation Policy and Thin Domain Projection
 

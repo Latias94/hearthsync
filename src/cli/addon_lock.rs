@@ -12,10 +12,12 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
 
     match command {
         AddonLockCommands::Inspect { install, flavor } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let inspection = app.inspect_addon_lock(InspectAddonLockRequest { installation })?;
             render(json, &inspection, |item| {
                 let packages = item
@@ -46,10 +48,12 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             })?;
         }
         AddonLockCommands::Write { install, flavor } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.write_addon_lock(WriteAddonLockRequest { installation })?;
             render(json, &result, |item| {
                 if item.removed {
@@ -141,10 +145,12 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             flavor,
             file,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.verify_addon_lock(VerifyAddonLockRequest {
                 installation,
                 lock_path: file,
@@ -236,10 +242,12 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             flavor,
             file,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.plan_addon_lock_sync(PlanAddonLockSyncRequest {
                 installation,
                 lock_path: file,
@@ -255,10 +263,12 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             backup_output,
             replace_existing,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.apply_addon_lock_sync(ApplyAddonLockAppRequest {
                 installation,
                 lock_path: file,

@@ -47,10 +47,12 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             backup_output,
             replace_existing,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.install_addon_index(InstallAddonIndexAppRequest {
                 installation,
                 index_path: file,
@@ -104,10 +106,12 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             dry_run,
             backup_output,
         } => {
-            let installation = app.resolve_installation(ResolveInstallationRequest {
-                path: install,
-                flavor: flavor.map(Into::into),
-            })?;
+            let installation = app
+                .stable()
+                .resolve_installation(ResolveInstallationRequest {
+                    path: install,
+                    flavor: flavor.map(Into::into),
+                })?;
             let result = app.update_addon_index(UpdateAddonIndexAppRequest {
                 installation,
                 index_path: file,

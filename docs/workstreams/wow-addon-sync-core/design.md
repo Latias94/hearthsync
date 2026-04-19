@@ -134,13 +134,17 @@ runtime policy ownership.
 
 ### Application Boundary
 
-`core::app::HearthSyncApp` is the intended frontend root.
+`core::app::StableAppServices` is the intended stable frontend root.
 It should own:
 
 - runtime defaults and injected provider/helper policy
 - app-facing request and result contracts
 - task entrypoints, progress shapes, and cancellation expectations
 - orchestration rules that frontends should not rebuild locally
+
+`core::app::HearthSyncApp` is the broader app extension root for less-stable flows such as
+addon-index, addon-lock, and bundle-addon-lock operations. It should compose
+`StableAppServices` explicitly instead of implicitly acting as the stable API surface itself.
 
 Stable app request contracts should also own runtime-backed default injection where the caller-
 visible contract depends on it.
@@ -407,8 +411,10 @@ Services that remain app-level but are not part of the first-wave GUI-stable con
 Those capabilities are still valuable, but they represent curation and reproducibility workflows
 that can evolve after the first desktop-facing sync surface is stable.
 
-`HearthSyncApp` may still expose all app services for internal and CLI use, but the explicit
-first-wave stable service boundary should be the contract future GUI work prefers.
+`HearthSyncApp` may still expose less-stable app operations for internal and CLI use, but the
+explicit first-wave stable service boundary should be the contract future GUI work prefers.
+When callers need both surfaces, they should cross that boundary intentionally through
+`HearthSyncApp::stable()` instead of relying on implicit compatibility behavior.
 
 The first shared stable value object under that boundary is the resolved installation shape.
 `InstallationService::resolve` should return an app-owned resolved installation value, and other

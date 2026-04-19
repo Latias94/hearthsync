@@ -123,17 +123,18 @@ desktop work.
 
 ### Exit Criteria
 
-- `core::app::HearthSyncApp` is the intended frontend root
+- `core::app::StableAppServices` is the intended stable frontend root
 - CLI and future `egui` code can consume the same services and task contracts
 - the app boundary owns defaulting and policy decisions that should not leak into command handlers
 
 ### Current Notes
 
-- the project already has the right direction: `HearthSyncApp`, `AppRuntime`, and app-owned DTOs
+- the project already has the right direction: `StableAppServices`, `HearthSyncApp`,
+  `AppRuntime`, and app-owned DTOs
 - the remaining work is about contract ownership and stability, not about inventing another façade layer
 - the first-wave GUI-stable service set is now explicit: installation, addon, bundle,
   external-package, and backup services
-- `HearthSyncApp` now also exposes a dedicated stable-service boundary so future frontend work does
+- `HearthSyncApp` now composes a dedicated stable-service boundary so future frontend work does
   not need to treat addon-index and addon-lock as equally stable day-one contracts
 - the first shared app-owned input value is now explicit too: resolved installations flow through
   one reusable app value object instead of leaking domain `DetectedFlavorInstallation` through app
@@ -185,27 +186,18 @@ desktop work.
 - installation, addon, backup, addon-index, addon-lock, and bundle-addon-lock app responses now
   follow the same rule too, so the remaining response boundary no longer advertises public domain
   conversion traits for these main response payloads either
-- `HearthSyncApp` now also exposes direct app-operation entrypoints for the flows the CLI actually
-  drives, so callers can stay on one frontend root instead of stitching together installation
-  resolution and per-service dispatch by hand
-- the same frontend root now forwards stable long-running task entrypoints too, so addon, backup
-  restore, bundle apply, and external-package progress/callback flows no longer require callers to
-  drop down to raw service accessors just to stay on the `core::app` boundary
-- `StableAppServices` now exposes the same first-wave stable direct/task entrypoints, so the
-  explicit GUI-stable boundary is no longer just a named service container but a real stable
-  frontend contract
-- `HearthSyncApp` now delegates those first-wave stable direct/task entrypoints through
-  `StableAppServices`, so future GUI-facing behavior has one stable implementation path while the
-  full app root can still expose less-stable addon-index and addon-lock operations
+- `StableAppServices` now exposes the first-wave stable direct/task entrypoints, so the explicit
+  GUI-stable boundary is a real stable frontend contract instead of only a named service container
+- `HearthSyncApp` now focuses on the less-stable addon-index, addon-lock, and bundle-addon-lock
+  operations while composing `StableAppServices` explicitly for shared runtime policy
 - stable CLI handlers now construct `StableAppServices` directly for installation/addon/backup/
   bundle/external-package flows, leaving `HearthSyncApp` focused on the less-stable addon-index,
   addon-lock, and bundle-addon-lock entrypoints that still sit outside the first stable wave
 - raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
   the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
   service-factory-style API
-- `HearthSyncApp` now composes and dereferences `StableAppServices` instead of repeating the same
-  first-wave direct/task wrappers, so the app root only adds the less-stable addon-index and
-  addon-lock operations beyond the shared GUI-facing surface
+- `HearthSyncApp` now composes `StableAppServices` through an explicit stable bridge instead of
+  `Deref` compatibility, so the app root no longer masquerades as the stable surface by accident
 - raw `runtime()` access on individual app services is now test-only, so runtime wiring is kept as
   an internal assembly detail instead of a public extension seam
 - internal `*Service` implementation types are now crate-only re-exports, so public consumers are
@@ -235,8 +227,7 @@ desktop work.
 - large `core::app` modules now keep regression tests in sibling `*/tests.rs` files, so
   production contract/service code is easier to review without weakening app-layer coverage
 - runtime default/path projection helpers are crate-visible only again, and `HearthSyncApp`
-  no longer exposes a redundant `stable_services()` accessor on top of its `Deref<Target =
-  StableAppServices>` surface
+  now exposes an explicit stable bridge instead of `Deref<Target = StableAppServices>`
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

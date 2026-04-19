@@ -24,31 +24,33 @@ fn hearthsync_app_builds_services_with_shared_runtime() {
         .with_default_bundle_output_dir(Some(bundle_dir.clone()));
 
     let app = HearthSyncApp::with_runtime(runtime);
+    let stable = app.stable();
 
     assert_eq!(
-        app.installations().runtime().install_scan_roots(),
+        stable.installations().runtime().install_scan_roots(),
         Some([scan_root].as_slice())
     );
     assert_eq!(
-        app.installations().runtime().host_platform(),
+        stable.installations().runtime().host_platform(),
         HostPlatformValue::MacOs
     );
     assert_eq!(
-        app.backups().runtime().default_backup_dir(),
+        stable.backups().runtime().default_backup_dir(),
         Some(backup_dir.as_path())
     );
     assert_eq!(
-        app.bundles().runtime().default_bundle_output_dir(),
+        stable.bundles().runtime().default_bundle_output_dir(),
         Some(bundle_dir.as_path())
     );
     assert_eq!(
-        app.external_packages()
+        stable
+            .external_packages()
             .runtime()
             .default_bundle_output_dir(),
         Some(bundle_dir.as_path())
     );
     assert_eq!(
-        app.addons().runtime().host_platform(),
+        stable.addons().runtime().host_platform(),
         HostPlatformValue::MacOs
     );
     assert_eq!(
@@ -72,7 +74,7 @@ fn hearthsync_app_exposes_first_wave_stable_services() {
         .with_default_bundle_output_dir(Some(bundle_dir.clone()));
 
     let app = HearthSyncApp::with_runtime(runtime);
-    let stable: &StableAppServices = &app;
+    let stable = app.stable();
 
     assert_eq!(stable.runtime().host_platform(), HostPlatformValue::MacOs);
     assert_eq!(
@@ -97,7 +99,7 @@ fn hearthsync_app_exposes_runtime_capabilities_as_app_owned_value() {
     let app = HearthSyncApp::with_runtime(runtime);
 
     assert_eq!(
-        app.capabilities(),
+        app.stable().capabilities(),
         AppRuntimeCapabilitiesValue {
             addon_provider: AddonProviderModeValue::ConfiguredDefault {
                 options: AddonProviderOptionsValue {
@@ -115,7 +117,7 @@ fn hearthsync_app_exposes_runtime_capabilities_as_app_owned_value() {
 }
 
 #[test]
-fn hearthsync_app_direct_installation_entrypoints_use_shared_runtime() {
+fn hearthsync_app_stable_bridge_uses_shared_runtime_for_installation_flows() {
     let temp = tempdir().expect("temp dir");
     let product_root = temp.path().join("World of Warcraft");
     let flavor_root = product_root.join("_retail_");
@@ -134,14 +136,16 @@ fn hearthsync_app_direct_installation_entrypoints_use_shared_runtime() {
             .with_install_scan_roots(Some(vec![product_root.clone()])),
     );
 
-    let scanned = app.scan_installations().expect("scan installations");
-    let inspected = app
+    let stable = app.stable();
+
+    let scanned = stable.scan_installations().expect("scan installations");
+    let inspected = stable
         .inspect_installation(InspectInstallationRequest {
             path: product_root.clone(),
             flavor: Some(WowFlavorValue::Retail),
         })
         .expect("inspect installation");
-    let resolved = app
+    let resolved = stable
         .resolve_installation(ResolveInstallationRequest {
             path: product_root,
             flavor: Some(WowFlavorValue::Retail),

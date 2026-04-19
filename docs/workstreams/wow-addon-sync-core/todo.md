@@ -127,26 +127,23 @@ ways that a future frontend can depend on without learning internal domain seams
   `apply_runtime_defaults` instead of being split across private service-local `normalize_*`
   helpers. This closes a real behavior gap too: addon, addon-index, and addon-lock mutation
   services now honor the shared runtime default backup directory instead of only bundle, backup,
-  and external-package flows doing so. `HearthSyncApp` now also exposes direct frontend entrypoints
-  for installation, addon, bundle, external-package, backup, addon-index, and addon-lock direct
-  operations, so CLI no longer needs to compose service selection and installation resolution
-    manually around the app boundary. The same frontend root now also forwards the stable long-
-    running task entrypoints for addon, backup restore, bundle apply, and external-package flows, so
-    future GUI work does not need to drop back to raw services just to collect progress or stream
-    callbacks. `StableAppServices` now mirrors that first-wave stable direct/task surface too, so the
-    smaller GUI-stable boundary is an explicit code contract instead of a service-factory-only hint.
-    Current cleanup: `HearthSyncApp` now delegates those first-wave stable direct/task entrypoints
-    through `StableAppServices`, leaving one stable implementation path for future GUI-facing
-    operations while keeping addon-index/addon-lock access available from the full app root.
+  and external-package flows doing so. `StableAppServices` now owns the first-wave stable direct/
+    task surface for installation, addon, bundle, external-package, and backup flows, so future GUI
+    work has one explicit stable app contract for both direct results and long-running task
+    behavior. `HearthSyncApp` remains available as the broader extension root for addon-index,
+    addon-lock, and bundle-addon-lock operations that are still outside that stable wave.
+    Current cleanup: `HearthSyncApp` now composes the stable boundary explicitly instead of
+    inheriting it through implicit `Deref` compatibility, which keeps stable and non-stable app
+    promises visible at call sites.
     Current cleanup: stable CLI handlers now construct `StableAppServices` directly for
     installation/addon/backup/bundle/external-package flows, while `HearthSyncApp` remains the
     fuller root only for less-stable addon-index/addon-lock/bundle-addon-lock operations.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access are now
     crate-visible only, so external callers stay on stable direct/task entrypoints instead of
     treating the stable boundary as another service factory.
-    Current cleanup: `HearthSyncApp` now composes and dereferences the stable boundary instead of
-    repeating first-wave direct/task wrappers, so the full app root only adds non-stable addon
-    index / addon lock entrypoints on top of one shared GUI-facing surface.
+    Current cleanup: the full app root now reaches the stable boundary through an explicit
+    `stable()` bridge, so addon index / addon lock behavior no longer inherits stable installation
+    and bundle contracts implicitly.
     Current cleanup: raw `runtime()` access on individual app services is now test-only, so app
     runtime wiring stays an internal assembly concern rather than another public extension seam.
     Current cleanup: internal `*Service` implementations are no longer publicly re-exported from
@@ -187,8 +184,8 @@ ways that a future frontend can depend on without learning internal domain seams
     submodules instead of interleaving fixtures with production code, which makes the stable app
     boundary easier to review while keeping app-level regression coverage intact.
     Current cleanup: runtime path/default projection helpers are crate-internal again, and
-    `HearthSyncApp` no longer exposes a redundant `stable_services()` accessor because deref to the
-    stable app boundary already covers that use case.
+    `HearthSyncApp` now exposes an explicit `stable()` bridge instead of implicit `Deref`
+    compatibility with the stable app boundary.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of
@@ -223,7 +220,8 @@ ways that a future frontend can depend on without learning internal domain seams
 
 Exit criteria:
 
-- `core::app::HearthSyncApp` is a credible frontend root instead of only a service factory
+- `core::app::StableAppServices` is the credible stable frontend root, while `HearthSyncApp`
+  remains the explicit extension root for less-stable app operations
 - CLI and future `egui` code can depend on the same task and service contracts
 
 ## R4 - Portability and Capability Hardening
