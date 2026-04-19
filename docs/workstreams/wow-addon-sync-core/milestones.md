@@ -215,6 +215,9 @@ desktop work.
   shapes stay closer to transport data while presentation and wrapper ergonomics live at the edges
 - display-oriented helper methods on app value types are moving back to CLI or runtime edges, so
   public app enums remain contract data instead of accumulating formatting utilities
+- app-owned contract modules are now also split by domain, with smaller `types/*` and `response/*`
+  files replacing the old monolithic contract modules; this reduces review friction now and keeps
+  future `egui` binding work from depending on one oversized app-contract file
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

@@ -160,6 +160,11 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: display-oriented helper methods on app value types are moving back to CLI or
     runtime edges, so public request/response enums remain data shapes instead of mixed-in
     formatting utilities.
+    Current cleanup: app-owned contract modules are now also split by domain, with
+    `types/{install,addon,bundle,backup,runtime,external_package}` and
+    `response/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`
+    replacing the previous monolithic files. This keeps the stable app boundary easier to review,
+    evolve, and bind from a future `egui` frontend.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of
