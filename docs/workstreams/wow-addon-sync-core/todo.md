@@ -165,6 +165,10 @@ ways that a future frontend can depend on without learning internal domain seams
     `response/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`
     replacing the previous monolithic files. This keeps the stable app boundary easier to review,
     evolve, and bind from a future `egui` frontend.
+    Current cleanup: request contracts now follow the same domain split under
+    `request/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`, and the
+    remaining external-package `apply_runtime_defaults()` helpers are crate-visible again rather
+    than public API. Runtime default projection stays inside app assembly.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

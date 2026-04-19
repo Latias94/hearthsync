@@ -218,6 +218,9 @@ desktop work.
 - app-owned contract modules are now also split by domain, with smaller `types/*` and `response/*`
   files replacing the old monolithic contract modules; this reduces review friction now and keeps
   future `egui` binding work from depending on one oversized app-contract file
+- app request contracts now follow the same `request/*` domain split, and the remaining
+  external-package runtime-default helpers are crate-visible rather than public API, keeping
+  runtime projection as internal app assembly behavior
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers
