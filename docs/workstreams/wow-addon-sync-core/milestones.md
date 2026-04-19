@@ -197,6 +197,9 @@ desktop work.
 - `HearthSyncApp` now delegates those first-wave stable direct/task entrypoints through
   `StableAppServices`, so future GUI-facing behavior has one stable implementation path while the
   full app root can still expose less-stable addon-index and addon-lock operations
+- stable CLI handlers now construct `StableAppServices` directly for installation/addon/backup/
+  bundle/external-package flows, leaving `HearthSyncApp` focused on the less-stable addon-index,
+  addon-lock, and bundle-addon-lock entrypoints that still sit outside the first stable wave
 - raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
   the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
   service-factory-style API

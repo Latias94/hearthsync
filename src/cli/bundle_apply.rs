@@ -2,14 +2,14 @@ use super::BundleCommands;
 use super::mapping::merge_apply_mapping_overrides;
 use super::output::render;
 use crate::core::app::{
-    ApplyBundleAppRequest, BundleApplyMappingsValue, HearthSyncApp, PlanBundleApplyRequest,
-    ResolveInstallationRequest,
+    ApplyBundleAppRequest, BundleApplyMappingsValue, PlanBundleApplyRequest,
+    ResolveInstallationRequest, StableAppServices,
 };
 use crate::core::bundle::load_apply_mappings;
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
 
     match command {
         BundleCommands::Plan {

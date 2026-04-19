@@ -1,14 +1,14 @@
 use super::BundleCommands;
 use super::output::render;
 use crate::core::app::{
-    BundleManifestValue, HearthSyncApp, InspectBundleRequest, PackBundleAppRequest,
-    ResolveInstallationRequest,
+    BundleManifestValue, InspectBundleRequest, PackBundleAppRequest, ResolveInstallationRequest,
+    StableAppServices,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::manifest::load_manifest;
 
 pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
 
     match command {
         BundleCommands::Pack {

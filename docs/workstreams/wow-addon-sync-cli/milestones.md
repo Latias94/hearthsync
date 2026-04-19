@@ -270,9 +270,10 @@ Prepare the core for a future frontend.
 
 ### Current Notes
 
-- CLI handlers that need shared runtime policy now construct services from `core::app::HearthSyncApp`
-  instead of instantiating unrelated service facades independently
+- stable CLI handlers that need shared runtime policy now construct `core::app::StableAppServices`,
+  while addon-index/addon-lock/bundle-addon-lock commands still use `core::app::HearthSyncApp`
+  for the less-stable app surface
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
-  `core::app::InstallationService`, not the old direct domain helpers
+  the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
   ownership, not by the already-addressed portable path and provider-cancellation basics

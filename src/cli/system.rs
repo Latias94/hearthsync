@@ -2,12 +2,12 @@ use std::path::PathBuf;
 
 use super::output::render;
 use super::{FlavorArg, ManifestCommands};
-use crate::core::app::{HearthSyncApp, InspectInstallationRequest, InstallationHealthResult};
+use crate::core::app::{InspectInstallationRequest, InstallationHealthResult, StableAppServices};
 use crate::core::error::AppResult;
 use crate::core::manifest::{example_manifest, load_manifest};
 
 pub(super) fn handle_scan(json: bool) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
     let installations = app.scan_installations()?;
     render(json, &installations, |item| {
         if item.installations.is_empty() {
@@ -34,7 +34,7 @@ pub(super) fn handle_inspect(
     install: PathBuf,
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
     let inspection = app.inspect_installation(InspectInstallationRequest {
         path: install,
         flavor: flavor.map(Into::into),
@@ -58,7 +58,7 @@ pub(super) fn handle_doctor(
     install: PathBuf,
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
     let inspection = app.inspect_installation(InspectInstallationRequest {
         path: install,
         flavor: flavor.map(Into::into),

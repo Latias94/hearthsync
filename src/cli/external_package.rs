@@ -5,8 +5,8 @@ use crate::core::app::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
     CreateExternalPackageBundleAppRequest, ExternalPackageSummaryResult,
     ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-    ExternalPackageWarningResult, HearthSyncApp, PlanExternalPackageApplyAppRequest,
-    ResolveInstallationRequest, ResourceApplyPolicyValue,
+    ExternalPackageWarningResult, PlanExternalPackageApplyAppRequest, ResolveInstallationRequest,
+    ResourceApplyPolicyValue, StableAppServices,
 };
 use crate::core::error::AppResult;
 
@@ -14,7 +14,7 @@ pub(super) fn handle_external_package_command(
     json: bool,
     command: ExternalPackageCommands,
 ) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
 
     match command {
         ExternalPackageCommands::Inspect { source } => {

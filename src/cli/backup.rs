@@ -1,13 +1,13 @@
 use super::BackupCommands;
 use super::output::render;
 use crate::core::app::{
-    BackupGroupValue, CreateBackupAppRequest, HearthSyncApp, ListBackupsRequest,
-    ResolveInstallationRequest, RestoreBackupAppRequest,
+    BackupGroupValue, CreateBackupAppRequest, ListBackupsRequest, ResolveInstallationRequest,
+    RestoreBackupAppRequest, StableAppServices,
 };
 use crate::core::error::AppResult;
 
 pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
 
     match command {
         BackupCommands::Create {

@@ -1,13 +1,13 @@
 use super::AddonCommands;
 use super::output::render;
 use crate::core::app::{
-    HearthSyncApp, InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest,
-    ResolveInstallationRequest, SearchAddonsRequest, UpdateAddonAppRequest,
+    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, ResolveInstallationRequest,
+    SearchAddonsRequest, StableAppServices, UpdateAddonAppRequest,
 };
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> AppResult<()> {
-    let app = HearthSyncApp::new();
+    let app = StableAppServices::new();
 
     match command {
         AddonCommands::Search {

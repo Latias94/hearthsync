@@ -95,7 +95,7 @@ The current blocking sequence is:
 - [x] Make addon lock apply use one operation-level backup and rollback boundary
 - [ ] Remove dead or duplicated transition paths after planner/executor boundaries are stable
   - Current cleanup: bundle archives and direct external packages now share one internal apply-source boundary for entry enumeration, preview byte reads, and execution materialization.
-  - Current cleanup: the remaining low-level planner byte-reader seam is now test-only; CLI and future frontend callers should stay on `core::app::HearthSyncApp` or `core::app::StableAppServices`.
+  - Current cleanup: the remaining low-level planner byte-reader seam is now test-only; stable CLI/frontend callers should stay on `core::app::StableAppServices`, and only reach for `core::app::HearthSyncApp` when they explicitly need addon-index/addon-lock/bundle-addon-lock behavior.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
