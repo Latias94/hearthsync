@@ -5,8 +5,9 @@ use crate::core::app::{
     AddonLockApplyResult, AddonLockDiffResult, AddonLockInspectionResult,
     AddonLockPackageDiffResult, AddonLockPackageSnapshotResult, AddonLockPlanResult,
     AddonLockVerifyResult, AddonLockWriteResult, BackupCatalogResult, BackupGroupValue,
-    BundleApplyPlanResult, BundleApplyResult, BundleCharacterResourceResult,
-    BundleInspectionResult, CharacterMappingResult, CreatedBackupResult, CreatedBundleResult,
+    BundleAddonLockApplyResult, BundleAddonLockPlanResult, BundleApplyPlanResult,
+    BundleApplyResult, BundleCharacterResourceResult, BundleInspectionResult,
+    CharacterMappingResult, CreatedBackupResult, CreatedBundleResult,
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
     ExternalPackageWarningCodeValue, ExternalPackageWarningResult, InstallationHealthResult,
@@ -374,6 +375,54 @@ pub(super) fn render_backup_restored(item: &RestoredBackupResult) -> String {
         item.metadata.created_at,
         item.metadata.label.as_deref().unwrap_or("none"),
         format_backup_groups(&item.metadata.groups)
+    )
+}
+
+pub(super) fn render_addon_lock_plan(item: &AddonLockPlanResult) -> String {
+    render_addon_lock_plan_summary(&format!("Lock: {}", item.lock_path.display()), item)
+}
+
+pub(super) fn render_addon_lock_apply(item: &AddonLockApplyResult) -> String {
+    render_addon_lock_apply_summary(
+        vec![
+            format!("Lock: {}", item.lock_path.display()),
+            format!("Installation: {}", item.installation_root.display()),
+            format!(
+                "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
+                item.install_count,
+                item.update_count,
+                item.remove_count,
+                item.metadata_only_count,
+                item.unchanged_count
+            ),
+        ],
+        item,
+    )
+}
+
+pub(super) fn render_bundle_addon_lock_plan(item: &BundleAddonLockPlanResult) -> String {
+    render_addon_lock_plan_summary(
+        &format!("Bundle: {}", item.bundle_path.display()),
+        &item.plan,
+    )
+}
+
+pub(super) fn render_bundle_addon_lock_apply(item: &BundleAddonLockApplyResult) -> String {
+    render_addon_lock_apply_summary(
+        vec![
+            format!("Bundle: {}", item.bundle_path.display()),
+            format!("Embedded lock: {}", item.embedded_lock_entry),
+            format!("Installation: {}", item.apply.installation_root.display()),
+            format!(
+                "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
+                item.apply.install_count,
+                item.apply.update_count,
+                item.apply.remove_count,
+                item.apply.metadata_only_count,
+                item.apply.unchanged_count
+            ),
+        ],
+        &item.apply,
     )
 }
 
@@ -819,22 +868,24 @@ mod tests {
     use super::*;
     use crate::core::app::{
         AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexPackageResult,
-        AddonIndexUpdateResult, AddonLockFieldChangeResult, AddonLockPackageDirectoryIssueResult,
-        AddonSourceKindResult, AddonSourceResult, ApplyGroupPoliciesResult, ApplyPlanSummaryResult,
-        BackupCatalogResult, BackupEntryResult, BackupGroupValue, BackupMetadataResult,
-        BundleApplyDefaultsValue, BundleApplyPlanResult, BundleApplyResult,
-        BundleCharacterResourceValue, BundleEntryCountsResult, BundleInspectionResult,
-        BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesResult,
-        BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, CharacterMappingResult,
-        CreatedBackupResult, CreatedBundleResult, ExternalPackageAnalysisResult,
-        ExternalPackageApplyPlanResult, ExternalPackageApplyResult, ExternalPackageEntryResult,
-        ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
-        ExternalPackageWarningCodeValue, ExternalPackageWarningGroupResult,
-        ExternalPackageWarningResult, GroupPolicyResult, HealthStatusValue, HelperStrategyValue,
-        HostPlatformValue, InstallationHealthResult, InstallationInspectionResult,
-        InstallationScanResult, InstalledAddonPackageResult, LocalWowAccountResult,
-        LocalWowCharacterResult, ResolvedInstallationValue, ResourceApplyPolicyValue,
-        RestoredBackupResult, TrackedAddonResult, UpdatedAddonPackageResult, WowFlavorValue,
+        AddonIndexUpdateResult, AddonLockApplyResult, AddonLockFieldChangeResult,
+        AddonLockPackageDirectoryIssueResult, AddonLockPlanResult, AddonSourceKindResult,
+        AddonSourceResult, ApplyGroupPoliciesResult, ApplyPlanSummaryResult, BackupCatalogResult,
+        BackupEntryResult, BackupGroupValue, BackupMetadataResult, BundleAddonLockApplyResult,
+        BundleAddonLockPlanResult, BundleApplyDefaultsValue, BundleApplyPlanResult,
+        BundleApplyResult, BundleCharacterResourceValue, BundleEntryCountsResult,
+        BundleInspectionResult, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
+        BundleResourcesResult, BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue,
+        CharacterMappingResult, CreatedBackupResult, CreatedBundleResult,
+        ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
+        ExternalPackageEntryResult, ExternalPackageSummaryResult,
+        ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+        ExternalPackageWarningGroupResult, ExternalPackageWarningResult, GroupPolicyResult,
+        HealthStatusValue, HelperStrategyValue, HostPlatformValue, InstallationHealthResult,
+        InstallationInspectionResult, InstallationScanResult, InstalledAddonPackageResult,
+        LocalWowAccountResult, LocalWowCharacterResult, ResolvedInstallationValue,
+        ResourceApplyPolicyValue, RestoredBackupResult, TrackedAddonResult,
+        UpdatedAddonPackageResult, WowFlavorValue,
     };
     use crate::core::bundle::ExternalPackageSourceKind;
 
@@ -1193,6 +1244,56 @@ mod tests {
     }
 
     #[test]
+    fn render_addon_lock_plan_uses_lock_header() {
+        let rendered = render_addon_lock_plan(&sample_addon_lock_plan());
+
+        assert!(rendered.contains("Lock: addon.lock"));
+        assert!(rendered.contains("Installation: World of Warcraft/_retail_"));
+        assert!(rendered.contains(
+            "Summary: 1 install, 2 update, 3 remove, 4 metadata-only, 5 unchanged, 0 blocked"
+        ));
+        assert!(rendered.contains("Untracked addon directories: LooseAddon"));
+        assert!(rendered.contains("No sync actions required."));
+    }
+
+    #[test]
+    fn render_addon_lock_apply_includes_verification_summary() {
+        let rendered = render_addon_lock_apply(&sample_addon_lock_apply());
+
+        assert!(rendered.contains("Lock: addon.lock"));
+        assert!(
+            rendered
+                .contains("Applied: 1 install, 2 update, 3 remove, 4 metadata-only, 5 unchanged")
+        );
+        assert!(rendered.contains("Verification: matches"));
+    }
+
+    #[test]
+    fn render_bundle_addon_lock_plan_uses_bundle_header() {
+        let rendered = render_bundle_addon_lock_plan(&BundleAddonLockPlanResult {
+            bundle_path: PathBuf::from("ui.zip"),
+            embedded_lock_entry: "metadata/addons/lock.toml".to_string(),
+            plan: sample_addon_lock_plan(),
+        });
+
+        assert!(rendered.contains("Bundle: ui.zip"));
+        assert!(rendered.contains("No sync actions required."));
+    }
+
+    #[test]
+    fn render_bundle_addon_lock_apply_includes_embedded_lock() {
+        let rendered = render_bundle_addon_lock_apply(&BundleAddonLockApplyResult {
+            bundle_path: PathBuf::from("ui.zip"),
+            embedded_lock_entry: "metadata/addons/lock.toml".to_string(),
+            apply: sample_addon_lock_apply(),
+        });
+
+        assert!(rendered.contains("Bundle: ui.zip"));
+        assert!(rendered.contains("Embedded lock: metadata/addons/lock.toml"));
+        assert!(rendered.contains("Verification: matches"));
+    }
+
+    #[test]
     fn render_addon_lock_diff_groups_changed_added_and_removed_packages() {
         let rendered = render_addon_lock_diff(&AddonLockDiffResult {
             left_label: "left.lock".to_string(),
@@ -1292,6 +1393,64 @@ mod tests {
             source_sha256: None,
             content_sha256: Some("sha256".to_string()),
             addon_directories: vec!["AddonDir".to_string()],
+        }
+    }
+
+    fn sample_addon_lock_plan() -> AddonLockPlanResult {
+        AddonLockPlanResult {
+            lock_path: PathBuf::from("addon.lock"),
+            installation_root: PathBuf::from("World of Warcraft/_retail_"),
+            install_count: 1,
+            update_count: 2,
+            remove_count: 3,
+            metadata_only_count: 4,
+            unchanged_count: 5,
+            blocked_count: 0,
+            untracked_addon_count: 1,
+            untracked_addons: vec!["LooseAddon".to_string()],
+            action_count: 0,
+            actions: Vec::new(),
+        }
+    }
+
+    fn sample_addon_lock_apply() -> AddonLockApplyResult {
+        AddonLockApplyResult {
+            lock_path: PathBuf::from("addon.lock"),
+            installation_root: PathBuf::from("World of Warcraft/_retail_"),
+            install_count: 1,
+            update_count: 2,
+            remove_count: 3,
+            metadata_only_count: 4,
+            unchanged_count: 5,
+            blocked_count: 0,
+            untracked_addon_count: 0,
+            untracked_addons: Vec::new(),
+            action_count: 0,
+            actions: Vec::new(),
+            verification: AddonLockVerifyResult {
+                lock_path: PathBuf::from("addon.lock"),
+                installation_root: PathBuf::from("World of Warcraft/_retail_"),
+                tracked_package_count: 0,
+                untracked_addon_count: 0,
+                untracked_addons: Vec::new(),
+                missing_package_count: 0,
+                missing_addon_directories: Vec::new(),
+                diff: AddonLockDiffResult {
+                    left_label: "lock".to_string(),
+                    right_label: "install".to_string(),
+                    left_package_count: 0,
+                    right_package_count: 0,
+                    identical: true,
+                    unchanged_packages: 0,
+                    added_package_count: 0,
+                    removed_package_count: 0,
+                    changed_package_count: 0,
+                    added_packages: Vec::new(),
+                    removed_packages: Vec::new(),
+                    changed_packages: Vec::new(),
+                },
+                matches: true,
+            },
         }
     }
 

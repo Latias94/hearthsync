@@ -1,8 +1,8 @@
 use super::AddonLockCommands;
 use super::app_support::{extended_services, resolve_cli_installation};
 use super::output::{
-    render, render_addon_lock_apply_summary, render_addon_lock_diff, render_addon_lock_inspection,
-    render_addon_lock_plan_summary, render_addon_lock_verify, render_addon_lock_write,
+    render, render_addon_lock_apply, render_addon_lock_diff, render_addon_lock_inspection,
+    render_addon_lock_plan, render_addon_lock_verify, render_addon_lock_write,
 };
 use crate::core::app::{
     ApplyAddonLockAppRequest, DiffAddonLockRequest, InspectAddonLockRequest,
@@ -56,9 +56,7 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
                 installation,
                 lock_path: file,
             })?;
-            render(json, &result, |item| {
-                render_addon_lock_plan_summary(&format!("Lock: {}", item.lock_path.display()), item)
-            })?;
+            render(json, &result, render_addon_lock_plan)?;
         }
         AddonLockCommands::Apply {
             install,
@@ -75,23 +73,7 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
                 replace_existing,
                 source_overrides: Vec::new(),
             })?;
-            render(json, &result, |item| {
-                render_addon_lock_apply_summary(
-                    vec![
-                        format!("Lock: {}", item.lock_path.display()),
-                        format!("Installation: {}", item.installation_root.display()),
-                        format!(
-                            "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
-                            item.install_count,
-                            item.update_count,
-                            item.remove_count,
-                            item.metadata_only_count,
-                            item.unchanged_count
-                        ),
-                    ],
-                    item,
-                )
-            })?;
+            render(json, &result, render_addon_lock_apply)?;
         }
     }
 

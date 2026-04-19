@@ -277,8 +277,8 @@ Prepare the core for a future frontend.
   installation resolution, so command modules no longer duplicate `ResolveInstallationRequest`
   assembly or drift on which app boundary they should enter through
 - addon-lock CLI text rendering now also shares formatter helpers under `cli::output`, so diff,
-  verify, apply, and plan views no longer keep near-duplicate package/change rendering logic in
-  individual command handlers
+  verify, apply, and plan views no longer keep near-duplicate package/change rendering logic or
+  header-summary assembly in individual command handlers, including bundle-addon lock flows
 - addon-index CLI text rendering now also shares formatter helpers under `cli::output`, so
   inspect/install/update handlers keep only request assembly, app calls, and the final shared
   `render(...)` dispatch

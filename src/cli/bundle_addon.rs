@@ -1,6 +1,6 @@
 use super::BundleCommands;
 use super::app_support::{extended_services, resolve_cli_installation};
-use super::output::{render, render_addon_lock_apply_summary, render_addon_lock_plan_summary};
+use super::output::{render, render_bundle_addon_lock_apply, render_bundle_addon_lock_plan};
 use crate::core::app::{ApplyBundleAddonLockAppRequest, PlanBundleAddonLockRequest};
 use crate::core::error::{AppError, AppResult};
 
@@ -18,12 +18,7 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
                 bundle_path: bundle,
                 installation,
             })?;
-            render(json, &result, |item| {
-                render_addon_lock_plan_summary(
-                    &format!("Bundle: {}", item.bundle_path.display()),
-                    &item.plan,
-                )
-            })?;
+            render(json, &result, render_bundle_addon_lock_plan)?;
         }
         BundleCommands::AddonApply {
             bundle,
@@ -39,24 +34,7 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
                 backup_output_path: backup_output,
                 replace_existing,
             })?;
-            render(json, &result, |item| {
-                render_addon_lock_apply_summary(
-                    vec![
-                        format!("Bundle: {}", item.bundle_path.display()),
-                        format!("Embedded lock: {}", item.embedded_lock_entry),
-                        format!("Installation: {}", item.apply.installation_root.display()),
-                        format!(
-                            "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
-                            item.apply.install_count,
-                            item.apply.update_count,
-                            item.apply.remove_count,
-                            item.apply.metadata_only_count,
-                            item.apply.unchanged_count
-                        ),
-                    ],
-                    &item.apply,
-                )
-            })?;
+            render(json, &result, render_bundle_addon_lock_apply)?;
         }
         _ => {
             return Err(AppError::Validation(
