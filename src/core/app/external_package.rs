@@ -49,7 +49,8 @@ impl ExternalPackageService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let analysis = analyze_external_package_task(request.into(), cancellation, progress)?;
+        let analysis =
+            analyze_external_package_task(request.into_domain_request(), cancellation, progress)?;
         Ok(ExternalPackageAnalysisResult::from_domain(analysis))
     }
 

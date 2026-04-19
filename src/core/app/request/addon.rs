@@ -15,12 +15,12 @@ pub struct SearchAddonsRequest {
     pub limit: usize,
 }
 
-impl From<SearchAddonsRequest> for DomainSearchAddonRequest {
-    fn from(request: SearchAddonsRequest) -> Self {
-        Self {
-            installation: request.installation.into(),
-            query: request.query,
-            limit: request.limit,
+impl SearchAddonsRequest {
+    pub(crate) fn into_domain_request(self) -> DomainSearchAddonRequest {
+        DomainSearchAddonRequest {
+            installation: self.installation.into(),
+            query: self.query,
+            limit: self.limit,
         }
     }
 }
@@ -53,13 +53,9 @@ impl InstallAddonAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainInstallAddonRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<InstallAddonAppRequest> for DomainInstallAddonRequest {
-    fn from(request: InstallAddonAppRequest) -> Self {
-        Self {
+        DomainInstallAddonRequest {
             installation: request.installation.into(),
             source: request.source,
             dry_run: request.dry_run,
@@ -85,13 +81,9 @@ impl UpdateAddonAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUpdateAddonRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<UpdateAddonAppRequest> for DomainUpdateAddonRequest {
-    fn from(request: UpdateAddonAppRequest) -> Self {
-        Self {
+        DomainUpdateAddonRequest {
             installation: request.installation.into(),
             name: request.name,
             dry_run: request.dry_run,
@@ -115,13 +107,9 @@ impl RemoveAddonAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRemoveAddonRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<RemoveAddonAppRequest> for DomainRemoveAddonRequest {
-    fn from(request: RemoveAddonAppRequest) -> Self {
-        Self {
+        DomainRemoveAddonRequest {
             installation: request.installation.into(),
             name: request.name,
             dry_run: request.dry_run,

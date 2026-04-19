@@ -169,6 +169,10 @@ ways that a future frontend can depend on without learning internal domain seams
     `request/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`, and the
     remaining external-package `apply_runtime_defaults()` helpers are crate-visible again rather
     than public API. Runtime default projection stays inside app assembly.
+    Current cleanup: app request contracts no longer expose public `From<app request> for domain`
+    conversions. Crate-internal projection now lives on explicit `into_domain_*` helpers so the
+    stable frontend boundary no longer advertises domain request types as part of its public trait
+    surface.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

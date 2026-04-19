@@ -65,11 +65,11 @@ pub struct AddonLockSourceOverrideRequest {
     pub archive_path: PathBuf,
 }
 
-impl From<AddonLockSourceOverrideRequest> for DomainAddonLockSourceOverride {
-    fn from(request: AddonLockSourceOverrideRequest) -> Self {
-        Self {
-            comparison_key: request.comparison_key,
-            archive_path: request.archive_path,
+impl AddonLockSourceOverrideRequest {
+    fn into_domain_override(self) -> DomainAddonLockSourceOverride {
+        DomainAddonLockSourceOverride {
+            comparison_key: self.comparison_key,
+            archive_path: self.archive_path,
         }
     }
 }
@@ -90,13 +90,9 @@ impl ApplyAddonLockAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonLockApplyRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<ApplyAddonLockAppRequest> for DomainAddonLockApplyRequest {
-    fn from(request: ApplyAddonLockAppRequest) -> Self {
-        Self {
+        DomainAddonLockApplyRequest {
             installation: request.installation.into(),
             lock_path: request.lock_path,
             backup_output_path: request.backup_output_path,
@@ -104,7 +100,7 @@ impl From<ApplyAddonLockAppRequest> for DomainAddonLockApplyRequest {
             source_overrides: request
                 .source_overrides
                 .into_iter()
-                .map(Into::into)
+                .map(AddonLockSourceOverrideRequest::into_domain_override)
                 .collect(),
         }
     }

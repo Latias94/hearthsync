@@ -31,7 +31,10 @@ impl AddonService {
     }
 
     pub fn search(&self, request: SearchAddonsRequest) -> AppResult<AddonSearchCatalogResult> {
-        let results = search_addons_with_provider(self.runtime.addon_provider(), request.into())?;
+        let results = search_addons_with_provider(
+            self.runtime.addon_provider(),
+            request.into_domain_request(),
+        )?;
         Ok(AddonSearchCatalogResult::from_domain(results))
     }
 

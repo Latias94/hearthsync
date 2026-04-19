@@ -31,13 +31,9 @@ impl InstallAddonIndexAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> DomainAddonIndexInstallRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<InstallAddonIndexAppRequest> for DomainAddonIndexInstallRequest {
-    fn from(request: InstallAddonIndexAppRequest) -> Self {
-        Self {
+        DomainAddonIndexInstallRequest {
             installation: request.installation.into(),
             index_path: request.index_path,
             name: request.name,
@@ -64,13 +60,9 @@ impl UpdateAddonIndexAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonIndexUpdateRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<UpdateAddonIndexAppRequest> for DomainAddonIndexUpdateRequest {
-    fn from(request: UpdateAddonIndexAppRequest) -> Self {
-        Self {
+        DomainAddonIndexUpdateRequest {
             installation: request.installation.into(),
             index_path: request.index_path,
             name: request.name,

@@ -221,6 +221,9 @@ desktop work.
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior
+- app request contracts no longer rely on public `From<app request> for domain request` trait
+  impls; domain projection now stays on crate-internal helper methods, matching the response-side
+  boundary cleanup and reducing visible frontend coupling to domain request types
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers

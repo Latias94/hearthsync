@@ -285,6 +285,8 @@ fn thin_installation_requests_project_domain_inputs() {
 
 #[test]
 fn apply_bundle_request_converts_app_owned_apply_mappings() {
+    let runtime = AppRuntime::new();
+
     let domain: DomainUnpackBundleRequest = ApplyBundleAppRequest {
         bundle_path: PathBuf::from("bundle.zip"),
         installation: sample_installation(),
@@ -306,7 +308,7 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
             }],
         },
     }
-    .into();
+    .into_domain_request(&runtime);
 
     assert_eq!(domain.bundle_path, PathBuf::from("bundle.zip"));
     assert!(domain.dry_run);
@@ -335,6 +337,8 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
 
 #[test]
 fn create_external_package_request_converts_app_owned_apply_defaults() {
+    let runtime = AppRuntime::new();
+
     let domain: DomainCreateExternalPackageBundleRequest = CreateExternalPackageBundleAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
         source_flavor: WowFlavorValue::Retail,
@@ -354,7 +358,7 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
             interface_assets: ResourceApplyPolicyValue::Sync,
         }),
     }
-    .into();
+    .into_domain_request(&runtime);
 
     let apply_defaults = domain.apply_defaults.expect("apply defaults");
     assert!(!apply_defaults.create_backup);
@@ -370,13 +374,15 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
 
 #[test]
 fn pack_bundle_request_converts_app_owned_manifest() {
+    let runtime = AppRuntime::new();
+
     let domain: DomainPackBundleRequest = PackBundleAppRequest {
         installation: sample_installation(),
         manifest: sample_manifest(),
         output_path: Some(PathBuf::from("bundle.zip")),
         manifest_base_dir: Some(PathBuf::from("manifest-dir")),
     }
-    .into();
+    .into_domain_request(&runtime);
 
     assert_eq!(domain.manifest.schema_version, 1);
     assert_eq!(domain.manifest.package.id, "author-ui");
@@ -395,6 +401,8 @@ fn pack_bundle_request_converts_app_owned_manifest() {
 
 #[test]
 fn install_addon_request_converts_app_owned_metadata() {
+    let runtime = AppRuntime::new();
+
     let domain: DomainInstallAddonRequest = InstallAddonAppRequest {
         installation: sample_installation(),
         source: "https://example.invalid/weakauras.zip".to_string(),
@@ -412,7 +420,7 @@ fn install_addon_request_converts_app_owned_metadata() {
             supported_flavors: vec!["retail".to_string()],
         }),
     }
-    .into();
+    .into_domain_request(&runtime);
 
     let metadata = domain.metadata.expect("metadata");
     assert_eq!(metadata.index_name.as_deref(), Some("curated"));

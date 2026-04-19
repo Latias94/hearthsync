@@ -36,13 +36,9 @@ impl CreateBackupAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainBackupRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<CreateBackupAppRequest> for DomainBackupRequest {
-    fn from(request: CreateBackupAppRequest) -> Self {
-        Self {
+        DomainBackupRequest {
             installation: request.installation.into(),
             output_path: request.output_path,
             groups: request.groups.into_iter().map(Into::into).collect(),
@@ -66,13 +62,9 @@ impl RestoreBackupAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRestoreBackupRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<RestoreBackupAppRequest> for DomainRestoreBackupRequest {
-    fn from(request: RestoreBackupAppRequest) -> Self {
-        Self {
+        DomainRestoreBackupRequest {
             installation: request.installation.into(),
             archive_path: request.archive_path,
             backup_id: request.backup_id,

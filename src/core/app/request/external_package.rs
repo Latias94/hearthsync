@@ -16,10 +16,10 @@ pub struct AnalyzeExternalPackageAppRequest {
     pub source_path: PathBuf,
 }
 
-impl From<AnalyzeExternalPackageAppRequest> for DomainAnalyzeExternalPackageRequest {
-    fn from(request: AnalyzeExternalPackageAppRequest) -> Self {
-        Self {
-            source_path: request.source_path,
+impl AnalyzeExternalPackageAppRequest {
+    pub(crate) fn into_domain_request(self) -> DomainAnalyzeExternalPackageRequest {
+        DomainAnalyzeExternalPackageRequest {
+            source_path: self.source_path,
         }
     }
 }
@@ -49,27 +49,22 @@ impl CreateExternalPackageBundleAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> DomainCreateExternalPackageBundleRequest {
-        self.apply_runtime_defaults(runtime).into()
+        self.apply_runtime_defaults(runtime)
+            .into_domain_request_after_defaults()
     }
-}
 
-impl From<CreateExternalPackageBundleAppRequest> for DomainCreateExternalPackageBundleRequest {
-    fn from(request: CreateExternalPackageBundleAppRequest) -> Self {
-        Self {
-            source_path: request.source_path,
-            source_flavor: request.source_flavor.into(),
-            source_platform: request.source_platform.map(Into::into),
-            supported_targets: request
-                .supported_targets
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            output_path: request.output_path,
-            package_id: request.package_id,
-            package_name: request.package_name,
-            created_by: request.created_by,
-            description: request.description,
-            apply_defaults: request.apply_defaults.map(Into::into),
+    fn into_domain_request_after_defaults(self) -> DomainCreateExternalPackageBundleRequest {
+        DomainCreateExternalPackageBundleRequest {
+            source_path: self.source_path,
+            source_flavor: self.source_flavor.into(),
+            source_platform: self.source_platform.map(Into::into),
+            supported_targets: self.supported_targets.into_iter().map(Into::into).collect(),
+            output_path: self.output_path,
+            package_id: self.package_id,
+            package_name: self.package_name,
+            created_by: self.created_by,
+            description: self.description,
+            apply_defaults: self.apply_defaults.map(Into::into),
         }
     }
 }
@@ -91,14 +86,12 @@ impl PlanExternalPackageApplyAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> DomainPlanExternalPackageApplyRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<PlanExternalPackageApplyAppRequest> for DomainPlanExternalPackageApplyRequest {
-    fn from(request: PlanExternalPackageApplyAppRequest) -> Self {
-        Self {
-            external_package: request.external_package.into(),
+        DomainPlanExternalPackageApplyRequest {
+            external_package: request
+                .external_package
+                .into_domain_request_after_defaults(),
             installation: request.installation.into(),
             apply_mappings: request.apply_mappings.into(),
         }
@@ -125,14 +118,12 @@ impl ApplyExternalPackageAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> DomainApplyExternalPackageRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<ApplyExternalPackageAppRequest> for DomainApplyExternalPackageRequest {
-    fn from(request: ApplyExternalPackageAppRequest) -> Self {
-        Self {
-            external_package: request.external_package.into(),
+        DomainApplyExternalPackageRequest {
+            external_package: request
+                .external_package
+                .into_domain_request_after_defaults(),
             installation: request.installation.into(),
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,

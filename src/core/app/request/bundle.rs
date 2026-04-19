@@ -30,13 +30,9 @@ impl PackBundleAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainPackBundleRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<PackBundleAppRequest> for DomainPackBundleRequest {
-    fn from(request: PackBundleAppRequest) -> Self {
-        Self {
+        DomainPackBundleRequest {
             installation: request.installation.into(),
             manifest: request.manifest.into(),
             output_path: request.output_path,
@@ -84,13 +80,9 @@ impl ApplyBundleAppRequest {
     }
 
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUnpackBundleRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<ApplyBundleAppRequest> for DomainUnpackBundleRequest {
-    fn from(request: ApplyBundleAppRequest) -> Self {
-        Self {
+        DomainUnpackBundleRequest {
             bundle_path: request.bundle_path,
             installation: request.installation.into(),
             dry_run: request.dry_run,
@@ -130,13 +122,9 @@ impl ApplyBundleAddonLockAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> DomainBundleAddonLockApplyRequest {
-        self.apply_runtime_defaults(runtime).into()
-    }
-}
+        let request = self.apply_runtime_defaults(runtime);
 
-impl From<ApplyBundleAddonLockAppRequest> for DomainBundleAddonLockApplyRequest {
-    fn from(request: ApplyBundleAddonLockAppRequest) -> Self {
-        Self {
+        DomainBundleAddonLockApplyRequest {
             bundle_path: request.bundle_path,
             installation: request.installation.into(),
             backup_output_path: request.backup_output_path,
