@@ -37,7 +37,7 @@ pub enum HostPlatformValue {
 }
 
 impl HostPlatformValue {
-    pub fn current() -> Self {
+    pub(crate) fn current() -> Self {
         DomainHostPlatform::current().into()
     }
 }
@@ -534,17 +534,6 @@ pub enum BackupGroupValue {
     InterfaceAssets,
 }
 
-impl BackupGroupValue {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Addons => "addons",
-            Self::Wtf => "wtf",
-            Self::Fonts => "fonts",
-            Self::InterfaceAssets => "interface_assets",
-        }
-    }
-}
-
 impl From<DomainBackupGroup> for BackupGroupValue {
     fn from(value: DomainBackupGroup) -> Self {
         match value {
@@ -866,15 +855,6 @@ pub enum ExternalPackageWarningCategoryValue {
     Wtf,
 }
 
-impl ExternalPackageWarningCategoryValue {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Addon => "addon",
-            Self::Wtf => "wtf",
-        }
-    }
-}
-
 impl From<DomainExternalPackageWarningCategory> for ExternalPackageWarningCategoryValue {
     fn from(value: DomainExternalPackageWarningCategory) -> Self {
         match value {
@@ -893,19 +873,6 @@ pub enum ExternalPackageWarningCodeValue {
     WtfAccountPathWithoutFile,
     WtfSavedVariablesPathWithoutFile,
     UnsupportedWtfNestedAccountLayout,
-}
-
-impl ExternalPackageWarningCodeValue {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::AddonRootNotDetected => "addon_root_not_detected",
-            Self::UnsupportedWtfLayout => "unsupported_wtf_layout",
-            Self::UnsupportedWtfRootSavedVariables => "unsupported_wtf_root_savedvariables",
-            Self::WtfAccountPathWithoutFile => "wtf_account_path_without_file",
-            Self::WtfSavedVariablesPathWithoutFile => "wtf_savedvariables_path_without_file",
-            Self::UnsupportedWtfNestedAccountLayout => "unsupported_wtf_nested_account_layout",
-        }
-    }
 }
 
 impl From<DomainExternalPackageWarningCode> for ExternalPackageWarningCodeValue {

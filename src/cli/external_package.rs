@@ -4,6 +4,7 @@ use super::{ExternalPackageBundleOptions, ExternalPackageCommands};
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
     CreateExternalPackageBundleAppRequest, ExternalPackageSummaryResult,
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
     ExternalPackageWarningResult, HearthSyncApp, PlanExternalPackageApplyAppRequest,
     ResolveInstallationRequest, ResourceApplyPolicyValue,
 };
@@ -317,8 +318,8 @@ fn format_external_package_warnings(
         .map(|group| {
             format!(
                 "{}/{}={}",
-                group.category.as_str(),
-                group.code.as_str(),
+                format_warning_category(group.category),
+                format_warning_code(group.code),
                 group.count
             )
         })
@@ -330,8 +331,8 @@ fn format_external_package_warnings(
         .map(|warning| {
             format!(
                 "{}/{}: {}",
-                warning.category.as_str(),
-                warning.code.as_str(),
+                format_warning_category(warning.category),
+                format_warning_code(warning.code),
                 warning.source_path
             )
         })
@@ -346,6 +347,32 @@ fn format_external_package_warnings(
         groups,
         details
     )
+}
+
+fn format_warning_category(category: ExternalPackageWarningCategoryValue) -> &'static str {
+    match category {
+        ExternalPackageWarningCategoryValue::Addon => "addon",
+        ExternalPackageWarningCategoryValue::Wtf => "wtf",
+    }
+}
+
+fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
+    match code {
+        ExternalPackageWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
+        ExternalPackageWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
+        ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables => {
+            "unsupported_wtf_root_savedvariables"
+        }
+        ExternalPackageWarningCodeValue::WtfAccountPathWithoutFile => {
+            "wtf_account_path_without_file"
+        }
+        ExternalPackageWarningCodeValue::WtfSavedVariablesPathWithoutFile => {
+            "wtf_savedvariables_path_without_file"
+        }
+        ExternalPackageWarningCodeValue::UnsupportedWtfNestedAccountLayout => {
+            "unsupported_wtf_nested_account_layout"
+        }
+    }
 }
 
 #[cfg(test)]

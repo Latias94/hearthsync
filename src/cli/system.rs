@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::output::render;
 use super::{FlavorArg, ManifestCommands};
-use crate::core::app::{HearthSyncApp, InspectInstallationRequest};
+use crate::core::app::{HearthSyncApp, InspectInstallationRequest, InstallationHealthResult};
 use crate::core::error::AppResult;
 use crate::core::manifest::{example_manifest, load_manifest};
 
@@ -63,7 +63,7 @@ pub(super) fn handle_doctor(
         path: install,
         flavor: flavor.map(Into::into),
     })?;
-    render(json, &inspection.health, |health| health.to_report())
+    render(json, &inspection.health, format_installation_health_report)
 }
 
 pub(super) fn handle_manifest_command(json: bool, command: ManifestCommands) -> AppResult<()> {
@@ -89,4 +89,28 @@ pub(super) fn handle_manifest_command(json: bool, command: ManifestCommands) -> 
     }
 
     Ok(())
+}
+
+fn format_installation_health_report(health: &InstallationHealthResult) -> String {
+    let mut lines = vec![format!("Status: {}", health.status_label)];
+
+    if health.missing_paths.is_empty() {
+        lines.push("Missing required paths: none".to_string());
+    } else {
+        lines.push("Missing required paths:".to_string());
+        for path in &health.missing_paths {
+            lines.push(format!("- {}", path.display()));
+        }
+    }
+
+    if health.warnings.is_empty() {
+        lines.push("Warnings: none".to_string());
+    } else {
+        lines.push("Warnings:".to_string());
+        for warning in &health.warnings {
+            lines.push(format!("- {warning}"));
+        }
+    }
+
+    lines.join("\n")
 }

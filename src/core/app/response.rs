@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::ops::Deref;
+use std::path::PathBuf;
 
 use serde::Serialize;
 
@@ -87,32 +88,6 @@ pub struct InstallationHealthResult {
 }
 
 impl InstallationHealthResult {
-    pub fn to_report(&self) -> String {
-        let mut lines = vec![format!("Status: {}", self.status_label)];
-
-        if self.missing_paths.is_empty() {
-            lines.push("Missing required paths: none".to_string());
-        } else {
-            lines.push("Missing required paths:".to_string());
-            for path in &self.missing_paths {
-                lines.push(format!("- {}", path.display()));
-            }
-        }
-
-        if self.warnings.is_empty() {
-            lines.push("Warnings: none".to_string());
-        } else {
-            lines.push("Warnings:".to_string());
-            for warning in &self.warnings {
-                lines.push(format!("- {warning}"));
-            }
-        }
-
-        lines.join("\n")
-    }
-}
-
-impl InstallationHealthResult {
     pub(crate) fn from_domain(value: InstallationHealth) -> Self {
         let status_label = value.summary().to_string();
 
@@ -171,12 +146,6 @@ pub struct AddonSourceResult {
     pub repo: Option<String>,
     pub tag: Option<String>,
     pub asset_name: Option<String>,
-}
-
-impl AddonSourceResult {
-    pub fn display_name(&self) -> &str {
-        &self.display_name
-    }
 }
 
 impl AddonSourceResult {
@@ -933,28 +902,6 @@ pub struct ExternalPackageBundleHandle {
 }
 
 impl ExternalPackageBundleHandle {
-    pub fn result(&self) -> &ExternalPackageBundleResult {
-        &self.result
-    }
-
-    pub fn analysis(&self) -> &ExternalPackageAnalysisResult {
-        &self.result.analysis
-    }
-
-    pub fn manifest(&self) -> &BundleManifestResult {
-        &self.result.manifest
-    }
-
-    pub fn bundle(&self) -> &CreatedBundleResult {
-        &self.result.bundle
-    }
-
-    pub fn archive_path(&self) -> &Path {
-        &self.result.bundle.archive_path
-    }
-}
-
-impl ExternalPackageBundleHandle {
     pub(crate) fn from_domain(value: DomainPreparedExternalPackageBundle) -> Self {
         let result = ExternalPackageBundleResult {
             analysis: ExternalPackageAnalysisResult::from_domain(value.analysis.clone()),
@@ -966,6 +913,20 @@ impl ExternalPackageBundleHandle {
             result,
             _prepared: value,
         }
+    }
+}
+
+impl Deref for ExternalPackageBundleHandle {
+    type Target = ExternalPackageBundleResult;
+
+    fn deref(&self) -> &Self::Target {
+        &self.result
+    }
+}
+
+impl AsRef<ExternalPackageBundleResult> for ExternalPackageBundleHandle {
+    fn as_ref(&self) -> &ExternalPackageBundleResult {
+        &self.result
     }
 }
 

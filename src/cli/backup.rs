@@ -38,7 +38,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                     item.metadata
                         .groups
                         .iter()
-                        .map(BackupGroupValue::as_str)
+                        .map(format_backup_group)
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -61,7 +61,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                         let groups = entry
                             .groups
                             .iter()
-                            .map(BackupGroupValue::as_str)
+                            .map(format_backup_group)
                             .collect::<Vec<_>>()
                             .join(", ");
                         let label = entry.label.as_deref().unwrap_or("none");
@@ -107,7 +107,7 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
                     item.metadata
                         .groups
                         .iter()
-                        .map(BackupGroupValue::as_str)
+                        .map(format_backup_group)
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -116,4 +116,13 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
     }
 
     Ok(())
+}
+
+fn format_backup_group(group: &BackupGroupValue) -> &'static str {
+    match group {
+        BackupGroupValue::Addons => "addons",
+        BackupGroupValue::Wtf => "wtf",
+        BackupGroupValue::Fonts => "fonts",
+        BackupGroupValue::InterfaceAssets => "interface_assets",
+    }
 }

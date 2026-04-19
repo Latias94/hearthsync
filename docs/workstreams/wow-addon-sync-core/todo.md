@@ -154,6 +154,12 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: request-side `apply_runtime_defaults()` helpers are now crate-visible only, so
     runtime default projection stays inside app assembly instead of leaking onto the public request
     API surface.
+    Current cleanup: app response DTOs no longer own CLI text rendering or redundant accessor sugar;
+    presentation formatting now lives in CLI code, and wrapper results behave like data objects
+    instead of mini service facades.
+    Current cleanup: display-oriented helper methods on app value types are moving back to CLI or
+    runtime edges, so public request/response enums remain data shapes instead of mixed-in
+    formatting utilities.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

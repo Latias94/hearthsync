@@ -432,12 +432,12 @@ mod tests {
             .expect("create bundle with runtime defaults");
 
         assert_eq!(
-            prepared.manifest().source.platform,
+            prepared.manifest.source.platform,
             Some(HostPlatformValue::MacOs)
         );
-        assert!(!prepared.manifest().apply.create_backup);
-        assert_eq!(prepared.bundle().archive_path.parent(), Some(output.path()));
-        assert!(prepared.archive_path().is_file());
+        assert!(!prepared.manifest.apply.create_backup);
+        assert_eq!(prepared.bundle.archive_path.parent(), Some(output.path()));
+        assert!(prepared.bundle.archive_path.is_file());
     }
 
     #[test]
@@ -461,7 +461,7 @@ mod tests {
             })
             .expect("create temporary bundle");
 
-        let archive_path = prepared.archive_path().to_path_buf();
+        let archive_path = prepared.bundle.archive_path.clone();
         assert!(archive_path.is_file());
 
         drop(prepared);

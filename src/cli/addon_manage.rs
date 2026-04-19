@@ -136,7 +136,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                 if item.dry_run {
                     format!(
                         "Dry run only.\nSource: {}\nPackage: {}\nAddons: {}\nFiles to write: {}\nWould replace: {}\nBackup: {}",
-                        item.source.display_name(),
+                        item.source.display_name,
                         item.package_id,
                         addons,
                         item.files_to_write,
@@ -147,7 +147,7 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
                     format!(
                         "Installed package: {}\nSource: {}\nAddons: {}\nWritten files: {}\nReplaced addons: {}\nRegistry: {}\nBackup: {}",
                         item.package_id,
-                        item.source.display_name(),
+                        item.source.display_name,
                         addons,
                         item.written_files,
                         replaced,
