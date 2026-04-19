@@ -13,8 +13,7 @@ use crate::core::bundle::{
     BundleApplyMappings as DomainBundleApplyMappings,
     CharacterMappingOverride as DomainCharacterMappingOverride,
     ExternalPackageWarningCategory as DomainExternalPackageWarningCategory,
-    ExternalPackageWarningCode as DomainExternalPackageWarningCode,
-    HelperStrategy as DomainHelperStrategy, WtfScope as DomainWtfScope,
+    ExternalPackageWarningCode as DomainExternalPackageWarningCode, WtfScope as DomainWtfScope,
 };
 use crate::core::install::{
     DetectedFlavorInstallation, HealthStatus as DomainHealthStatus,
@@ -648,11 +647,9 @@ pub enum HelperStrategyValue {
     NativeRust,
 }
 
-impl From<DomainHelperStrategy> for HelperStrategyValue {
-    fn from(value: DomainHelperStrategy) -> Self {
-        match value {
-            DomainHelperStrategy::NativeRust => Self::NativeRust,
-        }
+impl Default for HelperStrategyValue {
+    fn default() -> Self {
+        Self::NativeRust
     }
 }
 

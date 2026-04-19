@@ -1134,8 +1134,11 @@ pub struct BundleApplyPlanResult {
     pub manifest: BundleManifestResult,
 }
 
-impl From<DomainBundleApplyPlan> for BundleApplyPlanResult {
-    fn from(value: DomainBundleApplyPlan) -> Self {
+impl BundleApplyPlanResult {
+    pub fn from_domain_plan(
+        value: DomainBundleApplyPlan,
+        helper_strategy: HelperStrategyValue,
+    ) -> Self {
         Self {
             bundle_path: value.bundle_path,
             target_flavor_root: value.target_flavor_root,
@@ -1156,7 +1159,7 @@ impl From<DomainBundleApplyPlan> for BundleApplyPlanResult {
                 .map(ApplyOperationResult::from)
                 .collect(),
             summary: ApplyPlanSummaryResult::from(value.summary),
-            helper_strategy: HelperStrategyValue::from(value.helper_strategy),
+            helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
             manifest: BundleManifestResult::from(value.manifest),
         }
@@ -1691,8 +1694,11 @@ pub struct ExternalPackageApplyPlanResult {
     pub manifest: BundleManifestResult,
 }
 
-impl From<DomainExternalPackageApplyPlan> for ExternalPackageApplyPlanResult {
-    fn from(value: DomainExternalPackageApplyPlan) -> Self {
+impl ExternalPackageApplyPlanResult {
+    pub fn from_domain_plan(
+        value: DomainExternalPackageApplyPlan,
+        helper_strategy: HelperStrategyValue,
+    ) -> Self {
         Self {
             analysis: ExternalPackageAnalysisResult::from(value.analysis),
             target_flavor_root: value.target_flavor_root,
@@ -1713,7 +1719,7 @@ impl From<DomainExternalPackageApplyPlan> for ExternalPackageApplyPlanResult {
                 .map(ApplyOperationResult::from)
                 .collect(),
             summary: ApplyPlanSummaryResult::from(value.summary),
-            helper_strategy: HelperStrategyValue::from(value.helper_strategy),
+            helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
             manifest: BundleManifestResult::from(value.manifest),
         }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::core::addon::{AddonProvider, DefaultAddonProvider};
 
-use super::{AddonProviderOptionsValue, HostPlatformValue};
+use super::{AddonProviderOptionsValue, HelperStrategyValue, HostPlatformValue};
 
 type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 
@@ -12,6 +12,7 @@ type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 pub struct AppRuntime {
     addon_provider: SharedAddonProvider,
     default_addon_provider_options: Option<AddonProviderOptionsValue>,
+    helper_strategy: HelperStrategyValue,
     host_platform: HostPlatformValue,
     install_scan_roots: Option<Vec<PathBuf>>,
     default_backup_dir: Option<PathBuf>,
@@ -29,6 +30,7 @@ impl AppRuntime {
                 DefaultAddonProvider::default().with_options(options.clone().into()),
             ),
             default_addon_provider_options: Some(options),
+            helper_strategy: HelperStrategyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
             default_backup_dir: None,
@@ -44,6 +46,7 @@ impl AppRuntime {
         Self {
             addon_provider: Arc::new(provider),
             default_addon_provider_options: None,
+            helper_strategy: HelperStrategyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
             default_backup_dir: None,
@@ -57,6 +60,15 @@ impl AppRuntime {
 
     pub fn default_addon_provider_options(&self) -> Option<&AddonProviderOptionsValue> {
         self.default_addon_provider_options.as_ref()
+    }
+
+    pub fn with_helper_strategy(mut self, helper_strategy: HelperStrategyValue) -> Self {
+        self.helper_strategy = helper_strategy;
+        self
+    }
+
+    pub fn helper_strategy(&self) -> HelperStrategyValue {
+        self.helper_strategy
     }
 
     pub fn with_host_platform(mut self, host_platform: HostPlatformValue) -> Self {
@@ -131,6 +143,7 @@ impl fmt::Debug for AppRuntime {
                 "default_addon_provider_options",
                 &self.default_addon_provider_options,
             )
+            .field("helper_strategy", &self.helper_strategy)
             .field("host_platform", &self.host_platform)
             .field("install_scan_roots", &self.install_scan_roots)
             .field("default_backup_dir", &self.default_backup_dir)
@@ -144,7 +157,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::core::app::{AddonProviderRetryPolicyValue, HostPlatformValue};
+    use crate::core::app::{AddonProviderRetryPolicyValue, HelperStrategyValue, HostPlatformValue};
 
     #[test]
     fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
@@ -210,5 +223,13 @@ mod tests {
         let runtime = AppRuntime::with_addon_provider(DefaultAddonProvider::default());
 
         assert!(runtime.default_addon_provider_options().is_none());
+    }
+
+    #[test]
+    fn runtime_defaults_helper_strategy_to_native_rust() {
+        assert_eq!(
+            AppRuntime::new().helper_strategy(),
+            HelperStrategyValue::NativeRust
+        );
     }
 }

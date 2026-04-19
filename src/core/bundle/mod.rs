@@ -70,7 +70,7 @@ pub use self::types::{
     ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
     BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,
     BundleApplyPlan, BundleEntryCounts, BundleInspection, CharacterMappingOverride, CreatedBundle,
-    GroupPolicy, HelperStrategy, PackBundleRequest, UnpackBundleRequest, UnpackedBundle, WtfScope,
+    GroupPolicy, PackBundleRequest, UnpackBundleRequest, UnpackedBundle, WtfScope,
 };
 use self::wtf_archive::{
     add_character_wtf_to_zip, add_common_wtf_to_zip, resolve_character_account,

@@ -71,7 +71,6 @@ pub struct BundleApplyPlan {
     pub character_mappings: Vec<CharacterMapping>,
     pub operations: Vec<ApplyOperation>,
     pub summary: ApplyPlanSummary,
-    pub helper_strategy: HelperStrategy,
     pub group_policies: ApplyGroupPolicies,
     pub manifest: BundleManifest,
 }
@@ -149,12 +148,6 @@ pub enum WtfScope {
     CharacterState,
     CacheLike,
     Unknown,
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum HelperStrategy {
-    NativeRust,
 }
 
 #[derive(Debug, Clone, Serialize)]

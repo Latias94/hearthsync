@@ -428,7 +428,6 @@ fn build_bundle_apply_plan(
         character_mappings,
         operations,
         summary,
-        helper_strategy: HelperStrategy::NativeRust,
         group_policies: build_group_policies(&manifest),
         manifest,
     }

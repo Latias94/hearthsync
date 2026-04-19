@@ -176,7 +176,6 @@ pub struct ExternalPackageApplyPlan {
     pub character_mappings: Vec<crate::core::lua_patch::CharacterMapping>,
     pub operations: Vec<ApplyOperation>,
     pub summary: ApplyPlanSummary,
-    pub helper_strategy: HelperStrategy,
     pub group_policies: ApplyGroupPolicies,
     pub manifest: BundleManifest,
 }
@@ -1319,7 +1318,6 @@ fn project_external_package_plan(
         character_mappings: plan.character_mappings,
         operations: plan.operations,
         summary: plan.summary,
-        helper_strategy: plan.helper_strategy,
         group_policies: plan.group_policies,
         manifest: plan.manifest,
     }

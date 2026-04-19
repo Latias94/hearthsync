@@ -108,7 +108,10 @@ impl ExternalPackageService {
             cancellation,
             progress,
         )?;
-        Ok(ExternalPackageApplyPlanResult::from(plan))
+        Ok(ExternalPackageApplyPlanResult::from_domain_plan(
+            plan,
+            self.runtime.helper_strategy(),
+        ))
     }
 
     pub fn plan_apply_collecting_progress(
@@ -197,8 +200,8 @@ mod tests {
 
     use super::*;
     use crate::core::app::{
-        AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
-        ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue,
+        AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HelperStrategyValue,
+        HostPlatformValue, ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue,
     };
     use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
@@ -320,6 +323,35 @@ mod tests {
                 (TaskKind::ExternalPackageApply, TaskPhase::Completed),
             ]
         );
+    }
+
+    #[test]
+    fn external_package_service_plan_apply_reports_runtime_helper_strategy() {
+        let source = tempdir().expect("source temp dir");
+        let target = tempdir().expect("target temp dir");
+        let package_root = create_minimal_external_package_source(source.path());
+        let target_installation = create_empty_installation(target.path());
+
+        let plan = ExternalPackageService::new()
+            .plan_apply(PlanExternalPackageApplyAppRequest {
+                external_package: CreateExternalPackageBundleAppRequest {
+                    source_path: package_root,
+                    source_flavor: WowFlavorValue::Retail,
+                    source_platform: Some(HostPlatformValue::Windows),
+                    supported_targets: vec![WowFlavorValue::Retail],
+                    output_path: None,
+                    package_id: None,
+                    package_name: None,
+                    created_by: None,
+                    description: None,
+                    apply_defaults: None,
+                },
+                installation: target_installation,
+                apply_mappings: BundleApplyMappingsValue::default(),
+            })
+            .expect("plan apply");
+
+        assert_eq!(plan.helper_strategy, HelperStrategyValue::NativeRust);
     }
 
     #[test]

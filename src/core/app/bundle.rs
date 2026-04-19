@@ -48,7 +48,10 @@ impl BundleService {
         let installation = installation.into();
         let apply_mappings = apply_mappings.into();
         let plan = plan_bundle_apply(&bundle_path, &installation, &apply_mappings)?;
-        Ok(BundleApplyPlanResult::from(plan))
+        Ok(BundleApplyPlanResult::from_domain_plan(
+            plan,
+            self.runtime.helper_strategy(),
+        ))
     }
 
     pub fn apply(&self, request: ApplyBundleAppRequest) -> AppResult<BundleApplyResult> {
@@ -129,8 +132,8 @@ mod tests {
     use crate::core::app::{
         AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleManifestValue,
         BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-        CharacterMappingModeValue, ResolvedInstallationValue, ResourceApplyPolicyValue,
-        WowFlavorValue,
+        CharacterMappingModeValue, HelperStrategyValue, ResolvedInstallationValue,
+        ResourceApplyPolicyValue, WowFlavorValue,
     };
     use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{TaskKind, TaskPhase};
@@ -162,6 +165,7 @@ mod tests {
             .expect("plan bundle apply");
 
         assert_eq!(plan.bundle_path, bundle_path);
+        assert_eq!(plan.helper_strategy, HelperStrategyValue::NativeRust);
         assert!(
             plan.operations
                 .iter()

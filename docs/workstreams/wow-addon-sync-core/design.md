@@ -157,6 +157,11 @@ composition, but it should not remain part of the stable frontend runtime contra
 The stable runtime contract should make it explicit whether the app is using configurable
 default-provider options or a fully internal custom provider implementation.
 
+Helper capability reporting follows the same rule.
+The selected helper strategy belongs to app runtime state, not to bundle-planner DTOs.
+Public plan results may expose helper strategy as frontend-facing status, but the planner should not
+invent or own that capability state itself.
+
 ### Domain Boundary
 
 Domain modules remain responsible for WoW semantics:

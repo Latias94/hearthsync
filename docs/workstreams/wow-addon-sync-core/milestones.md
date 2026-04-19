@@ -164,6 +164,9 @@ desktop work.
   boundary no longer exposes provider trait seams just to support tests
 - stable task contract types are now surfaced from `core::app`, so app-service callers no longer
   need to import `core::task` directly for progress collection or callback streaming
+- helper strategy has now been removed from bundle-domain plan DTOs and is reported from
+  `core::app::AppRuntime` instead, so optional-helper capability state no longer leaks out of the
+  planner boundary
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers, plus explicit progress/capability ownership
 

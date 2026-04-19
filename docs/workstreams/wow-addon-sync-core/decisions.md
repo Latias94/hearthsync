@@ -667,3 +667,28 @@ The stable task contract is now published through `core::app`:
   path for stable app-service progress behavior
 - future task-behavior refactors can keep the same app-facing import surface even if internal task
   plumbing changes underneath
+
+## ADR-031: Helper Strategy Is Runtime Capability State, Not Planner State
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+The selected helper strategy belongs to runtime capability state.
+It should not be stored on bundle-domain planning DTOs just because plan results currently expose it
+to frontend callers.
+
+Bundle and external-package domain plans now carry only bundle semantics and logical preview data.
+`core::app::AppRuntime` owns helper strategy state, and app-layer plan results project that state
+back into frontend-facing response payloads.
+
+### Consequences
+
+- bundle-domain planning no longer fabricates helper capability state with a hardcoded
+  `NativeRust` value
+- future helper backends can be introduced by extending runtime-owned app contracts instead of
+  teaching the planner about frontend capability reporting first
+- public plan results still expose helper strategy, but that field now reflects app runtime state
+  rather than a planner implementation detail
