@@ -167,6 +167,10 @@ desktop work.
 - helper strategy has now been removed from bundle-domain plan DTOs and is reported from
   `core::app::AppRuntime` instead, so optional-helper capability state no longer leaks out of the
   planner boundary
+- runtime capability state is now also exposed through one app-owned `AppRuntimeCapabilitiesValue`
+  snapshot, so frontend callers can inspect provider/helper mode from `AppRuntime`,
+  `HearthSyncApp`, or `StableAppServices` without reading planner details or inferring custom
+  provider injection from optional fields
 - bundle and external-package app responses now build from crate-internal domain projection helpers
   instead of public `From<domain>` trait impls, reducing the stable app boundary's visible domain
   coupling
@@ -174,7 +178,7 @@ desktop work.
   follow the same rule too, so the remaining response boundary no longer advertises public domain
   conversion traits for these main response payloads either
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
-  that still lives in app service wrappers, plus explicit progress/capability ownership
+  that still lives in app service wrappers
 
 ## M4 - Portability and Optional-Helper Hardening
 

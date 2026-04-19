@@ -1,6 +1,6 @@
 use super::{
-    AddonIndexService, AddonLockService, AddonService, AppRuntime, BackupService, BundleService,
-    ExternalPackageService, InstallationService, StableAppServices,
+    AddonIndexService, AddonLockService, AddonService, AppRuntime, AppRuntimeCapabilitiesValue,
+    BackupService, BundleService, ExternalPackageService, InstallationService, StableAppServices,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -19,6 +19,10 @@ impl HearthSyncApp {
 
     pub fn runtime(&self) -> &AppRuntime {
         &self.runtime
+    }
+
+    pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
+        self.runtime.capabilities()
     }
 
     pub fn stable_services(&self) -> StableAppServices {
@@ -59,7 +63,10 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::HostPlatformValue;
+    use crate::core::app::{
+        AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
+        HelperStrategyValue, HostPlatformValue,
+    };
 
     #[test]
     fn hearthsync_app_builds_services_with_shared_runtime() {
@@ -136,6 +143,27 @@ mod tests {
         assert_eq!(
             stable.addons().runtime().host_platform(),
             HostPlatformValue::MacOs
+        );
+    }
+
+    #[test]
+    fn hearthsync_app_exposes_runtime_capabilities_as_app_owned_value() {
+        let runtime = AppRuntime::new()
+            .with_host_platform(HostPlatformValue::MacOs)
+            .with_helper_strategy(HelperStrategyValue::NativeRust);
+        let app = HearthSyncApp::with_runtime(runtime);
+
+        assert_eq!(
+            app.capabilities(),
+            AppRuntimeCapabilitiesValue {
+                addon_provider: AddonProviderModeValue::ConfiguredDefault {
+                    options: AddonProviderOptionsValue {
+                        download_cache_dir: None,
+                        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                    },
+                },
+                helper_strategy: HelperStrategyValue::NativeRust,
+            }
         );
     }
 }

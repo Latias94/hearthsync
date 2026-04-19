@@ -136,19 +136,17 @@ ways that a future frontend can depend on without learning internal domain seams
   `Planning`, `BackingUp`, `Executing`, or `Verifying`. Those stable task-contract types are now
   also surfaced from `core::app`, so frontend callers do not need to import `core::task`
   separately just to consume app-service progress behavior.
-- [ ] keep optional provider/helper capability switches behind runtime/service boundaries instead of
+- [x] keep optional provider/helper capability switches behind runtime/service boundaries instead of
   leaking them into CLI orchestration
-  Current progress: `AppRuntime` no longer requires addon-provider domain option types at the
-  frontend boundary. Default provider cache/retry configuration now uses app-owned
-  `AddonProviderOptionsValue` and `AddonProviderRetryPolicyValue`, and runtime explicitly records
-  when it is using configurable default-provider options versus a fully injected custom provider.
-  That custom-provider seam is now crate-internal instead of a public frontend API, so stable app
-  callers no longer see provider trait injection just to configure runtime behavior. Helper
-  strategy has now also moved out of bundle-domain plan DTOs and into `AppRuntime`, so plan
-  results report helper capability state from the app boundary instead of having the planner
-  fabricate it. The remaining gap in this area is now narrower: any future non-native helper
-  capability should extend that runtime-owned contract instead of appearing first as an ad hoc
-  planner detail.
+  Completed: `AppRuntime` no longer requires addon-provider domain option types at the frontend
+  boundary. Default provider cache/retry configuration now uses app-owned
+  `AddonProviderOptionsValue` and `AddonProviderRetryPolicyValue`, custom provider injection is
+  crate-internal, and helper strategy lives on runtime instead of bundle-domain plan DTOs.
+  `AppRuntime`, `HearthSyncApp`, and `StableAppServices` now expose one app-owned
+  `AppRuntimeCapabilitiesValue` snapshot so frontend callers can read provider/helper capability
+  state without inferring it from ad hoc `Option` semantics or planner details. Any future
+  non-native helper capability should extend that runtime-owned contract rather than reappearing as
+  an ambient planner concern.
 
 Exit criteria:
 

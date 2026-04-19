@@ -40,11 +40,12 @@ pub use response::*;
 pub use runtime::AppRuntime;
 pub use stable::StableAppServices;
 pub use types::{
-    AddonPackageMetadataValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-    ApplyActionValue, ApplyGroupValue, BackupGroupValue, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
-    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
-    BundleSourceValue, CharacterMappingModeValue, ExternalPackageWarningCategoryValue,
+    AddonPackageMetadataValue, AddonProviderModeValue, AddonProviderOptionsValue,
+    AddonProviderRetryPolicyValue, AppRuntimeCapabilitiesValue, ApplyActionValue, ApplyGroupValue,
+    BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
+    BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
+    BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
+    CharacterMappingModeValue, ExternalPackageWarningCategoryValue,
     ExternalPackageWarningCodeValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
     ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue, WtfScopeValue,
 };

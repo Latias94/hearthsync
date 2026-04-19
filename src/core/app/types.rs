@@ -654,6 +654,19 @@ impl Default for HelperStrategyValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum AddonProviderModeValue {
+    ConfiguredDefault { options: AddonProviderOptionsValue },
+    InternalCustom,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppRuntimeCapabilitiesValue {
+    pub addon_provider: AddonProviderModeValue,
+    pub helper_strategy: HelperStrategyValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddonProviderRetryPolicyValue {
     pub max_attempts: u32,
 }

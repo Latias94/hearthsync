@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use crate::core::addon::{AddonProvider, DefaultAddonProvider};
 
-use super::{AddonProviderOptionsValue, HelperStrategyValue, HostPlatformValue};
+use super::{
+    AddonProviderModeValue, AddonProviderOptionsValue, AppRuntimeCapabilitiesValue,
+    HelperStrategyValue, HostPlatformValue,
+};
 
 type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 
@@ -58,13 +61,23 @@ impl AppRuntime {
         self.addon_provider.as_ref()
     }
 
-    pub fn default_addon_provider_options(&self) -> Option<&AddonProviderOptionsValue> {
-        self.default_addon_provider_options.as_ref()
-    }
-
     pub fn with_helper_strategy(mut self, helper_strategy: HelperStrategyValue) -> Self {
         self.helper_strategy = helper_strategy;
         self
+    }
+
+    pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
+        let addon_provider = match &self.default_addon_provider_options {
+            Some(options) => AddonProviderModeValue::ConfiguredDefault {
+                options: options.clone(),
+            },
+            None => AddonProviderModeValue::InternalCustom,
+        };
+
+        AppRuntimeCapabilitiesValue {
+            addon_provider,
+            helper_strategy: self.helper_strategy,
+        }
     }
 
     pub fn helper_strategy(&self) -> HelperStrategyValue {
@@ -203,33 +216,70 @@ mod tests {
     }
 
     #[test]
-    fn runtime_exposes_default_addon_provider_options_for_default_provider() {
+    fn runtime_capabilities_report_configured_default_provider_and_helper_strategy() {
         let runtime = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
             download_cache_dir: Some(PathBuf::from("cache")),
             retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
-        });
+        })
+        .with_helper_strategy(HelperStrategyValue::NativeRust);
 
         assert_eq!(
-            runtime.default_addon_provider_options(),
-            Some(&AddonProviderOptionsValue {
-                download_cache_dir: Some(PathBuf::from("cache")),
-                retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
-            })
+            runtime.capabilities(),
+            AppRuntimeCapabilitiesValue {
+                addon_provider: AddonProviderModeValue::ConfiguredDefault {
+                    options: AddonProviderOptionsValue {
+                        download_cache_dir: Some(PathBuf::from("cache")),
+                        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
+                    },
+                },
+                helper_strategy: HelperStrategyValue::NativeRust,
+            }
         );
     }
 
     #[test]
-    fn runtime_clears_default_provider_options_when_custom_provider_is_injected() {
+    fn runtime_capabilities_report_internal_custom_provider_when_injected() {
         let runtime = AppRuntime::with_addon_provider(DefaultAddonProvider::default());
 
-        assert!(runtime.default_addon_provider_options().is_none());
+        assert_eq!(
+            runtime.capabilities(),
+            AppRuntimeCapabilitiesValue {
+                addon_provider: AddonProviderModeValue::InternalCustom,
+                helper_strategy: HelperStrategyValue::NativeRust,
+            }
+        );
     }
 
     #[test]
     fn runtime_defaults_helper_strategy_to_native_rust() {
         assert_eq!(
+            AppRuntime::new().capabilities(),
+            AppRuntimeCapabilitiesValue {
+                addon_provider: AddonProviderModeValue::ConfiguredDefault {
+                    options: AddonProviderOptionsValue {
+                        download_cache_dir: None,
+                        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                    },
+                },
+                helper_strategy: HelperStrategyValue::NativeRust,
+            }
+        );
+        assert_eq!(
             AppRuntime::new().helper_strategy(),
             HelperStrategyValue::NativeRust
+        );
+    }
+
+    #[test]
+    fn runtime_defaults_provider_options_to_default_configured_mode() {
+        assert_eq!(
+            AppRuntime::new().capabilities().addon_provider,
+            AddonProviderModeValue::ConfiguredDefault {
+                options: AddonProviderOptionsValue {
+                    download_cache_dir: None,
+                    retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                },
+            }
         );
     }
 }

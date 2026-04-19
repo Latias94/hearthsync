@@ -718,3 +718,31 @@ methods such as `from_domain(...)` over public `impl From<DomainType> for AppRes
 - the same rule now applies across bundle, external-package, installation, addon, backup,
   addon-index, addon-lock, and bundle-addon-lock response DTOs, so frontend callers see one
   consistent projection boundary instead of a mixed trait surface
+
+## ADR-033: Runtime Capability State Uses an App-Owned Snapshot Contract
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+Optional provider and helper behavior should be observable through one app-owned runtime
+capability contract instead of a mix of ad hoc getters, optional provider-option fields, or
+planner-projected details.
+
+`core::app::AppRuntime` now exposes `AppRuntimeCapabilitiesValue`, and the same snapshot is also
+available from `HearthSyncApp` and `StableAppServices`.
+That snapshot owns:
+
+- provider mode: configured default provider options vs. internal custom provider
+- helper strategy: current runtime-selected helper capability
+
+### Consequences
+
+- frontend callers can inspect runtime capability state without inferring meaning from `Option`
+  fields such as missing provider options
+- provider/helper capability reporting now has one stable app boundary that future CLI and `egui`
+  work can share
+- future non-native helper integration can extend one runtime-owned capability contract instead of
+  surfacing first through planner DTOs or service-local composition details

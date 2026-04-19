@@ -1,6 +1,6 @@
 use super::{
-    AddonService, AppRuntime, BackupService, BundleService, ExternalPackageService,
-    InstallationService,
+    AddonService, AppRuntime, AppRuntimeCapabilitiesValue, BackupService, BundleService,
+    ExternalPackageService, InstallationService,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -19,6 +19,10 @@ impl StableAppServices {
 
     pub fn runtime(&self) -> &AppRuntime {
         &self.runtime
+    }
+
+    pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
+        self.runtime.capabilities()
     }
 
     pub fn installations(&self) -> InstallationService {
@@ -47,7 +51,10 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::HostPlatformValue;
+    use crate::core::app::{
+        AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
+        HelperStrategyValue, HostPlatformValue,
+    };
 
     #[test]
     fn stable_app_services_share_runtime_with_first_wave_gui_services() {
@@ -89,6 +96,27 @@ mod tests {
         assert_eq!(
             services.addons().runtime().host_platform(),
             HostPlatformValue::MacOs
+        );
+    }
+
+    #[test]
+    fn stable_app_services_expose_runtime_capabilities_as_app_owned_value() {
+        let runtime = AppRuntime::new()
+            .with_host_platform(HostPlatformValue::MacOs)
+            .with_helper_strategy(HelperStrategyValue::NativeRust);
+        let services = StableAppServices::with_runtime(runtime);
+
+        assert_eq!(
+            services.capabilities(),
+            AppRuntimeCapabilitiesValue {
+                addon_provider: AddonProviderModeValue::ConfiguredDefault {
+                    options: AddonProviderOptionsValue {
+                        download_cache_dir: None,
+                        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                    },
+                },
+                helper_strategy: HelperStrategyValue::NativeRust,
+            }
         );
     }
 }
