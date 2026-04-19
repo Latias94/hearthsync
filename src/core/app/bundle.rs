@@ -66,7 +66,7 @@ impl BundleService {
     ) -> AppResult<BundleAddonLockPlanResult> {
         let installation = request.installation.into();
         let plan = plan_bundle_addon_lock(&request.bundle_path, &installation)?;
-        Ok(BundleAddonLockPlanResult::from(plan))
+        Ok(BundleAddonLockPlanResult::from_domain(plan))
     }
 
     pub fn apply_addon_lock(
@@ -75,7 +75,7 @@ impl BundleService {
     ) -> AppResult<BundleAddonLockApplyResult> {
         let applied =
             apply_bundle_addon_lock(request.apply_runtime_defaults(&self.runtime).into())?;
-        Ok(BundleAddonLockApplyResult::from(applied))
+        Ok(BundleAddonLockApplyResult::from_domain(applied))
     }
 
     pub fn apply_task<TCancel, TProgress>(

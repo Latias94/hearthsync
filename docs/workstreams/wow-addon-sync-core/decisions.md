@@ -715,3 +715,6 @@ methods such as `from_domain(...)` over public `impl From<DomainType> for AppRes
   coupling through trait resolution
 - the response boundary becomes more consistent with the rest of the `core::app` refactor: app
   contracts stay public, domain conversion seams stay internal
+- the same rule now applies across bundle, external-package, installation, addon, backup,
+  addon-index, addon-lock, and bundle-addon-lock response DTOs, so frontend callers see one
+  consistent projection boundary instead of a mixed trait surface

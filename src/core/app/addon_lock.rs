@@ -35,30 +35,30 @@ impl AddonLockService {
     ) -> AppResult<AddonLockInspectionResult> {
         let installation = request.installation.into();
         let inspection = inspect_addon_lock(&installation)?;
-        Ok(AddonLockInspectionResult::from(inspection))
+        Ok(AddonLockInspectionResult::from_domain(inspection))
     }
 
     pub fn write(&self, request: WriteAddonLockRequest) -> AppResult<AddonLockWriteResult> {
         let installation = request.installation.into();
         let written = write_addon_lock(&installation)?;
-        Ok(AddonLockWriteResult::from(written))
+        Ok(AddonLockWriteResult::from_domain(written))
     }
 
     pub fn diff(&self, request: DiffAddonLockRequest) -> AppResult<AddonLockDiffResult> {
         let diff = diff_addon_locks(&request.left_lock_path, &request.right_lock_path)?;
-        Ok(AddonLockDiffResult::from(diff))
+        Ok(AddonLockDiffResult::from_domain(diff))
     }
 
     pub fn verify(&self, request: VerifyAddonLockRequest) -> AppResult<AddonLockVerifyResult> {
         let installation = request.installation.into();
         let verification = verify_addon_lock(&installation, request.lock_path.as_deref())?;
-        Ok(AddonLockVerifyResult::from(verification))
+        Ok(AddonLockVerifyResult::from_domain(verification))
     }
 
     pub fn plan_sync(&self, request: PlanAddonLockSyncRequest) -> AppResult<AddonLockPlanResult> {
         let installation = request.installation.into();
         let plan = plan_addon_lock_sync(&installation, request.lock_path.as_deref())?;
-        Ok(AddonLockPlanResult::from(plan))
+        Ok(AddonLockPlanResult::from_domain(plan))
     }
 
     pub fn apply_sync(&self, request: ApplyAddonLockAppRequest) -> AppResult<AddonLockApplyResult> {
@@ -83,7 +83,7 @@ impl AddonLockService {
             cancellation,
             progress,
         )?;
-        Ok(AddonLockApplyResult::from(applied))
+        Ok(AddonLockApplyResult::from_domain(applied))
     }
 
     pub fn apply_sync_collecting_progress(

@@ -509,8 +509,8 @@ pub struct AddonIndexPackageResult {
     pub supported_flavors: Vec<String>,
 }
 
-impl From<AddonIndexPackage> for AddonIndexPackageResult {
-    fn from(value: AddonIndexPackage) -> Self {
+impl AddonIndexPackageResult {
+    fn from_domain(value: AddonIndexPackage) -> Self {
         let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
 
@@ -538,8 +538,8 @@ pub struct AddonIndexInspectionResult {
     pub packages: Vec<AddonIndexPackageResult>,
 }
 
-impl From<AddonIndexInspection> for AddonIndexInspectionResult {
-    fn from(value: AddonIndexInspection) -> Self {
+impl AddonIndexInspectionResult {
+    pub(crate) fn from_domain(value: AddonIndexInspection) -> Self {
         Self {
             index_path: value.index_path,
             name: value.index.name,
@@ -549,7 +549,7 @@ impl From<AddonIndexInspection> for AddonIndexInspectionResult {
                 .index
                 .packages
                 .into_iter()
-                .map(AddonIndexPackageResult::from)
+                .map(AddonIndexPackageResult::from_domain)
                 .collect(),
         }
     }
@@ -562,11 +562,11 @@ pub struct AddonIndexInstallResult {
     pub install: InstalledAddonPackageResult,
 }
 
-impl From<DomainAddonIndexInstallResult> for AddonIndexInstallResult {
-    fn from(value: DomainAddonIndexInstallResult) -> Self {
+impl AddonIndexInstallResult {
+    pub(crate) fn from_domain(value: DomainAddonIndexInstallResult) -> Self {
         Self {
             index_path: value.index_path,
-            package: AddonIndexPackageResult::from(value.package),
+            package: AddonIndexPackageResult::from_domain(value.package),
             install: InstalledAddonPackageResult::from_domain(value.install),
         }
     }
@@ -580,8 +580,8 @@ pub struct AddonIndexUpdateResult {
     pub update: UpdatedAddonPackageResult,
 }
 
-impl From<DomainAddonIndexUpdateResult> for AddonIndexUpdateResult {
-    fn from(value: DomainAddonIndexUpdateResult) -> Self {
+impl AddonIndexUpdateResult {
+    pub(crate) fn from_domain(value: DomainAddonIndexUpdateResult) -> Self {
         let selected_package_count = value.selected_packages.len();
 
         Self {
@@ -590,7 +590,7 @@ impl From<DomainAddonIndexUpdateResult> for AddonIndexUpdateResult {
             selected_packages: value
                 .selected_packages
                 .into_iter()
-                .map(AddonIndexPackageResult::from)
+                .map(AddonIndexPackageResult::from_domain)
                 .collect(),
             update: UpdatedAddonPackageResult::from_domain(value.update),
         }
@@ -617,8 +617,8 @@ pub struct AddonLockPackageResult {
     pub addons: Vec<TrackedAddonResult>,
 }
 
-impl From<AddonLockPackage> for AddonLockPackageResult {
-    fn from(value: AddonLockPackage) -> Self {
+impl AddonLockPackageResult {
+    fn from_domain(value: AddonLockPackage) -> Self {
         let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
@@ -656,8 +656,8 @@ pub struct AddonLockInspectionResult {
     pub packages: Vec<AddonLockPackageResult>,
 }
 
-impl From<AddonLockInspection> for AddonLockInspectionResult {
-    fn from(value: AddonLockInspection) -> Self {
+impl AddonLockInspectionResult {
+    pub(crate) fn from_domain(value: AddonLockInspection) -> Self {
         Self {
             lock_path: value.lock_path,
             generated_at: value.lock.generated_at,
@@ -666,7 +666,7 @@ impl From<AddonLockInspection> for AddonLockInspectionResult {
                 .lock
                 .packages
                 .into_iter()
-                .map(AddonLockPackageResult::from)
+                .map(AddonLockPackageResult::from_domain)
                 .collect(),
         }
     }
@@ -679,8 +679,8 @@ pub struct AddonLockWriteResult {
     pub removed: bool,
 }
 
-impl From<DomainAddonLockWriteResult> for AddonLockWriteResult {
-    fn from(value: DomainAddonLockWriteResult) -> Self {
+impl AddonLockWriteResult {
+    pub(crate) fn from_domain(value: DomainAddonLockWriteResult) -> Self {
         Self {
             lock_path: value.lock_path,
             package_count: value.package_count,
@@ -1219,8 +1219,8 @@ pub struct AddonLockPackageSnapshotResult {
     pub addon_directories: Vec<String>,
 }
 
-impl From<DomainAddonLockPackageSnapshot> for AddonLockPackageSnapshotResult {
-    fn from(value: DomainAddonLockPackageSnapshot) -> Self {
+impl AddonLockPackageSnapshotResult {
+    fn from_domain(value: DomainAddonLockPackageSnapshot) -> Self {
         let source = AddonSourceResult::from_domain(value.source);
         let source_label = source.display_name.clone();
 
@@ -1249,8 +1249,8 @@ pub struct AddonLockFieldChangeResult {
     pub right: Option<String>,
 }
 
-impl From<DomainAddonLockFieldChange> for AddonLockFieldChangeResult {
-    fn from(value: DomainAddonLockFieldChange) -> Self {
+impl AddonLockFieldChangeResult {
+    fn from_domain(value: DomainAddonLockFieldChange) -> Self {
         Self {
             field: value.field,
             left: value.left,
@@ -1267,16 +1267,16 @@ pub struct AddonLockPackageDiffResult {
     pub changes: Vec<AddonLockFieldChangeResult>,
 }
 
-impl From<DomainAddonLockPackageDiff> for AddonLockPackageDiffResult {
-    fn from(value: DomainAddonLockPackageDiff) -> Self {
+impl AddonLockPackageDiffResult {
+    fn from_domain(value: DomainAddonLockPackageDiff) -> Self {
         Self {
             comparison_key: value.comparison_key,
-            left: AddonLockPackageSnapshotResult::from(value.left),
-            right: AddonLockPackageSnapshotResult::from(value.right),
+            left: AddonLockPackageSnapshotResult::from_domain(value.left),
+            right: AddonLockPackageSnapshotResult::from_domain(value.right),
             changes: value
                 .changes
                 .into_iter()
-                .map(AddonLockFieldChangeResult::from)
+                .map(AddonLockFieldChangeResult::from_domain)
                 .collect(),
         }
     }
@@ -1298,8 +1298,8 @@ pub struct AddonLockDiffResult {
     pub changed_packages: Vec<AddonLockPackageDiffResult>,
 }
 
-impl From<DomainAddonLockDiffResult> for AddonLockDiffResult {
-    fn from(value: DomainAddonLockDiffResult) -> Self {
+impl AddonLockDiffResult {
+    pub(crate) fn from_domain(value: DomainAddonLockDiffResult) -> Self {
         let added_package_count = value.added_packages.len();
         let removed_package_count = value.removed_packages.len();
         let changed_package_count = value.changed_packages.len();
@@ -1317,17 +1317,17 @@ impl From<DomainAddonLockDiffResult> for AddonLockDiffResult {
             added_packages: value
                 .added_packages
                 .into_iter()
-                .map(AddonLockPackageSnapshotResult::from)
+                .map(AddonLockPackageSnapshotResult::from_domain)
                 .collect(),
             removed_packages: value
                 .removed_packages
                 .into_iter()
-                .map(AddonLockPackageSnapshotResult::from)
+                .map(AddonLockPackageSnapshotResult::from_domain)
                 .collect(),
             changed_packages: value
                 .changed_packages
                 .into_iter()
-                .map(AddonLockPackageDiffResult::from)
+                .map(AddonLockPackageDiffResult::from_domain)
                 .collect(),
         }
     }
@@ -1340,8 +1340,8 @@ pub struct AddonLockPackageDirectoryIssueResult {
     pub missing_addon_directories: Vec<String>,
 }
 
-impl From<DomainAddonLockPackageDirectoryIssue> for AddonLockPackageDirectoryIssueResult {
-    fn from(value: DomainAddonLockPackageDirectoryIssue) -> Self {
+impl AddonLockPackageDirectoryIssueResult {
+    fn from_domain(value: DomainAddonLockPackageDirectoryIssue) -> Self {
         Self {
             comparison_key: value.comparison_key,
             package_id: value.package_id,
@@ -1363,8 +1363,8 @@ pub struct AddonLockVerifyResult {
     pub matches: bool,
 }
 
-impl From<DomainAddonLockVerifyResult> for AddonLockVerifyResult {
-    fn from(value: DomainAddonLockVerifyResult) -> Self {
+impl AddonLockVerifyResult {
+    pub(crate) fn from_domain(value: DomainAddonLockVerifyResult) -> Self {
         let untracked_addon_count = value.untracked_addons.len();
         let missing_package_count = value.missing_addon_directories.len();
 
@@ -1378,9 +1378,9 @@ impl From<DomainAddonLockVerifyResult> for AddonLockVerifyResult {
             missing_addon_directories: value
                 .missing_addon_directories
                 .into_iter()
-                .map(AddonLockPackageDirectoryIssueResult::from)
+                .map(AddonLockPackageDirectoryIssueResult::from_domain)
                 .collect(),
-            diff: AddonLockDiffResult::from(value.diff),
+            diff: AddonLockDiffResult::from_domain(value.diff),
             matches: value.matches,
         }
     }
@@ -1400,8 +1400,8 @@ pub struct AddonLockSyncActionResult {
     pub requires_replace_existing: bool,
 }
 
-impl From<DomainAddonLockSyncAction> for AddonLockSyncActionResult {
-    fn from(value: DomainAddonLockSyncAction) -> Self {
+impl AddonLockSyncActionResult {
+    fn from_domain(value: DomainAddonLockSyncAction) -> Self {
         let source = value.source.map(AddonSourceResult::from_domain);
         let source_label = source.as_ref().map(|source| source.display_name.clone());
 
@@ -1436,8 +1436,8 @@ pub struct AddonLockPlanResult {
     pub actions: Vec<AddonLockSyncActionResult>,
 }
 
-impl From<DomainAddonLockPlanResult> for AddonLockPlanResult {
-    fn from(value: DomainAddonLockPlanResult) -> Self {
+impl AddonLockPlanResult {
+    pub(crate) fn from_domain(value: DomainAddonLockPlanResult) -> Self {
         let untracked_addon_count = value.untracked_addons.len();
         let action_count = value.actions.len();
 
@@ -1456,7 +1456,7 @@ impl From<DomainAddonLockPlanResult> for AddonLockPlanResult {
             actions: value
                 .actions
                 .into_iter()
-                .map(AddonLockSyncActionResult::from)
+                .map(AddonLockSyncActionResult::from_domain)
                 .collect(),
         }
     }
@@ -1479,8 +1479,8 @@ pub struct AddonLockApplyResult {
     pub verification: AddonLockVerifyResult,
 }
 
-impl From<DomainAddonLockApplyResult> for AddonLockApplyResult {
-    fn from(value: DomainAddonLockApplyResult) -> Self {
+impl AddonLockApplyResult {
+    pub(crate) fn from_domain(value: DomainAddonLockApplyResult) -> Self {
         let untracked_addon_count = value.untracked_addons.len();
         let action_count = value.actions.len();
 
@@ -1499,9 +1499,9 @@ impl From<DomainAddonLockApplyResult> for AddonLockApplyResult {
             actions: value
                 .actions
                 .into_iter()
-                .map(AddonLockSyncActionResult::from)
+                .map(AddonLockSyncActionResult::from_domain)
                 .collect(),
-            verification: AddonLockVerifyResult::from(value.verification),
+            verification: AddonLockVerifyResult::from_domain(value.verification),
         }
     }
 }
@@ -1513,12 +1513,12 @@ pub struct BundleAddonLockPlanResult {
     pub plan: AddonLockPlanResult,
 }
 
-impl From<DomainBundleAddonLockPlan> for BundleAddonLockPlanResult {
-    fn from(value: DomainBundleAddonLockPlan) -> Self {
+impl BundleAddonLockPlanResult {
+    pub(crate) fn from_domain(value: DomainBundleAddonLockPlan) -> Self {
         Self {
             bundle_path: value.bundle_path,
             embedded_lock_entry: value.embedded_lock_entry,
-            plan: AddonLockPlanResult::from(value.plan),
+            plan: AddonLockPlanResult::from_domain(value.plan),
         }
     }
 }
@@ -1530,12 +1530,12 @@ pub struct BundleAddonLockApplyResult {
     pub apply: AddonLockApplyResult,
 }
 
-impl From<DomainBundleAddonLockApply> for BundleAddonLockApplyResult {
-    fn from(value: DomainBundleAddonLockApply) -> Self {
+impl BundleAddonLockApplyResult {
+    pub(crate) fn from_domain(value: DomainBundleAddonLockApply) -> Self {
         Self {
             bundle_path: value.bundle_path,
             embedded_lock_entry: value.embedded_lock_entry,
-            apply: AddonLockApplyResult::from(value.apply),
+            apply: AddonLockApplyResult::from_domain(value.apply),
         }
     }
 }

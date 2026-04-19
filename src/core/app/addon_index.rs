@@ -32,7 +32,7 @@ impl AddonIndexService {
         request: InspectAddonIndexRequest,
     ) -> AppResult<AddonIndexInspectionResult> {
         let inspection = inspect_addon_index(&request.index_path)?;
-        Ok(AddonIndexInspectionResult::from(inspection))
+        Ok(AddonIndexInspectionResult::from_domain(inspection))
     }
 
     pub fn install(
@@ -60,7 +60,7 @@ impl AddonIndexService {
             cancellation,
             progress,
         )?;
-        Ok(AddonIndexInstallResult::from(installed))
+        Ok(AddonIndexInstallResult::from_domain(installed))
     }
 
     pub fn install_collecting_progress(
@@ -109,7 +109,7 @@ impl AddonIndexService {
             cancellation,
             progress,
         )?;
-        Ok(AddonIndexUpdateResult::from(updated))
+        Ok(AddonIndexUpdateResult::from_domain(updated))
     }
 
     pub fn update_collecting_progress(
