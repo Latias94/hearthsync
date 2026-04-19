@@ -763,6 +763,8 @@ itself.
 
 That direct entry surface now covers the primary installation, addon, bundle, external-package, and
 backup flows, plus the current CLI-facing addon-index and addon-lock direct operations.
+For the stable long-running flows, `HearthSyncApp` should also forward collecting-progress and
+callback entrypoints so a frontend can stay on the app root while consuming task behavior.
 
 ### Consequences
 

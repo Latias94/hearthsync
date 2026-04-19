@@ -127,9 +127,11 @@ ways that a future frontend can depend on without learning internal domain seams
   and external-package flows doing so. `HearthSyncApp` now also exposes direct frontend entrypoints
   for installation, addon, bundle, external-package, backup, addon-index, and addon-lock direct
   operations, so CLI no longer needs to compose service selection and installation resolution
-  manually around the app boundary. The remaining work in this area is narrower and mostly about
-  service-internal policy ownership rather than scattered path/default patching or root-level
-  orchestration gaps.
+  manually around the app boundary. The same frontend root now also forwards the stable long-
+  running task entrypoints for addon, backup restore, bundle apply, and external-package flows, so
+  future GUI work does not need to drop back to raw services just to collect progress or stream
+  callbacks. The remaining work in this area is narrower and mostly about service-internal policy
+  ownership rather than scattered path/default patching or root-level orchestration gaps.
 - [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
   Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls
