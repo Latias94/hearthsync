@@ -3,6 +3,7 @@ mod addon_source_archive;
 mod apply;
 mod apply_model;
 mod apply_policy;
+mod apply_source;
 mod archive_read;
 mod character_mapping;
 mod character_mapping_match;
@@ -38,9 +39,9 @@ use self::apply_policy::{
     apply_action_order, apply_group_order, build_cleanup_operations, cleanup_scope_for_entry,
     resource_policy_for_group,
 };
+use self::apply_source::ApplySourceReader;
 use self::archive_read::{
-    collect_bundle_entry_names, count_bundle_entries, extract_embedded_addon_lock,
-    read_bundle_entry_bytes_from_archive, read_manifest_from_archive,
+    count_bundle_entries, extract_embedded_addon_lock, read_manifest_from_archive,
 };
 use self::character_mapping::build_character_mappings;
 use self::entry_plan::plan_extractable_entries;

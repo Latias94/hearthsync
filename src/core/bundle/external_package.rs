@@ -349,43 +349,19 @@ pub fn plan_external_package_apply(
 ) -> AppResult<ExternalPackageApplyPlan> {
     let (analysis, manifest) = prepare_external_package_artifacts(&request.external_package)?;
     let entry_source_map = build_external_package_entry_source_map(&analysis)?;
-    let entry_names = entry_source_map.keys().cloned().collect::<Vec<_>>();
     let source_path = analysis.source_path.clone();
-    let source_kind = analysis.source_kind;
-
-    let plan = match source_kind {
-        ExternalPackageSourceKind::Directory => {
-            super::planner::plan_apply_from_entries_with_reader(
-                &source_path,
-                &request.installation,
-                manifest,
-                &entry_names,
-                &request.apply_mappings,
-                |normalized_path| {
-                    let source_entry =
-                        lookup_external_package_source_path(&entry_source_map, normalized_path)?;
-                    let resolved_path = resolve_zip_style_path(&source_path, source_entry)?;
-                    Ok(fs::read(resolved_path)?)
-                },
-            )?
-        }
-        ExternalPackageSourceKind::ZipArchive => {
-            let file = File::open(&source_path)?;
-            let mut archive = ZipArchive::new(file)?;
-            super::planner::plan_apply_from_entries_with_reader(
-                &source_path,
-                &request.installation,
-                manifest,
-                &entry_names,
-                &request.apply_mappings,
-                |normalized_path| {
-                    let source_entry =
-                        lookup_external_package_source_path(&entry_source_map, normalized_path)?;
-                    read_bundle_entry_bytes_from_archive(&mut archive, source_entry)
-                },
-            )?
-        }
+    let source = PreparedApplySource::ExternalPackage {
+        source_path: source_path.clone(),
+        source_kind: analysis.source_kind,
+        entry_source_map,
     };
+    let plan = super::planner::plan_apply_from_source(
+        &source_path,
+        &request.installation,
+        manifest,
+        &request.apply_mappings,
+        &source,
+    )?;
 
     Ok(project_external_package_plan(analysis, plan))
 }
@@ -509,51 +485,18 @@ fn prepare_external_package_apply(
 ) -> AppResult<PreparedExternalPackageApply> {
     let (analysis, manifest) = prepare_external_package_artifacts(&external_package)?;
     let entry_source_map = build_external_package_entry_source_map(&analysis)?;
-    let entry_names = entry_source_map.keys().cloned().collect::<Vec<_>>();
     let source_path = analysis.source_path.clone();
-    let source_kind = analysis.source_kind;
-
-    let prepared_apply = match source_kind {
-        ExternalPackageSourceKind::Directory => super::planner::prepare_apply_from_entries(
-            &source_path,
-            installation,
-            manifest,
-            &entry_names,
-            apply_mappings,
-            PreparedApplySource::ExternalPackage {
-                source_path: source_path.clone(),
-                source_kind,
-                entry_source_map: entry_source_map.clone(),
-            },
-            |normalized_path| {
-                let source_entry =
-                    lookup_external_package_source_path(&entry_source_map, normalized_path)?;
-                let resolved_path = resolve_zip_style_path(&source_path, source_entry)?;
-                Ok(fs::read(resolved_path)?)
-            },
-        )?,
-        ExternalPackageSourceKind::ZipArchive => {
-            let file = File::open(&source_path)?;
-            let mut archive = ZipArchive::new(file)?;
-            super::planner::prepare_apply_from_entries(
-                &source_path,
-                installation,
-                manifest,
-                &entry_names,
-                apply_mappings,
-                PreparedApplySource::ExternalPackage {
-                    source_path: source_path.clone(),
-                    source_kind,
-                    entry_source_map: entry_source_map.clone(),
-                },
-                |normalized_path| {
-                    let source_entry =
-                        lookup_external_package_source_path(&entry_source_map, normalized_path)?;
-                    read_bundle_entry_bytes_from_archive(&mut archive, source_entry)
-                },
-            )?
-        }
-    };
+    let prepared_apply = super::planner::prepare_apply_from_source(
+        &source_path,
+        installation,
+        manifest,
+        apply_mappings,
+        PreparedApplySource::ExternalPackage {
+            source_path: source_path.clone(),
+            source_kind: analysis.source_kind,
+            entry_source_map,
+        },
+    )?;
 
     Ok(PreparedExternalPackageApply {
         analysis,
@@ -1101,20 +1044,6 @@ fn build_external_package_entry_source_map(
     }
 
     Ok(entry_source_map)
-}
-
-fn lookup_external_package_source_path<'a>(
-    entry_source_map: &'a BTreeMap<String, String>,
-    normalized_path: &str,
-) -> AppResult<&'a str> {
-    entry_source_map
-        .get(normalized_path)
-        .map(String::as_str)
-        .ok_or_else(|| {
-            AppError::NotFound(format!(
-                "normalized external package entry is missing: {normalized_path}"
-            ))
-        })
 }
 
 fn build_external_manifest(

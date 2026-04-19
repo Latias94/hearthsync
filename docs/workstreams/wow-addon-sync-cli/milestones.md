@@ -160,6 +160,7 @@ Make bundle and addon synchronization behavior explicit, previewable, and transa
 - future frontend work must wait until planner/executor boundaries and operation-level rollback semantics are stable.
 - The expected refactor style is in-place simplification, including removal of obsolete prototype paths.
 - Bundle preview is now execution-independent and no longer depends on staged files in the public plan.
+- Bundle archive apply and direct external-package apply now share one internal source boundary for logical entry enumeration, preview byte reads, and execution materialization.
 - Bundle apply and addon lock apply both use a single backup and rollback boundary.
 - `keep_original`, `explicit`, and `prompt` now affect runtime mapping behavior instead of being partially ignored.
 - `prompt` currently means the caller must resolve mappings before plan/apply; the CLI does not open interactive prompts yet.

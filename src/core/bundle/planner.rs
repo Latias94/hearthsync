@@ -1,7 +1,4 @@
-use std::fs::File;
 use std::path::{Path, PathBuf};
-
-use zip::ZipArchive;
 
 use super::*;
 
@@ -57,19 +54,12 @@ pub fn plan_bundle_apply(
     installation: &DetectedFlavorInstallation,
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<BundleApplyPlan> {
-    let inspection = inspect_bundle(bundle_path)?;
-    let entry_names = collect_bundle_entry_names(bundle_path)?;
-    let file = File::open(bundle_path)?;
-    let mut archive = ZipArchive::new(file)?;
+    let source = PreparedApplySource::BundleArchive {
+        bundle_path: bundle_path.to_path_buf(),
+    };
+    let manifest = source.bundle_manifest()?;
 
-    plan_apply_from_entries_with_reader(
-        bundle_path,
-        installation,
-        inspection.manifest,
-        &entry_names,
-        apply_mappings,
-        |archive_name| read_bundle_entry_bytes_from_archive(&mut archive, archive_name),
-    )
+    plan_apply_from_source(bundle_path, installation, manifest, apply_mappings, &source)
 }
 
 pub(super) fn prepare_bundle_apply(
@@ -77,25 +67,57 @@ pub(super) fn prepare_bundle_apply(
     installation: &DetectedFlavorInstallation,
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<PreparedBundleApply> {
-    let inspection = inspect_bundle(bundle_path)?;
-    let entry_names = collect_bundle_entry_names(bundle_path)?;
-    let file = File::open(bundle_path)?;
-    let mut archive = ZipArchive::new(file)?;
+    let source = PreparedApplySource::BundleArchive {
+        bundle_path: bundle_path.to_path_buf(),
+    };
+    let manifest = source.bundle_manifest()?;
 
-    prepare_apply_from_entries(
-        bundle_path,
+    prepare_apply_from_source(bundle_path, installation, manifest, apply_mappings, source)
+}
+
+pub(super) fn plan_apply_from_source(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    apply_mappings: &BundleApplyMappings,
+    source: &PreparedApplySource,
+) -> AppResult<BundleApplyPlan> {
+    let entry_names = source.logical_entry_names()?;
+    let mut reader = source.open_reader()?;
+
+    plan_apply_from_entry_reader(
+        plan_path,
         installation,
-        inspection.manifest,
+        manifest,
         &entry_names,
         apply_mappings,
-        PreparedApplySource::BundleArchive {
-            bundle_path: bundle_path.to_path_buf(),
-        },
-        |archive_name| read_bundle_entry_bytes_from_archive(&mut archive, archive_name),
+        |archive_name| source.read_logical_entry_bytes(&mut reader, archive_name),
     )
 }
 
-pub(super) fn prepare_apply_from_entries<TReadBytes>(
+pub(super) fn prepare_apply_from_source(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    apply_mappings: &BundleApplyMappings,
+    apply_source: PreparedApplySource,
+) -> AppResult<PreparedBundleApply> {
+    let read_source = apply_source.clone();
+    let entry_names = read_source.logical_entry_names()?;
+    let mut reader = read_source.open_reader()?;
+
+    prepare_apply_from_entry_reader(
+        plan_path,
+        installation,
+        manifest,
+        &entry_names,
+        apply_mappings,
+        apply_source,
+        |archive_name| read_source.read_logical_entry_bytes(&mut reader, archive_name),
+    )
+}
+
+fn prepare_apply_from_entry_reader<TReadBytes>(
     plan_path: &Path,
     installation: &DetectedFlavorInstallation,
     manifest: BundleManifest,
@@ -119,7 +141,7 @@ where
     Ok(resolved_preview_apply.into_prepared_apply(apply_source))
 }
 
-pub(super) fn plan_apply_from_entries_with_reader<TReadBytes>(
+fn plan_apply_from_entry_reader<TReadBytes>(
     plan_path: &Path,
     installation: &DetectedFlavorInstallation,
     manifest: BundleManifest,
@@ -140,6 +162,28 @@ where
     )?;
 
     Ok(resolved_preview_apply.into_plan())
+}
+
+#[cfg(test)]
+pub(super) fn plan_apply_from_entries_with_reader<TReadBytes>(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    entry_names: &[String],
+    apply_mappings: &BundleApplyMappings,
+    read_entry_bytes: TReadBytes,
+) -> AppResult<BundleApplyPlan>
+where
+    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
+{
+    plan_apply_from_entry_reader(
+        plan_path,
+        installation,
+        manifest,
+        entry_names,
+        apply_mappings,
+        read_entry_bytes,
+    )
 }
 
 fn resolve_preview_apply_from_entries<TReadBytes>(

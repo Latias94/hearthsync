@@ -70,8 +70,11 @@ Goal: public planning APIs should describe intent, not execution staging interna
   required for the preview contract
   Completed: planner skips source-byte reads for deterministic `Add` operations, and actual rewrite
   application is decided during execution instead of being precomputed during plan preparation.
-- [x] make the direct external-package path and first-party bundle path share the same logical
-  planner boundary instead of only the same execution-preparation boundary
+  - [x] make the direct external-package path and first-party bundle path share the same logical
+    planner boundary instead of only the same execution-preparation boundary
+    Completed: the remaining raw planner byte-reader seam is now test-only; non-test callers stay on
+    prepared apply sources or the `core::app` boundary instead of depending on closure-driven planner
+    helpers.
 - [x] document which data is allowed in public plan payloads and which data must remain execution-only
   Completed: `design.md` and `decisions.md` now explicitly limit public plan payloads to logical
   preview data and forbid rewrite vectors, source maps, staging paths, and other execution-only

@@ -3,9 +3,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
-use zip::ZipArchive;
 
-use super::archive_read::extract_archive_entry_to_path;
 use super::*;
 use crate::core::lua_patch::rewrite_lua_file;
 
@@ -21,7 +19,7 @@ where
     let mut written_files = 0usize;
     let mut rewritten_files = 0usize;
     let rewrite_stage = tempdir()?;
-    let mut zip_source = open_zip_source(source)?;
+    let mut source_reader = source.open_reader()?;
     let rewrite_options = LuaRewriteOptions {
         rewrite_profile_keys: manifest.mapping.rewrite_profile_keys,
         rewrite_identity_strings: manifest.mapping.rewrite_identity_strings,
@@ -47,7 +45,7 @@ where
             operation_index,
             operation,
             source,
-            zip_source.as_mut(),
+            &mut source_reader,
             rewrite_stage.path(),
         )?;
         let rewrite_applied = if operation.rewrites.is_empty() {
@@ -72,94 +70,16 @@ where
     Ok((written_files, rewritten_files))
 }
 
-fn open_zip_source(source: &PreparedApplySource) -> AppResult<Option<ZipArchive<File>>> {
-    match source {
-        PreparedApplySource::BundleArchive { bundle_path } => {
-            let file = File::open(bundle_path)?;
-            Ok(Some(ZipArchive::new(file)?))
-        }
-        PreparedApplySource::ExternalPackage {
-            source_path,
-            source_kind: ExternalPackageSourceKind::ZipArchive,
-            ..
-        } => {
-            let file = File::open(source_path)?;
-            Ok(Some(ZipArchive::new(file)?))
-        }
-        PreparedApplySource::ExternalPackage {
-            source_kind: ExternalPackageSourceKind::Directory,
-            ..
-        } => Ok(None),
-    }
-}
-
 fn materialize_operation_source(
     operation_index: usize,
     operation: &PreparedApplyOperation,
     source: &PreparedApplySource,
-    zip_source: Option<&mut ZipArchive<File>>,
+    source_reader: &mut ApplySourceReader,
     stage_root: &Path,
 ) -> AppResult<PathBuf> {
     let staged_path = staged_operation_path(operation_index, &operation.archive_name, stage_root);
-
-    match source {
-        PreparedApplySource::BundleArchive { .. } => {
-            let archive = zip_source.ok_or_else(|| {
-                AppError::Validation(
-                    "bundle apply expected an open archive source during execution".to_string(),
-                )
-            })?;
-            extract_archive_entry_to_path(archive, &operation.archive_name, &staged_path)?;
-        }
-        PreparedApplySource::ExternalPackage {
-            source_path,
-            source_kind: ExternalPackageSourceKind::Directory,
-            entry_source_map,
-        } => {
-            let entry_path = lookup_external_package_entry_source_path(
-                entry_source_map,
-                &operation.archive_name,
-            )?;
-            let resolved_path = resolve_zip_style_path(source_path, entry_path)?;
-            if let Some(parent) = staged_path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::copy(resolved_path, &staged_path)?;
-        }
-        PreparedApplySource::ExternalPackage {
-            source_kind: ExternalPackageSourceKind::ZipArchive,
-            entry_source_map,
-            ..
-        } => {
-            let entry_path = lookup_external_package_entry_source_path(
-                entry_source_map,
-                &operation.archive_name,
-            )?;
-            let archive = zip_source.ok_or_else(|| {
-                AppError::Validation(
-                    "external package apply expected an open archive source during execution"
-                        .to_string(),
-                )
-            })?;
-            extract_archive_entry_to_path(archive, entry_path, &staged_path)?;
-        }
-    }
-
+    source.materialize_logical_entry(source_reader, &operation.archive_name, &staged_path)?;
     Ok(staged_path)
-}
-
-fn lookup_external_package_entry_source_path<'a>(
-    entry_source_map: &'a std::collections::BTreeMap<String, String>,
-    archive_name: &str,
-) -> AppResult<&'a str> {
-    entry_source_map
-        .get(archive_name)
-        .map(String::as_str)
-        .ok_or_else(|| {
-            AppError::Validation(format!(
-                "external-package apply operation is missing a source path: {archive_name}"
-            ))
-        })
 }
 
 fn staged_operation_path(operation_index: usize, archive_name: &str, stage_root: &Path) -> PathBuf {

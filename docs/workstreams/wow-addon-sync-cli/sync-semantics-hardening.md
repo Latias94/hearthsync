@@ -54,7 +54,7 @@ Removals expected:
 
 ### R2 - Execution-only staging boundary
 
-Status: complete. Archive materialization and Lua rewrite staging now happen only during execution, behind the executor boundary.
+Status: complete. Archive materialization and Lua rewrite staging now happen only during execution, behind the executor boundary. Bundle archives and direct external packages now share the same internal apply-source boundary for logical entry enumeration, preview byte reads, and execution materialization.
 
 Deliverables:
 
