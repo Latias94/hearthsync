@@ -180,6 +180,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: app flavor values no longer expose path-layout helpers publicly; CLI can still
     use crate-internal display slugs, while domain install code remains the owner of folder-name
     layout rules.
+    Current cleanup: large `core::app` modules now also keep tests in sibling `*/tests.rs`
+    submodules instead of interleaving fixtures with production code, which makes the stable app
+    boundary easier to review while keeping app-level regression coverage intact.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of
