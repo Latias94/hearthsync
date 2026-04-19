@@ -158,6 +158,8 @@ desktop work.
 - runtime-backed backup/output/source-platform default injection now lives on shared app request
   contracts, so addon, addon-index, addon-lock, backup, bundle, and external-package services no
   longer each carry fragmented service-local normalization for those defaults
+- default addon-provider cache and retry configuration now also uses app-owned runtime values
+  instead of leaking provider-domain option structs through `core::app::AppRuntime`
 - the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
   that still lives in app service wrappers, plus explicit progress/capability ownership
 

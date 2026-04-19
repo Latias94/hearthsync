@@ -34,14 +34,14 @@ pub use request::{
     WriteAddonLockRequest,
 };
 pub use response::*;
-pub use runtime::{AppRuntime, SharedAddonProvider};
+pub use runtime::AppRuntime;
 pub use stable::StableAppServices;
 pub use types::{
-    AddonPackageMetadataValue, ApplyActionValue, ApplyGroupValue, BackupGroupValue,
-    BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
-    BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
-    BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue,
-    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue, HealthStatusValue,
-    HelperStrategyValue, HostPlatformValue, ResolvedInstallationValue, ResourceApplyPolicyValue,
-    WowFlavorValue, WtfScopeValue,
+    AddonPackageMetadataValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
+    ApplyActionValue, ApplyGroupValue, BackupGroupValue, BundleApplyDefaultsValue,
+    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
+    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
+    BundleSourceValue, CharacterMappingModeValue, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
+    ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue, WtfScopeValue,
 };

@@ -2,7 +2,11 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::addon::AddonPackageMetadata as DomainAddonPackageMetadata;
+use crate::core::addon::{
+    AddonPackageMetadata as DomainAddonPackageMetadata,
+    AddonProviderOptions as DomainAddonProviderOptions,
+    AddonProviderRetryPolicy as DomainAddonProviderRetryPolicy,
+};
 use crate::core::backup::BackupGroup as DomainBackupGroup;
 use crate::core::bundle::{
     ApplyAction as DomainApplyAction, ApplyGroup as DomainApplyGroup,
@@ -652,6 +656,57 @@ impl From<DomainHelperStrategy> for HelperStrategyValue {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddonProviderRetryPolicyValue {
+    pub max_attempts: u32,
+}
+
+impl Default for AddonProviderRetryPolicyValue {
+    fn default() -> Self {
+        Self { max_attempts: 1 }
+    }
+}
+
+impl From<DomainAddonProviderRetryPolicy> for AddonProviderRetryPolicyValue {
+    fn from(value: DomainAddonProviderRetryPolicy) -> Self {
+        Self {
+            max_attempts: value.max_attempts,
+        }
+    }
+}
+
+impl From<AddonProviderRetryPolicyValue> for DomainAddonProviderRetryPolicy {
+    fn from(value: AddonProviderRetryPolicyValue) -> Self {
+        Self {
+            max_attempts: value.max_attempts,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddonProviderOptionsValue {
+    pub download_cache_dir: Option<PathBuf>,
+    pub retry_policy: AddonProviderRetryPolicyValue,
+}
+
+impl From<DomainAddonProviderOptions> for AddonProviderOptionsValue {
+    fn from(value: DomainAddonProviderOptions) -> Self {
+        Self {
+            download_cache_dir: value.download_cache_dir,
+            retry_policy: value.retry_policy.into(),
+        }
+    }
+}
+
+impl From<AddonProviderOptionsValue> for DomainAddonProviderOptions {
+    fn from(value: AddonProviderOptionsValue) -> Self {
+        Self {
+            download_cache_dir: value.download_cache_dir,
+            retry_policy: value.retry_policy.into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceApplyPolicyValue {
@@ -883,6 +938,27 @@ mod tests {
         let domain: DomainHealthStatus = value.into();
 
         assert_eq!(HealthStatusValue::from(domain), value);
+    }
+
+    #[test]
+    fn addon_provider_retry_policy_value_roundtrips_domain_shape() {
+        let value = AddonProviderRetryPolicyValue { max_attempts: 3 };
+
+        let domain: DomainAddonProviderRetryPolicy = value.clone().into();
+
+        assert_eq!(AddonProviderRetryPolicyValue::from(domain), value);
+    }
+
+    #[test]
+    fn addon_provider_options_value_roundtrips_domain_shape() {
+        let value = AddonProviderOptionsValue {
+            download_cache_dir: Some(PathBuf::from("cache")),
+            retry_policy: AddonProviderRetryPolicyValue { max_attempts: 2 },
+        };
+
+        let domain: DomainAddonProviderOptions = value.clone().into();
+
+        assert_eq!(AddonProviderOptionsValue::from(domain), value);
     }
 
     #[test]

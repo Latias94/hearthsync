@@ -148,6 +148,14 @@ should not be reimplemented ad hoc in each service wrapper or in CLI orchestrati
 Those defaults belong to the app boundary because they are part of how a frontend experiences the
 operation contract, not just an internal filesystem detail.
 
+The same principle applies to provider capability configuration.
+If the frontend needs to configure default addon acquisition behavior such as download cache
+location or retry policy, that configuration should use app-owned runtime value types rather than
+provider-domain structs.
+Custom provider injection may still exist for tests or advanced embedding, but the stable runtime
+contract should make it explicit whether the app is using configurable default-provider options or a
+fully injected provider implementation.
+
 ### Domain Boundary
 
 Domain modules remain responsible for WoW semantics:

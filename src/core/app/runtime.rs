@@ -2,15 +2,16 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::core::addon::{AddonProvider, AddonProviderOptions, DefaultAddonProvider};
+use crate::core::addon::{AddonProvider, DefaultAddonProvider};
 
-use super::HostPlatformValue;
+use super::{AddonProviderOptionsValue, HostPlatformValue};
 
-pub type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
+type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 
 #[derive(Clone)]
 pub struct AppRuntime {
     addon_provider: SharedAddonProvider,
+    default_addon_provider_options: Option<AddonProviderOptionsValue>,
     host_platform: HostPlatformValue,
     install_scan_roots: Option<Vec<PathBuf>>,
     default_backup_dir: Option<PathBuf>,
@@ -22,8 +23,17 @@ impl AppRuntime {
         Self::default()
     }
 
-    pub fn with_addon_provider_options(options: AddonProviderOptions) -> Self {
-        Self::with_addon_provider(DefaultAddonProvider::default().with_options(options))
+    pub fn with_addon_provider_options(options: AddonProviderOptionsValue) -> Self {
+        Self {
+            addon_provider: Arc::new(
+                DefaultAddonProvider::default().with_options(options.clone().into()),
+            ),
+            default_addon_provider_options: Some(options),
+            host_platform: HostPlatformValue::current(),
+            install_scan_roots: None,
+            default_backup_dir: None,
+            default_bundle_output_dir: None,
+        }
     }
 
     pub fn with_addon_provider<P>(provider: P) -> Self
@@ -32,6 +42,7 @@ impl AppRuntime {
     {
         Self {
             addon_provider: Arc::new(provider),
+            default_addon_provider_options: None,
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
             default_backup_dir: None,
@@ -41,6 +52,10 @@ impl AppRuntime {
 
     pub fn addon_provider(&self) -> &(dyn AddonProvider + Send + Sync) {
         self.addon_provider.as_ref()
+    }
+
+    pub fn default_addon_provider_options(&self) -> Option<&AddonProviderOptionsValue> {
+        self.default_addon_provider_options.as_ref()
     }
 
     pub fn with_host_platform(mut self, host_platform: HostPlatformValue) -> Self {
@@ -104,13 +119,17 @@ impl AppRuntime {
 
 impl Default for AppRuntime {
     fn default() -> Self {
-        Self::with_addon_provider(DefaultAddonProvider::default())
+        Self::with_addon_provider_options(AddonProviderOptionsValue::default())
     }
 }
 
 impl fmt::Debug for AppRuntime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AppRuntime")
+            .field(
+                "default_addon_provider_options",
+                &self.default_addon_provider_options,
+            )
             .field("host_platform", &self.host_platform)
             .field("install_scan_roots", &self.install_scan_roots)
             .field("default_backup_dir", &self.default_backup_dir)
@@ -124,7 +143,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::core::app::HostPlatformValue;
+    use crate::core::app::{AddonProviderRetryPolicyValue, HostPlatformValue};
 
     #[test]
     fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
@@ -167,5 +186,28 @@ mod tests {
             runtime.source_platform_or_host(Some(HostPlatformValue::Windows)),
             HostPlatformValue::Windows
         );
+    }
+
+    #[test]
+    fn runtime_exposes_default_addon_provider_options_for_default_provider() {
+        let runtime = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
+            download_cache_dir: Some(PathBuf::from("cache")),
+            retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
+        });
+
+        assert_eq!(
+            runtime.default_addon_provider_options(),
+            Some(&AddonProviderOptionsValue {
+                download_cache_dir: Some(PathBuf::from("cache")),
+                retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
+            })
+        );
+    }
+
+    #[test]
+    fn runtime_clears_default_provider_options_when_custom_provider_is_injected() {
+        let runtime = AppRuntime::with_addon_provider(DefaultAddonProvider::default());
+
+        assert!(runtime.default_addon_provider_options().is_none());
     }
 }

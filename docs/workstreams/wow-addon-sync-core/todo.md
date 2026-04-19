@@ -132,6 +132,13 @@ ways that a future frontend can depend on without learning internal domain seams
   `Planning`, `BackingUp`, `Executing`, or `Verifying`.
 - [ ] keep optional provider/helper capability switches behind runtime/service boundaries instead of
   leaking them into CLI orchestration
+  Current progress: `AppRuntime` no longer requires addon-provider domain option types at the
+  frontend boundary. Default provider cache/retry configuration now uses app-owned
+  `AddonProviderOptionsValue` and `AddonProviderRetryPolicyValue`, and runtime explicitly records
+  when it is using configurable default-provider options versus a fully injected custom provider.
+  The remaining gap in this area is now mostly on the helper side: helper strategy is already
+  exposed as app-owned output, but any future non-native helper capability should enter through an
+  explicit runtime-owned contract instead of appearing first as an ad hoc planner detail.
 
 Exit criteria:
 

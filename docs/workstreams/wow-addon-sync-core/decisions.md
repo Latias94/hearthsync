@@ -584,3 +584,32 @@ This applies at least to:
   instead of each carrying fragmented path/default patching logic
 - remaining `R3` behavior cleanup can focus on orchestration ownership and capability boundaries
   instead of repeating simple runtime default injection in multiple services
+
+## ADR-028: Default Addon-Provider Configuration Uses App-Owned Runtime Values
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+The stable `core::app::AppRuntime` boundary should not require provider-domain option structs when
+the caller only wants to configure default addon acquisition behavior.
+
+Default-provider runtime configuration now uses app-owned values:
+
+- `AddonProviderOptionsValue`
+- `AddonProviderRetryPolicyValue`
+
+Custom provider injection remains available for tests or advanced embedding, but the runtime should
+make it explicit whether it is using configurable default-provider options or a fully injected
+provider implementation.
+
+### Consequences
+
+- cache-dir and retry-policy configuration now stays inside the app-owned runtime contract instead
+  of leaking `AddonProviderOptions` through the frontend boundary
+- future CLI or `egui` configuration UIs can bind to stable app-owned runtime values without
+  learning provider-domain structs
+- any future helper-capability work should follow the same pattern: runtime-owned app values first,
+  planner or provider internals second
