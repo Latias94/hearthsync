@@ -29,8 +29,10 @@ impl InstallationService {
 
     pub fn scan(&self) -> AppResult<InstallationScanResult> {
         let installations = match self.runtime.install_scan_roots() {
-            Some(roots) => scan_installations_with_roots(roots, self.runtime.host_platform()),
-            None => scan_installations_for_host(self.runtime.host_platform()),
+            Some(roots) => {
+                scan_installations_with_roots(roots, self.runtime.host_platform().into())
+            }
+            None => scan_installations_for_host(self.runtime.host_platform().into()),
         }?;
 
         Ok(InstallationScanResult::from_installations(installations))
@@ -42,8 +44,8 @@ impl InstallationService {
     ) -> AppResult<InstallationInspectionResult> {
         let inspection = inspect_installation_on_host(
             &request.path,
-            request.flavor,
-            self.runtime.host_platform(),
+            request.flavor.map(Into::into),
+            self.runtime.host_platform().into(),
         )?;
         Ok(InstallationInspectionResult::from(inspection))
     }
@@ -54,8 +56,8 @@ impl InstallationService {
     ) -> AppResult<ResolvedInstallationValue> {
         let installation = resolve_installation_on_host(
             &request.path,
-            request.flavor,
-            self.runtime.host_platform(),
+            request.flavor.map(Into::into),
+            self.runtime.host_platform().into(),
         )?;
         Ok(ResolvedInstallationValue::from(installation))
     }
@@ -69,8 +71,9 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::app::{AddonService, ListAddonsRequest};
-    use crate::core::install::{HealthStatus, HostPlatform, WowFlavor};
+    use crate::core::app::{
+        AddonService, HealthStatusValue, HostPlatformValue, ListAddonsRequest, WowFlavorValue,
+    };
 
     #[test]
     fn installation_service_scan_uses_runtime_scan_roots_and_host_platform() {
@@ -83,13 +86,16 @@ mod tests {
 
         let service = InstallationService::with_runtime(
             AppRuntime::new()
-                .with_host_platform(HostPlatform::MacOs)
+                .with_host_platform(HostPlatformValue::MacOs)
                 .with_install_scan_roots(Some(vec![product_root.clone()])),
         );
         let installations = service.scan().expect("scan installations");
 
         assert_eq!(installations.installation_count, 1);
-        assert_eq!(installations.installations[0].platform, HostPlatform::MacOs);
+        assert_eq!(
+            installations.installations[0].platform,
+            HostPlatformValue::MacOs
+        );
         assert_eq!(installations.installations[0].product_root, product_root);
     }
 
@@ -108,24 +114,24 @@ mod tests {
         .expect("config");
 
         let service = InstallationService::with_runtime(
-            AppRuntime::new().with_host_platform(HostPlatform::MacOs),
+            AppRuntime::new().with_host_platform(HostPlatformValue::MacOs),
         );
         let inspection = service
             .inspect(InspectInstallationRequest {
                 path: product_root.clone(),
-                flavor: Some(WowFlavor::Retail),
+                flavor: Some(WowFlavorValue::Retail),
             })
             .expect("inspect");
         let resolved = service
             .resolve(ResolveInstallationRequest {
                 path: product_root,
-                flavor: Some(WowFlavor::Retail),
+                flavor: Some(WowFlavorValue::Retail),
             })
             .expect("resolve");
 
-        assert_eq!(inspection.installation.platform, HostPlatform::MacOs);
-        assert_eq!(inspection.health.status, HealthStatus::Warning);
-        assert_eq!(resolved.platform, HostPlatform::MacOs);
+        assert_eq!(inspection.installation.platform, HostPlatformValue::MacOs);
+        assert_eq!(inspection.health.status, HealthStatusValue::Warning);
+        assert_eq!(resolved.platform, HostPlatformValue::MacOs);
         assert!(
             resolved
                 .flavor_root

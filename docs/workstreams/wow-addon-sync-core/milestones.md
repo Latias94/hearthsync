@@ -147,6 +147,16 @@ desktop work.
 - stable bundle/external-package manifest payloads now share one app-owned manifest value tree, so
   stable callers no longer depend on domain `BundleManifest` for pack requests or full manifest
   result payloads
+- stable install/runtime/bundle-source contracts now also share app-owned `HostPlatformValue` and
+  `WowFlavorValue`, so frontend callers no longer depend on domain install enums for host defaults,
+  selected flavor input, resolved installations, or source compatibility metadata
+- stable manifest mapping rules and installation-health payloads now also use app-owned
+  `CharacterMappingModeValue` and `HealthStatusValue`, closing the remaining small enum leaks on
+  the frontend-facing app boundary
+- long-running addon, bundle, external-package, addon-index, addon-lock, and backup app tasks now
+  share one documented progress contract across direct, collected-progress, and callback entrypoints
+- the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
+  that still lives in app service wrappers, plus explicit progress/capability ownership
 
 ## M4 - Portability and Optional-Helper Hardening
 

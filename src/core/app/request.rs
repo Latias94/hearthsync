@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use super::{
     AddonPackageMetadataValue, BackupGroupValue, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, BundleManifestValue, ResolvedInstallationValue,
+    BundleApplyMappingsValue, BundleManifestValue, HostPlatformValue, ResolvedInstallationValue,
+    WowFlavorValue,
 };
 use crate::core::addon::index::{
     AddonIndexInstallRequest as DomainAddonIndexInstallRequest,
@@ -29,7 +30,6 @@ use crate::core::bundle::{
     PlanExternalPackageApplyRequest as DomainPlanExternalPackageApplyRequest,
     UnpackBundleRequest as DomainUnpackBundleRequest,
 };
-use crate::core::install::{HostPlatform, WowFlavor};
 
 #[derive(Debug, Clone)]
 pub struct SearchAddonsRequest {
@@ -367,9 +367,9 @@ impl From<AnalyzeExternalPackageAppRequest> for DomainAnalyzeExternalPackageRequ
 #[derive(Debug, Clone)]
 pub struct CreateExternalPackageBundleAppRequest {
     pub source_path: PathBuf,
-    pub source_flavor: WowFlavor,
-    pub source_platform: Option<HostPlatform>,
-    pub supported_targets: Vec<WowFlavor>,
+    pub source_flavor: WowFlavorValue,
+    pub source_platform: Option<HostPlatformValue>,
+    pub supported_targets: Vec<WowFlavorValue>,
     pub output_path: Option<PathBuf>,
     pub package_id: Option<String>,
     pub package_name: Option<String>,
@@ -382,9 +382,13 @@ impl From<CreateExternalPackageBundleAppRequest> for DomainCreateExternalPackage
     fn from(request: CreateExternalPackageBundleAppRequest) -> Self {
         Self {
             source_path: request.source_path,
-            source_flavor: request.source_flavor,
-            source_platform: request.source_platform,
-            supported_targets: request.supported_targets,
+            source_flavor: request.source_flavor.into(),
+            source_platform: request.source_platform.map(Into::into),
+            supported_targets: request
+                .supported_targets
+                .into_iter()
+                .map(Into::into)
+                .collect(),
             output_path: request.output_path,
             package_id: request.package_id,
             package_name: request.package_name,
@@ -436,13 +440,13 @@ impl From<ApplyExternalPackageAppRequest> for DomainApplyExternalPackageRequest 
 #[derive(Debug, Clone)]
 pub struct InspectInstallationRequest {
     pub path: PathBuf,
-    pub flavor: Option<WowFlavor>,
+    pub flavor: Option<WowFlavorValue>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ResolveInstallationRequest {
     pub path: PathBuf,
-    pub flavor: Option<WowFlavor>,
+    pub flavor: Option<WowFlavorValue>,
 }
 
 #[cfg(test)]
@@ -451,7 +455,8 @@ mod tests {
     use crate::core::app::{
         AddonPackageMetadataValue, BundleApplyDefaultsValue, BundleCharacterMappingOverrideValue,
         BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue,
-        BundlePackageValue, BundleResourcesValue, BundleSourceValue, ResourceApplyPolicyValue,
+        BundlePackageValue, BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue,
+        HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue,
     };
     use crate::core::manifest::{CharacterMappingMode, ResourceApplyPolicy};
 
@@ -510,9 +515,9 @@ mod tests {
         let domain: DomainCreateExternalPackageBundleRequest =
             CreateExternalPackageBundleAppRequest {
                 source_path: PathBuf::from("author-ui.zip"),
-                source_flavor: WowFlavor::Retail,
-                source_platform: Some(HostPlatform::Windows),
-                supported_targets: vec![WowFlavor::Retail, WowFlavor::Classic],
+                source_flavor: WowFlavorValue::Retail,
+                source_platform: Some(HostPlatformValue::Windows),
+                supported_targets: vec![WowFlavorValue::Retail, WowFlavorValue::Classic],
                 output_path: Some(PathBuf::from("out")),
                 package_id: Some("author-ui".to_string()),
                 package_name: Some("Author UI".to_string()),
@@ -553,7 +558,10 @@ mod tests {
 
         assert_eq!(domain.manifest.schema_version, 1);
         assert_eq!(domain.manifest.package.id, "author-ui");
-        assert_eq!(domain.manifest.source.flavor, WowFlavor::Retail);
+        assert_eq!(
+            domain.manifest.source.flavor,
+            crate::core::install::WowFlavor::Retail
+        );
         assert_eq!(domain.manifest.resources.addons, vec!["WeakAuras"]);
         assert_eq!(domain.manifest.resources.wtf_characters.len(), 1);
         assert_eq!(
@@ -598,8 +606,8 @@ mod tests {
 
     fn sample_installation() -> ResolvedInstallationValue {
         ResolvedInstallationValue {
-            platform: HostPlatform::Windows,
-            flavor: WowFlavor::Retail,
+            platform: HostPlatformValue::Windows,
+            flavor: WowFlavorValue::Retail,
             product_root: PathBuf::from("World of Warcraft"),
             flavor_root: PathBuf::from("World of Warcraft/_retail_"),
             interface_dir: PathBuf::from("World of Warcraft/_retail_/Interface"),
@@ -619,10 +627,10 @@ mod tests {
                 description: Some("fixture".to_string()),
             },
             source: BundleSourceValue {
-                flavor: WowFlavor::Retail,
-                platform: Some(HostPlatform::Windows),
+                flavor: WowFlavorValue::Retail,
+                platform: Some(HostPlatformValue::Windows),
                 exported_at: None,
-                supported_targets: vec![WowFlavor::Retail],
+                supported_targets: vec![WowFlavorValue::Retail],
             },
             resources: BundleResourcesValue {
                 addons: vec!["WeakAuras".to_string()],
@@ -639,7 +647,7 @@ mod tests {
                 addon_indexes: Vec::new(),
             },
             mapping: BundleMappingRulesValue {
-                character_mode: CharacterMappingMode::Explicit,
+                character_mode: CharacterMappingModeValue::Explicit,
                 rewrite_profile_keys: true,
                 rewrite_identity_strings: true,
                 allow_cross_platform: true,

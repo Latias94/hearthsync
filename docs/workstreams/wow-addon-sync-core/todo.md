@@ -95,8 +95,8 @@ ways that a future frontend can depend on without learning internal domain seams
   Completed: the first-wave GUI-stable set is now explicitly defined as installation, addon,
   bundle, external-package, and backup services; addon-index and addon-lock remain available app
   services but are not part of the first-wave stability promise yet.
-- [ ] keep app request and result types app-owned where frontends depend on them directly
-  Current progress: `InstallationService::resolve` now returns one shared app-owned resolved
+- [x] keep app request and result types app-owned where frontends depend on them directly
+  Completed: `InstallationService::resolve` now returns one shared app-owned resolved
   installation value, and app requests that target an installation now consume that value instead
   of leaking domain `DetectedFlavorInstallation` directly through the frontend boundary. Bundle
   and external-package requests now also use shared app-owned apply strategy values for
@@ -107,11 +107,22 @@ ways that a future frontend can depend on without learning internal domain seams
   tracked-package results. Stable pack/apply/export results now also share one app-owned manifest
   value tree, so `BundleService` and `ExternalPackageService` no longer require domain
   `BundleManifest` at the stable app boundary just to accept a manifest request or return a full
-  manifest payload.
+  manifest payload. Stable installation selection, bundle source metadata, external-package source
+  metadata, and runtime host defaults now also share app-owned `HostPlatformValue` and
+  `WowFlavorValue`, while manifest mapping rules and installation-health payloads now also use
+  app-owned `CharacterMappingModeValue` and `HealthStatusValue`. Frontend callers no longer need
+  domain install or manifest enums just to express host policy, selected flavor, manifest mapping
+  rules, or installation-health state.
 - [ ] remove remaining thin-forwarder service behavior by moving real normalization and policy
   ownership into the app boundary
-- [ ] document stable progress expectations for long-running bundle, external-package, addon, and
+- [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
+  Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls
+  run with no-op progress and no cancellation, collecting-progress calls return `TaskRun<TResult>`
+  with ordered `TaskProgressEvent` payloads, and callback-based calls stream the same event shape
+  while honoring caller-supplied cancellation checks. Successful long-running tasks begin with
+  `Preparing`, end with `Completed`, and may report task-specific intermediate phases such as
+  `Planning`, `BackingUp`, `Executing`, or `Verifying`.
 - [ ] keep optional provider/helper capability switches behind runtime/service boundaries instead of
   leaking them into CLI orchestration
 

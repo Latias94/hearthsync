@@ -2,7 +2,7 @@
 
 ## Status
 
-Active on 2026-04-18.
+Active on 2026-04-19.
 
 This workstream is the architecture source of truth for the reusable product core.
 The CLI workstream remains active, but it should focus on command surface, UX wording, and output
@@ -89,6 +89,8 @@ Current strengths:
 - one backup and rollback boundary for bundle and addon-lock mutations
 - direct external-package plan/apply path without mandatory temporary bundle repacking
 - app-facing request and result contracts are already moving away from raw domain leakage
+- stable app/runtime contracts now also own platform and flavor identity through app-owned
+  `HostPlatformValue` and `WowFlavorValue`
 
 Current architectural constraints:
 
@@ -246,6 +248,37 @@ If execution later needs more data, that data should be projected from a smaller
 result into an internal execution payload at the apply boundary rather than being added to the
 public plan model.
 
+## Stable Task Contract
+
+Long-running app-facing operations share one stable wrapper contract under `core::app`.
+This applies to addon install, update, and remove; addon-index install and update; addon-lock
+apply; bundle apply; external-package analyze, plan, and apply; and backup restore.
+
+The stable entry shapes are:
+
+- direct calls that return only `AppResult<TResult>` and run with no cancellation plus a no-op
+  progress sink
+- collecting-progress calls that return `TaskRun<TResult>` with an ordered `Vec<TaskProgressEvent>`
+- callback-based calls that stream the same `TaskProgressEvent` payloads while polling a caller-
+  supplied cancellation closure
+
+Stable progress event fields are:
+
+- `task`
+- `phase`
+- `message`
+
+For successful long-running tasks, the frontend-facing expectation is:
+
+- the first reported phase is `Preparing`
+- the last reported phase is `Completed`
+- intermediate phases are task-specific and may include `Planning`, `BackingUp`, `Executing`, or
+  `Verifying`
+
+Cancellation or hard failure may stop the stream before `Completed`, but callers should still be
+able to reason about the task using the same event shape and `TaskKind` plus `TaskPhase`
+semantics regardless of whether they consume direct, collected, or callback-based entrypoints.
+
 ## Cross-Platform Strategy
 
 Primary supported targets:
@@ -340,6 +373,21 @@ Full manifest payloads should follow that same ownership rule too.
 Pack requests and bundle/external-package result payloads should use one app-owned manifest value
 tree so stable callers do not need domain `BundleManifest` just to submit or consume a complete
 manifest shape across the app boundary.
+
+Stable platform and flavor identity should follow the same ownership rule.
+`AppRuntime`, installation resolve and inspect requests, resolved installation results, and bundle
+or external-package source metadata should use app-owned `HostPlatformValue` and
+`WowFlavorValue` so frontend callers do not need install-domain enums just to express host
+defaults, source compatibility, or an installation flavor selection.
+
+The same rule now also applies to manifest mapping rules and installation-health payloads.
+Stable app-facing manifest values use `CharacterMappingModeValue`, and stable installation
+inspection results use `HealthStatusValue`, so frontend callers no longer need install-domain or
+manifest-domain enums for those states either.
+
+With those value boundaries in place, the remaining `R3` work is no longer another broad DTO
+migration. The next stability decisions are mainly about service behavior ownership:
+thin-forwarder normalization, progress expectations, and runtime capability injection.
 
 ## Open Questions
 

@@ -12,7 +12,10 @@ use crate::core::bundle::{
     ExternalPackageWarningCode as DomainExternalPackageWarningCode,
     HelperStrategy as DomainHelperStrategy, WtfScope as DomainWtfScope,
 };
-use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+use crate::core::install::{
+    DetectedFlavorInstallation, HealthStatus as DomainHealthStatus,
+    HostPlatform as DomainHostPlatform, WowFlavor as DomainWowFlavor,
+};
 use crate::core::manifest::{
     ApplyDefaults as DomainApplyDefaults, BundleManifest as DomainBundleManifest,
     BundleResources as DomainBundleResources, CharacterMappingMode as DomainCharacterMappingMode,
@@ -21,10 +24,164 @@ use crate::core::manifest::{
     SourceInstallation as DomainSourceInstallation,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HostPlatformValue {
+    Windows,
+    MacOs,
+    Linux,
+    Unknown,
+}
+
+impl HostPlatformValue {
+    pub fn current() -> Self {
+        DomainHostPlatform::current().into()
+    }
+}
+
+impl From<DomainHostPlatform> for HostPlatformValue {
+    fn from(value: DomainHostPlatform) -> Self {
+        match value {
+            DomainHostPlatform::Windows => Self::Windows,
+            DomainHostPlatform::MacOs => Self::MacOs,
+            DomainHostPlatform::Linux => Self::Linux,
+            DomainHostPlatform::Unknown => Self::Unknown,
+        }
+    }
+}
+
+impl From<HostPlatformValue> for DomainHostPlatform {
+    fn from(value: HostPlatformValue) -> Self {
+        match value {
+            HostPlatformValue::Windows => Self::Windows,
+            HostPlatformValue::MacOs => Self::MacOs,
+            HostPlatformValue::Linux => Self::Linux,
+            HostPlatformValue::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WowFlavorValue {
+    Retail,
+    Classic,
+    ClassicEra,
+    Ptr,
+    Beta,
+    Xptr,
+}
+
+impl WowFlavorValue {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Retail => "retail",
+            Self::Classic => "classic",
+            Self::ClassicEra => "classic_era",
+            Self::Ptr => "ptr",
+            Self::Beta => "beta",
+            Self::Xptr => "xptr",
+        }
+    }
+
+    pub fn folder_name(&self) -> &'static str {
+        match self {
+            Self::Retail => "_retail_",
+            Self::Classic => "_classic_",
+            Self::ClassicEra => "_classic_era_",
+            Self::Ptr => "_ptr_",
+            Self::Beta => "_beta_",
+            Self::Xptr => "_xptr_",
+        }
+    }
+}
+
+impl From<DomainWowFlavor> for WowFlavorValue {
+    fn from(value: DomainWowFlavor) -> Self {
+        match value {
+            DomainWowFlavor::Retail => Self::Retail,
+            DomainWowFlavor::Classic => Self::Classic,
+            DomainWowFlavor::ClassicEra => Self::ClassicEra,
+            DomainWowFlavor::Ptr => Self::Ptr,
+            DomainWowFlavor::Beta => Self::Beta,
+            DomainWowFlavor::Xptr => Self::Xptr,
+        }
+    }
+}
+
+impl From<WowFlavorValue> for DomainWowFlavor {
+    fn from(value: WowFlavorValue) -> Self {
+        match value {
+            WowFlavorValue::Retail => Self::Retail,
+            WowFlavorValue::Classic => Self::Classic,
+            WowFlavorValue::ClassicEra => Self::ClassicEra,
+            WowFlavorValue::Ptr => Self::Ptr,
+            WowFlavorValue::Beta => Self::Beta,
+            WowFlavorValue::Xptr => Self::Xptr,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CharacterMappingModeValue {
+    KeepOriginal,
+    Explicit,
+    Prompt,
+}
+
+impl From<DomainCharacterMappingMode> for CharacterMappingModeValue {
+    fn from(value: DomainCharacterMappingMode) -> Self {
+        match value {
+            DomainCharacterMappingMode::KeepOriginal => Self::KeepOriginal,
+            DomainCharacterMappingMode::Explicit => Self::Explicit,
+            DomainCharacterMappingMode::Prompt => Self::Prompt,
+        }
+    }
+}
+
+impl From<CharacterMappingModeValue> for DomainCharacterMappingMode {
+    fn from(value: CharacterMappingModeValue) -> Self {
+        match value {
+            CharacterMappingModeValue::KeepOriginal => Self::KeepOriginal,
+            CharacterMappingModeValue::Explicit => Self::Explicit,
+            CharacterMappingModeValue::Prompt => Self::Prompt,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HealthStatusValue {
+    Healthy,
+    Warning,
+    Broken,
+}
+
+impl From<DomainHealthStatus> for HealthStatusValue {
+    fn from(value: DomainHealthStatus) -> Self {
+        match value {
+            DomainHealthStatus::Healthy => Self::Healthy,
+            DomainHealthStatus::Warning => Self::Warning,
+            DomainHealthStatus::Broken => Self::Broken,
+        }
+    }
+}
+
+impl From<HealthStatusValue> for DomainHealthStatus {
+    fn from(value: HealthStatusValue) -> Self {
+        match value {
+            HealthStatusValue::Healthy => Self::Healthy,
+            HealthStatusValue::Warning => Self::Warning,
+            HealthStatusValue::Broken => Self::Broken,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolvedInstallationValue {
-    pub platform: HostPlatform,
-    pub flavor: WowFlavor,
+    pub platform: HostPlatformValue,
+    pub flavor: WowFlavorValue,
     pub product_root: PathBuf,
     pub flavor_root: PathBuf,
     pub interface_dir: PathBuf,
@@ -36,8 +193,8 @@ pub struct ResolvedInstallationValue {
 impl From<DetectedFlavorInstallation> for ResolvedInstallationValue {
     fn from(value: DetectedFlavorInstallation) -> Self {
         Self {
-            platform: value.platform,
-            flavor: value.flavor,
+            platform: value.platform.into(),
+            flavor: value.flavor.into(),
             product_root: value.product_root,
             flavor_root: value.flavor_root,
             interface_dir: value.interface_dir,
@@ -51,8 +208,8 @@ impl From<DetectedFlavorInstallation> for ResolvedInstallationValue {
 impl From<ResolvedInstallationValue> for DetectedFlavorInstallation {
     fn from(value: ResolvedInstallationValue) -> Self {
         Self {
-            platform: value.platform,
-            flavor: value.flavor,
+            platform: value.platform.into(),
+            flavor: value.flavor.into(),
             product_root: value.product_root,
             flavor_root: value.flavor_root,
             interface_dir: value.interface_dir,
@@ -145,19 +302,23 @@ impl From<BundlePackageValue> for DomainPackageMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BundleSourceValue {
-    pub flavor: WowFlavor,
-    pub platform: Option<HostPlatform>,
+    pub flavor: WowFlavorValue,
+    pub platform: Option<HostPlatformValue>,
     pub exported_at: Option<String>,
-    pub supported_targets: Vec<WowFlavor>,
+    pub supported_targets: Vec<WowFlavorValue>,
 }
 
 impl From<DomainSourceInstallation> for BundleSourceValue {
     fn from(value: DomainSourceInstallation) -> Self {
         Self {
-            flavor: value.flavor,
-            platform: value.platform,
+            flavor: value.flavor.into(),
+            platform: value.platform.map(Into::into),
             exported_at: value.exported_at,
-            supported_targets: value.supported_targets,
+            supported_targets: value
+                .supported_targets
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
@@ -165,10 +326,14 @@ impl From<DomainSourceInstallation> for BundleSourceValue {
 impl From<BundleSourceValue> for DomainSourceInstallation {
     fn from(value: BundleSourceValue) -> Self {
         Self {
-            flavor: value.flavor,
-            platform: value.platform,
+            flavor: value.flavor.into(),
+            platform: value.platform.map(Into::into),
             exported_at: value.exported_at,
-            supported_targets: value.supported_targets,
+            supported_targets: value
+                .supported_targets
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
@@ -250,7 +415,7 @@ impl From<BundleResourcesValue> for DomainBundleResources {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BundleMappingRulesValue {
-    pub character_mode: DomainCharacterMappingMode,
+    pub character_mode: CharacterMappingModeValue,
     pub rewrite_profile_keys: bool,
     pub rewrite_identity_strings: bool,
     pub allow_cross_platform: bool,
@@ -259,7 +424,7 @@ pub struct BundleMappingRulesValue {
 impl From<DomainMappingRules> for BundleMappingRulesValue {
     fn from(value: DomainMappingRules) -> Self {
         Self {
-            character_mode: value.character_mode,
+            character_mode: value.character_mode.into(),
             rewrite_profile_keys: value.rewrite_profile_keys,
             rewrite_identity_strings: value.rewrite_identity_strings,
             allow_cross_platform: value.allow_cross_platform,
@@ -270,7 +435,7 @@ impl From<DomainMappingRules> for BundleMappingRulesValue {
 impl From<BundleMappingRulesValue> for DomainMappingRules {
     fn from(value: BundleMappingRulesValue) -> Self {
         Self {
-            character_mode: value.character_mode,
+            character_mode: value.character_mode.into(),
             rewrite_profile_keys: value.rewrite_profile_keys,
             rewrite_identity_strings: value.rewrite_identity_strings,
             allow_cross_platform: value.allow_cross_platform,
@@ -678,6 +843,49 @@ mod tests {
     use crate::core::manifest::ResourceApplyPolicy;
 
     #[test]
+    fn host_platform_value_roundtrips_domain_shape() {
+        let value = HostPlatformValue::MacOs;
+
+        let domain: DomainHostPlatform = value.into();
+
+        assert_eq!(HostPlatformValue::from(domain), value);
+    }
+
+    #[test]
+    fn wow_flavor_value_roundtrips_domain_shape() {
+        let value = WowFlavorValue::ClassicEra;
+
+        let domain: DomainWowFlavor = value.into();
+
+        assert_eq!(WowFlavorValue::from(domain), value);
+    }
+
+    #[test]
+    fn wow_flavor_value_helpers_return_stable_strings() {
+        assert_eq!(WowFlavorValue::Retail.as_str(), "retail");
+        assert_eq!(WowFlavorValue::ClassicEra.as_str(), "classic_era");
+        assert_eq!(WowFlavorValue::ClassicEra.folder_name(), "_classic_era_");
+    }
+
+    #[test]
+    fn character_mapping_mode_value_roundtrips_domain_shape() {
+        let value = CharacterMappingModeValue::Prompt;
+
+        let domain: DomainCharacterMappingMode = value.into();
+
+        assert_eq!(CharacterMappingModeValue::from(domain), value);
+    }
+
+    #[test]
+    fn health_status_value_roundtrips_domain_shape() {
+        let value = HealthStatusValue::Warning;
+
+        let domain: DomainHealthStatus = value.into();
+
+        assert_eq!(HealthStatusValue::from(domain), value);
+    }
+
+    #[test]
     fn addon_package_metadata_value_roundtrips_domain_shape() {
         let value = AddonPackageMetadataValue {
             index_name: Some("curated".to_string()),
@@ -769,10 +977,10 @@ mod tests {
                 description: Some("fixture manifest".to_string()),
             },
             source: BundleSourceValue {
-                flavor: WowFlavor::Retail,
-                platform: Some(HostPlatform::Windows),
+                flavor: WowFlavorValue::Retail,
+                platform: Some(HostPlatformValue::Windows),
                 exported_at: Some("2026-04-18T10:00:00Z".to_string()),
-                supported_targets: vec![WowFlavor::Retail, WowFlavor::Classic],
+                supported_targets: vec![WowFlavorValue::Retail, WowFlavorValue::Classic],
             },
             resources: BundleResourcesValue {
                 addons: vec!["WeakAuras".to_string()],
@@ -789,7 +997,7 @@ mod tests {
                 addon_indexes: vec!["metadata/addons/index.toml".to_string()],
             },
             mapping: BundleMappingRulesValue {
-                character_mode: DomainCharacterMappingMode::Explicit,
+                character_mode: CharacterMappingModeValue::Explicit,
                 rewrite_profile_keys: true,
                 rewrite_identity_strings: true,
                 allow_cross_platform: true,

@@ -228,8 +228,8 @@ mod tests {
 
     use super::*;
     use crate::core::app::{
-        AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ResolvedInstallationValue,
-        ResourceApplyPolicyValue,
+        AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
+        ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue,
     };
     use crate::core::install::{HostPlatform, WowFlavor};
     use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
@@ -318,9 +318,9 @@ mod tests {
                 ApplyExternalPackageAppRequest {
                     external_package: CreateExternalPackageBundleAppRequest {
                         source_path: package_root,
-                        source_flavor: WowFlavor::Retail,
-                        source_platform: Some(HostPlatform::Windows),
-                        supported_targets: vec![WowFlavor::Retail],
+                        source_flavor: WowFlavorValue::Retail,
+                        source_platform: Some(HostPlatformValue::Windows),
+                        supported_targets: vec![WowFlavorValue::Retail],
                         output_path: None,
                         package_id: None,
                         package_name: None,
@@ -365,9 +365,9 @@ mod tests {
             .apply_collecting_progress(ApplyExternalPackageAppRequest {
                 external_package: CreateExternalPackageBundleAppRequest {
                     source_path: package_root,
-                    source_flavor: WowFlavor::Retail,
-                    source_platform: Some(HostPlatform::Windows),
-                    supported_targets: vec![WowFlavor::Retail],
+                    source_flavor: WowFlavorValue::Retail,
+                    source_platform: Some(HostPlatformValue::Windows),
+                    supported_targets: vec![WowFlavorValue::Retail],
                     output_path: None,
                     package_id: None,
                     package_name: None,
@@ -404,15 +404,15 @@ mod tests {
 
         let service = ExternalPackageService::with_runtime(
             AppRuntime::new()
-                .with_host_platform(HostPlatform::MacOs)
+                .with_host_platform(HostPlatformValue::MacOs)
                 .with_default_bundle_output_dir(Some(output.path().to_path_buf())),
         );
         let prepared = service
             .create_bundle(CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
-                source_flavor: WowFlavor::Retail,
+                source_flavor: WowFlavorValue::Retail,
                 source_platform: None,
-                supported_targets: vec![WowFlavor::Retail],
+                supported_targets: vec![WowFlavorValue::Retail],
                 output_path: None,
                 package_id: None,
                 package_name: None,
@@ -431,7 +431,7 @@ mod tests {
 
         assert_eq!(
             prepared.manifest().source.platform,
-            Some(HostPlatform::MacOs)
+            Some(HostPlatformValue::MacOs)
         );
         assert!(!prepared.manifest().apply.create_backup);
         assert_eq!(prepared.bundle().archive_path.parent(), Some(output.path()));
@@ -447,9 +447,9 @@ mod tests {
         let prepared = service
             .create_bundle(CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
-                source_flavor: WowFlavor::Retail,
+                source_flavor: WowFlavorValue::Retail,
                 source_platform: None,
-                supported_targets: vec![WowFlavor::Retail],
+                supported_targets: vec![WowFlavorValue::Retail],
                 output_path: None,
                 package_id: None,
                 package_name: None,

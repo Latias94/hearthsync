@@ -153,10 +153,10 @@ mod tests {
     use crate::core::app::{
         AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleManifestValue,
         BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-        ResolvedInstallationValue, ResourceApplyPolicyValue,
+        CharacterMappingModeValue, ResolvedInstallationValue, ResourceApplyPolicyValue,
+        WowFlavorValue,
     };
     use crate::core::install::{HostPlatform, WowFlavor};
-    use crate::core::manifest::CharacterMappingMode;
     use crate::core::task::{TaskKind, TaskPhase};
 
     #[test]
@@ -346,10 +346,10 @@ mod tests {
                 description: None,
             },
             source: BundleSourceValue {
-                flavor: WowFlavor::Retail,
+                flavor: WowFlavorValue::Retail,
                 platform: None,
                 exported_at: None,
-                supported_targets: vec![WowFlavor::Retail],
+                supported_targets: vec![WowFlavorValue::Retail],
             },
             resources: BundleResourcesValue {
                 addons: vec!["WeakAuras".to_string()],
@@ -361,7 +361,7 @@ mod tests {
                 addon_indexes: Vec::new(),
             },
             mapping: BundleMappingRulesValue {
-                character_mode: CharacterMappingMode::KeepOriginal,
+                character_mode: CharacterMappingModeValue::KeepOriginal,
                 rewrite_profile_keys: false,
                 rewrite_identity_strings: false,
                 allow_cross_platform: true,

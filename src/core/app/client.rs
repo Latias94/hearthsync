@@ -59,7 +59,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::core::install::HostPlatform;
+    use crate::core::app::HostPlatformValue;
 
     #[test]
     fn hearthsync_app_builds_services_with_shared_runtime() {
@@ -68,7 +68,7 @@ mod tests {
         let backup_dir = temp.path().join("backups");
         let bundle_dir = temp.path().join("bundles");
         let runtime = AppRuntime::new()
-            .with_host_platform(HostPlatform::MacOs)
+            .with_host_platform(HostPlatformValue::MacOs)
             .with_install_scan_roots(Some(vec![scan_root.clone()]))
             .with_default_backup_dir(Some(backup_dir.clone()))
             .with_default_bundle_output_dir(Some(bundle_dir.clone()));
@@ -81,7 +81,7 @@ mod tests {
         );
         assert_eq!(
             app.installations().runtime().host_platform(),
-            HostPlatform::MacOs
+            HostPlatformValue::MacOs
         );
         assert_eq!(
             app.backups().runtime().default_backup_dir(),
@@ -97,14 +97,17 @@ mod tests {
                 .default_bundle_output_dir(),
             Some(bundle_dir.as_path())
         );
-        assert_eq!(app.addons().runtime().host_platform(), HostPlatform::MacOs);
+        assert_eq!(
+            app.addons().runtime().host_platform(),
+            HostPlatformValue::MacOs
+        );
         assert_eq!(
             app.addon_indexes().runtime().host_platform(),
-            HostPlatform::MacOs
+            HostPlatformValue::MacOs
         );
         assert_eq!(
             app.addon_locks().runtime().host_platform(),
-            HostPlatform::MacOs
+            HostPlatformValue::MacOs
         );
     }
 
@@ -114,14 +117,14 @@ mod tests {
         let backup_dir = temp.path().join("backups");
         let bundle_dir = temp.path().join("bundles");
         let runtime = AppRuntime::new()
-            .with_host_platform(HostPlatform::MacOs)
+            .with_host_platform(HostPlatformValue::MacOs)
             .with_default_backup_dir(Some(backup_dir.clone()))
             .with_default_bundle_output_dir(Some(bundle_dir.clone()));
 
         let app = HearthSyncApp::with_runtime(runtime);
         let stable = app.stable_services();
 
-        assert_eq!(stable.runtime().host_platform(), HostPlatform::MacOs);
+        assert_eq!(stable.runtime().host_platform(), HostPlatformValue::MacOs);
         assert_eq!(
             stable.backups().runtime().default_backup_dir(),
             Some(backup_dir.as_path())
@@ -132,7 +135,7 @@ mod tests {
         );
         assert_eq!(
             stable.addons().runtime().host_platform(),
-            HostPlatform::MacOs
+            HostPlatformValue::MacOs
         );
     }
 }

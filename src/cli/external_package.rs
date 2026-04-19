@@ -357,8 +357,8 @@ mod tests {
     use super::*;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
     use crate::core::app::{
-        ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-        ResourceApplyPolicyValue,
+        ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue, HostPlatformValue,
+        ResourceApplyPolicyValue, WowFlavorValue,
     };
 
     #[test]
@@ -384,20 +384,11 @@ mod tests {
             request.source_path,
             PathBuf::from("C:\\temp\\author-ui.zip")
         );
-        assert_eq!(
-            request.source_flavor,
-            crate::core::install::WowFlavor::Retail
-        );
-        assert_eq!(
-            request.source_platform,
-            Some(crate::core::install::HostPlatform::Windows)
-        );
+        assert_eq!(request.source_flavor, WowFlavorValue::Retail);
+        assert_eq!(request.source_platform, Some(HostPlatformValue::Windows));
         assert_eq!(
             request.supported_targets,
-            vec![
-                crate::core::install::WowFlavor::Retail,
-                crate::core::install::WowFlavor::Classic,
-            ]
+            vec![WowFlavorValue::Retail, WowFlavorValue::Classic]
         );
         assert_eq!(request.package_id.as_deref(), Some("author-ui"));
         assert_eq!(request.package_name.as_deref(), Some("Author UI"));

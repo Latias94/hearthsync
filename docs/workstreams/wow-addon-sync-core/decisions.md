@@ -461,9 +461,9 @@ drive stable `BundleService` or `ExternalPackageService` flows.
   learning bundle or manifest-domain structs
 - the shared author-package default profile is now reachable from the app boundary, not only from
   domain-level helpers
-- `BundleManifest`, addon metadata, and remaining install/platform enums are still part of the
-  next request/result cleanup slices, but apply-strategy input is no longer one of the larger
-  domain leaks on the first-wave stable service set
+- `BundleManifest`, addon metadata, and install/platform enums can be cleaned up in smaller,
+  independent slices because apply-strategy input is no longer one of the larger domain leaks on
+  the first-wave stable service set
 
 ## ADR-024: Stable Addon Metadata Uses One App-Owned Value
 
@@ -488,8 +488,8 @@ This applies at least to:
 - addon inventory and mutation results now return the same app-owned metadata shape that addon
   install requests accept
 - remaining `R3` request/result cleanup can focus on larger domain leaks such as manifest
-  ownership and shared platform/flavor enums instead of carrying a duplicate metadata DTO at the
-  stable addon boundary
+  ownership and any remaining shared enum ownership instead of carrying a duplicate metadata DTO at
+  the stable addon boundary
 
 ## ADR-025: Stable Full Manifest Payloads Use One App-Owned Value Tree
 
@@ -518,6 +518,39 @@ add derived counts or other preview-only convenience fields.
   external-package flows
 - `core::app` no longer needs a split between request-side domain `BundleManifest` and response-
   side `BundleManifestResult` for the same logical payload
-- remaining `R3` cleanup can now focus on the smaller enum/value leaks such as `WowFlavor`,
-  `HostPlatform`, and `CharacterMappingMode`, plus any thin-forwarder behavior that still lives in
-  service wrappers
+- remaining `R3` cleanup can now focus on service behavior ownership and runtime policy injection
+  instead of carrying another broad request/result DTO migration after the manifest value tree
+  becomes app-owned
+
+## ADR-026: Stable App Contracts Use App-Owned Platform and Flavor Values
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+Stable frontend-facing `core::app` contracts should use shared app-owned value enums for platform
+and flavor identity:
+
+- `HostPlatformValue`
+- `WowFlavorValue`
+
+This applies at least to:
+
+- `AppRuntime` host-platform policy
+- installation resolve and inspect requests
+- resolved installation results
+- bundle or external-package source metadata exposed through app contracts
+
+Frontend callers should not need install-domain `HostPlatform` or `WowFlavor` enums just to
+express host defaults, selected installation flavor, or source compatibility metadata.
+
+### Consequences
+
+- CLI and future `egui` code now build platform and flavor input entirely against the stable
+  app-owned boundary instead of mixing app DTOs with install-domain enums
+- runtime-owned host-platform policy no longer leaks install-domain enums through `AppRuntime`
+- this decision narrows later cleanup so the remaining `R3` work can focus on service behavior and
+  runtime policy ownership instead of keeping `HostPlatform` and `WowFlavor` as ambient boundary
+  leaks

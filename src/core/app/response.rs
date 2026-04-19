@@ -6,7 +6,8 @@ use super::{
     AddonPackageMetadataValue, ApplyActionValue, ApplyGroupValue, BackupGroupValue,
     BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
     BundleSourceValue, ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-    HelperStrategyValue, ResolvedInstallationValue, ResourceApplyPolicyValue, WtfScopeValue,
+    HealthStatusValue, HelperStrategyValue, ResolvedInstallationValue, ResourceApplyPolicyValue,
+    WowFlavorValue, WtfScopeValue,
 };
 use crate::core::addon::index::{
     AddonIndexInspection, AddonIndexInstallResult as DomainAddonIndexInstallResult,
@@ -50,8 +51,7 @@ use crate::core::bundle::{
     UnpackedBundle as DomainUnpackedBundle,
 };
 use crate::core::install::{
-    HealthStatus, InstallationHealth, LocalWowAccount, LocalWowCharacter, ProductInstallInspection,
-    WowFlavor,
+    InstallationHealth, LocalWowAccount, LocalWowCharacter, ProductInstallInspection,
 };
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::BundleResources;
@@ -81,7 +81,7 @@ impl InstallationScanResult {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InstallationHealthResult {
-    pub status: HealthStatus,
+    pub status: HealthStatusValue,
     pub status_label: String,
     pub missing_paths: Vec<PathBuf>,
     pub warnings: Vec<String>,
@@ -118,7 +118,7 @@ impl From<InstallationHealth> for InstallationHealthResult {
         let status_label = value.summary().to_string();
 
         Self {
-            status: value.status,
+            status: value.status.into(),
             status_label,
             missing_paths: value.missing_paths,
             warnings: value.warnings,
@@ -130,7 +130,7 @@ impl From<InstallationHealth> for InstallationHealthResult {
 pub struct InstallationInspectionResult {
     pub requested_path: PathBuf,
     pub product_root: PathBuf,
-    pub available_flavors: Vec<WowFlavor>,
+    pub available_flavors: Vec<WowFlavorValue>,
     pub installation: ResolvedInstallationValue,
     pub health: InstallationHealthResult,
 }
@@ -140,7 +140,11 @@ impl From<ProductInstallInspection> for InstallationInspectionResult {
         Self {
             requested_path: value.requested_path,
             product_root: value.product_root,
-            available_flavors: value.available_flavors,
+            available_flavors: value
+                .available_flavors
+                .into_iter()
+                .map(Into::into)
+                .collect(),
             installation: ResolvedInstallationValue::from(value.installation),
             health: InstallationHealthResult::from(value.health),
         }

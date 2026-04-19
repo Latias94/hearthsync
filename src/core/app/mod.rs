@@ -40,7 +40,8 @@ pub use types::{
     AddonPackageMetadataValue, ApplyActionValue, ApplyGroupValue, BackupGroupValue,
     BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
     BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
-    BundleResourcesValue, BundleSourceValue, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, HelperStrategyValue, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, WtfScopeValue,
+    BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue,
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue, HealthStatusValue,
+    HelperStrategyValue, HostPlatformValue, ResolvedInstallationValue, ResourceApplyPolicyValue,
+    WowFlavorValue, WtfScopeValue,
 };

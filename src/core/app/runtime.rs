@@ -3,14 +3,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::core::addon::{AddonProvider, AddonProviderOptions, DefaultAddonProvider};
-use crate::core::install::HostPlatform;
+
+use super::HostPlatformValue;
 
 pub type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 
 #[derive(Clone)]
 pub struct AppRuntime {
     addon_provider: SharedAddonProvider,
-    host_platform: HostPlatform,
+    host_platform: HostPlatformValue,
     install_scan_roots: Option<Vec<PathBuf>>,
     default_backup_dir: Option<PathBuf>,
     default_bundle_output_dir: Option<PathBuf>,
@@ -31,7 +32,7 @@ impl AppRuntime {
     {
         Self {
             addon_provider: Arc::new(provider),
-            host_platform: HostPlatform::current(),
+            host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
             default_backup_dir: None,
             default_bundle_output_dir: None,
@@ -42,12 +43,12 @@ impl AppRuntime {
         self.addon_provider.as_ref()
     }
 
-    pub fn with_host_platform(mut self, host_platform: HostPlatform) -> Self {
+    pub fn with_host_platform(mut self, host_platform: HostPlatformValue) -> Self {
         self.host_platform = host_platform;
         self
     }
 
-    pub fn host_platform(&self) -> HostPlatform {
+    pub fn host_platform(&self) -> HostPlatformValue {
         self.host_platform
     }
 
@@ -93,7 +94,10 @@ impl AppRuntime {
         path.or_else(|| self.default_bundle_output_dir.clone())
     }
 
-    pub fn source_platform_or_host(&self, platform: Option<HostPlatform>) -> HostPlatform {
+    pub fn source_platform_or_host(
+        &self,
+        platform: Option<HostPlatformValue>,
+    ) -> HostPlatformValue {
         platform.unwrap_or(self.host_platform)
     }
 }
@@ -120,6 +124,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use crate::core::app::HostPlatformValue;
 
     #[test]
     fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
@@ -152,12 +157,15 @@ mod tests {
 
     #[test]
     fn runtime_source_platform_or_host_uses_explicit_platform_before_host_default() {
-        let runtime = AppRuntime::new().with_host_platform(HostPlatform::MacOs);
+        let runtime = AppRuntime::new().with_host_platform(HostPlatformValue::MacOs);
 
-        assert_eq!(runtime.source_platform_or_host(None), HostPlatform::MacOs);
         assert_eq!(
-            runtime.source_platform_or_host(Some(HostPlatform::Windows)),
-            HostPlatform::Windows
+            runtime.source_platform_or_host(None),
+            HostPlatformValue::MacOs
+        );
+        assert_eq!(
+            runtime.source_platform_or_host(Some(HostPlatformValue::Windows)),
+            HostPlatformValue::Windows
         );
     }
 }

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-use crate::core::install::{HostPlatform, WowFlavor};
+use crate::core::app::{HostPlatformValue, WowFlavorValue};
 use crate::core::manifest::ResourceApplyPolicy;
 
 #[derive(Debug, Parser)]
@@ -488,26 +488,26 @@ pub enum ApplyPolicyArg {
     Preserve,
 }
 
-impl From<FlavorArg> for WowFlavor {
+impl From<FlavorArg> for WowFlavorValue {
     fn from(value: FlavorArg) -> Self {
         match value {
-            FlavorArg::Retail => WowFlavor::Retail,
-            FlavorArg::Classic => WowFlavor::Classic,
-            FlavorArg::ClassicEra => WowFlavor::ClassicEra,
-            FlavorArg::Ptr => WowFlavor::Ptr,
-            FlavorArg::Beta => WowFlavor::Beta,
-            FlavorArg::Xptr => WowFlavor::Xptr,
+            FlavorArg::Retail => WowFlavorValue::Retail,
+            FlavorArg::Classic => WowFlavorValue::Classic,
+            FlavorArg::ClassicEra => WowFlavorValue::ClassicEra,
+            FlavorArg::Ptr => WowFlavorValue::Ptr,
+            FlavorArg::Beta => WowFlavorValue::Beta,
+            FlavorArg::Xptr => WowFlavorValue::Xptr,
         }
     }
 }
 
-impl From<PlatformArg> for HostPlatform {
+impl From<PlatformArg> for HostPlatformValue {
     fn from(value: PlatformArg) -> Self {
         match value {
-            PlatformArg::Windows => HostPlatform::Windows,
-            PlatformArg::MacOs => HostPlatform::MacOs,
-            PlatformArg::Linux => HostPlatform::Linux,
-            PlatformArg::Unknown => HostPlatform::Unknown,
+            PlatformArg::Windows => HostPlatformValue::Windows,
+            PlatformArg::MacOs => HostPlatformValue::MacOs,
+            PlatformArg::Linux => HostPlatformValue::Linux,
+            PlatformArg::Unknown => HostPlatformValue::Unknown,
         }
     }
 }
