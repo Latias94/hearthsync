@@ -31,12 +31,12 @@ impl BundleService {
 
     pub fn inspect(&self, request: InspectBundleRequest) -> AppResult<BundleInspectionResult> {
         let inspection = inspect_bundle(&request.bundle_path)?;
-        Ok(BundleInspectionResult::from(inspection))
+        Ok(BundleInspectionResult::from_domain(inspection))
     }
 
     pub fn pack(&self, request: PackBundleAppRequest) -> AppResult<CreatedBundleResult> {
         let bundle = pack_bundle(request.apply_runtime_defaults(&self.runtime).into())?;
-        Ok(CreatedBundleResult::from(bundle))
+        Ok(CreatedBundleResult::from_domain(bundle))
     }
 
     pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlanResult> {
@@ -93,7 +93,7 @@ impl BundleService {
             cancellation,
             progress,
         )?;
-        Ok(BundleApplyResult::from(applied))
+        Ok(BundleApplyResult::from_domain(applied))
     }
 
     pub fn apply_collecting_progress(

@@ -692,3 +692,26 @@ back into frontend-facing response payloads.
   teaching the planner about frontend capability reporting first
 - public plan results still expose helper strategy, but that field now reflects app runtime state
   rather than a planner implementation detail
+
+## ADR-032: App Response Projection Does Not Publish Public Domain Conversion Traits
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+Stable `core::app` result types may still need to project domain outputs into frontend-facing DTOs,
+but that projection should remain an internal app-layer detail.
+
+When the app boundary needs domain-to-app response mapping, it should prefer crate-internal factory
+methods such as `from_domain(...)` over public `impl From<DomainType> for AppResultType>`.
+
+### Consequences
+
+- frontend callers are less likely to treat domain DTOs as part of the stable app contract just
+  because a convenient public conversion trait exists
+- app result types can keep changing their internal projection path without exposing more domain
+  coupling through trait resolution
+- the response boundary becomes more consistent with the rest of the `core::app` refactor: app
+  contracts stay public, domain conversion seams stay internal

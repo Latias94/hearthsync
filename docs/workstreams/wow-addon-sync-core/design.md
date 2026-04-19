@@ -162,6 +162,11 @@ The selected helper strategy belongs to app runtime state, not to bundle-planner
 Public plan results may expose helper strategy as frontend-facing status, but the planner should not
 invent or own that capability state itself.
 
+The same ownership rule applies to response projection.
+Domain-to-app result mapping may still exist internally, but stable app result types should not
+publish public `From<domain>` trait surfaces that encourage frontend callers to couple themselves
+to domain result shapes.
+
 ### Domain Boundary
 
 Domain modules remain responsible for WoW semantics:

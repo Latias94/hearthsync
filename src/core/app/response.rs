@@ -828,8 +828,8 @@ pub struct BundleResourcesResult {
     pub addon_indexes: Vec<String>,
 }
 
-impl From<BundleResources> for BundleResourcesResult {
-    fn from(value: BundleResources) -> Self {
+impl BundleResourcesResult {
+    fn from_domain(value: BundleResources) -> Self {
         let addon_count = value.addons.len();
         let wtf_character_count = value.wtf_characters.len();
         let interface_asset_count = value.interface_assets.len();
@@ -864,8 +864,8 @@ pub struct BundleEntryCountsResult {
     pub metadata: usize,
 }
 
-impl From<BundleEntryCounts> for BundleEntryCountsResult {
-    fn from(value: BundleEntryCounts) -> Self {
+impl BundleEntryCountsResult {
+    fn from_domain(value: BundleEntryCounts) -> Self {
         Self {
             total_files: value.total_files,
             addons: value.addons,
@@ -887,18 +887,18 @@ pub struct BundleInspectionResult {
     pub entries: BundleEntryCountsResult,
 }
 
-impl From<BundleInspection> for BundleInspectionResult {
-    fn from(value: BundleInspection) -> Self {
+impl BundleInspectionResult {
+    pub(crate) fn from_domain(value: BundleInspection) -> Self {
         let package = BundlePackageResult::from(value.manifest.package);
         let source = BundleSourceResult::from(value.manifest.source);
-        let resources = BundleResourcesResult::from(value.manifest.resources);
+        let resources = BundleResourcesResult::from_domain(value.manifest.resources);
 
         Self {
             archive_path: value.archive_path,
             package,
             source,
             resources,
-            entries: BundleEntryCountsResult::from(value.entries),
+            entries: BundleEntryCountsResult::from_domain(value.entries),
         }
     }
 }
@@ -910,8 +910,8 @@ pub struct CreatedBundleResult {
     pub manifest: BundleManifestResult,
 }
 
-impl From<DomainCreatedBundle> for CreatedBundleResult {
-    fn from(value: DomainCreatedBundle) -> Self {
+impl CreatedBundleResult {
+    pub(crate) fn from_domain(value: DomainCreatedBundle) -> Self {
         Self {
             archive_path: value.archive_path,
             archived_files: value.archived_files,
@@ -955,12 +955,12 @@ impl ExternalPackageBundleHandle {
     }
 }
 
-impl From<DomainPreparedExternalPackageBundle> for ExternalPackageBundleHandle {
-    fn from(value: DomainPreparedExternalPackageBundle) -> Self {
+impl ExternalPackageBundleHandle {
+    pub(crate) fn from_domain(value: DomainPreparedExternalPackageBundle) -> Self {
         let result = ExternalPackageBundleResult {
-            analysis: ExternalPackageAnalysisResult::from(value.analysis.clone()),
+            analysis: ExternalPackageAnalysisResult::from_domain(value.analysis.clone()),
             manifest: BundleManifestResult::from(value.manifest.clone()),
-            bundle: CreatedBundleResult::from(value.bundle.clone()),
+            bundle: CreatedBundleResult::from_domain(value.bundle.clone()),
         };
 
         Self {
@@ -977,8 +977,8 @@ pub struct LocalWowCharacterResult {
     pub character_dir: PathBuf,
 }
 
-impl From<LocalWowCharacter> for LocalWowCharacterResult {
-    fn from(value: LocalWowCharacter) -> Self {
+impl LocalWowCharacterResult {
+    fn from_domain(value: LocalWowCharacter) -> Self {
         Self {
             server: value.server,
             character: value.character,
@@ -995,8 +995,8 @@ pub struct LocalWowAccountResult {
     pub characters: Vec<LocalWowCharacterResult>,
 }
 
-impl From<LocalWowAccount> for LocalWowAccountResult {
-    fn from(value: LocalWowAccount) -> Self {
+impl LocalWowAccountResult {
+    fn from_domain(value: LocalWowAccount) -> Self {
         Self {
             account_name: value.account_name,
             account_dir: value.account_dir,
@@ -1004,7 +1004,7 @@ impl From<LocalWowAccount> for LocalWowAccountResult {
             characters: value
                 .characters
                 .into_iter()
-                .map(LocalWowCharacterResult::from)
+                .map(LocalWowCharacterResult::from_domain)
                 .collect(),
         }
     }
@@ -1020,8 +1020,8 @@ pub struct CharacterMappingResult {
     pub target_character: String,
 }
 
-impl From<CharacterMapping> for CharacterMappingResult {
-    fn from(value: CharacterMapping) -> Self {
+impl CharacterMappingResult {
+    fn from_domain(value: CharacterMapping) -> Self {
         Self {
             source_account: value.source_account,
             source_server: value.source_server,
@@ -1045,8 +1045,8 @@ pub struct ApplyOperationResult {
     pub target_character: Option<String>,
 }
 
-impl From<ApplyOperation> for ApplyOperationResult {
-    fn from(value: ApplyOperation) -> Self {
+impl ApplyOperationResult {
+    fn from_domain(value: ApplyOperation) -> Self {
         Self {
             group: ApplyGroupValue::from(value.group),
             wtf_scope: value.wtf_scope.map(WtfScopeValue::from),
@@ -1069,8 +1069,8 @@ pub struct ApplyPlanSummaryResult {
     pub files_to_preserve: usize,
 }
 
-impl From<ApplyPlanSummary> for ApplyPlanSummaryResult {
-    fn from(value: ApplyPlanSummary) -> Self {
+impl ApplyPlanSummaryResult {
+    fn from_domain(value: ApplyPlanSummary) -> Self {
         Self {
             files_to_add: value.files_to_add,
             files_to_replace: value.files_to_replace,
@@ -1086,8 +1086,8 @@ pub struct GroupPolicyResult {
     pub policy: ResourceApplyPolicyValue,
 }
 
-impl From<GroupPolicy> for GroupPolicyResult {
-    fn from(value: GroupPolicy) -> Self {
+impl GroupPolicyResult {
+    fn from_domain(value: GroupPolicy) -> Self {
         Self {
             policy: ResourceApplyPolicyValue::from(value.policy),
         }
@@ -1104,15 +1104,15 @@ pub struct ApplyGroupPoliciesResult {
     pub metadata: GroupPolicyResult,
 }
 
-impl From<ApplyGroupPolicies> for ApplyGroupPoliciesResult {
-    fn from(value: ApplyGroupPolicies) -> Self {
+impl ApplyGroupPoliciesResult {
+    fn from_domain(value: ApplyGroupPolicies) -> Self {
         Self {
-            addons: GroupPolicyResult::from(value.addons),
-            wtf_common: GroupPolicyResult::from(value.wtf_common),
-            wtf_characters: GroupPolicyResult::from(value.wtf_characters),
-            fonts: GroupPolicyResult::from(value.fonts),
-            interface_assets: GroupPolicyResult::from(value.interface_assets),
-            metadata: GroupPolicyResult::from(value.metadata),
+            addons: GroupPolicyResult::from_domain(value.addons),
+            wtf_common: GroupPolicyResult::from_domain(value.wtf_common),
+            wtf_characters: GroupPolicyResult::from_domain(value.wtf_characters),
+            fonts: GroupPolicyResult::from_domain(value.fonts),
+            interface_assets: GroupPolicyResult::from_domain(value.interface_assets),
+            metadata: GroupPolicyResult::from_domain(value.metadata),
         }
     }
 }
@@ -1135,7 +1135,7 @@ pub struct BundleApplyPlanResult {
 }
 
 impl BundleApplyPlanResult {
-    pub fn from_domain_plan(
+    pub(crate) fn from_domain_plan(
         value: DomainBundleApplyPlan,
         helper_strategy: HelperStrategyValue,
     ) -> Self {
@@ -1145,22 +1145,22 @@ impl BundleApplyPlanResult {
             discovered_accounts: value
                 .discovered_accounts
                 .into_iter()
-                .map(LocalWowAccountResult::from)
+                .map(LocalWowAccountResult::from_domain)
                 .collect(),
             selected_target_accounts: value.selected_target_accounts,
             character_mappings: value
                 .character_mappings
                 .into_iter()
-                .map(CharacterMappingResult::from)
+                .map(CharacterMappingResult::from_domain)
                 .collect(),
             operations: value
                 .operations
                 .into_iter()
-                .map(ApplyOperationResult::from)
+                .map(ApplyOperationResult::from_domain)
                 .collect(),
-            summary: ApplyPlanSummaryResult::from(value.summary),
+            summary: ApplyPlanSummaryResult::from_domain(value.summary),
             helper_strategy,
-            group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
+            group_policies: ApplyGroupPoliciesResult::from_domain(value.group_policies),
             manifest: BundleManifestResult::from(value.manifest),
         }
     }
@@ -1181,8 +1181,8 @@ pub struct BundleApplyResult {
     pub manifest: BundleManifestResult,
 }
 
-impl From<DomainUnpackedBundle> for BundleApplyResult {
-    fn from(value: DomainUnpackedBundle) -> Self {
+impl BundleApplyResult {
+    pub(crate) fn from_domain(value: DomainUnpackedBundle) -> Self {
         Self {
             bundle_path: value.bundle_path,
             target_flavor_root: value.target_flavor_root,
@@ -1192,11 +1192,11 @@ impl From<DomainUnpackedBundle> for BundleApplyResult {
             rewritten_files: value.rewritten_files,
             backup_path: value.backup_path,
             selected_target_accounts: value.selected_target_accounts,
-            plan_summary: ApplyPlanSummaryResult::from(value.plan_summary),
+            plan_summary: ApplyPlanSummaryResult::from_domain(value.plan_summary),
             character_mappings: value
                 .character_mappings
                 .into_iter()
-                .map(CharacterMappingResult::from)
+                .map(CharacterMappingResult::from_domain)
                 .collect(),
             manifest: BundleManifestResult::from(value.manifest),
         }
@@ -1552,8 +1552,8 @@ pub struct ExternalPackageEntryResult {
     pub source_character: Option<String>,
 }
 
-impl From<DomainExternalPackageEntry> for ExternalPackageEntryResult {
-    fn from(value: DomainExternalPackageEntry) -> Self {
+impl ExternalPackageEntryResult {
+    fn from_domain(value: DomainExternalPackageEntry) -> Self {
         Self {
             source_path: value.source_path,
             normalized_path: value.normalized_path,
@@ -1573,8 +1573,8 @@ pub struct ExternalPackageWarningGroupResult {
     pub count: usize,
 }
 
-impl From<DomainExternalPackageWarningGroup> for ExternalPackageWarningGroupResult {
-    fn from(value: DomainExternalPackageWarningGroup) -> Self {
+impl ExternalPackageWarningGroupResult {
+    fn from_domain(value: DomainExternalPackageWarningGroup) -> Self {
         Self {
             category: ExternalPackageWarningCategoryValue::from(value.category),
             code: ExternalPackageWarningCodeValue::from(value.code),
@@ -1591,8 +1591,8 @@ pub struct ExternalPackageWarningResult {
     pub message: String,
 }
 
-impl From<DomainExternalPackageWarning> for ExternalPackageWarningResult {
-    fn from(value: DomainExternalPackageWarning) -> Self {
+impl ExternalPackageWarningResult {
+    fn from_domain(value: DomainExternalPackageWarning) -> Self {
         Self {
             category: ExternalPackageWarningCategoryValue::from(value.category),
             code: ExternalPackageWarningCodeValue::from(value.code),
@@ -1618,8 +1618,8 @@ pub struct ExternalPackageSummaryResult {
     pub warning_groups: Vec<ExternalPackageWarningGroupResult>,
 }
 
-impl From<DomainExternalPackageSummary> for ExternalPackageSummaryResult {
-    fn from(value: DomainExternalPackageSummary) -> Self {
+impl ExternalPackageSummaryResult {
+    fn from_domain(value: DomainExternalPackageSummary) -> Self {
         Self {
             total_files: value.total_files,
             normalized_files: value.normalized_files,
@@ -1635,7 +1635,7 @@ impl From<DomainExternalPackageSummary> for ExternalPackageSummaryResult {
             warning_groups: value
                 .warning_groups
                 .into_iter()
-                .map(ExternalPackageWarningGroupResult::from)
+                .map(ExternalPackageWarningGroupResult::from_domain)
                 .collect(),
         }
     }
@@ -1654,8 +1654,8 @@ pub struct ExternalPackageAnalysisResult {
     pub warnings: Vec<ExternalPackageWarningResult>,
 }
 
-impl From<DomainExternalPackageAnalysis> for ExternalPackageAnalysisResult {
-    fn from(value: DomainExternalPackageAnalysis) -> Self {
+impl ExternalPackageAnalysisResult {
+    pub(crate) fn from_domain(value: DomainExternalPackageAnalysis) -> Self {
         let entry_count = value.entries.len();
 
         Self {
@@ -1667,14 +1667,14 @@ impl From<DomainExternalPackageAnalysis> for ExternalPackageAnalysisResult {
             entries: value
                 .entries
                 .into_iter()
-                .map(ExternalPackageEntryResult::from)
+                .map(ExternalPackageEntryResult::from_domain)
                 .collect(),
-            resources: BundleResourcesResult::from(value.resources),
-            summary: ExternalPackageSummaryResult::from(value.summary),
+            resources: BundleResourcesResult::from_domain(value.resources),
+            summary: ExternalPackageSummaryResult::from_domain(value.summary),
             warnings: value
                 .warnings
                 .into_iter()
-                .map(ExternalPackageWarningResult::from)
+                .map(ExternalPackageWarningResult::from_domain)
                 .collect(),
         }
     }
@@ -1695,32 +1695,32 @@ pub struct ExternalPackageApplyPlanResult {
 }
 
 impl ExternalPackageApplyPlanResult {
-    pub fn from_domain_plan(
+    pub(crate) fn from_domain_plan(
         value: DomainExternalPackageApplyPlan,
         helper_strategy: HelperStrategyValue,
     ) -> Self {
         Self {
-            analysis: ExternalPackageAnalysisResult::from(value.analysis),
+            analysis: ExternalPackageAnalysisResult::from_domain(value.analysis),
             target_flavor_root: value.target_flavor_root,
             discovered_accounts: value
                 .discovered_accounts
                 .into_iter()
-                .map(LocalWowAccountResult::from)
+                .map(LocalWowAccountResult::from_domain)
                 .collect(),
             selected_target_accounts: value.selected_target_accounts,
             character_mappings: value
                 .character_mappings
                 .into_iter()
-                .map(CharacterMappingResult::from)
+                .map(CharacterMappingResult::from_domain)
                 .collect(),
             operations: value
                 .operations
                 .into_iter()
-                .map(ApplyOperationResult::from)
+                .map(ApplyOperationResult::from_domain)
                 .collect(),
-            summary: ApplyPlanSummaryResult::from(value.summary),
+            summary: ApplyPlanSummaryResult::from_domain(value.summary),
             helper_strategy,
-            group_policies: ApplyGroupPoliciesResult::from(value.group_policies),
+            group_policies: ApplyGroupPoliciesResult::from_domain(value.group_policies),
             manifest: BundleManifestResult::from(value.manifest),
         }
     }
@@ -1741,10 +1741,10 @@ pub struct ExternalPackageApplyResult {
     pub manifest: BundleManifestResult,
 }
 
-impl From<DomainAppliedExternalPackage> for ExternalPackageApplyResult {
-    fn from(value: DomainAppliedExternalPackage) -> Self {
+impl ExternalPackageApplyResult {
+    pub(crate) fn from_domain(value: DomainAppliedExternalPackage) -> Self {
         Self {
-            analysis: ExternalPackageAnalysisResult::from(value.analysis),
+            analysis: ExternalPackageAnalysisResult::from_domain(value.analysis),
             target_flavor_root: value.target_flavor_root,
             dry_run: value.dry_run,
             planned_files: value.planned_files,
@@ -1752,11 +1752,11 @@ impl From<DomainAppliedExternalPackage> for ExternalPackageApplyResult {
             rewritten_files: value.rewritten_files,
             backup_path: value.backup_path,
             selected_target_accounts: value.selected_target_accounts,
-            plan_summary: ApplyPlanSummaryResult::from(value.plan_summary),
+            plan_summary: ApplyPlanSummaryResult::from_domain(value.plan_summary),
             character_mappings: value
                 .character_mappings
                 .into_iter()
-                .map(CharacterMappingResult::from)
+                .map(CharacterMappingResult::from_domain)
                 .collect(),
             manifest: BundleManifestResult::from(value.manifest),
         }

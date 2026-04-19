@@ -48,7 +48,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let analysis = analyze_external_package_task(request.into(), cancellation, progress)?;
-        Ok(ExternalPackageAnalysisResult::from(analysis))
+        Ok(ExternalPackageAnalysisResult::from_domain(analysis))
     }
 
     pub fn analyze_collecting_progress(
@@ -81,7 +81,7 @@ impl ExternalPackageService {
     ) -> AppResult<ExternalPackageBundleHandle> {
         let bundle =
             create_external_package_bundle(request.apply_runtime_defaults(&self.runtime).into())?;
-        Ok(ExternalPackageBundleHandle::from(bundle))
+        Ok(ExternalPackageBundleHandle::from_domain(bundle))
     }
 
     pub fn plan_apply(
@@ -162,7 +162,7 @@ impl ExternalPackageService {
             cancellation,
             progress,
         )?;
-        Ok(ExternalPackageApplyResult::from(applied))
+        Ok(ExternalPackageApplyResult::from_domain(applied))
     }
 
     pub fn apply_collecting_progress(
