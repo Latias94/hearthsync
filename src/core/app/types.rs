@@ -54,7 +54,6 @@ mod tests {
     fn wow_flavor_value_helpers_return_stable_strings() {
         assert_eq!(WowFlavorValue::Retail.as_str(), "retail");
         assert_eq!(WowFlavorValue::ClassicEra.as_str(), "classic_era");
-        assert_eq!(WowFlavorValue::ClassicEra.folder_name(), "_classic_era_");
     }
 
     #[test]

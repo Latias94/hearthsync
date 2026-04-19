@@ -52,7 +52,7 @@ pub enum WowFlavorValue {
 }
 
 impl WowFlavorValue {
-    pub fn as_str(&self) -> &'static str {
+    pub(crate) fn as_str(&self) -> &'static str {
         match self {
             Self::Retail => "retail",
             Self::Classic => "classic",
@@ -60,17 +60,6 @@ impl WowFlavorValue {
             Self::Ptr => "ptr",
             Self::Beta => "beta",
             Self::Xptr => "xptr",
-        }
-    }
-
-    pub fn folder_name(&self) -> &'static str {
-        match self {
-            Self::Retail => "_retail_",
-            Self::Classic => "_classic_",
-            Self::ClassicEra => "_classic_era_",
-            Self::Ptr => "_ptr_",
-            Self::Beta => "_beta_",
-            Self::Xptr => "_xptr_",
         }
     }
 

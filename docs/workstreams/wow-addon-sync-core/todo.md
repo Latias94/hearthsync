@@ -177,6 +177,9 @@ ways that a future frontend can depend on without learning internal domain seams
     through crate-internal `from_domain()` / `into_domain()` helpers instead of public
     `From<domain>` / `From<value>` trait impls, so CLI and services can still assemble domain
     requests internally without making those conversions part of the frontend-facing contract.
+    Current cleanup: app flavor values no longer expose path-layout helpers publicly; CLI can still
+    use crate-internal display slugs, while domain install code remains the owner of folder-name
+    layout rules.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

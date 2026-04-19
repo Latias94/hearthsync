@@ -227,6 +227,8 @@ desktop work.
 - app value contracts now also use crate-internal `from_domain()` / `into_domain()` helpers instead
   of public domain conversion trait impls, so frontend-facing value shapes no longer advertise
   domain types as part of their stable contract surface
+- app flavor values no longer expose folder-name layout helpers publicly; folder-name rules stay
+  owned by the install domain, while CLI-only display slugs remain crate-internal
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `HearthSyncApp` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers
