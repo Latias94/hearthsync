@@ -25,10 +25,16 @@ use crate::core::bundle::{
     AnalyzeExternalPackageRequest as DomainAnalyzeExternalPackageRequest,
     ApplyExternalPackageRequest as DomainApplyExternalPackageRequest,
     BundleAddonLockApplyRequest as DomainBundleAddonLockApplyRequest,
+    BundleApplyMappings as DomainBundleApplyMappings,
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
     PackBundleRequest as DomainPackBundleRequest,
     PlanExternalPackageApplyRequest as DomainPlanExternalPackageApplyRequest,
     UnpackBundleRequest as DomainUnpackBundleRequest,
+};
+use crate::core::error::AppResult;
+use crate::core::install::{
+    DetectedFlavorInstallation, ProductInstallInspection, inspect_installation_on_host,
+    resolve_installation_on_host,
 };
 
 #[derive(Debug, Clone)]
@@ -53,6 +59,12 @@ pub struct ListAddonsRequest {
     pub installation: ResolvedInstallationValue,
 }
 
+impl ListAddonsRequest {
+    pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
+        self.installation.into()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct InspectAddonIndexRequest {
     pub index_path: PathBuf,
@@ -63,9 +75,21 @@ pub struct InspectAddonLockRequest {
     pub installation: ResolvedInstallationValue,
 }
 
+impl InspectAddonLockRequest {
+    pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
+        self.installation.into()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct WriteAddonLockRequest {
     pub installation: ResolvedInstallationValue,
+}
+
+impl WriteAddonLockRequest {
+    pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
+        self.installation.into()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -80,10 +104,22 @@ pub struct VerifyAddonLockRequest {
     pub lock_path: Option<PathBuf>,
 }
 
+impl VerifyAddonLockRequest {
+    pub(crate) fn into_domain_inputs(self) -> (DetectedFlavorInstallation, Option<PathBuf>) {
+        (self.installation.into(), self.lock_path)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PlanAddonLockSyncRequest {
     pub installation: ResolvedInstallationValue,
     pub lock_path: Option<PathBuf>,
+}
+
+impl PlanAddonLockSyncRequest {
+    pub(crate) fn into_domain_inputs(self) -> (DetectedFlavorInstallation, Option<PathBuf>) {
+        (self.installation.into(), self.lock_path)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -375,6 +411,22 @@ pub struct PlanBundleApplyRequest {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
+impl PlanBundleApplyRequest {
+    pub(crate) fn into_domain_inputs(
+        self,
+    ) -> (
+        PathBuf,
+        DetectedFlavorInstallation,
+        DomainBundleApplyMappings,
+    ) {
+        (
+            self.bundle_path,
+            self.installation.into(),
+            self.apply_mappings.into(),
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ApplyBundleAppRequest {
     pub bundle_path: PathBuf,
@@ -407,6 +459,12 @@ impl From<ApplyBundleAppRequest> for DomainUnpackBundleRequest {
 pub struct PlanBundleAddonLockRequest {
     pub bundle_path: PathBuf,
     pub installation: ResolvedInstallationValue,
+}
+
+impl PlanBundleAddonLockRequest {
+    pub(crate) fn into_domain_inputs(self) -> (PathBuf, DetectedFlavorInstallation) {
+        (self.bundle_path, self.installation.into())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -550,10 +608,36 @@ pub struct InspectInstallationRequest {
     pub flavor: Option<WowFlavorValue>,
 }
 
+impl InspectInstallationRequest {
+    pub(crate) fn inspect_with_runtime(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<ProductInstallInspection> {
+        inspect_installation_on_host(
+            &self.path,
+            self.flavor.map(Into::into),
+            runtime.host_platform().into(),
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ResolveInstallationRequest {
     pub path: PathBuf,
     pub flavor: Option<WowFlavorValue>,
+}
+
+impl ResolveInstallationRequest {
+    pub(crate) fn resolve_with_runtime(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DetectedFlavorInstallation> {
+        resolve_installation_on_host(
+            &self.path,
+            self.flavor.map(Into::into),
+            runtime.host_platform().into(),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -758,6 +842,51 @@ mod tests {
             apply_request.backup_output_path,
             Some(PathBuf::from("runtime-backups"))
         );
+    }
+
+    #[test]
+    fn thin_installation_requests_project_domain_inputs() {
+        let installation = sample_installation();
+        let domain_installation = ListAddonsRequest {
+            installation: installation.clone(),
+        }
+        .into_domain_installation();
+        let (lock_installation, lock_path) = PlanAddonLockSyncRequest {
+            installation: installation.clone(),
+            lock_path: Some(PathBuf::from("lock.toml")),
+        }
+        .into_domain_inputs();
+        let (bundle_path, bundle_installation, apply_mappings) = PlanBundleApplyRequest {
+            bundle_path: PathBuf::from("bundle.zip"),
+            installation,
+            apply_mappings: BundleApplyMappingsValue {
+                target_account: Some("AccountA".to_string()),
+                target_server: Some("Illidan".to_string()),
+                target_character: Some("Main".to_string()),
+                selected_accounts: vec!["AccountA".to_string()],
+                all_accounts: false,
+                characters: Vec::new(),
+            },
+        }
+        .into_domain_inputs();
+
+        assert_eq!(
+            domain_installation.product_root,
+            PathBuf::from("World of Warcraft")
+        );
+        assert_eq!(
+            lock_installation.flavor_root,
+            PathBuf::from("World of Warcraft/_retail_")
+        );
+        assert_eq!(lock_path, Some(PathBuf::from("lock.toml")));
+        assert_eq!(bundle_path, PathBuf::from("bundle.zip"));
+        assert_eq!(
+            bundle_installation.addon_dir,
+            PathBuf::from("World of Warcraft/_retail_/Interface/AddOns")
+        );
+        assert_eq!(apply_mappings.target_account.as_deref(), Some("AccountA"));
+        assert_eq!(apply_mappings.target_server.as_deref(), Some("Illidan"));
+        assert_eq!(apply_mappings.target_character.as_deref(), Some("Main"));
     }
 
     #[test]

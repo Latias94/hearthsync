@@ -148,6 +148,15 @@ should not be reimplemented ad hoc in each service wrapper or in CLI orchestrati
 Those defaults belong to the app boundary because they are part of how a frontend experiences the
 operation contract, not just an internal filesystem detail.
 
+The same ownership rule applies to installation discovery and other thin frontend-facing input
+projection.
+If scan-root policy, host-platform injection, or the last small step from app-owned installation
+values to domain installation inputs still lives inside a service wrapper, the service remains a
+policy owner instead of a boundary caller.
+Runtime or request-side app helpers should own that normalization so services do not keep
+rebuilding the same domain inputs for installation scan/inspect/resolve, addon inventory reads,
+addon-lock reads or plans, or bundle preview planning.
+
 The same principle applies to provider capability configuration.
 If the frontend needs to configure default addon acquisition behavior such as download cache
 location or retry policy, that configuration should use app-owned runtime value types rather than

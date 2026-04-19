@@ -1,8 +1,4 @@
 use crate::core::error::AppResult;
-use crate::core::install::{
-    inspect_installation_on_host, resolve_installation_on_host, scan_installations_for_host,
-    scan_installations_with_roots,
-};
 
 use super::{
     AppRuntime, InspectInstallationRequest, InstallationInspectionResult, InstallationScanResult,
@@ -28,13 +24,7 @@ impl InstallationService {
     }
 
     pub fn scan(&self) -> AppResult<InstallationScanResult> {
-        let installations = match self.runtime.install_scan_roots() {
-            Some(roots) => {
-                scan_installations_with_roots(roots, self.runtime.host_platform().into())
-            }
-            None => scan_installations_for_host(self.runtime.host_platform().into()),
-        }?;
-
+        let installations = self.runtime.scan_installations()?;
         Ok(InstallationScanResult::from_installations(installations))
     }
 
@@ -42,11 +32,7 @@ impl InstallationService {
         &self,
         request: InspectInstallationRequest,
     ) -> AppResult<InstallationInspectionResult> {
-        let inspection = inspect_installation_on_host(
-            &request.path,
-            request.flavor.map(Into::into),
-            self.runtime.host_platform().into(),
-        )?;
+        let inspection = request.inspect_with_runtime(&self.runtime)?;
         Ok(InstallationInspectionResult::from_domain(inspection))
     }
 
@@ -54,11 +40,7 @@ impl InstallationService {
         &self,
         request: ResolveInstallationRequest,
     ) -> AppResult<ResolvedInstallationValue> {
-        let installation = resolve_installation_on_host(
-            &request.path,
-            request.flavor.map(Into::into),
-            self.runtime.host_platform().into(),
-        )?;
+        let installation = request.resolve_with_runtime(&self.runtime)?;
         Ok(ResolvedInstallationValue::from(installation))
     }
 }

@@ -40,13 +40,7 @@ impl BundleService {
     }
 
     pub fn plan_apply(&self, request: PlanBundleApplyRequest) -> AppResult<BundleApplyPlanResult> {
-        let PlanBundleApplyRequest {
-            bundle_path,
-            installation,
-            apply_mappings,
-        } = request;
-        let installation = installation.into();
-        let apply_mappings = apply_mappings.into();
+        let (bundle_path, installation, apply_mappings) = request.into_domain_inputs();
         let plan = plan_bundle_apply(&bundle_path, &installation, &apply_mappings)?;
         Ok(BundleApplyPlanResult::from_domain_plan(
             plan,
@@ -64,8 +58,8 @@ impl BundleService {
         &self,
         request: PlanBundleAddonLockRequest,
     ) -> AppResult<BundleAddonLockPlanResult> {
-        let installation = request.installation.into();
-        let plan = plan_bundle_addon_lock(&request.bundle_path, &installation)?;
+        let (bundle_path, installation) = request.into_domain_inputs();
+        let plan = plan_bundle_addon_lock(&bundle_path, &installation)?;
         Ok(BundleAddonLockPlanResult::from_domain(plan))
     }
 

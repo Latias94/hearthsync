@@ -158,6 +158,11 @@ desktop work.
 - runtime-backed backup/output/source-platform default injection now lives on shared app request
   contracts, so addon, addon-index, addon-lock, backup, bundle, and external-package services no
   longer each carry fragmented service-local normalization for those defaults
+- installation scan/inspect/resolve policy now also lives on runtime or request-side app helpers,
+  so `InstallationService` no longer decides host injection or scan-root branching itself
+- the remaining thin installation-targeted read/plan conversions now sit on app request helpers,
+  so addon list, addon-lock read/plan flows, and bundle plan helpers no longer keep
+  `request.installation.into()` glue in service bodies
 - default addon-provider cache and retry configuration now also uses app-owned runtime values
   instead of leaking provider-domain option structs through `core::app::AppRuntime`
 - custom addon-provider injection is now crate-internal runtime composition, so the public app

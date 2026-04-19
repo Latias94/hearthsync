@@ -777,3 +777,31 @@ callback entrypoints so a frontend can stay on the app root while consuming task
   to raw services when it actually needs task-specific or advanced composition seams
 - service accessors remain available, but they are now a secondary composition API instead of the
   only practical entry path
+
+## ADR-035: App Inputs Own Installation Policy and Thin Domain Projection
+
+### Status
+
+Accepted on 2026-04-19
+
+### Decision
+
+If a frontend-facing app service only needs to apply runtime installation policy or translate a
+stable app-owned input into a small set of domain arguments, that normalization should live on
+`AppRuntime` or the app request contract instead of remaining inside the service wrapper.
+
+This applies at least to:
+
+- installation scan policy such as configured scan roots plus host-platform selection
+- installation inspect and resolve host injection
+- thin installation-targeted read or plan inputs such as addon inventory, addon-lock inspect/write/
+  verify/plan, and bundle preview planning
+
+### Consequences
+
+- `InstallationService` is closer to a real boundary caller and no longer decides scan-root
+  branching or host injection itself
+- thin app services no longer keep repeating `request.installation.into()` glue when that step is
+  part of the stable app input contract rather than service-specific behavior
+- future frontend contract cleanup can focus on real policy ownership gaps instead of preserving
+  service-local argument reshaping that belongs to runtime or request helpers

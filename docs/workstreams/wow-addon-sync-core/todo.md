@@ -127,13 +127,17 @@ ways that a future frontend can depend on without learning internal domain seams
   and external-package flows doing so. `HearthSyncApp` now also exposes direct frontend entrypoints
   for installation, addon, bundle, external-package, backup, addon-index, and addon-lock direct
   operations, so CLI no longer needs to compose service selection and installation resolution
-  manually around the app boundary. The same frontend root now also forwards the stable long-
-  running task entrypoints for addon, backup restore, bundle apply, and external-package flows, so
-  future GUI work does not need to drop back to raw services just to collect progress or stream
-  callbacks. `StableAppServices` now mirrors that first-wave stable direct/task surface too, so the
-  smaller GUI-stable boundary is an explicit code contract instead of a service-factory-only hint.
-  The remaining work in this area is narrower and mostly about service-internal policy ownership
-  rather than scattered path/default patching or root-level orchestration gaps.
+    manually around the app boundary. The same frontend root now also forwards the stable long-
+    running task entrypoints for addon, backup restore, bundle apply, and external-package flows, so
+    future GUI work does not need to drop back to raw services just to collect progress or stream
+    callbacks. `StableAppServices` now mirrors that first-wave stable direct/task surface too, so the
+    smaller GUI-stable boundary is an explicit code contract instead of a service-factory-only hint.
+    Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
+    helpers instead of being reassembled inside `InstallationService`, and the remaining thin
+    installation-targeted read/plan projections now sit on app request contracts instead of
+    service-local `let installation = request.installation.into()` glue. The remaining work in this
+    area is narrower and mostly about any still-meaningful behavioral policy that services own,
+    rather than scattered path/default patching, host injection, or root-level orchestration gaps.
 - [x] document stable progress expectations for long-running bundle, external-package, addon, and
   backup tasks
   Completed: `core::app` task entrypoints now have one documented wrapper contract. Direct calls

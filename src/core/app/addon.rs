@@ -34,7 +34,7 @@ impl AddonService {
     }
 
     pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
-        let installation = request.installation.into();
+        let installation = request.into_domain_installation();
         let inventory = list_addons(&installation)?;
         Ok(AddonInventoryResult::from_domain(inventory))
     }

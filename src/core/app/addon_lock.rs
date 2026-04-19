@@ -33,13 +33,13 @@ impl AddonLockService {
         &self,
         request: InspectAddonLockRequest,
     ) -> AppResult<AddonLockInspectionResult> {
-        let installation = request.installation.into();
+        let installation = request.into_domain_installation();
         let inspection = inspect_addon_lock(&installation)?;
         Ok(AddonLockInspectionResult::from_domain(inspection))
     }
 
     pub fn write(&self, request: WriteAddonLockRequest) -> AppResult<AddonLockWriteResult> {
-        let installation = request.installation.into();
+        let installation = request.into_domain_installation();
         let written = write_addon_lock(&installation)?;
         Ok(AddonLockWriteResult::from_domain(written))
     }
@@ -50,14 +50,14 @@ impl AddonLockService {
     }
 
     pub fn verify(&self, request: VerifyAddonLockRequest) -> AppResult<AddonLockVerifyResult> {
-        let installation = request.installation.into();
-        let verification = verify_addon_lock(&installation, request.lock_path.as_deref())?;
+        let (installation, lock_path) = request.into_domain_inputs();
+        let verification = verify_addon_lock(&installation, lock_path.as_deref())?;
         Ok(AddonLockVerifyResult::from_domain(verification))
     }
 
     pub fn plan_sync(&self, request: PlanAddonLockSyncRequest) -> AppResult<AddonLockPlanResult> {
-        let installation = request.installation.into();
-        let plan = plan_addon_lock_sync(&installation, request.lock_path.as_deref())?;
+        let (installation, lock_path) = request.into_domain_inputs();
+        let plan = plan_addon_lock_sync(&installation, lock_path.as_deref())?;
         Ok(AddonLockPlanResult::from_domain(plan))
     }
 

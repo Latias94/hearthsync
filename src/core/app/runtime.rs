@@ -3,6 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::core::addon::{AddonProvider, DefaultAddonProvider};
+use crate::core::error::AppResult;
+use crate::core::install::{
+    DetectedFlavorInstallation, scan_installations_for_host, scan_installations_with_roots,
+};
 
 use super::{
     AddonProviderModeValue, AddonProviderOptionsValue, AppRuntimeCapabilitiesValue,
@@ -102,6 +106,13 @@ impl AppRuntime {
         self.install_scan_roots.as_deref()
     }
 
+    pub(crate) fn scan_installations(&self) -> AppResult<Vec<DetectedFlavorInstallation>> {
+        match self.install_scan_roots() {
+            Some(roots) => scan_installations_with_roots(roots, self.host_platform.into()),
+            None => scan_installations_for_host(self.host_platform.into()),
+        }
+    }
+
     pub fn with_default_backup_dir(mut self, default_backup_dir: Option<PathBuf>) -> Self {
         self.default_backup_dir = default_backup_dir;
         self
@@ -167,7 +178,10 @@ impl fmt::Debug for AppRuntime {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::PathBuf;
+
+    use tempfile::tempdir;
 
     use super::*;
     use crate::core::app::{AddonProviderRetryPolicyValue, HelperStrategyValue, HostPlatformValue};
@@ -213,6 +227,28 @@ mod tests {
             runtime.source_platform_or_host(Some(HostPlatformValue::Windows)),
             HostPlatformValue::Windows
         );
+    }
+
+    #[test]
+    fn runtime_scan_installations_uses_configured_roots_and_host_platform() {
+        let temp = tempdir().expect("temp dir");
+        let product_root = temp.path().join("World of Warcraft");
+        let flavor_root = product_root.join("_retail_");
+
+        fs::create_dir_all(flavor_root.join("Interface").join("AddOns")).expect("addons dir");
+        fs::create_dir_all(flavor_root.join("WTF")).expect("wtf dir");
+
+        let runtime = AppRuntime::new()
+            .with_host_platform(HostPlatformValue::MacOs)
+            .with_install_scan_roots(Some(vec![product_root.clone()]));
+        let installations = runtime.scan_installations().expect("scan installations");
+
+        assert_eq!(installations.len(), 1);
+        assert_eq!(
+            installations[0].platform,
+            crate::core::install::HostPlatform::MacOs
+        );
+        assert_eq!(installations[0].product_root, product_root);
     }
 
     #[test]
