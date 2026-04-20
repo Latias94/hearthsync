@@ -300,6 +300,9 @@ Prepare the core for a future frontend.
 - `cli::args` is now also split by domain modules (`addon`, `backup`, `bundle`,
   `external_package`, `shared`), with `args.rs` reduced to top-level command routing plus
   re-exports, so Clap surface growth no longer forces one monolithic argument-definition file
+- external-package CLI request projection is now isolated in `cli::external_package::request`,
+  while external-package warning formatter tests live with `cli::output::shared`, keeping command
+  handling, app-request projection, and formatter coverage under their owning modules
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

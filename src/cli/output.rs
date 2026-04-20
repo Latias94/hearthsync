@@ -11,8 +11,6 @@ use crate::core::app::{
     InstallationScanResult, InstalledAddonPackageResult, RemovedAddonPackageResult,
     RestoredBackupResult, UpdatedAddonPackageResult,
 };
-#[cfg(test)]
-use crate::core::app::{ExternalPackageSummaryResult, ExternalPackageWarningResult};
 use crate::core::error::AppResult;
 
 mod addon;
@@ -139,14 +137,6 @@ pub(super) fn render_addon_lock_diff(item: &AddonLockDiffResult) -> String {
 
 pub(super) fn render_addon_lock_verify(item: &AddonLockVerifyResult) -> String {
     addon_lock::render_addon_lock_verify(item)
-}
-
-#[cfg(test)]
-pub(super) fn format_external_package_warnings(
-    warnings: &[ExternalPackageWarningResult],
-    summary: &ExternalPackageSummaryResult,
-) -> String {
-    shared::format_external_package_warnings(warnings, summary)
 }
 
 pub(super) fn render<T, F>(json: bool, value: &T, text_renderer: F) -> AppResult<()>
