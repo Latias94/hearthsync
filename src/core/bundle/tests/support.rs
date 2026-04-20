@@ -258,6 +258,14 @@ pub(super) fn create_archive_with_raw_directories(archive_path: &Path, entries: 
     zip.finish().expect("finish raw directory archive");
 }
 
+pub(super) fn create_archive_with_symlink_entry(archive_path: &Path, name: &str, target: &str) {
+    let file = fs::File::create(archive_path).expect("archive file");
+    let mut zip = ZipWriter::new(file);
+    zip.add_symlink(name, target, SimpleFileOptions::default())
+        .expect("add raw symlink entry");
+    zip.finish().expect("finish raw symlink archive");
+}
+
 pub(super) fn add_directory_entries_to_zip(
     zip: &mut ZipWriter<fs::File>,
     source_root: &Path,

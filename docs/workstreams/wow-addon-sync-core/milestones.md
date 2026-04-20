@@ -276,5 +276,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   rules instead of process-global state
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
+- external-package zip analysis now rejects symlink entries explicitly instead of treating symlink
+  targets as portable regular-file payloads
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

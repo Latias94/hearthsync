@@ -298,6 +298,8 @@ enough that these rules live in one place.
   Current progress: installation path normalization now preserves Windows verbatim UNC roots when
   trimming `\\?\` prefixes, so `\\?\UNC\server\share\...` remains an absolute UNC path instead of
   degrading into a relative-looking `UNC\server\share\...` path.
+  Current progress: external-package zip analysis now rejects symlink entries explicitly instead of
+  treating symlink targets as portable regular-file payloads.
 
 Exit criteria:
 

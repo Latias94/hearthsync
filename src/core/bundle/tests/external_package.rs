@@ -347,6 +347,26 @@ fn analyze_external_package_rejects_zip_with_empty_path_segments() {
 }
 
 #[test]
+fn analyze_external_package_rejects_zip_symlink_entries() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("symlink-author-pack.zip");
+    create_archive_with_symlink_entry(
+        &package_path,
+        "AuthorUI/Interface/AddOns/WeakAuras/WeakAuras.lua",
+        "../../outside.lua",
+    );
+
+    let error = analyze_external_package(AnalyzeExternalPackageRequest {
+        source_path: package_path,
+    })
+    .expect_err("symlink zip entry should be rejected");
+
+    let message = error.to_string();
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains("AuthorUI/Interface/AddOns/WeakAuras/WeakAuras.lua"));
+}
+
+#[test]
 fn analyze_external_package_rejects_non_archive_file_with_clear_error() {
     let temp = tempdir().expect("temp dir");
     let package_path = temp.path().join("not-a-zip.bin");

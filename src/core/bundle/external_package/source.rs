@@ -76,11 +76,17 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
 
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
+        let entry_name = entry.name().to_string();
+        if entry.is_symlink() {
+            return Err(AppError::Validation(format!(
+                "external package zip entry uses unsupported symlink metadata: {entry_name}"
+            )));
+        }
+
         if entry.is_dir() {
             continue;
         }
 
-        let entry_name = entry.name().to_string();
         let segments = safe_zip_segments(&entry_name)?
             .into_iter()
             .map(|segment| segment.to_string())
