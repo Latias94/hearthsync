@@ -121,9 +121,38 @@ fn common_roots_for_platform(host_platform: HostPlatform, home_dir: &Path) -> Ve
 
 fn strip_windows_verbatim_prefix(path: PathBuf) -> PathBuf {
     let raw = path.to_string_lossy();
-    if let Some(stripped) = raw.strip_prefix(r"\\?\") {
+    if let Some(stripped) = raw.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{stripped}"))
+    } else if let Some(stripped) = raw.strip_prefix(r"\\?\") {
         PathBuf::from(stripped)
     } else {
         path
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::strip_windows_verbatim_prefix;
+
+    #[test]
+    fn strip_windows_verbatim_prefix_preserves_drive_absolute_paths() {
+        let path = PathBuf::from(r"\\?\C:\Games\World of Warcraft");
+
+        assert_eq!(
+            strip_windows_verbatim_prefix(path).to_string_lossy(),
+            r"C:\Games\World of Warcraft"
+        );
+    }
+
+    #[test]
+    fn strip_windows_verbatim_prefix_preserves_unc_roots() {
+        let path = PathBuf::from(r"\\?\UNC\server\share\World of Warcraft");
+
+        assert_eq!(
+            strip_windows_verbatim_prefix(path).to_string_lossy(),
+            r"\\server\share\World of Warcraft"
+        );
     }
 }

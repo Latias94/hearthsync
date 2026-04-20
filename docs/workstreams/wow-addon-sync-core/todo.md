@@ -295,6 +295,9 @@ enough that these rules live in one place.
   require an explicit `manifest_base_dir` instead of silently resolving against `cwd`. Remaining
   work is mainly broader archive-metadata hardening plus any other case-folding or ambient-path
   edges outside the bundle export path.
+  Current progress: installation path normalization now preserves Windows verbatim UNC roots when
+  trimming `\\?\` prefixes, so `\\?\UNC\server\share\...` remains an absolute UNC path instead of
+  degrading into a relative-looking `UNC\server\share\...` path.
 
 Exit criteria:
 

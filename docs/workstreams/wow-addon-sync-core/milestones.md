@@ -274,5 +274,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle export no longer depends on ambient `cwd` for default output paths, relative output
   references, or relative addon-index metadata resolution; those flows now use explicit base-dir
   rules instead of process-global state
+- installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
+  prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening
