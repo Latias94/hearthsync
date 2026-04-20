@@ -1,4 +1,3 @@
-use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -8,6 +7,8 @@ mod analysis;
 mod classify;
 mod manifest;
 mod materialize;
+mod normalized;
+mod projection;
 mod source;
 
 use super::*;
@@ -22,6 +23,8 @@ use classify::classify_source_entries;
 pub(crate) use manifest::author_package_apply_defaults;
 use manifest::build_external_manifest;
 use materialize::{create_staging_installation, materialize_analysis_to_installation};
+use normalized::{build_external_package_entry_source_map, validate_unique_normalized_paths};
+use projection::{project_applied_external_package, project_external_package_plan};
 use source::{collect_source_entries, detect_source_kind};
 
 #[derive(Debug, Clone)]
@@ -474,84 +477,4 @@ fn prepare_external_package_apply(
         analysis,
         prepared_apply,
     })
-}
-
-fn validate_unique_normalized_paths(analysis: &ExternalPackageAnalysis) -> AppResult<()> {
-    let mut seen = BTreeSet::new();
-    let mut case_insensitive_seen = BTreeMap::new();
-    for entry in &analysis.entries {
-        if !seen.insert(entry.normalized_path.clone()) {
-            return Err(AppError::Validation(format!(
-                "external package normalizes multiple files onto the same target path: {}",
-                entry.normalized_path
-            )));
-        }
-
-        let folded = entry.normalized_path.to_lowercase();
-        if let Some(previous) = case_insensitive_seen.insert(folded, entry.normalized_path.clone())
-            && previous != entry.normalized_path
-        {
-            return Err(AppError::Validation(format!(
-                "external package contains case-insensitive target path collisions: `{previous}` and `{}` would map to the same path on Windows/default macOS targets",
-                entry.normalized_path
-            )));
-        }
-    }
-
-    Ok(())
-}
-
-fn build_external_package_entry_source_map(
-    analysis: &ExternalPackageAnalysis,
-) -> AppResult<BTreeMap<String, String>> {
-    let mut entry_source_map = BTreeMap::new();
-    for entry in &analysis.entries {
-        if entry_source_map
-            .insert(entry.normalized_path.clone(), entry.source_path.clone())
-            .is_some()
-        {
-            return Err(AppError::Validation(format!(
-                "external package normalizes multiple files onto the same target path: {}",
-                entry.normalized_path
-            )));
-        }
-    }
-
-    Ok(entry_source_map)
-}
-
-fn project_external_package_plan(
-    analysis: ExternalPackageAnalysis,
-    plan: BundleApplyPlan,
-) -> ExternalPackageApplyPlan {
-    ExternalPackageApplyPlan {
-        analysis,
-        target_flavor_root: plan.target_flavor_root,
-        discovered_accounts: plan.discovered_accounts,
-        selected_target_accounts: plan.selected_target_accounts,
-        character_mappings: plan.character_mappings,
-        operations: plan.operations,
-        summary: plan.summary,
-        group_policies: plan.group_policies,
-        manifest: plan.manifest,
-    }
-}
-
-fn project_applied_external_package(
-    analysis: ExternalPackageAnalysis,
-    result: UnpackedBundle,
-) -> AppliedExternalPackage {
-    AppliedExternalPackage {
-        analysis,
-        target_flavor_root: result.target_flavor_root,
-        dry_run: result.dry_run,
-        planned_files: result.planned_files,
-        written_files: result.written_files,
-        rewritten_files: result.rewritten_files,
-        backup_path: result.backup_path,
-        selected_target_accounts: result.selected_target_accounts,
-        plan_summary: result.plan_summary,
-        character_mappings: result.character_mappings,
-        manifest: result.manifest,
-    }
 }
