@@ -1,4 +1,6 @@
-use super::*;
+use super::super::types::BundleApplyMappings;
+use crate::core::error::{AppError, AppResult};
+use crate::core::manifest::{CharacterMappingMode, CharacterResource};
 
 pub(super) fn validate_character_mapping_inputs(
     character_mode: CharacterMappingMode,

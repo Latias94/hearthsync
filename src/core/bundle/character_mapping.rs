@@ -1,7 +1,10 @@
 mod resolution;
 mod validation;
 
-use super::*;
+use super::types::BundleApplyMappings;
+use crate::core::error::AppResult;
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::{BundleManifest, CharacterMappingMode};
 use resolution::{build_keep_original_character_mapping, build_resolved_character_mapping};
 use validation::validate_character_mapping_inputs;
 

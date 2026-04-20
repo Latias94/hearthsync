@@ -1,5 +1,6 @@
 use super::planner::prepare_bundle_apply;
-use super::*;
+use super::types::{UnpackBundleRequest, UnpackedBundle};
+use crate::core::error::AppResult;
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,

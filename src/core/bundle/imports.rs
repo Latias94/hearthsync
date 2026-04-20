@@ -15,13 +15,11 @@ pub(in crate::core::bundle) use super::apply_policy::{
 };
 pub(in crate::core::bundle) use super::apply_source::ApplySourceReader;
 pub(in crate::core::bundle) use super::archive_read::{
-    count_bundle_entries, extract_embedded_addon_lock, read_manifest_from_archive,
+    count_bundle_entries, read_manifest_from_archive,
 };
 pub(in crate::core::bundle) use super::character_mapping::build_character_mappings;
 pub(in crate::core::bundle) use super::entry_plan::plan_extractable_entries;
-pub(in crate::core::bundle) use super::execution::{
-    execute_apply_operations, file_contents_equal_to_bytes, rollback_or_report_apply_error,
-};
+pub(in crate::core::bundle) use super::execution::file_contents_equal_to_bytes;
 pub(in crate::core::bundle) use super::shared::{
     BundleAddonSourceEntry, BundleAddonSourceIndex, join_segments, resolve_zip_style_path,
     safe_file_part, safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name,
@@ -38,9 +36,7 @@ pub(in crate::core::bundle) use crate::core::addon::lock::{
     AddonLock, AddonLockPackage, AddonLockSourceOverride, addon_lock_package_comparison_key,
     write_addon_lock,
 };
-pub(in crate::core::bundle) use crate::core::backup::{
-    BackupGroup, BackupRequest, create_backup, restore_backup,
-};
+pub(in crate::core::bundle) use crate::core::backup::restore_backup;
 pub(in crate::core::bundle) use crate::core::error::{AppError, AppResult};
 pub(in crate::core::bundle) use crate::core::install::{
     DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts,

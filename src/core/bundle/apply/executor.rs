@@ -1,7 +1,13 @@
 use std::path::PathBuf;
 
-use super::super::*;
+use super::super::apply_model::{PreparedApplyOperation, PreparedApplySource};
+use super::super::execution::{execute_apply_operations, rollback_or_report_apply_error};
+use super::super::types::BundleApplyPlan;
 use super::BundleApplyTaskContext;
+use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
+use crate::core::error::AppResult;
+use crate::core::install::DetectedFlavorInstallation;
+use crate::core::manifest::BundleManifest;
 use crate::core::task::{
     CancellationToken, TaskPhase, TaskProgressSink, emit_task_progress, ensure_task_not_cancelled,
 };

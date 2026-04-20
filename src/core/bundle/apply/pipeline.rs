@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
-use super::super::*;
+use super::super::apply_model::PreparedBundleApply;
+use super::super::types::UnpackedBundle;
 use super::BundleApplyTaskContext;
 use super::executor::BundleExecutor;
 use super::result::{project_dry_run_result, project_executed_result};
+use crate::core::error::AppResult;
+use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
     CancellationToken, TaskPhase, TaskProgressSink, emit_task_progress, ensure_task_not_cancelled,
 };

@@ -2,12 +2,15 @@ use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 
-use super::*;
+use super::archive_read::extract_embedded_addon_lock;
+use super::constants::ADDON_LOCK_ENTRY;
+use super::types::{BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan};
 use crate::core::addon::lock::{
     AddonLockApplyRequest, AddonLockSourceOverride, apply_addon_lock_sync,
     plan_addon_lock_sync_with_source_overrides,
 };
 use crate::core::error::AppResult;
+use crate::core::install::DetectedFlavorInstallation;
 
 pub(super) struct ExtractedAddonLock {
     pub(super) lock_path: PathBuf,

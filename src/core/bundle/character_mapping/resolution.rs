@@ -1,6 +1,10 @@
 use super::super::character_mapping_match::resolve_mapping_override;
+use super::super::shared::validate_plain_name;
+use super::super::types::BundleApplyMappings;
 use super::validation::format_character_mapping_resolution_error;
-use super::*;
+use crate::core::error::{AppError, AppResult};
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::{CharacterMappingMode, CharacterResource};
 
 pub(super) fn build_keep_original_character_mapping(
     resource: &CharacterResource,
