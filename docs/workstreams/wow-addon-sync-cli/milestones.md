@@ -351,6 +351,9 @@ Prepare the core for a future frontend.
   projection now live under `core::bundle::external_package::normalized` and
   `core::bundle::external_package::projection`, further reducing the main module to pipeline
   orchestration
+- external package public request/result DTOs now live under
+  `core::bundle::external_package::types`, separating stable API shape from import pipeline
+  implementation details
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

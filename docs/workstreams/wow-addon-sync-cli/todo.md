@@ -120,6 +120,7 @@ The current blocking sequence is:
   - Current cleanup: external package staging-installation creation and source-to-target file materialization now live in `core::bundle::external_package::materialize`, keeping normalized import execution separate from analysis and manifest construction.
   - Current cleanup: external package analysis summarization/resource projection and generated manifest construction now live in `core::bundle::external_package::analysis` and `core::bundle::external_package::manifest`, so the main module keeps less derived-data assembly inline.
   - Current cleanup: external package normalized-path validation/source mapping and app-facing result projection now live in `core::bundle::external_package::normalized` and `core::bundle::external_package::projection`, leaving the main module closer to pure request orchestration.
+  - Current cleanup: external package public request/result DTOs now live in `core::bundle::external_package::types`, so API shape is separated from the import pipeline implementation.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
