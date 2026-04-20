@@ -26,11 +26,12 @@ pub(super) fn extract_archive_addons(
 
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
+        let entry_name = entry.name().to_string();
+        reject_unsupported_archive_symlink_entry(&entry_name, entry.is_symlink())?;
         if entry.is_dir() {
             continue;
         }
 
-        let entry_name = entry.name().to_string();
         let segments = safe_zip_segments(&entry_name)?;
         if segments.is_empty() {
             continue;
@@ -75,11 +76,12 @@ fn discover_archive_addon_roots(archive: &mut ZipArchive<File>) -> AppResult<Vec
 
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
+        let entry_name = entry.name().to_string();
+        reject_unsupported_archive_symlink_entry(&entry_name, entry.is_symlink())?;
         if entry.is_dir() {
             continue;
         }
 
-        let entry_name = entry.name().to_string();
         let segments = safe_zip_segments(&entry_name)?
             .into_iter()
             .map(|segment| segment.to_string())
@@ -104,4 +106,14 @@ fn match_addon_root(segments: &[&str], roots: &[Vec<String>]) -> Option<usize> {
                 .zip(segments.iter())
                 .all(|(left, right)| left.as_str() == *right)
     })
+}
+
+fn reject_unsupported_archive_symlink_entry(entry_name: &str, is_symlink: bool) -> AppResult<()> {
+    if is_symlink {
+        return Err(AppError::Validation(format!(
+            "addon archive entry uses unsupported symlink metadata: {entry_name}"
+        )));
+    }
+
+    Ok(())
 }

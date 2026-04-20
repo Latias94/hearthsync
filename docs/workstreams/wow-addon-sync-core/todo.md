@@ -309,6 +309,9 @@ enough that these rules live in one place.
   Current progress: backup creation now also rejects local directory/interface symlink entries
   instead of following link targets into the archive, so backup payloads stay portable and bounded
   to the intended WoW tree.
+  Current progress: addon local-archive package preparation now also rejects zip symlink entries,
+  so first-party addon install/update flows share the same archive-metadata safety floor as backup
+  restore and external-package ingest.
 
 Exit criteria:
 

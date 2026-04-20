@@ -285,5 +285,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   safety no longer trails import-time path safety
 - backup creation now also rejects local directory/interface symlink entries instead of following
   link targets into the archive, keeping backup payloads bounded to the intended WoW tree
+- addon local-archive package preparation now also rejects zip symlink entries, so addon
+  install/update flows share the same archive-metadata safety floor as backup restore and
+  external-package ingest
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

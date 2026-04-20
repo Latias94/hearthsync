@@ -120,6 +120,42 @@ fn install_addon_from_archive_accepts_variant_toc_names() {
 }
 
 #[test]
+fn install_addon_from_local_archive_rejects_symlink_entries() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let archive_path = temp.path().join("symlink-pack.zip");
+
+    create_addon_archive_with_symlink_entry(
+        &archive_path,
+        "WeakAuras/WeakAuras.toc",
+        "../Shared/WeakAuras.toc",
+    );
+
+    let error = install_addon(InstallAddonRequest {
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect_err("symlink archive entry should fail");
+
+    let message = error.to_string();
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains("WeakAuras/WeakAuras.toc"));
+    assert!(!installation.addon_dir.join("WeakAuras").exists());
+    assert!(
+        !installation
+            .addon_dir
+            .join(".hearthsync")
+            .join("addons.toml")
+            .exists()
+    );
+}
+
+#[test]
 fn install_addon_task_reports_install_progress() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());
@@ -688,5 +724,13 @@ fn create_addon_archive(path: &Path, entries: &[(&str, &str)]) {
         .expect("start file");
         zip.write_all(content.as_bytes()).expect("write file");
     }
+    zip.finish().expect("finish zip");
+}
+
+fn create_addon_archive_with_symlink_entry(path: &Path, name: &str, target: &str) {
+    let file = File::create(path).expect("archive file");
+    let mut zip = ZipWriter::new(file);
+    zip.add_symlink(name, target, SimpleFileOptions::default())
+        .expect("add symlink entry");
     zip.finish().expect("finish zip");
 }
