@@ -278,5 +278,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead
   of treating symlink targets as portable regular-file payloads
+- archive path validation now rejects Windows-reserved segment characters, device names, and
+  trailing-dot / trailing-space segments so cross-platform imports fail early
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

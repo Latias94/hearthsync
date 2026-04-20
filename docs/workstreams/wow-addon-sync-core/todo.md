@@ -300,6 +300,9 @@ enough that these rules live in one place.
   degrading into a relative-looking `UNC\server\share\...` path.
   Current progress: external-package source analysis now rejects directory and zip symlink entries
   explicitly instead of treating symlink targets as portable regular-file payloads.
+  Current progress: archive path validation now also rejects Windows-reserved segment characters,
+  device names, and trailing-dot / trailing-space segments so portable bundles and author-package
+  zips fail early instead of depending on target filesystem quirks.
 
 Exit criteria:
 

@@ -347,6 +347,23 @@ fn analyze_external_package_rejects_zip_with_empty_path_segments() {
 }
 
 #[test]
+fn analyze_external_package_rejects_zip_with_windows_reserved_segments() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("unsafe-reserved-segment.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[("AuthorUI/Interface/AddOns/Weak:Auras/WeakAuras.toc", "toc")],
+    );
+
+    let error = analyze_external_package(AnalyzeExternalPackageRequest {
+        source_path: package_path,
+    })
+    .expect_err("reserved Windows path segment should be rejected");
+
+    assert!(error.to_string().contains("unsafe archive path"));
+}
+
+#[test]
 fn analyze_external_package_rejects_zip_symlink_entries() {
     let temp = tempdir().expect("temp dir");
     let package_path = temp.path().join("symlink-author-pack.zip");
