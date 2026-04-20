@@ -8,7 +8,7 @@ use zip::ZipWriter;
 
 use super::shared::path::{should_skip_path, to_zip_path};
 use super::shared::zip_options::{zip_dir_options, zip_file_options};
-use crate::core::archive_io::stream_file_to_zip;
+use crate::core::archive_io::{add_directory_to_zip, start_file_to_zip, stream_file_to_zip};
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn add_path_to_zip(
@@ -39,7 +39,7 @@ pub(super) fn add_path_to_zip(
 
         let target_path = archive_path.join(relative);
         if entry.file_type().is_dir() {
-            zip.add_directory(to_zip_path(&target_path), zip_dir_options())?;
+            add_directory_to_zip(zip, &to_zip_path(&target_path), zip_dir_options())?;
             continue;
         }
 
@@ -68,7 +68,7 @@ pub(super) fn write_toml_to_zip<T: Serialize>(
     archive_path: &str,
     value: &T,
 ) -> AppResult<usize> {
-    zip.start_file(archive_path, zip_file_options())?;
+    start_file_to_zip(zip, archive_path, zip_file_options())?;
     zip.write_all(toml::to_string_pretty(value)?.as_bytes())?;
     Ok(1)
 }

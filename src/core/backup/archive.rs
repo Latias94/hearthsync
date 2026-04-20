@@ -12,7 +12,9 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
-use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
+use crate::core::archive_io::{
+    add_directory_to_zip, copy_reader_to_path, start_file_to_zip, stream_file_to_zip,
+};
 use crate::core::archive_path::{
     PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
     find_platform_path_prefix_conflict, join_segments, safe_zip_segments, to_zip_path,
@@ -170,7 +172,7 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
         groups: request.groups,
     };
 
-    zip.start_file("backup.toml", zip_file_options())?;
+    start_file_to_zip(&mut zip, "backup.toml", zip_file_options())?;
     zip.write_all(toml::to_string_pretty(&metadata)?.as_bytes())?;
     zip.finish()?;
 
@@ -376,7 +378,7 @@ fn add_directory_group(
         let archive_path = archive_root.join(relative);
 
         if file_type.is_dir() {
-            zip.add_directory(to_zip_path(&archive_path), zip_dir_options())?;
+            add_directory_to_zip(zip, &to_zip_path(&archive_path), zip_dir_options())?;
             continue;
         }
 

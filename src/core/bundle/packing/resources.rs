@@ -17,6 +17,7 @@ use super::super::wtf_archive::common::add_common_wtf_to_zip;
 use super::super::wtf_archive::resolve::resolve_character_account;
 use super::super::zip_write::{add_path_to_zip, write_toml_to_zip};
 use crate::core::addon::lock::write_addon_lock;
+use crate::core::archive_io::start_file_to_zip;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::{BundleManifest, CharacterResource};
@@ -149,7 +150,7 @@ pub(in crate::core::bundle::packing) fn write_manifest_to_zip(
     zip: &mut ZipWriter<File>,
     manifest: &BundleManifest,
 ) -> AppResult<usize> {
-    zip.start_file(MANIFEST_ENTRY, zip_file_options())?;
+    start_file_to_zip(zip, MANIFEST_ENTRY, zip_file_options())?;
     zip.write_all(toml::to_string_pretty(manifest)?.as_bytes())?;
     Ok(1)
 }

@@ -300,6 +300,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   Windows/default-macOS filesystems
 - zip-style archive path serialization now also lives in the shared `core::archive_path` layer,
   so backup zip writing and bundle zip writing no longer keep parallel slash-normalization helpers
+- zip-writing entry creation now also reuses shared portable-path validation in
+  `core::archive_io`, so backup creation and bundle packing reject non-portable archive names
+  before emitting first-party zip payloads
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
 - external-package normalized-path collision rules now also have pure logical regression coverage

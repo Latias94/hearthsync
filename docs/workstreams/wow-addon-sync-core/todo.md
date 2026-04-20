@@ -334,6 +334,9 @@ enough that these rules live in one place.
   Current progress: zip-style archive path serialization now also lives in the same shared core
   helper layer, so backup zip writing and bundle zip writing no longer maintain separate
   slash-normalization implementations.
+  Current progress: zip-writing entry creation now also reuses shared portable-path validation in
+  `core::archive_io`, so backup creation and bundle packing reject non-portable archive names
+  before emitting first-party zip payloads.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.
