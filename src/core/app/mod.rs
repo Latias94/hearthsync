@@ -36,7 +36,27 @@ pub use request::{
     SearchAddonsRequest, UpdateAddonAppRequest, UpdateAddonIndexAppRequest, VerifyAddonLockRequest,
     WriteAddonLockRequest,
 };
-pub use response::*;
+pub use response::{
+    AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexPackageResult,
+    AddonIndexUpdateResult, AddonInventoryResult, AddonLockApplyResult, AddonLockDiffResult,
+    AddonLockFieldChangeResult, AddonLockInspectionResult, AddonLockPackageDiffResult,
+    AddonLockPackageDirectoryIssueResult, AddonLockPackageResult, AddonLockPackageSnapshotResult,
+    AddonLockPlanResult, AddonLockSyncActionResult, AddonLockVerifyResult, AddonLockWriteResult,
+    AddonSearchCatalogResult, AddonSearchResult, AddonSourceKindResult, AddonSourceResult,
+    ApplyGroupPoliciesResult, ApplyOperationResult, ApplyPlanSummaryResult, BackupCatalogResult,
+    BackupEntryResult, BackupMetadataResult, BundleAddonLockApplyResult, BundleAddonLockPlanResult,
+    BundleApplyPlanResult, BundleApplyResult, BundleCharacterResourceResult,
+    BundleEntryCountsResult, BundleInspectionResult, BundleManifestResult,
+    BundleMappingRulesResult, BundlePackageResult, BundleResourcesResult, BundleSourceResult,
+    CharacterMappingResult, CreatedBackupResult, CreatedBundleResult,
+    ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
+    ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
+    ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    GroupPolicyResult, InstallationHealthResult, InstallationInspectionResult,
+    InstallationScanResult, InstalledAddonPackageResult, LocalWowAccountResult,
+    LocalWowCharacterResult, RemovedAddonPackageResult, RestoredBackupResult,
+    TrackedAddonPackageResult, TrackedAddonResult, UpdatedAddonPackageResult,
+};
 pub use runtime::AppRuntime;
 pub use stable::StableAppServices;
 pub use types::{

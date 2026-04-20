@@ -20,7 +20,13 @@ use clap::Parser;
 
 use crate::core::error::AppResult;
 
-pub use args::*;
+pub(crate) use args::{
+    AddonCommands, AddonIndexCommands, AddonLockCommands, ApplyMappingArgs, BackupCommands,
+    BundleCommands, Cli, Commands, ExternalPackageBundleOptions, ExternalPackageCommands,
+    InstallTargetArgs, ManifestCommands,
+};
+#[cfg(test)]
+pub(crate) use args::{ApplyPolicyArg, FlavorArg, PlatformArg};
 
 pub fn run() -> AppResult<()> {
     let cli = Cli::parse();

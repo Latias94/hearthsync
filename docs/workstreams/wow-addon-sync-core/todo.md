@@ -198,6 +198,12 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: those `core::app` sibling test modules now also import their owning service
     and contract types explicitly instead of depending on `super::*`, so app test coverage no
     longer relies on hidden parent-module import preludes either.
+    Current cleanup: `core::app::{request,response}` now maintain explicit per-domain aggregation
+    lists, and `core::app::mod` now exposes request/result DTOs through an explicit whitelist
+    instead of routing stable app response visibility through `response::*`.
+    Current cleanup: the bundle root now re-exports its public API directly from owner modules and
+    the transitional `core::bundle::exports` shell has been removed, so bundle contract changes no
+    longer hide behind an extra wildcard export layer.
     Current cleanup: runtime path/default projection helpers are crate-internal again, and
     `ExtendedAppServices` now exposes an explicit `stable()` bridge instead of implicit `Deref`
     compatibility with the stable app boundary.
