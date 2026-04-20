@@ -428,6 +428,9 @@ Prepare the core for a future frontend.
 - bundle apply-source dispatch now separates cross-source reader state and prepared-source method
   dispatch under `core::bundle::apply_source::{reader,dispatch}`, leaving `apply_source.rs` as
   the thin shell beside bundle-archive and external-package source adapters
+- bundle root module now separates archive constants, public API exports, and internal legacy
+  prelude imports under `core::bundle::{constants,exports,imports}`, leaving `mod.rs` focused on
+  module wiring while existing `super::*` call sites are progressively retired
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
