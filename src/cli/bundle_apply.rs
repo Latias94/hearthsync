@@ -1,10 +1,12 @@
 use super::BundleCommands;
 use super::app_support::{resolve_cli_installation, stable_services};
-use super::mapping::merge_apply_mapping_overrides;
+use super::mapping::resolve_apply_mappings;
 use super::output::{render, render_bundle_apply, render_bundle_apply_plan};
-use crate::core::app::{ApplyBundleAppRequest, BundleApplyMappingsValue, PlanBundleApplyRequest};
-use crate::core::bundle::load_apply_mappings;
 use crate::core::error::{AppError, AppResult};
+
+mod request;
+
+use request::{build_apply_bundle_request, build_plan_bundle_apply_request};
 
 pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -> AppResult<()> {
     let app = stable_services();
@@ -30,11 +32,11 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan = app.plan_bundle_apply(PlanBundleApplyRequest {
-                bundle_path: bundle,
+            let plan = app.plan_bundle_apply(build_plan_bundle_apply_request(
+                bundle,
                 installation,
                 apply_mappings,
-            })?;
+            ))?;
             render(json, &plan, render_bundle_apply_plan)?;
         }
         BundleCommands::Unpack {
@@ -59,13 +61,13 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = app.apply_bundle(ApplyBundleAppRequest {
-                bundle_path: bundle,
+            let result = app.apply_bundle(build_apply_bundle_request(
+                bundle,
                 installation,
                 dry_run,
-                backup_output_path: backup_output,
+                backup_output,
                 apply_mappings,
-            })?;
+            ))?;
             render(json, &result, render_bundle_apply)?;
         }
         _ => {
@@ -77,28 +79,4 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
     }
 
     Ok(())
-}
-
-pub(super) fn resolve_apply_mappings(
-    mapping_file: Option<&std::path::Path>,
-    target_account: Option<String>,
-    target_server: Option<String>,
-    target_character: Option<String>,
-    selected_accounts: Vec<String>,
-    all_accounts: bool,
-) -> AppResult<BundleApplyMappingsValue> {
-    let mut apply_mappings = if let Some(path) = mapping_file {
-        BundleApplyMappingsValue::from_domain(load_apply_mappings(path)?)
-    } else {
-        BundleApplyMappingsValue::default()
-    };
-    merge_apply_mapping_overrides(
-        &mut apply_mappings,
-        target_account,
-        target_server,
-        target_character,
-        selected_accounts,
-        all_accounts,
-    );
-    Ok(apply_mappings)
 }

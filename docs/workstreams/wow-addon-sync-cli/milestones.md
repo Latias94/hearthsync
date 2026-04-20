@@ -303,6 +303,12 @@ Prepare the core for a future frontend.
 - external-package CLI request projection is now isolated in `cli::external_package::request`,
   while external-package warning formatter tests live with `cli::output::shared`, keeping command
   handling, app-request projection, and formatter coverage under their owning modules
+- bundle-apply and addon-manage CLI request projection is now also isolated in
+  `cli::bundle_apply::request` and `cli::addon_manage::request`, so those handlers keep only
+  installation resolution, request assembly dispatch, app calls, and final rendering
+- apply-mapping file loading plus CLI override merging now lives in shared `cli::mapping`, so
+  bundle-apply and external-package no longer couple to helper ownership in a sibling command
+  module
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

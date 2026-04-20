@@ -1,6 +1,6 @@
 use super::ExternalPackageCommands;
 use super::app_support::{resolve_cli_installation, stable_services};
-use super::bundle_apply::resolve_apply_mappings;
+use super::mapping::resolve_apply_mappings;
 use super::output::{
     render, render_external_package_analysis, render_external_package_apply,
     render_external_package_plan,

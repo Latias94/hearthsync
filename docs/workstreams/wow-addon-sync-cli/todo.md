@@ -105,6 +105,8 @@ The current blocking sequence is:
   - Current cleanup: there are currently no remaining inline `render(json, ..., |item| ...)` text closures under `src/cli`; `cli::output` is now split by domain (`addon`, `addon_lock`, `bundle`, `external_package`, `system`, `backup`, `shared`), while `output.rs` stays as the thin API shell and formatter tests live beside their domain modules with shared test fixtures.
   - Current cleanup: `cli::args` is now also split by domain (`addon`, `backup`, `bundle`, `external_package`, `shared`), so the root args file only owns top-level routing plus re-exports instead of carrying every Clap enum and conversion in one place.
   - Current cleanup: external-package CLI request projection now lives in its own `cli::external_package::request` module, and external-package warning formatter tests moved back under `cli::output::shared`.
+  - Current cleanup: bundle-apply and addon-manage CLI request projection now live in `cli::bundle_apply::request` and `cli::addon_manage::request`, so those handlers keep only install resolution, request assembly dispatch, app calls, and final rendering.
+  - Current cleanup: apply-mapping file loading plus CLI override merging now belongs to shared `cli::mapping`, so bundle-apply and external-package flows no longer depend on helper ownership in a sibling command module.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
