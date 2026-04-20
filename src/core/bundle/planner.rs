@@ -2,52 +2,12 @@ use std::path::{Path, PathBuf};
 
 use super::*;
 
-#[derive(Debug)]
-struct LogicalBundleApply {
-    plan_path: PathBuf,
-    target_flavor_root: PathBuf,
-    discovered_accounts: Vec<LocalWowAccount>,
-    selected_target_accounts: Vec<String>,
-    character_mappings: Vec<CharacterMapping>,
-    manifest: BundleManifest,
-    cleanup_operations: Vec<PlannedCleanup>,
-    entry_operations: Vec<LogicalEntryOperation>,
-}
+mod model;
 
-#[derive(Debug)]
-struct LogicalEntryOperation {
-    entry: PlannedEntry,
-    disposition: LogicalEntryDisposition,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum LogicalEntryDisposition {
-    Preserve,
-    Materialize { will_cleanup: bool },
-}
-
-#[derive(Debug)]
-struct PendingPreviewApply {
-    plan_path: PathBuf,
-    target_flavor_root: PathBuf,
-    discovered_accounts: Vec<LocalWowAccount>,
-    selected_target_accounts: Vec<String>,
-    character_mappings: Vec<CharacterMapping>,
-    manifest: BundleManifest,
-    settled_operations: Vec<PreviewOperation>,
-    pending_existing_target_entries: Vec<PendingExistingTargetPreviewEntry>,
-}
-
-#[derive(Debug)]
-struct PendingExistingTargetPreviewEntry {
-    entry: PlannedEntry,
-}
-
-#[derive(Debug)]
-struct ResolvedPreviewApply {
-    plan: BundleApplyPlan,
-    preview_operations: Vec<PreviewOperation>,
-}
+use model::{
+    LogicalBundleApply, LogicalEntryDisposition, LogicalEntryOperation,
+    PendingExistingTargetPreviewEntry, PendingPreviewApply, ResolvedPreviewApply,
+};
 
 pub fn plan_bundle_apply(
     bundle_path: &Path,
