@@ -1,5 +1,9 @@
 use std::path::PathBuf;
 
+use super::{
+    RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
+    apply_source_platform_default,
+};
 use crate::core::app::{
     AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
     ResolvedInstallationValue, WowFlavorValue,
@@ -38,19 +42,20 @@ pub struct CreateExternalPackageBundleAppRequest {
     pub apply_defaults: Option<BundleApplyDefaultsValue>,
 }
 
-impl CreateExternalPackageBundleAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.source_platform = Some(runtime.source_platform_or_host(self.source_platform));
-        self.output_path = runtime.bundle_output_or_default(self.output_path);
+impl RuntimeDefaultableRequest for CreateExternalPackageBundleAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_source_platform_default(runtime, &mut self.source_platform);
+        apply_bundle_output_default(runtime, &mut self.output_path);
         self
     }
+}
 
+impl CreateExternalPackageBundleAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
     ) -> DomainCreateExternalPackageBundleRequest {
-        self.apply_runtime_defaults(runtime)
-            .into_domain_request_after_defaults()
+        self.into_domain_with_runtime_defaults(runtime, Self::into_domain_request_after_defaults)
     }
 
     fn into_domain_request_after_defaults(self) -> DomainCreateExternalPackageBundleRequest {
@@ -82,25 +87,27 @@ pub struct PlanExternalPackageApplyAppRequest {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
-impl PlanExternalPackageApplyAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+impl RuntimeDefaultableRequest for PlanExternalPackageApplyAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.external_package = self.external_package.apply_runtime_defaults(runtime);
         self
     }
+}
 
+impl PlanExternalPackageApplyAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
     ) -> DomainPlanExternalPackageApplyRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainPlanExternalPackageApplyRequest {
-            external_package: request
-                .external_package
-                .into_domain_request_after_defaults(),
-            installation: request.installation.into_domain(),
-            apply_mappings: request.apply_mappings.into_domain(),
-        }
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            DomainPlanExternalPackageApplyRequest {
+                external_package: request
+                    .external_package
+                    .into_domain_request_after_defaults(),
+                installation: request.installation.into_domain(),
+                apply_mappings: request.apply_mappings.into_domain(),
+            }
+        })
     }
 }
 
@@ -113,27 +120,29 @@ pub struct ApplyExternalPackageAppRequest {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
-impl ApplyExternalPackageAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+impl RuntimeDefaultableRequest for ApplyExternalPackageAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
         self.external_package = self.external_package.apply_runtime_defaults(runtime);
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl ApplyExternalPackageAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
     ) -> DomainApplyExternalPackageRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainApplyExternalPackageRequest {
-            external_package: request
-                .external_package
-                .into_domain_request_after_defaults(),
-            installation: request.installation.into_domain(),
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
-            apply_mappings: request.apply_mappings.into_domain(),
-        }
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            DomainApplyExternalPackageRequest {
+                external_package: request
+                    .external_package
+                    .into_domain_request_after_defaults(),
+                installation: request.installation.into_domain(),
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+                apply_mappings: request.apply_mappings.into_domain(),
+            }
+        })
     }
 }

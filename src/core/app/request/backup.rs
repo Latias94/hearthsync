@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::{RuntimeDefaultableRequest, apply_backup_dir_default, apply_backup_output_default};
 use crate::core::app::{AppRuntime, BackupGroupValue, ResolvedInstallationValue};
 use crate::core::backup::{
     BackupRequest as DomainBackupRequest, RestoreBackupRequest as DomainRestoreBackupRequest,
@@ -10,12 +11,14 @@ pub struct ListBackupsRequest {
     pub backup_dir: Option<PathBuf>,
 }
 
-impl ListBackupsRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
+impl RuntimeDefaultableRequest for ListBackupsRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_dir_default(runtime, &mut self.backup_dir);
         self
     }
+}
 
+impl ListBackupsRequest {
     pub(crate) fn into_backup_dir(self, runtime: &AppRuntime) -> Option<PathBuf> {
         self.apply_runtime_defaults(runtime).backup_dir
     }
@@ -29,16 +32,16 @@ pub struct CreateBackupAppRequest {
     pub label: Option<String>,
 }
 
-impl CreateBackupAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.output_path = runtime.backup_output_or_default(self.output_path);
+impl RuntimeDefaultableRequest for CreateBackupAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.output_path);
         self
     }
+}
 
+impl CreateBackupAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainBackupRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainBackupRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainBackupRequest {
             installation: request.installation.into_domain(),
             output_path: request.output_path,
             groups: request
@@ -47,7 +50,7 @@ impl CreateBackupAppRequest {
                 .map(BackupGroupValue::into_domain)
                 .collect(),
             label: request.label,
-        }
+        })
     }
 }
 
@@ -59,20 +62,20 @@ pub struct RestoreBackupAppRequest {
     pub backup_dir: Option<PathBuf>,
 }
 
-impl RestoreBackupAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_dir = runtime.backup_dir_or_default(self.backup_dir);
+impl RuntimeDefaultableRequest for RestoreBackupAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_dir_default(runtime, &mut self.backup_dir);
         self
     }
+}
 
+impl RestoreBackupAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRestoreBackupRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainRestoreBackupRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainRestoreBackupRequest {
             installation: request.installation.into_domain(),
             archive_path: request.archive_path,
             backup_id: request.backup_id,
             backup_dir: request.backup_dir,
-        }
+        })
     }
 }

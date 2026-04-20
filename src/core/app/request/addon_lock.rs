@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::{RuntimeDefaultableRequest, apply_backup_output_default};
 use crate::core::addon::lock::{
     AddonLockApplyRequest as DomainAddonLockApplyRequest,
     AddonLockSourceOverride as DomainAddonLockSourceOverride,
@@ -83,16 +84,16 @@ pub struct ApplyAddonLockAppRequest {
     pub source_overrides: Vec<AddonLockSourceOverrideRequest>,
 }
 
-impl ApplyAddonLockAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+impl RuntimeDefaultableRequest for ApplyAddonLockAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl ApplyAddonLockAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonLockApplyRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainAddonLockApplyRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainAddonLockApplyRequest {
             installation: request.installation.into_domain(),
             lock_path: request.lock_path,
             backup_output_path: request.backup_output_path,
@@ -102,6 +103,6 @@ impl ApplyAddonLockAppRequest {
                 .into_iter()
                 .map(AddonLockSourceOverrideRequest::into_domain_override)
                 .collect(),
-        }
+        })
     }
 }

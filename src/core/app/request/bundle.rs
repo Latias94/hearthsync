@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::{RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default};
 use crate::core::app::{
     AppRuntime, BundleApplyMappingsValue, BundleManifestValue, ResolvedInstallationValue,
 };
@@ -23,21 +24,21 @@ pub struct PackBundleAppRequest {
     pub manifest_base_dir: Option<PathBuf>,
 }
 
-impl PackBundleAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.output_path = runtime.bundle_output_or_default(self.output_path);
+impl RuntimeDefaultableRequest for PackBundleAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_bundle_output_default(runtime, &mut self.output_path);
         self
     }
+}
 
+impl PackBundleAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainPackBundleRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainPackBundleRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainPackBundleRequest {
             installation: request.installation.into_domain(),
             manifest: request.manifest.into_domain(),
             output_path: request.output_path,
             manifest_base_dir: request.manifest_base_dir,
-        }
+        })
     }
 }
 
@@ -73,22 +74,22 @@ pub struct ApplyBundleAppRequest {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
-impl ApplyBundleAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+impl RuntimeDefaultableRequest for ApplyBundleAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl ApplyBundleAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUnpackBundleRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainUnpackBundleRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainUnpackBundleRequest {
             bundle_path: request.bundle_path,
             installation: request.installation.into_domain(),
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
             apply_mappings: request.apply_mappings.into_domain(),
-        }
+        })
     }
 }
 
@@ -112,23 +113,25 @@ pub struct ApplyBundleAddonLockAppRequest {
     pub replace_existing: bool,
 }
 
-impl ApplyBundleAddonLockAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+impl RuntimeDefaultableRequest for ApplyBundleAddonLockAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl ApplyBundleAddonLockAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
     ) -> DomainBundleAddonLockApplyRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainBundleAddonLockApplyRequest {
-            bundle_path: request.bundle_path,
-            installation: request.installation.into_domain(),
-            backup_output_path: request.backup_output_path,
-            replace_existing: request.replace_existing,
-        }
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            DomainBundleAddonLockApplyRequest {
+                bundle_path: request.bundle_path,
+                installation: request.installation.into_domain(),
+                backup_output_path: request.backup_output_path,
+                replace_existing: request.replace_existing,
+            }
+        })
     }
 }

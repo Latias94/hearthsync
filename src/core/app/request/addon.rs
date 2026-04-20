@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::{RuntimeDefaultableRequest, apply_backup_output_default};
 use crate::core::addon::{
     InstallAddonRequest as DomainInstallAddonRequest,
     RemoveAddonRequest as DomainRemoveAddonRequest, SearchAddonRequest as DomainSearchAddonRequest,
@@ -46,23 +47,23 @@ pub struct InstallAddonAppRequest {
     pub metadata: Option<AddonPackageMetadataValue>,
 }
 
-impl InstallAddonAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+impl RuntimeDefaultableRequest for InstallAddonAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl InstallAddonAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainInstallAddonRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainInstallAddonRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainInstallAddonRequest {
             installation: request.installation.into_domain(),
             source: request.source,
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
             replace_existing: request.replace_existing,
             metadata: request.metadata.map(AddonPackageMetadataValue::into_domain),
-        }
+        })
     }
 }
 
@@ -74,21 +75,21 @@ pub struct UpdateAddonAppRequest {
     pub backup_output_path: Option<PathBuf>,
 }
 
-impl UpdateAddonAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+impl RuntimeDefaultableRequest for UpdateAddonAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl UpdateAddonAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUpdateAddonRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainUpdateAddonRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainUpdateAddonRequest {
             installation: request.installation.into_domain(),
             name: request.name,
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
-        }
+        })
     }
 }
 
@@ -100,20 +101,20 @@ pub struct RemoveAddonAppRequest {
     pub backup_output_path: Option<PathBuf>,
 }
 
-impl RemoveAddonAppRequest {
-    pub(crate) fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
-        self.backup_output_path = runtime.backup_output_or_default(self.backup_output_path);
+impl RuntimeDefaultableRequest for RemoveAddonAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
         self
     }
+}
 
+impl RemoveAddonAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRemoveAddonRequest {
-        let request = self.apply_runtime_defaults(runtime);
-
-        DomainRemoveAddonRequest {
+        self.into_domain_with_runtime_defaults(runtime, |request| DomainRemoveAddonRequest {
             installation: request.installation.into_domain(),
             name: request.name,
             dry_run: request.dry_run,
             backup_output_path: request.backup_output_path,
-        }
+        })
     }
 }

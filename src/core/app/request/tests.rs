@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::RuntimeDefaultableRequest;
 use crate::core::addon::InstallAddonRequest as DomainInstallAddonRequest;
 use crate::core::app::{
     AddonPackageMetadataValue, AppRuntime, ApplyAddonLockAppRequest,

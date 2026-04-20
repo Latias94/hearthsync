@@ -184,6 +184,9 @@ ways that a future frontend can depend on without learning internal domain seams
     `request/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`, and the
     remaining external-package `apply_runtime_defaults()` helpers are crate-visible again rather
     than public API. Runtime default projection stays inside app assembly.
+    Current cleanup: runtime-backed request defaults now share `core::app::request` field helpers
+    plus one `RuntimeDefaultableRequest` projection trait, so backup-output, backup-dir,
+    bundle-output, and source-platform defaults no longer drift across request families.
     Current cleanup: app request contracts no longer expose public `From<app request> for domain`
     conversions. Crate-internal projection now lives on explicit `into_domain_*` helpers so the
     stable frontend boundary no longer advertises domain request types as part of its public trait
