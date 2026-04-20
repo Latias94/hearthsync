@@ -60,6 +60,10 @@ pub(in crate::core) fn join_segments(root: &Path, segments: &[&str]) -> PathBuf 
     path
 }
 
+pub(in crate::core) fn to_zip_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
 pub(in crate::core) fn platform_path_collision_key(path: &Path, platform: HostPlatform) -> String {
     let normalized = path.to_string_lossy().replace('\\', "/");
     match platform {
@@ -148,7 +152,7 @@ mod tests {
 
     use super::{
         PlatformPathCollisionKind, find_platform_path_collision, platform_path_collision_key,
-        safe_relative_segments, safe_zip_segments,
+        safe_relative_segments, safe_zip_segments, to_zip_path,
     };
     use crate::core::install::HostPlatform;
 
@@ -245,6 +249,14 @@ mod tests {
                 "SavedVariables".to_string(),
                 "Details.lua".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn to_zip_path_normalizes_windows_separators() {
+        assert_eq!(
+            to_zip_path(Path::new(r"Interface\AddOns\WeakAuras\WeakAuras.toc")),
+            "Interface/AddOns/WeakAuras/WeakAuras.toc"
         );
     }
 

@@ -294,6 +294,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - cross-platform target-path collision detection now also shares one canonical helper in
   `core::archive_path`, and backup restore reuses the same case-folding rules as addon prep,
   bundle planning, and external-package normalization instead of carrying its own duplicate logic
+- zip-style archive path serialization now also lives in the shared `core::archive_path` layer,
+  so backup zip writing and bundle zip writing no longer keep parallel slash-normalization helpers
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
 - external-package normalized-path collision rules now also have pure logical regression coverage

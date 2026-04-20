@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-pub(in crate::core::bundle) use crate::core::archive_path::{join_segments, safe_zip_segments};
+pub(in crate::core::bundle) use crate::core::archive_path::{
+    join_segments, safe_zip_segments, to_zip_path,
+};
 use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle) fn validate_plain_name(kind: &str, value: &str) -> AppResult<()> {
@@ -53,67 +55,4 @@ pub(in crate::core::bundle) fn safe_file_part(value: &str) -> String {
     }
 
     output.trim_matches('-').to_string()
-}
-
-pub(in crate::core::bundle) fn to_zip_path(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::safe_zip_segments;
-
-    #[test]
-    fn safe_zip_segments_rejects_empty_segments() {
-        let error =
-            safe_zip_segments("addons//WeakAuras/WeakAuras.toc").expect_err("empty segment");
-
-        assert!(error.to_string().contains("unsafe archive path"));
-    }
-
-    #[test]
-    fn safe_zip_segments_rejects_windows_reserved_characters() {
-        let error = safe_zip_segments("addons/Weak:Auras/WeakAuras.toc")
-            .expect_err("colon should be rejected");
-
-        assert!(error.to_string().contains("unsafe archive path"));
-    }
-
-    #[test]
-    fn safe_zip_segments_rejects_windows_device_names() {
-        for archive_name in [
-            "addons/CON/Config.lua",
-            "addons/aux.lua",
-            "addons/com1.txt",
-            "addons/LPT9",
-        ] {
-            let error = safe_zip_segments(archive_name).expect_err("device name should fail");
-            assert!(error.to_string().contains("unsafe archive path"));
-        }
-    }
-
-    #[test]
-    fn safe_zip_segments_rejects_trailing_space_or_dot() {
-        for archive_name in ["addons/WeakAuras /Core.lua", "addons/WeakAuras./Core.lua"] {
-            let error =
-                safe_zip_segments(archive_name).expect_err("trailing space or dot should fail");
-            assert!(error.to_string().contains("unsafe archive path"));
-        }
-    }
-
-    #[test]
-    fn safe_zip_segments_accepts_portable_names() {
-        assert_eq!(
-            safe_zip_segments("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua")
-                .expect("portable path"),
-            vec![
-                "wtf",
-                "common",
-                "accounts",
-                "ACCOUNT",
-                "SavedVariables",
-                "Details.lua"
-            ]
-        );
-    }
 }

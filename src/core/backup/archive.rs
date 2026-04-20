@@ -15,6 +15,7 @@ use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
 use crate::core::archive_path::{
     PlatformPathCollisionKind, find_platform_path_collision, join_segments, safe_zip_segments,
+    to_zip_path,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -408,10 +409,6 @@ fn write_file_to_zip(
         &to_zip_path(archive_path),
         zip_file_options(),
     )
-}
-
-fn to_zip_path(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
 }
 
 fn read_backup_metadata(archive: &mut ZipArchive<File>) -> AppResult<BackupMetadata> {

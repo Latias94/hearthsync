@@ -327,6 +327,9 @@ enough that these rules live in one place.
   helper under `core::archive_path`, and backup restore reuses the same case-folding rules as
   addon prep, bundle planning, and external-package normalization instead of carrying a separate
   duplicate implementation.
+  Current progress: zip-style archive path serialization now also lives in the same shared core
+  helper layer, so backup zip writing and bundle zip writing no longer maintain separate
+  slash-normalization implementations.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.
