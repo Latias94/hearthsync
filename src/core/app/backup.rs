@@ -39,9 +39,7 @@ impl BackupService {
     }
 
     pub fn restore(&self, request: RestoreBackupAppRequest) -> AppResult<RestoredBackupResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.restore_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::restore_task)
     }
 
     pub fn restore_task<TCancel, TProgress>(
@@ -66,9 +64,7 @@ impl BackupService {
         &self,
         request: RestoreBackupAppRequest,
     ) -> AppResult<TaskRun<RestoredBackupResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.restore_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::restore_task)
     }
 
     pub fn restore_with_callbacks<FCancel, FProgress>(
@@ -81,9 +77,13 @@ impl BackupService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.restore_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::restore_task,
+        )
     }
 }
 #[cfg(test)]

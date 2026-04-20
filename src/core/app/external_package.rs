@@ -34,9 +34,7 @@ impl ExternalPackageService {
         &self,
         request: AnalyzeExternalPackageAppRequest,
     ) -> AppResult<ExternalPackageAnalysisResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.analyze_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::analyze_task)
     }
 
     pub fn analyze_task<TCancel, TProgress>(
@@ -58,9 +56,7 @@ impl ExternalPackageService {
         &self,
         request: AnalyzeExternalPackageAppRequest,
     ) -> AppResult<TaskRun<ExternalPackageAnalysisResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.analyze_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::analyze_task)
     }
 
     pub fn analyze_with_callbacks<FCancel, FProgress>(
@@ -73,9 +69,13 @@ impl ExternalPackageService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.analyze_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::analyze_task,
+        )
     }
 
     pub fn create_bundle(
@@ -90,9 +90,7 @@ impl ExternalPackageService {
         &self,
         request: PlanExternalPackageApplyAppRequest,
     ) -> AppResult<ExternalPackageApplyPlanResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.plan_apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::plan_apply_task)
     }
 
     pub fn plan_apply_task<TCancel, TProgress>(
@@ -120,9 +118,7 @@ impl ExternalPackageService {
         &self,
         request: PlanExternalPackageApplyAppRequest,
     ) -> AppResult<TaskRun<ExternalPackageApplyPlanResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.plan_apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::plan_apply_task)
     }
 
     pub fn plan_apply_with_callbacks<FCancel, FProgress>(
@@ -135,18 +131,20 @@ impl ExternalPackageService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.plan_apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::plan_apply_task,
+        )
     }
 
     pub fn apply(
         &self,
         request: ApplyExternalPackageAppRequest,
     ) -> AppResult<ExternalPackageApplyResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::apply_task)
     }
 
     pub fn apply_task<TCancel, TProgress>(
@@ -171,9 +169,7 @@ impl ExternalPackageService {
         &self,
         request: ApplyExternalPackageAppRequest,
     ) -> AppResult<TaskRun<ExternalPackageApplyResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::apply_task)
     }
 
     pub fn apply_with_callbacks<FCancel, FProgress>(
@@ -186,9 +182,13 @@ impl ExternalPackageService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::apply_task,
+        )
     }
 }
 #[cfg(test)]

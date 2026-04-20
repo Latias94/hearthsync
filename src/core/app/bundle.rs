@@ -51,9 +51,7 @@ impl BundleService {
     }
 
     pub fn apply(&self, request: ApplyBundleAppRequest) -> AppResult<BundleApplyResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::apply_task)
     }
 
     pub fn plan_addon_lock(
@@ -95,9 +93,7 @@ impl BundleService {
         &self,
         request: ApplyBundleAppRequest,
     ) -> AppResult<TaskRun<BundleApplyResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::apply_task)
     }
 
     pub fn apply_with_callbacks<FCancel, FProgress>(
@@ -110,9 +106,13 @@ impl BundleService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.apply_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::apply_task,
+        )
     }
 }
 #[cfg(test)]

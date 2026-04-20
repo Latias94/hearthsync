@@ -41,9 +41,7 @@ impl AddonIndexService {
         &self,
         request: InstallAddonIndexAppRequest,
     ) -> AppResult<AddonIndexInstallResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.install_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::install_task)
     }
 
     pub fn install_task<TCancel, TProgress>(
@@ -69,9 +67,7 @@ impl AddonIndexService {
         &self,
         request: InstallAddonIndexAppRequest,
     ) -> AppResult<TaskRun<AddonIndexInstallResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.install_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
     pub fn install_with_callbacks<FCancel, FProgress>(
@@ -84,15 +80,17 @@ impl AddonIndexService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.install_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::install_task,
+        )
     }
 
     pub fn update(&self, request: UpdateAddonIndexAppRequest) -> AppResult<AddonIndexUpdateResult> {
-        task_support::run_direct_task(|cancellation, progress| {
-            self.update_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_direct(self, request, Self::update_task)
     }
 
     pub fn update_task<TCancel, TProgress>(
@@ -118,9 +116,7 @@ impl AddonIndexService {
         &self,
         request: UpdateAddonIndexAppRequest,
     ) -> AppResult<TaskRun<AddonIndexUpdateResult>> {
-        task_support::run_collecting_task(|cancellation, progress| {
-            self.update_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
     pub fn update_with_callbacks<FCancel, FProgress>(
@@ -133,9 +129,13 @@ impl AddonIndexService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        task_support::run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
-            self.update_task(request, cancellation, progress)
-        })
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::update_task,
+        )
     }
 }
 #[cfg(test)]

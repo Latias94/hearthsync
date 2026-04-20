@@ -36,3 +36,55 @@ where
 {
     run_task_with_callbacks(is_cancelled, on_progress, task)
 }
+
+pub(super) fn run_service_task_direct<TService, TRequest, TResult, FTask>(
+    service: &TService,
+    request: TRequest,
+    task: FTask,
+) -> AppResult<TResult>
+where
+    FTask: FnOnce(&TService, TRequest, &NeverCancel, &mut NoopProgressSink) -> AppResult<TResult>,
+{
+    run_direct_task(|cancellation, progress| task(service, request, cancellation, progress))
+}
+
+pub(super) fn run_service_task_collecting<TService, TRequest, TResult, FTask>(
+    service: &TService,
+    request: TRequest,
+    task: FTask,
+) -> AppResult<TaskRun<TResult>>
+where
+    FTask:
+        FnOnce(&TService, TRequest, &NeverCancel, &mut VecTaskProgressSink) -> AppResult<TResult>,
+{
+    run_collecting_task(|cancellation, progress| task(service, request, cancellation, progress))
+}
+
+pub(super) fn run_service_task_with_callbacks<
+    TService,
+    TRequest,
+    TResult,
+    FTask,
+    FCancel,
+    FProgress,
+>(
+    service: &TService,
+    request: TRequest,
+    is_cancelled: FCancel,
+    on_progress: FProgress,
+    task: FTask,
+) -> AppResult<TResult>
+where
+    FTask: FnOnce(
+        &TService,
+        TRequest,
+        &CallbackCancellationToken<FCancel>,
+        &mut CallbackProgressSink<FProgress>,
+    ) -> AppResult<TResult>,
+    FCancel: Fn() -> bool,
+    FProgress: FnMut(TaskProgressEvent),
+{
+    run_callback_task(is_cancelled, on_progress, |cancellation, progress| {
+        task(service, request, cancellation, progress)
+    })
+}
