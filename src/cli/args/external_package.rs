@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use super::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
+use super::shared::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
 
 #[derive(Debug, Subcommand)]
 pub enum ExternalPackageCommands {
@@ -88,8 +88,9 @@ mod tests {
 
     use clap::Parser;
 
+    use super::super::shared::{FlavorArg, PlatformArg};
     use super::super::{Cli, Commands};
-    use super::{ExternalPackageCommands, FlavorArg, PlatformArg};
+    use super::ExternalPackageCommands;
     use crate::cli::ApplyPolicyArg;
 
     #[test]

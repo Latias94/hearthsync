@@ -2,17 +2,17 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-mod addon;
-mod backup;
-mod bundle;
-mod external_package;
-mod shared;
+pub(super) mod addon;
+pub(super) mod backup;
+pub(super) mod bundle;
+pub(super) mod external_package;
+pub(super) mod shared;
 
-pub use addon::{AddonCommands, AddonIndexCommands, AddonLockCommands};
-pub use backup::BackupCommands;
-pub use bundle::BundleCommands;
-pub use external_package::{ExternalPackageBundleOptions, ExternalPackageCommands};
-pub use shared::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
+use addon::AddonCommands;
+use backup::BackupCommands;
+use bundle::BundleCommands;
+use external_package::ExternalPackageCommands;
+use shared::InstallTargetArgs;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -76,7 +76,8 @@ mod tests {
 
     use clap::Parser;
 
-    use super::{Cli, Commands, FlavorArg};
+    use super::shared::FlavorArg;
+    use super::{Cli, Commands};
 
     #[test]
     fn parses_top_level_inspect_with_shared_install_target() {

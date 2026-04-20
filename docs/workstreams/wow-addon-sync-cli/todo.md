@@ -166,6 +166,7 @@ The current blocking sequence is:
   - Current cleanup: internal `core::bundle::apply` and `core::bundle::packing` callers now also target `apply::pipeline`, `apply::task_context`, `packing::inspect`, and `packing::pack` directly, while the public bundle root keeps owning the stable exported CLI/frontend surface.
   - Current cleanup: `core::bundle::{types,external_package}` now also stop acting as internal re-export shells; bundle internals import concrete child modules such as `types::apply`, `types::archive`, and `external_package::types` directly, while `core::bundle::mod` remains the only public export owner for DTOs and external-package entrypoints.
   - Current cleanup: `cli::output` root now only owns the shared `render(json, ...)` helper; command handlers import concrete owner modules such as `output::addon`, `output::bundle`, and `output::system` directly instead of routing formatter visibility through another root-level re-export shell.
+  - Current cleanup: `cli::args` now follows the same owner-export rule; args child modules are visible to `cli::mod`, and the CLI root owns the explicit command/flag export whitelist instead of re-exporting everything through `args.rs`.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

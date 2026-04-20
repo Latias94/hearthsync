@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
-use super::InstallTargetArgs;
+use super::shared::InstallTargetArgs;
 
 #[derive(Debug, Subcommand)]
 pub enum AddonCommands {

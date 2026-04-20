@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
-use super::{ApplyMappingArgs, InstallTargetArgs};
+use super::shared::{ApplyMappingArgs, InstallTargetArgs};
 
 #[derive(Debug, Subcommand)]
 pub enum BundleCommands {
@@ -62,6 +62,7 @@ mod tests {
 
     use clap::Parser;
 
+    use super::super::shared::FlavorArg;
     use super::super::{Cli, Commands};
     use super::BundleCommands;
 
@@ -105,7 +106,7 @@ mod tests {
                         install_target.install,
                         PathBuf::from("E:\\Games\\World of Warcraft")
                     );
-                    assert_eq!(install_target.flavor, Some(super::super::FlavorArg::Retail));
+                    assert_eq!(install_target.flavor, Some(FlavorArg::Retail));
                     assert!(dry_run);
                     assert_eq!(
                         apply_mapping.mapping_file,
