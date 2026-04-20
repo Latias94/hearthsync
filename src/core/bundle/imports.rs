@@ -1,5 +1,4 @@
 pub(in crate::core::bundle) use std::fs;
-pub(in crate::core::bundle) use std::path::{Path, PathBuf};
 
 pub(in crate::core::bundle) use super::addon_lock::ExtractedAddonLock;
 pub(in crate::core::bundle) use super::addon_source_archive::{
@@ -45,5 +44,5 @@ pub(in crate::core::bundle) use crate::core::lua_patch::{
     CharacterMapping, LuaRewriteOptions, preview_lua_bytes_rewrite,
 };
 pub(in crate::core::bundle) use crate::core::manifest::{
-    BundleManifest, CharacterMappingMode, CharacterResource, ResourceApplyPolicy,
+    BundleManifest, CharacterResource, ResourceApplyPolicy,
 };

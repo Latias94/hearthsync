@@ -1,4 +1,9 @@
-use super::super::*;
+use super::super::shared::validate_plain_name;
+use super::super::types::BundleApplyMappings;
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::LocalWowAccount;
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::{BundleManifest, CharacterMappingMode};
 
 pub(in crate::core::bundle) fn resolve_selected_target_accounts(
     manifest: &BundleManifest,

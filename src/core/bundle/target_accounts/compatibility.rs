@@ -1,4 +1,6 @@
-use super::super::*;
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
+use crate::core::manifest::BundleManifest;
 
 pub(in crate::core::bundle) fn validate_target_compatibility(
     manifest: &BundleManifest,

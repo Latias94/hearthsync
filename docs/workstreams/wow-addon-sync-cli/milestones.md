@@ -441,6 +441,9 @@ Prepare the core for a future frontend.
 - bundle addon-lock/apply/character-mapping roots plus their key helper modules now also use
   explicit imports instead of `super::*`, and `core::bundle::imports` has already shrunk by
   removing no-longer-needed archive/apply/backup transitional re-exports
+- bundle entry-planning and target-account selection helpers now also use explicit imports instead
+  of `super::*`, and `core::bundle::imports` has shrunk further by dropping unused path and
+  character-mode transitional items
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 
-use super::super::*;
+use super::super::shared::validate_plain_name;
+use super::super::types::BundleApplyMappings;
+use crate::core::error::{AppError, AppResult};
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::BundleManifest;
 
 pub(in crate::core::bundle) fn resolve_common_account_targets(
     manifest: &BundleManifest,

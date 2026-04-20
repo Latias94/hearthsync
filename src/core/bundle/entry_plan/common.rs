@@ -1,4 +1,10 @@
-use super::*;
+use std::path::{Path, PathBuf};
+
+use super::super::apply_model::PlannedEntry;
+use super::super::shared::join_segments;
+use super::super::types::{ApplyGroup, WtfScope};
+use super::EntryPlanningContext;
+use crate::core::lua_patch::CharacterMapping;
 
 impl<'a> EntryPlanningContext<'a> {
     pub(in crate::core::bundle::entry_plan) fn simple_entry(

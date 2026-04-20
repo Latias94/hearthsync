@@ -4,7 +4,9 @@ mod context;
 
 use std::collections::BTreeMap;
 
-use super::*;
+use crate::core::install::DetectedFlavorInstallation;
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::BundleManifest;
 
 pub(in crate::core::bundle) use context::plan_extractable_entries;
 

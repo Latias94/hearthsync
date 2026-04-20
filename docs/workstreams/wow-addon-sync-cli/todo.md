@@ -150,6 +150,7 @@ The current blocking sequence is:
   - Current cleanup: external-package app-facing orchestration now separates analyze, bundle creation, apply-plan entrypoints, and internal source-entry shape into `core::bundle::external_package::{analyze,create_bundle,plan,source_entry}`, leaving `external_package.rs` as a thinner API shell over the already split pipeline modules.
   - Current cleanup: the first low-risk leaf bundle modules (`entry_layout`, `wtf_scope`, `character_mapping_match`, `zip_write`) now use explicit imports instead of `super::*`, starting the staged retirement of `core::bundle::imports`.
   - Current cleanup: bundle addon-lock/apply/character-mapping roots plus their key helper modules now also use explicit imports instead of `super::*`, and `core::bundle::imports` has been reduced accordingly by removing no-longer-needed archive/apply/backup transitional re-exports.
+  - Current cleanup: bundle entry-planning and target-account selection helpers now also use explicit imports instead of `super::*`, and `core::bundle::imports` has shrunk further by dropping unused path and character-mode transitional items.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
