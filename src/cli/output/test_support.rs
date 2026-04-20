@@ -10,10 +10,12 @@ use crate::core::app::{
     ExternalPackageAnalysisResult, ExternalPackageEntryResult, ExternalPackageSummaryResult,
     ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
     ExternalPackageWarningGroupResult, ExternalPackageWarningResult, GroupPolicyResult,
-    HostPlatformValue, LocalWowAccountResult, LocalWowCharacterResult, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, TrackedAddonPackageResult, TrackedAddonResult, WowFlavorValue,
+    HostPlatformValue, LocalWowAccountResult, LocalWowCharacterResult, ResourceApplyPolicyValue,
+    TrackedAddonPackageResult, TrackedAddonResult, WowFlavorValue,
 };
 use crate::core::bundle::ExternalPackageSourceKind;
+
+pub(super) use crate::cli::test_support::sample_installation;
 
 pub(super) fn sample_snapshot(
     package_id: &str,
@@ -268,19 +270,6 @@ pub(super) fn sample_external_package_analysis() -> ExternalPackageAnalysisResul
             source_path: "AuthorUI/README.txt".to_string(),
             message: "ignored addon entry".to_string(),
         }],
-    }
-}
-
-pub(super) fn sample_installation() -> ResolvedInstallationValue {
-    ResolvedInstallationValue {
-        platform: HostPlatformValue::Windows,
-        flavor: WowFlavorValue::Retail,
-        product_root: PathBuf::from("C:\\Games\\World of Warcraft"),
-        flavor_root: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_"),
-        interface_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface"),
-        addon_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface\\AddOns"),
-        wtf_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\WTF"),
-        fonts_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Fonts"),
     }
 }
 
