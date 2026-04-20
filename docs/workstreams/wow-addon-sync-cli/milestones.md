@@ -365,6 +365,9 @@ Prepare the core for a future frontend.
   leaving the planner root focused on bundle/external source entry orchestration
 - bundle apply task message/context policy now lives under `core::bundle::apply::task_context`,
   separating shared bundle/external-package progress wording from the filesystem execution flow
+- bundle apply filesystem execution, backup creation, and rollback handling now live under
+  `core::bundle::apply::executor`, leaving the apply root focused on task entrypoints and result
+  projection
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
