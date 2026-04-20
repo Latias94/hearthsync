@@ -1,7 +1,7 @@
 use super::AddonIndexCommands;
-use super::app_support::{extended_services, resolve_cli_installation};
+use super::app_support::{extended_services, render_with_installation, render_with_value};
 use super::output::{
-    render, render_addon_index_inspection, render_addon_index_install, render_addon_index_update,
+    render_addon_index_inspection, render_addon_index_install, render_addon_index_update,
 };
 use crate::core::error::AppResult;
 
@@ -16,10 +16,11 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
     let app = extended_services();
 
     match command {
-        AddonIndexCommands::Inspect { file } => {
-            let inspection = app.inspect_addon_index(build_inspect_addon_index_request(file))?;
-            render(json, &inspection, render_addon_index_inspection)?;
-        }
+        AddonIndexCommands::Inspect { file } => render_with_value(
+            json,
+            || app.inspect_addon_index(build_inspect_addon_index_request(file)),
+            render_addon_index_inspection,
+        )?,
         AddonIndexCommands::Install {
             install_target,
             file,
@@ -27,35 +28,39 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             dry_run,
             backup_output,
             replace_existing,
-        } => {
-            let installation = resolve_cli_installation(app.stable(), install_target)?;
-            let result = app.install_addon_index(build_install_addon_index_request(
-                installation,
-                file,
-                name,
-                dry_run,
-                backup_output,
-                replace_existing,
-            ))?;
-            render(json, &result, render_addon_index_install)?;
-        }
+        } => render_with_installation(
+            json,
+            app.stable(),
+            install_target,
+            |installation| {
+                build_install_addon_index_request(
+                    installation,
+                    file,
+                    name,
+                    dry_run,
+                    backup_output,
+                    replace_existing,
+                )
+            },
+            |request| app.install_addon_index(request),
+            render_addon_index_install,
+        )?,
         AddonIndexCommands::Update {
             install_target,
             file,
             name,
             dry_run,
             backup_output,
-        } => {
-            let installation = resolve_cli_installation(app.stable(), install_target)?;
-            let result = app.update_addon_index(build_update_addon_index_request(
-                installation,
-                file,
-                name,
-                dry_run,
-                backup_output,
-            ))?;
-            render(json, &result, render_addon_index_update)?;
-        }
+        } => render_with_installation(
+            json,
+            app.stable(),
+            install_target,
+            |installation| {
+                build_update_addon_index_request(installation, file, name, dry_run, backup_output)
+            },
+            |request| app.update_addon_index(request),
+            render_addon_index_update,
+        )?,
     }
 
     Ok(())

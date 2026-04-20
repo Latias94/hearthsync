@@ -111,6 +111,7 @@ The current blocking sequence is:
   - Current cleanup: repeated CLI `--install/--flavor` and bundle/external-package apply-mapping flags now live in shared `cli::args::shared` structs (`InstallTargetArgs`, `ApplyMappingArgs`), and `cli::app_support` plus `cli::mapping` now consume those shared shapes directly, so handler signatures and Clap definitions stop drifting across commands.
   - Current cleanup: `cli::output` root now re-exports domain renderers directly instead of wrapping each one-line forwarding function, so the module stays a thin API surface around `render(json, ...)` rather than another growing list of pass-through bodies.
   - Current cleanup: bundle-apply and external-package CLI handlers now also share one `resolve_cli_apply_target(...)` path in `cli::app_support`, so installation resolution and apply-mapping resolution no longer drift between those two plan/apply entrypoints.
+  - Current cleanup: install-target based CLI handlers now also share `render_with_installation(...)` and apply-target handlers share `render_with_apply_target(...)` in `cli::app_support`, so addon/addon-index/addon-lock/backup/bundle command modules no longer repeat the same resolve-target → invoke app → render control flow.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

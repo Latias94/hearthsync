@@ -1,8 +1,8 @@
 use super::AddonCommands;
-use super::app_support::{resolve_cli_installation, stable_services};
+use super::app_support::{render_with_installation, stable_services};
 use super::output::{
-    render, render_addon_install, render_addon_inventory, render_addon_remove,
-    render_addon_search_catalog, render_addon_update,
+    render_addon_install, render_addon_inventory, render_addon_remove, render_addon_search_catalog,
+    render_addon_update,
 };
 use crate::core::error::{AppError, AppResult};
 
@@ -21,64 +21,70 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             install_target,
             query,
             limit,
-        } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let results =
-                app.search_addons(build_search_addons_request(installation, query, limit))?;
-            render(json, &results, render_addon_search_catalog)?;
-        }
-        AddonCommands::List { install_target } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let inventory = app.list_addons(build_list_addons_request(installation))?;
-            render(json, &inventory, render_addon_inventory)?;
-        }
+        } => render_with_installation(
+            json,
+            &app,
+            install_target,
+            |installation| build_search_addons_request(installation, query, limit),
+            |request| app.search_addons(request),
+            render_addon_search_catalog,
+        )?,
+        AddonCommands::List { install_target } => render_with_installation(
+            json,
+            &app,
+            install_target,
+            build_list_addons_request,
+            |request| app.list_addons(request),
+            render_addon_inventory,
+        )?,
         AddonCommands::Install {
             install_target,
             source,
             dry_run,
             backup_output,
             replace_existing,
-        } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let result = app.install_addon(build_install_addon_request(
-                installation,
-                source,
-                dry_run,
-                backup_output,
-                replace_existing,
-            ))?;
-            render(json, &result, render_addon_install)?;
-        }
+        } => render_with_installation(
+            json,
+            &app,
+            install_target,
+            |installation| {
+                build_install_addon_request(
+                    installation,
+                    source,
+                    dry_run,
+                    backup_output,
+                    replace_existing,
+                )
+            },
+            |request| app.install_addon(request),
+            render_addon_install,
+        )?,
         AddonCommands::Update {
             install_target,
             name,
             dry_run,
             backup_output,
-        } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let result = app.update_addons(build_update_addons_request(
-                installation,
-                name,
-                dry_run,
-                backup_output,
-            ))?;
-            render(json, &result, render_addon_update)?;
-        }
+        } => render_with_installation(
+            json,
+            &app,
+            install_target,
+            |installation| build_update_addons_request(installation, name, dry_run, backup_output),
+            |request| app.update_addons(request),
+            render_addon_update,
+        )?,
         AddonCommands::Remove {
             install_target,
             name,
             dry_run,
             backup_output,
-        } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let result = app.remove_addons(build_remove_addons_request(
-                installation,
-                name,
-                dry_run,
-                backup_output,
-            ))?;
-            render(json, &result, render_addon_remove)?;
-        }
+        } => render_with_installation(
+            json,
+            &app,
+            install_target,
+            |installation| build_remove_addons_request(installation, name, dry_run, backup_output),
+            |request| app.remove_addons(request),
+            render_addon_remove,
+        )?,
         AddonCommands::Index { .. } | AddonCommands::Lock { .. } => {
             return Err(AppError::Validation(
                 "internal CLI routing error: addon subcommand reached basic addon handler"

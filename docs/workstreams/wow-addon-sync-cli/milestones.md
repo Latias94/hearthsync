@@ -323,6 +323,9 @@ Prepare the core for a future frontend.
 - bundle-apply and external-package CLI handlers now also share one apply-target resolution helper
   in `cli::app_support`, so installation resolution plus apply-mapping resolution no longer drift
   between those two plan/apply entrypoints
+- install-target based CLI handlers now also share execution helpers in `cli::app_support`
+  (`render_with_installation`, `render_with_apply_target`), reducing repeated resolve-target →
+  app-call → render control flow across addon, addon-index, addon-lock, backup, and bundle flows
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
