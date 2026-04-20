@@ -1,5 +1,5 @@
 use super::app_support::{render_with_apply_target, stable_services};
-use super::output::{render_bundle_apply, render_bundle_apply_plan};
+use super::output::bundle::{render_bundle_apply, render_bundle_apply_plan};
 use super::{ApplyMappingArgs, InstallTargetArgs};
 use crate::core::error::AppResult;
 

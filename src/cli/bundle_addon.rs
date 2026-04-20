@@ -1,6 +1,6 @@
 use super::InstallTargetArgs;
 use super::app_support::{extended_services, render_with_installation};
-use super::output::{render_bundle_addon_lock_apply, render_bundle_addon_lock_plan};
+use super::output::addon_lock::{render_bundle_addon_lock_apply, render_bundle_addon_lock_plan};
 use crate::core::error::AppResult;
 
 mod request;

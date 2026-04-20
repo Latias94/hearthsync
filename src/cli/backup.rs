@@ -1,6 +1,6 @@
 use super::BackupCommands;
 use super::app_support::{render_with_installation, render_with_value, stable_services};
-use super::output::{render_backup_catalog, render_backup_created, render_backup_restored};
+use super::output::backup::{render_backup_catalog, render_backup_created, render_backup_restored};
 use crate::core::error::AppResult;
 
 mod request;

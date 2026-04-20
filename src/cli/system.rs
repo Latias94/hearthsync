@@ -1,5 +1,5 @@
 use super::app_support::{render_with_value, stable_services};
-use super::output::{
+use super::output::system::{
     render_installation_health_report, render_installation_inspection, render_installation_scan,
     render_manifest_example, render_manifest_validation,
 };

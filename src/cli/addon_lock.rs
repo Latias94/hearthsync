@@ -1,6 +1,6 @@
 use super::AddonLockCommands;
 use super::app_support::{extended_services, render_with_installation, render_with_value};
-use super::output::{
+use super::output::addon_lock::{
     render_addon_lock_apply, render_addon_lock_diff, render_addon_lock_inspection,
     render_addon_lock_plan, render_addon_lock_verify, render_addon_lock_write,
 };

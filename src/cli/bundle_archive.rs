@@ -1,6 +1,6 @@
 use super::InstallTargetArgs;
 use super::app_support::{render_with_fallible_installation, render_with_value, stable_services};
-use super::output::{render_bundle_archive_created, render_bundle_archive_inspection};
+use super::output::bundle::{render_bundle_archive_created, render_bundle_archive_inspection};
 use crate::core::error::AppResult;
 
 mod request;

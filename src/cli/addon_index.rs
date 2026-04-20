@@ -1,6 +1,6 @@
 use super::AddonIndexCommands;
 use super::app_support::{extended_services, render_with_installation, render_with_value};
-use super::output::{
+use super::output::addon::{
     render_addon_index_inspection, render_addon_index_install, render_addon_index_update,
 };
 use crate::core::error::AppResult;

@@ -1,5 +1,5 @@
 use super::app_support::{render_with_installation, stable_services};
-use super::output::{
+use super::output::addon::{
     render_addon_install, render_addon_inventory, render_addon_remove, render_addon_search_catalog,
     render_addon_update,
 };

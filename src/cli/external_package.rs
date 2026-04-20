@@ -1,6 +1,6 @@
 use super::ExternalPackageCommands;
 use super::app_support::{render_with_apply_target, render_with_value, stable_services};
-use super::output::{
+use super::output::external_package::{
     render_external_package_analysis, render_external_package_apply, render_external_package_plan,
 };
 use crate::core::error::AppResult;
