@@ -137,6 +137,7 @@ The current blocking sequence is:
   - Current cleanup: bundle archive reading now separates entry-byte/materialization helpers, manifest/entry-count inspection, and embedded addon-lock extraction into `core::bundle::archive_read::{entries,inspect,addon_lock}`, leaving `archive_read.rs` as a re-export shell.
   - Current cleanup: bundle character mapping now separates target-resolution mechanics and input/error validation into `core::bundle::character_mapping::{resolution,validation}`, leaving `character_mapping.rs` focused on per-resource mode dispatch.
   - Current cleanup: bundle target-account logic now separates common-account selection, source-account target inference, and installation compatibility checks into `core::bundle::target_accounts::{selection,common,compatibility}`, leaving `target_accounts.rs` as a thin re-export shell.
+  - Current cleanup: bundle apply policy logic now separates cleanup-root planning, resource-group policy lookup, and operation/group ordering into `core::bundle::apply_policy::{cleanup,policy,order}`, leaving `apply_policy.rs` as a thin re-export shell.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
