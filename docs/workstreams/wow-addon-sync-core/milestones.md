@@ -291,8 +291,14 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon local-archive preparation now also validates staged addon-directory and file target
   collisions using the selected target platform's case-sensitivity rules, so Windows/default-macOS
   installs fail fast on case-only archive conflicts instead of depending on host filesystem behavior
+- cross-platform target-path collision detection now also shares one canonical helper in
+  `core::archive_path`, and backup restore reuses the same case-folding rules as addon prep,
+  bundle planning, and external-package normalization instead of carrying its own duplicate logic
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
+- external-package normalized-path collision rules now also have pure logical regression coverage
+  in addition to zip-fixture coverage, so Windows/default-macOS case-folding behavior no longer
+  depends only on integration fixtures that a host filesystem may be unable to materialize
 - bundle archive inspect/apply/addon-lock extraction now also reject symlink entries up front, so
   first-party bundle ingestion no longer trails addon/external-package/backup archive safety
 - bundle archive entry validation now also rejects non-portable path segments during inspect/apply,

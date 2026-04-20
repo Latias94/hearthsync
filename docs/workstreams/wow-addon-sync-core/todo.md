@@ -287,6 +287,10 @@ enough that these rules live in one place.
   turning them into ambient planner or service assumptions before any concrete helper backend
   exists.
 - [ ] broaden archive-compatibility coverage for author packages and large real-world inputs
+  Current progress: external-package normalized-path collision rules now also have pure logical
+  regression coverage in addition to zip-fixture coverage, so Windows/default-macOS case-folding
+  behavior is tested without depending on a host filesystem that can physically materialize
+  case-only directory entries.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two
@@ -319,6 +323,10 @@ enough that these rules live in one place.
   file target collisions using the selected target platform's case-sensitivity rules, so
   Windows/default-macOS installs fail fast on case-only archive conflicts instead of depending on
   host filesystem behavior during extraction.
+  Current progress: cross-platform target-path collision detection now also shares one canonical
+  helper under `core::archive_path`, and backup restore reuses the same case-folding rules as
+  addon prep, bundle planning, and external-package normalization instead of carrying a separate
+  duplicate implementation.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.
