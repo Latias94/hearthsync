@@ -130,6 +130,7 @@ The current blocking sequence is:
   - Current cleanup: bundle apply filesystem execution, backup creation, and rollback handling now live in `core::bundle::apply::executor`, leaving the apply root focused on task entrypoints and result projection.
   - Current cleanup: bundle apply dry-run/execute result projection now lives in `core::bundle::apply::result`, so the root apply flow no longer assembles `UnpackedBundle` inline.
   - Current cleanup: shared prepared-apply orchestration for bundle archives and external packages now lives in `core::bundle::apply::pipeline`, leaving `apply.rs` as the bundle-specific task entry shell.
+  - Current cleanup: apply-source bundle-archive and external-package read/materialize paths now live in `core::bundle::apply_source::bundle_archive` and `core::bundle::apply_source::external_package`, so `apply_source.rs` is reduced to dispatch over source kind.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

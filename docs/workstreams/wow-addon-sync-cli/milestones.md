@@ -376,6 +376,10 @@ Prepare the core for a future frontend.
   inline
 - shared prepared-apply orchestration for bundle archives and external packages now lives under
   `core::bundle::apply::pipeline`, leaving `apply.rs` as the bundle-specific task entry shell
+- apply-source bundle-archive and external-package read/materialize paths now live under
+  `core::bundle::apply_source::bundle_archive` and
+  `core::bundle::apply_source::external_package`, so `apply_source.rs` is reduced to source-kind
+  dispatch
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
