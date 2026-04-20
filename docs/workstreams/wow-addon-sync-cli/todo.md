@@ -142,6 +142,7 @@ The current blocking sequence is:
   - Current cleanup: bundle execution now separates filesystem apply/materialization, target-byte comparison, and rollback error wrapping into `core::bundle::execution::{apply,compare,rollback}`, leaving `execution.rs` as a thin re-export shell.
   - Current cleanup: bundle WTF archive support now separates common WTF packing, character WTF packing, and source-account resolution into `core::bundle::wtf_archive::{common,character,resolve}`, leaving `wtf_archive.rs` as a thin re-export shell.
   - Current cleanup: bundle public DTOs now separate archive pack/inspect models, bundle-addon-lock models, and bundle-apply models into `core::bundle::types::{archive,addon_lock,apply}`, leaving `types.rs` as a thin re-export shell.
+  - Current cleanup: bundle shared helpers now separate addon-source index models, path-safety utilities, and zip option helpers into `core::bundle::shared::{addon_source_index,path,zip_options}`, leaving `shared.rs` as a thin re-export shell.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
