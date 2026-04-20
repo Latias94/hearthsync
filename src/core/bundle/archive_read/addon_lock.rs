@@ -7,7 +7,8 @@ use zip::ZipArchive;
 
 use super::super::addon_lock::ExtractedAddonLock;
 use super::super::constants::{ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY};
-use super::super::shared::{BundleAddonSourceIndex, join_segments, safe_zip_segments};
+use super::super::shared::addon_source_index::BundleAddonSourceIndex;
+use super::super::shared::path::{join_segments, safe_zip_segments};
 use crate::core::addon::lock::AddonLockSourceOverride;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::error::{AppError, AppResult};

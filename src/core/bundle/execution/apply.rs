@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 
-use super::super::apply_model::{PreparedApplyOperation, PreparedApplySource};
+use super::super::apply_model::prepared::{PreparedApplyOperation, PreparedApplySource};
 use super::super::apply_source::ApplySourceReader;
 use super::super::types::ApplyAction;
 use crate::core::error::AppResult;

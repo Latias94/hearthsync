@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use super::super::apply_model::{PlannedCleanup, PlannedEntry};
+use super::super::apply_model::planned::{PlannedCleanup, PlannedEntry};
 use super::super::types::{ApplyGroup, WtfScope};
 use super::policy::resource_policy_for_group;
 use crate::core::error::{AppError, AppResult};

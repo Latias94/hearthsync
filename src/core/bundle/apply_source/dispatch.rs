@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::super::apply_model::PreparedApplySource;
+use super::super::apply_model::prepared::PreparedApplySource;
 use super::bundle_archive::{
     bundle_manifest_from_archive, logical_entry_names_from_bundle_archive,
     materialize_bundle_archive_entry, open_bundle_archive_reader, read_bundle_archive_entry_bytes,

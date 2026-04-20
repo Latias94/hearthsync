@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use super::super::apply_model::{
-    PlannedEntry, PreparedApplyOperation, PreparedApplySource, PreparedBundleApply,
-    PreviewOperation,
+use super::super::apply_model::planned::PlannedEntry;
+use super::super::apply_model::prepared::{
+    PreparedApplyOperation, PreparedApplySource, PreparedBundleApply,
 };
+use super::super::apply_model::preview::PreviewOperation;
 use super::super::apply_policy::order::{apply_action_order, apply_group_order};
-use super::super::execution::file_contents_equal_to_bytes;
+use super::super::execution::compare::file_contents_equal_to_bytes;
 use super::super::types::{
     ApplyAction, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyPlan, GroupPolicy,
 };

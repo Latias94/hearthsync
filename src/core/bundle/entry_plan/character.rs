@@ -2,8 +2,8 @@ use super::super::character_mapping_match::find_character_mapping;
 use super::super::wtf_scope::classify_character_wtf_scope;
 use std::path::Path;
 
-use super::super::apply_model::PlannedEntry;
-use super::super::shared::join_segments;
+use super::super::apply_model::planned::PlannedEntry;
+use super::super::shared::path::join_segments;
 use super::super::types::ApplyGroup;
 use super::EntryPlanningContext;
 use crate::core::lua_patch::CharacterMapping;

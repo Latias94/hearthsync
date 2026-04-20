@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-use super::super::shared::safe_file_part;
+use super::super::shared::path::safe_file_part;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;

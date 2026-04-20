@@ -6,7 +6,8 @@ use serde::Serialize;
 use walkdir::WalkDir;
 use zip::ZipWriter;
 
-use super::shared::{should_skip_path, to_zip_path, zip_dir_options, zip_file_options};
+use super::shared::path::{should_skip_path, to_zip_path};
+use super::shared::zip_options::{zip_dir_options, zip_file_options};
 use crate::core::archive_io::stream_file_to_zip;
 use crate::core::error::{AppError, AppResult};
 

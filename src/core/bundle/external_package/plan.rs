@@ -1,4 +1,4 @@
-use super::super::apply_model::PreparedApplySource;
+use super::super::apply_model::prepared::PreparedApplySource;
 use super::super::planner::plan_apply_from_source;
 use super::normalized::build_external_package_entry_source_map;
 use super::prepare::prepare_external_package_artifacts;

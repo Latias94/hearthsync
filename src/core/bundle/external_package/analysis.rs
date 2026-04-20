@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use super::super::shared::safe_file_part;
+use super::super::shared::path::safe_file_part;
 use super::super::types::ApplyGroup;
 use super::types::{
     ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageSourceKind,

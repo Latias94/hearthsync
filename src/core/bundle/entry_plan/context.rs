@@ -1,6 +1,6 @@
-use super::super::apply_model::PlannedEntry;
+use super::super::apply_model::planned::PlannedEntry;
 use super::super::entry_layout::{BundleArchiveEntry, classify_bundle_archive_entry};
-use super::super::shared::{join_segments, safe_file_part};
+use super::super::shared::path::{join_segments, safe_file_part};
 use super::super::target_accounts::common::resolve_common_account_targets;
 use super::super::types::{ApplyGroup, BundleApplyMappings, WtfScope};
 use super::super::wtf_scope::classify_account_wtf_scope;

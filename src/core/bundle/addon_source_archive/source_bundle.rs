@@ -4,9 +4,8 @@ use tempfile::tempdir;
 use zip::ZipWriter;
 
 use super::super::constants::ADDON_SOURCE_ENTRY_ROOT;
-use super::super::shared::{
-    BundleAddonSourceEntry, BundleAddonSourceIndex, safe_file_part, validate_plain_name,
-};
+use super::super::shared::addon_source_index::{BundleAddonSourceEntry, BundleAddonSourceIndex};
+use super::super::shared::path::{safe_file_part, validate_plain_name};
 use super::super::zip_write::add_path_to_zip;
 use crate::core::addon::lock::{AddonLockPackage, addon_lock_package_comparison_key};
 use crate::core::error::{AppError, AppResult};

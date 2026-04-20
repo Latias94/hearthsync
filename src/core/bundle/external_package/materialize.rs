@@ -5,7 +5,7 @@ use zip::ZipArchive;
 
 use super::types::{ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageSourceKind};
 use crate::core::archive_io::copy_reader_to_path;
-use crate::core::bundle::shared::{join_segments, safe_zip_segments};
+use crate::core::bundle::shared::path::{join_segments, safe_zip_segments};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 

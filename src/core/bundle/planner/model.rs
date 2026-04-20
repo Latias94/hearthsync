@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use super::super::apply_model::{PlannedCleanup, PlannedEntry, PreviewOperation};
+use super::super::apply_model::planned::{PlannedCleanup, PlannedEntry};
+use super::super::apply_model::preview::PreviewOperation;
 use super::super::types::BundleApplyPlan;
 use crate::core::install::LocalWowAccount;
 use crate::core::lua_patch::CharacterMapping;

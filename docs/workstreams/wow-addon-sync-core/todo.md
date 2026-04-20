@@ -205,6 +205,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: `core::bundle::{archive_read,apply_policy,target_accounts}` no longer
     re-export function sets from thin shell modules. Those modules now only delimit subdomains,
     while bundle internals import the concrete child modules they actually depend on.
+    Current cleanup: `core::bundle::{shared,apply_model,execution,wtf_archive}` now follow the
+    same rule. Shared path helpers, prepared-apply shapes, execution helpers, and WTF packers are
+    imported from explicit child modules instead of shell-level re-export facades.
     Current cleanup: the bundle root now re-exports its public API directly from owner modules and
     the transitional `core::bundle::exports` shell has been removed, so bundle contract changes no
     longer hide behind an extra wildcard export layer.

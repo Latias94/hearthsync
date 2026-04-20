@@ -4,7 +4,7 @@ use std::path::Path;
 
 use zip::ZipArchive;
 
-use super::super::shared::safe_zip_segments;
+use super::super::shared::path::safe_zip_segments;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::error::{AppError, AppResult};
 

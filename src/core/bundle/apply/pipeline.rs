@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use super::super::apply_model::PreparedBundleApply;
+use super::super::apply_model::prepared::PreparedBundleApply;
 use super::super::types::UnpackedBundle;
 use super::BundleApplyTaskContext;
 use super::executor::BundleExecutor;

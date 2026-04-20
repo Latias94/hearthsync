@@ -1,6 +1,6 @@
 use crate::core::task::TaskKind;
 
-use super::super::apply_model::PreparedApplyOperation;
+use super::super::apply_model::prepared::PreparedApplyOperation;
 use super::super::types::ApplyAction;
 
 #[derive(Debug, Clone, Copy)]

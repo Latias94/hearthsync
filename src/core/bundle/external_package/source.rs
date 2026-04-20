@@ -6,7 +6,7 @@ use zip::ZipArchive;
 
 use super::source_entry::SourceEntry;
 use super::types::ExternalPackageSourceKind;
-use crate::core::bundle::shared::{safe_zip_segments, should_skip_path, to_zip_path};
+use crate::core::bundle::shared::path::{safe_zip_segments, should_skip_path, to_zip_path};
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn detect_source_kind(path: &Path) -> AppResult<ExternalPackageSourceKind> {

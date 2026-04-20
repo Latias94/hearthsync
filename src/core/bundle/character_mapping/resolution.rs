@@ -1,5 +1,5 @@
 use super::super::character_mapping_match::resolve_mapping_override;
-use super::super::shared::validate_plain_name;
+use super::super::shared::path::validate_plain_name;
 use super::super::types::BundleApplyMappings;
 use super::validation::format_character_mapping_resolution_error;
 use crate::core::error::{AppError, AppResult};

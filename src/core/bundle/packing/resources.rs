@@ -10,10 +10,11 @@ use super::super::addon_source_archive::{
 use super::super::constants::{
     ADDON_INDEX_ENTRY_ROOT, ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY, MANIFEST_ENTRY,
 };
-use super::super::shared::{validate_plain_name, zip_file_options};
-use super::super::wtf_archive::{
-    add_character_wtf_to_zip, add_common_wtf_to_zip, resolve_character_account,
-};
+use super::super::shared::path::validate_plain_name;
+use super::super::shared::zip_options::zip_file_options;
+use super::super::wtf_archive::character::add_character_wtf_to_zip;
+use super::super::wtf_archive::common::add_common_wtf_to_zip;
+use super::super::wtf_archive::resolve::resolve_character_account;
 use super::super::zip_write::{add_path_to_zip, write_toml_to_zip};
 use crate::core::addon::lock::write_addon_lock;
 use crate::core::error::{AppError, AppResult};

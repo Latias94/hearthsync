@@ -3,7 +3,7 @@ use std::path::Path;
 
 use zip::ZipWriter;
 
-use super::super::shared::validate_plain_name;
+use super::super::shared::path::validate_plain_name;
 use super::super::zip_write::add_path_to_zip;
 use crate::core::error::{AppError, AppResult};
 use crate::core::manifest::CharacterResource;
