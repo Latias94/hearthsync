@@ -6,7 +6,8 @@ use zip::ZipArchive;
 use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::archive_path::{
-    PlatformPathCollisionKind, find_platform_path_collision, safe_zip_segments,
+    PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
+    find_platform_path_prefix_conflict, platform_path_collision_key, safe_zip_segments,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
@@ -182,29 +183,106 @@ fn validate_planned_destination_collisions(
         };
     }
 
-    let Some(collision) =
+    if let Some(conflict) =
+        find_addon_root_file_conflict(addon_roots, planned_entries, target_platform)
+    {
+        return match conflict.kind {
+            PlatformPathCollisionKind::Exact => Err(AppError::Validation(format!(
+                "addon archive contains conflicting addon directory and file targets: `{}` -> {} and `{}` -> {}",
+                format_archive_root(&conflict.root.archive_root),
+                conflict.root.addon_name,
+                conflict.entry.archive_name,
+                conflict.entry.destination_relative.display()
+            ))),
+            PlatformPathCollisionKind::CaseInsensitive => Err(AppError::Validation(format!(
+                "addon archive contains case-insensitive addon directory and file target conflicts: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
+                format_archive_root(&conflict.root.archive_root),
+                conflict.root.addon_name,
+                conflict.entry.archive_name,
+                conflict.entry.destination_relative.display()
+            ))),
+        };
+    }
+
+    if let Some(collision) =
         find_platform_path_collision(planned_entries.iter(), target_platform, |entry| {
+            entry.destination_relative.as_path()
+        })
+    {
+        return match collision.kind {
+            PlatformPathCollisionKind::Exact => Err(AppError::Validation(format!(
+                "addon archive maps multiple entries onto the same target path: `{}` and `{}` -> {}",
+                collision.previous.archive_name,
+                collision.current.archive_name,
+                collision.current.destination_relative.display()
+            ))),
+            PlatformPathCollisionKind::CaseInsensitive => Err(AppError::Validation(format!(
+                "addon archive contains case-insensitive target path collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
+                collision.previous.archive_name,
+                collision.previous.destination_relative.display(),
+                collision.current.archive_name,
+                collision.current.destination_relative.display()
+            ))),
+        };
+    }
+
+    let Some(conflict) =
+        find_platform_path_prefix_conflict(planned_entries.iter(), target_platform, |entry| {
             entry.destination_relative.as_path()
         })
     else {
         return Ok(());
     };
 
-    match collision.kind {
-        PlatformPathCollisionKind::Exact => Err(AppError::Validation(format!(
-            "addon archive maps multiple entries onto the same target path: `{}` and `{}` -> {}",
-            collision.previous.archive_name,
-            collision.current.archive_name,
-            collision.current.destination_relative.display()
+    match conflict.kind {
+        PlatformPathPrefixConflictKind::Exact => Err(AppError::Validation(format!(
+            "addon archive contains conflicting file and directory target paths: `{}` -> {} and `{}` -> {}",
+            conflict.ancestor.archive_name,
+            conflict.ancestor.destination_relative.display(),
+            conflict.descendant.archive_name,
+            conflict.descendant.destination_relative.display()
         ))),
-        PlatformPathCollisionKind::CaseInsensitive => Err(AppError::Validation(format!(
-            "addon archive contains case-insensitive target path collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
-            collision.previous.archive_name,
-            collision.previous.destination_relative.display(),
-            collision.current.archive_name,
-            collision.current.destination_relative.display()
+        PlatformPathPrefixConflictKind::CaseInsensitive => Err(AppError::Validation(format!(
+            "addon archive contains case-insensitive file and directory target path conflicts: `{}` -> {} and `{}` -> {} would create file/directory collisions on Windows/default macOS targets",
+            conflict.ancestor.archive_name,
+            conflict.ancestor.destination_relative.display(),
+            conflict.descendant.archive_name,
+            conflict.descendant.destination_relative.display()
         ))),
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AddonRootFileConflict<'a> {
+    root: &'a PlannedAddonRoot,
+    entry: &'a PlannedArchiveEntry,
+    kind: PlatformPathCollisionKind,
+}
+
+fn find_addon_root_file_conflict<'a>(
+    addon_roots: &'a [PlannedAddonRoot],
+    planned_entries: &'a [PlannedArchiveEntry],
+    target_platform: HostPlatform,
+) -> Option<AddonRootFileConflict<'a>> {
+    addon_roots.iter().find_map(|root| {
+        let root_path = Path::new(&root.addon_name);
+        let root_key = platform_path_collision_key(root_path, target_platform);
+
+        planned_entries.iter().find_map(|entry| {
+            if platform_path_collision_key(entry.destination_relative.as_path(), target_platform)
+                != root_key
+            {
+                return None;
+            }
+
+            let kind = if entry.destination_relative.as_path() == root_path {
+                PlatformPathCollisionKind::Exact
+            } else {
+                PlatformPathCollisionKind::CaseInsensitive
+            };
+            Some(AddonRootFileConflict { root, entry, kind })
+        })
+    })
 }
 
 fn match_addon_root(segments: &[String], roots: &[PlannedAddonRoot]) -> Option<usize> {
@@ -321,6 +399,56 @@ mod tests {
             HostPlatform::Linux,
         )
         .expect("linux should allow case-distinct file paths");
+    }
+
+    #[test]
+    fn validate_planned_destination_collisions_rejects_addon_root_file_conflicts() {
+        let error = validate_planned_destination_collisions(
+            &[planned_root("WeakAuras")],
+            &[PlannedArchiveEntry {
+                archive_index: 0,
+                archive_name: "WeakAuras".to_string(),
+                destination_relative: PathBuf::from("WeakAuras"),
+                root_index: 0,
+            }],
+            HostPlatform::Windows,
+        )
+        .expect_err("file target should not collide with addon root directory");
+
+        assert!(
+            error
+                .to_string()
+                .contains("conflicting addon directory and file targets")
+        );
+    }
+
+    #[test]
+    fn validate_planned_destination_collisions_rejects_case_insensitive_prefix_conflicts() {
+        let error = validate_planned_destination_collisions(
+            &[],
+            &[
+                PlannedArchiveEntry {
+                    archive_index: 0,
+                    archive_name: "WeakAuras".to_string(),
+                    destination_relative: PathBuf::from("WeakAuras"),
+                    root_index: 0,
+                },
+                PlannedArchiveEntry {
+                    archive_index: 1,
+                    archive_name: "weakauras/Config.lua".to_string(),
+                    destination_relative: PathBuf::from("weakauras/Config.lua"),
+                    root_index: 0,
+                },
+            ],
+            HostPlatform::MacOs,
+        )
+        .expect_err("case-insensitive file/directory hierarchy should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("case-insensitive file and directory target path conflicts")
+        );
     }
 
     fn planned_root(addon_name: &str) -> PlannedAddonRoot {

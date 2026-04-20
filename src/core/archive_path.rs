@@ -78,11 +78,24 @@ pub(in crate::core) enum PlatformPathCollisionKind {
     CaseInsensitive,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::core) enum PlatformPathPrefixConflictKind {
+    Exact,
+    CaseInsensitive,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(in crate::core) struct PlatformPathCollision<'a, T> {
     pub previous: &'a T,
     pub current: &'a T,
     pub kind: PlatformPathCollisionKind,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(in crate::core) struct PlatformPathPrefixConflict<'a, T> {
+    pub ancestor: &'a T,
+    pub descendant: &'a T,
+    pub kind: PlatformPathPrefixConflictKind,
 }
 
 pub(in crate::core) fn find_platform_path_collision<'a, T, I, F>(
@@ -118,6 +131,69 @@ where
     None
 }
 
+pub(in crate::core) fn find_platform_path_prefix_conflict<'a, T, I, F>(
+    items: I,
+    platform: HostPlatform,
+    path_for: F,
+) -> Option<PlatformPathPrefixConflict<'a, T>>
+where
+    I: IntoIterator<Item = &'a T>,
+    F: Fn(&T) -> &Path,
+{
+    let mut seen_paths = BTreeMap::<String, &'a T>::new();
+    let mut descendants_by_ancestor = BTreeMap::<String, &'a T>::new();
+
+    for item in items {
+        let path = path_for(item);
+
+        for ancestor in proper_ancestors(path) {
+            let ancestor_key = platform_path_collision_key(ancestor, platform);
+            let Some(ancestor_item) = seen_paths.get(&ancestor_key) else {
+                continue;
+            };
+
+            let kind = if path.starts_with(path_for(ancestor_item)) {
+                PlatformPathPrefixConflictKind::Exact
+            } else {
+                PlatformPathPrefixConflictKind::CaseInsensitive
+            };
+            return Some(PlatformPathPrefixConflict {
+                ancestor: ancestor_item,
+                descendant: item,
+                kind,
+            });
+        }
+
+        let key = platform_path_collision_key(path, platform);
+        if let Some(descendant_item) = descendants_by_ancestor.get(&key) {
+            let kind = if path_for(descendant_item).starts_with(path) {
+                PlatformPathPrefixConflictKind::Exact
+            } else {
+                PlatformPathPrefixConflictKind::CaseInsensitive
+            };
+            return Some(PlatformPathPrefixConflict {
+                ancestor: item,
+                descendant: descendant_item,
+                kind,
+            });
+        }
+
+        seen_paths.insert(key, item);
+        for ancestor in proper_ancestors(path) {
+            let ancestor_key = platform_path_collision_key(ancestor, platform);
+            descendants_by_ancestor.entry(ancestor_key).or_insert(item);
+        }
+    }
+
+    None
+}
+
+fn proper_ancestors(path: &Path) -> impl Iterator<Item = &Path> {
+    path.ancestors()
+        .skip(1)
+        .take_while(|ancestor| !ancestor.as_os_str().is_empty())
+}
+
 pub(in crate::core) fn safe_relative_segments(
     relative_path: &Path,
     path_kind: &str,
@@ -151,8 +227,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        PlatformPathCollisionKind, find_platform_path_collision, platform_path_collision_key,
-        safe_relative_segments, safe_zip_segments, to_zip_path,
+        PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
+        find_platform_path_prefix_conflict, platform_path_collision_key, safe_relative_segments,
+        safe_zip_segments, to_zip_path,
     };
     use crate::core::install::HostPlatform;
 
@@ -345,6 +422,69 @@ mod tests {
 
         assert!(
             find_platform_path_collision(paths.iter(), HostPlatform::Linux, PathBuf::as_path)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn find_platform_path_prefix_conflict_reports_exact_ancestor_conflicts() {
+        let paths = [
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+            PathBuf::from("Interface/AddOns/WeakAuras/Config.lua"),
+        ];
+
+        let conflict = find_platform_path_prefix_conflict(
+            paths.iter(),
+            HostPlatform::Windows,
+            PathBuf::as_path,
+        )
+        .expect("prefix conflict");
+
+        assert_eq!(conflict.kind, PlatformPathPrefixConflictKind::Exact);
+        assert_eq!(
+            conflict.ancestor,
+            &PathBuf::from("Interface/AddOns/WeakAuras")
+        );
+        assert_eq!(
+            conflict.descendant,
+            &PathBuf::from("Interface/AddOns/WeakAuras/Config.lua")
+        );
+    }
+
+    #[test]
+    fn find_platform_path_prefix_conflict_reports_case_insensitive_conflicts() {
+        let paths = [
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+            PathBuf::from("Interface/AddOns/weakauras/Config.lua"),
+        ];
+
+        let conflict =
+            find_platform_path_prefix_conflict(paths.iter(), HostPlatform::MacOs, PathBuf::as_path)
+                .expect("case-insensitive prefix conflict");
+
+        assert_eq!(
+            conflict.kind,
+            PlatformPathPrefixConflictKind::CaseInsensitive
+        );
+        assert_eq!(
+            conflict.ancestor,
+            &PathBuf::from("Interface/AddOns/WeakAuras")
+        );
+        assert_eq!(
+            conflict.descendant,
+            &PathBuf::from("Interface/AddOns/weakauras/Config.lua")
+        );
+    }
+
+    #[test]
+    fn find_platform_path_prefix_conflict_preserves_linux_case_sensitivity() {
+        let paths = [
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+            PathBuf::from("Interface/AddOns/weakauras/Config.lua"),
+        ];
+
+        assert!(
+            find_platform_path_prefix_conflict(paths.iter(), HostPlatform::Linux, PathBuf::as_path)
                 .is_none()
         );
     }

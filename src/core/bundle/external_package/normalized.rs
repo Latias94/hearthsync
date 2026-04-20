@@ -3,7 +3,10 @@ use std::path::Path;
 use std::collections::BTreeMap;
 
 use super::types::{ExternalPackageAnalysis, ExternalPackageEntry};
-use crate::core::archive_path::find_platform_path_collision;
+use crate::core::archive_path::{
+    PlatformPathPrefixConflictKind, find_platform_path_collision,
+    find_platform_path_prefix_conflict,
+};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
 
@@ -11,7 +14,18 @@ pub(super) fn validate_unique_normalized_paths(
     analysis: &ExternalPackageAnalysis,
 ) -> AppResult<()> {
     let unique_entries = collect_unique_normalized_entries(analysis)?;
-    let Some(collision) = find_platform_path_collision(
+    if let Some(collision) = find_platform_path_collision(
+        unique_entries.values().copied(),
+        HostPlatform::Windows,
+        |entry| Path::new(&entry.normalized_path),
+    ) {
+        return Err(AppError::Validation(format!(
+            "external package contains case-insensitive target path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
+            collision.previous.normalized_path, collision.current.normalized_path
+        )));
+    }
+
+    let Some(conflict) = find_platform_path_prefix_conflict(
         unique_entries.values().copied(),
         HostPlatform::Windows,
         |entry| Path::new(&entry.normalized_path),
@@ -19,10 +33,16 @@ pub(super) fn validate_unique_normalized_paths(
         return Ok(());
     };
 
-    Err(AppError::Validation(format!(
-        "external package contains case-insensitive target path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
-        collision.previous.normalized_path, collision.current.normalized_path
-    )))
+    match conflict.kind {
+        PlatformPathPrefixConflictKind::Exact => Err(AppError::Validation(format!(
+            "external package normalizes conflicting file and directory target paths: `{}` and `{}`",
+            conflict.ancestor.normalized_path, conflict.descendant.normalized_path
+        ))),
+        PlatformPathPrefixConflictKind::CaseInsensitive => Err(AppError::Validation(format!(
+            "external package contains case-insensitive file and directory target path conflicts: `{}` and `{}` would create file/directory collisions on Windows/default macOS targets",
+            conflict.ancestor.normalized_path, conflict.descendant.normalized_path
+        ))),
+    }
 }
 
 pub(super) fn build_external_package_entry_source_map(
@@ -93,6 +113,21 @@ mod tests {
             error
                 .to_string()
                 .contains("case-insensitive target path collisions")
+        );
+    }
+
+    #[test]
+    fn validate_unique_normalized_paths_rejects_case_insensitive_prefix_conflicts() {
+        let error = validate_unique_normalized_paths(&analysis_with_entries(vec![
+            entry("src/WeakAuras", "addons/WeakAuras"),
+            entry("src/weakauras/Config.lua", "addons/weakauras/Config.lua"),
+        ]))
+        .expect_err("case-insensitive file/directory paths should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("case-insensitive file and directory target path conflicts")
         );
     }
 

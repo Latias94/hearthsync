@@ -14,8 +14,8 @@ use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, Re
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
 use crate::core::archive_path::{
-    PlatformPathCollisionKind, find_platform_path_collision, join_segments, safe_zip_segments,
-    to_zip_path,
+    PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
+    find_platform_path_prefix_conflict, join_segments, safe_zip_segments, to_zip_path,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -255,7 +255,6 @@ fn prepare_restore_archive(
     validate_backup_metadata(&metadata, installation)?;
 
     let mut entries = Vec::new();
-    let mut destination_paths = Vec::new();
 
     for archive_index in 0..archive.len() {
         let entry = archive.by_index(archive_index)?;
@@ -281,8 +280,6 @@ fn prepare_restore_archive(
                     "backup archive contains unsupported entry path: `{entry_name}`"
                 ))
             })?;
-        ensure_no_destination_prefix_conflict(&destination, &destination_paths)?;
-        destination_paths.push(destination.clone());
         entries.push(PreparedRestoreEntry {
             archive_index,
             entry_name,
@@ -306,6 +303,27 @@ fn prepare_restore_archive(
                 collision.previous.destination.display(),
                 collision.current.entry_name,
                 collision.current.destination.display()
+            ))),
+        };
+    }
+
+    if let Some(conflict) =
+        find_platform_path_prefix_conflict(entries.iter(), installation.platform, |entry| {
+            entry.destination.as_path()
+        })
+    {
+        return match conflict.kind {
+            PlatformPathPrefixConflictKind::Exact => Err(AppError::Validation(format!(
+                "backup archive contains conflicting restore destinations: {} and {}",
+                conflict.ancestor.destination.display(),
+                conflict.descendant.destination.display()
+            ))),
+            PlatformPathPrefixConflictKind::CaseInsensitive => Err(AppError::Validation(format!(
+                "backup archive contains case-insensitive conflicting restore destinations: `{}` -> {} and `{}` -> {} would create file/directory collisions on Windows/default macOS targets",
+                conflict.ancestor.entry_name,
+                conflict.ancestor.destination.display(),
+                conflict.descendant.entry_name,
+                conflict.descendant.destination.display()
             ))),
         };
     }
@@ -540,27 +558,6 @@ fn backup_group_for_entry_path(entry_name: &str) -> AppResult<BackupGroup> {
             "backup archive contains unsupported root entry: `{entry_name}`"
         ))),
     }
-}
-
-fn ensure_no_destination_prefix_conflict(
-    candidate: &Path,
-    existing_paths: &[PathBuf],
-) -> AppResult<()> {
-    for existing in existing_paths {
-        if path_is_prefix(existing, candidate) || path_is_prefix(candidate, existing) {
-            return Err(AppError::Validation(format!(
-                "backup archive contains conflicting restore destinations: {} and {}",
-                existing.display(),
-                candidate.display()
-            )));
-        }
-    }
-
-    Ok(())
-}
-
-fn path_is_prefix(prefix: &Path, candidate: &Path) -> bool {
-    prefix != candidate && candidate.starts_with(prefix)
 }
 
 fn create_restore_checkpoint(

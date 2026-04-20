@@ -327,6 +327,10 @@ enough that these rules live in one place.
   helper under `core::archive_path`, and backup restore reuses the same case-folding rules as
   addon prep, bundle planning, and external-package normalization instead of carrying a separate
   duplicate implementation.
+  Current progress: the same shared path-safety layer now also detects file/directory ancestor
+  conflicts with platform-aware case folding, so addon prep, bundle planning, backup restore, and
+  external-package normalization all reject target hierarchies that would collide only on
+  Windows/default-macOS filesystems.
   Current progress: zip-style archive path serialization now also lives in the same shared core
   helper layer, so backup zip writing and bundle zip writing no longer maintain separate
   slash-normalization implementations.
