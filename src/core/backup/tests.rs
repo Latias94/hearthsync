@@ -506,6 +506,63 @@ fn restore_backup_rejects_non_portable_archive_paths() {
 }
 
 #[test]
+fn restore_backup_rejects_case_insensitive_restore_destination_collisions() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), WowFlavor::Retail);
+    let archive_path = temp.path().join("case-collision-backup.zip");
+
+    fs::create_dir_all(installation.addon_dir.join("WeakAuras")).expect("addon dir");
+    fs::write(
+        installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc"),
+        "before-restore",
+    )
+    .expect("write addon");
+
+    write_test_backup_archive_with_entries(
+        &archive_path,
+        BackupMetadata {
+            schema_version: 1,
+            created_at: "2026-04-21T08:00:00Z".to_string(),
+            label: Some("case-collision".to_string()),
+            flavor: installation.flavor.as_str().to_string(),
+            flavor_root: installation.flavor_root.clone(),
+            groups: vec![BackupGroup::Addons],
+        },
+        &[
+            TestBackupArchiveEntry::File {
+                name: "addons/WeakAuras/Config.lua",
+                content: "first",
+            },
+            TestBackupArchiveEntry::File {
+                name: "addons/weakauras/config.lua",
+                content: "second",
+            },
+        ],
+    );
+
+    let error = restore_backup(&archive_path, &installation)
+        .expect_err("case-insensitive destinations should fail");
+    let message = error.to_string();
+    assert!(matches!(error, crate::core::error::AppError::Validation(_)));
+    assert!(message.contains("case-insensitive restore destination collisions"));
+    assert!(message.contains("addons/WeakAuras/Config.lua"));
+    assert!(message.contains("addons/weakauras/config.lua"));
+    assert_eq!(
+        fs::read_to_string(
+            installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.toc")
+        )
+        .expect("addon toc"),
+        "before-restore"
+    );
+}
+
+#[test]
 fn reject_unsupported_backup_source_symlink_reports_directory_entries() {
     let error = super::archive::reject_unsupported_backup_source_symlink(
         "directory",

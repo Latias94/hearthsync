@@ -1,26 +1,28 @@
+use std::path::Path;
+
 use std::collections::BTreeMap;
 
 use super::types::{ExternalPackageAnalysis, ExternalPackageEntry};
+use crate::core::archive_path::find_platform_path_collision;
 use crate::core::error::{AppError, AppResult};
+use crate::core::install::HostPlatform;
 
 pub(super) fn validate_unique_normalized_paths(
     analysis: &ExternalPackageAnalysis,
 ) -> AppResult<()> {
     let unique_entries = collect_unique_normalized_entries(analysis)?;
-    let mut case_insensitive_seen = BTreeMap::new();
-    for entry in unique_entries.values() {
-        let folded = entry.normalized_path.to_lowercase();
-        if let Some(previous) = case_insensitive_seen.insert(folded, entry.normalized_path.clone())
-            && previous != entry.normalized_path
-        {
-            return Err(AppError::Validation(format!(
-                "external package contains case-insensitive target path collisions: `{previous}` and `{}` would map to the same path on Windows/default macOS targets",
-                entry.normalized_path
-            )));
-        }
-    }
+    let Some(collision) = find_platform_path_collision(
+        unique_entries.values().copied(),
+        HostPlatform::Windows,
+        |entry| Path::new(&entry.normalized_path),
+    ) else {
+        return Ok(());
+    };
 
-    Ok(())
+    Err(AppError::Validation(format!(
+        "external package contains case-insensitive target path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
+        collision.previous.normalized_path, collision.current.normalized_path
+    )))
 }
 
 pub(super) fn build_external_package_entry_source_map(

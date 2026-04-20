@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Component;
 use std::path::{Path, PathBuf};
 
@@ -67,6 +68,52 @@ pub(in crate::core) fn platform_path_collision_key(path: &Path, platform: HostPl
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::core) enum PlatformPathCollisionKind {
+    Exact,
+    CaseInsensitive,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(in crate::core) struct PlatformPathCollision<'a, T> {
+    pub previous: &'a T,
+    pub current: &'a T,
+    pub kind: PlatformPathCollisionKind,
+}
+
+pub(in crate::core) fn find_platform_path_collision<'a, T, I, F>(
+    items: I,
+    platform: HostPlatform,
+    path_for: F,
+) -> Option<PlatformPathCollision<'a, T>>
+where
+    I: IntoIterator<Item = &'a T>,
+    F: Fn(&T) -> &Path,
+{
+    let mut seen = BTreeMap::<String, &'a T>::new();
+
+    for item in items {
+        let path = path_for(item);
+        let key = platform_path_collision_key(path, platform);
+        let Some(previous) = seen.insert(key, item) else {
+            continue;
+        };
+
+        let kind = if path_for(previous) == path {
+            PlatformPathCollisionKind::Exact
+        } else {
+            PlatformPathCollisionKind::CaseInsensitive
+        };
+        return Some(PlatformPathCollision {
+            previous,
+            current: item,
+            kind,
+        });
+    }
+
+    None
+}
+
 pub(in crate::core) fn safe_relative_segments(
     relative_path: &Path,
     path_kind: &str,
@@ -97,9 +144,12 @@ pub(in crate::core) fn safe_relative_segments(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
-    use super::{platform_path_collision_key, safe_relative_segments, safe_zip_segments};
+    use super::{
+        PlatformPathCollisionKind, find_platform_path_collision, platform_path_collision_key,
+        safe_relative_segments, safe_zip_segments,
+    };
     use crate::core::install::HostPlatform;
 
     #[test]
@@ -227,6 +277,63 @@ mod tests {
                 Path::new("interface/addons/weakauras"),
                 HostPlatform::Linux,
             )
+        );
+    }
+
+    #[test]
+    fn find_platform_path_collision_reports_exact_duplicates() {
+        let paths = [
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+        ];
+
+        let collision =
+            find_platform_path_collision(paths.iter(), HostPlatform::Windows, PathBuf::as_path)
+                .expect("duplicate paths should collide");
+
+        assert_eq!(collision.kind, PlatformPathCollisionKind::Exact);
+        assert_eq!(
+            collision.previous,
+            &PathBuf::from("Interface/AddOns/WeakAuras")
+        );
+        assert_eq!(
+            collision.current,
+            &PathBuf::from("Interface/AddOns/WeakAuras")
+        );
+    }
+
+    #[test]
+    fn find_platform_path_collision_reports_case_insensitive_duplicates() {
+        let paths = [
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+            PathBuf::from("interface/addons/weakauras"),
+        ];
+
+        let collision =
+            find_platform_path_collision(paths.iter(), HostPlatform::MacOs, PathBuf::as_path)
+                .expect("case-distinct macOS paths should collide");
+
+        assert_eq!(collision.kind, PlatformPathCollisionKind::CaseInsensitive);
+        assert_eq!(
+            collision.previous,
+            &PathBuf::from("Interface/AddOns/WeakAuras")
+        );
+        assert_eq!(
+            collision.current,
+            &PathBuf::from("interface/addons/weakauras")
+        );
+    }
+
+    #[test]
+    fn find_platform_path_collision_preserves_linux_case_sensitivity() {
+        let paths = [
+            PathBuf::from("Interface/AddOns/WeakAuras"),
+            PathBuf::from("interface/addons/weakauras"),
+        ];
+
+        assert!(
+            find_platform_path_collision(paths.iter(), HostPlatform::Linux, PathBuf::as_path)
+                .is_none()
         );
     }
 }

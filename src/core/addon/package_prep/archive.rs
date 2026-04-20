@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
@@ -6,7 +5,9 @@ use zip::ZipArchive;
 
 use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
 use crate::core::archive_io::copy_reader_to_path;
-use crate::core::archive_path::{platform_path_collision_key, safe_zip_segments};
+use crate::core::archive_path::{
+    PlatformPathCollisionKind, find_platform_path_collision, safe_zip_segments,
+};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
 
@@ -36,9 +37,8 @@ pub(super) fn extract_archive_addons(
 
     let mut prepared = Vec::new();
     for (index, root) in layout.addon_roots.iter().enumerate() {
-        let addon_name = addon_name_for_root(root)?;
-        let stage_path = stage_root.join(addon_name);
-        let addon = inspect_staged_addon(&stage_path, addon_name)?;
+        let stage_path = stage_root.join(&root.addon_name);
+        let addon = inspect_staged_addon(&stage_path, &root.addon_name)?;
         prepared.push(PreparedAddonDirectory {
             addon,
             stage_path,
@@ -52,7 +52,7 @@ pub(super) fn extract_archive_addons(
 
 #[derive(Debug)]
 struct DiscoveredArchiveLayout {
-    addon_roots: Vec<Vec<String>>,
+    addon_roots: Vec<PlannedAddonRoot>,
     planned_entries: Vec<PlannedArchiveEntry>,
 }
 
@@ -61,6 +61,12 @@ struct DiscoveredArchiveFile {
     archive_index: usize,
     archive_name: String,
     segments: Vec<String>,
+}
+
+#[derive(Debug)]
+struct PlannedAddonRoot {
+    archive_root: Vec<String>,
+    addon_name: String,
 }
 
 #[derive(Debug)]
@@ -102,7 +108,15 @@ fn discover_archive_addon_layout(
 
     let addon_roots = discover_addon_roots_from_entry_segments(
         archive_files.iter().map(|entry| entry.segments.as_slice()),
-    );
+    )
+    .into_iter()
+    .map(|archive_root| {
+        Ok(PlannedAddonRoot {
+            addon_name: addon_name_for_archive_root(&archive_root)?.to_string(),
+            archive_root,
+        })
+    })
+    .collect::<AppResult<Vec<_>>>()?;
     let planned_entries = plan_archive_entries(&archive_files, &addon_roots)?;
     validate_planned_destination_collisions(&addon_roots, &planned_entries, target_platform)?;
 
@@ -114,7 +128,7 @@ fn discover_archive_addon_layout(
 
 fn plan_archive_entries(
     archive_files: &[DiscoveredArchiveFile],
-    addon_roots: &[Vec<String>],
+    addon_roots: &[PlannedAddonRoot],
 ) -> AppResult<Vec<PlannedArchiveEntry>> {
     let mut planned_entries = Vec::new();
 
@@ -123,10 +137,9 @@ fn plan_archive_entries(
             continue;
         };
         let root = &addon_roots[root_index];
-        let addon_name = addon_name_for_root(root)?;
-        let relative = &entry.segments[root.len()..];
+        let relative = &entry.segments[root.archive_root.len()..];
 
-        let mut destination_relative = PathBuf::from(addon_name);
+        let mut destination_relative = PathBuf::from(&root.addon_name);
         for segment in relative {
             destination_relative.push(segment);
         }
@@ -143,78 +156,69 @@ fn plan_archive_entries(
 }
 
 fn validate_planned_destination_collisions(
-    addon_roots: &[Vec<String>],
+    addon_roots: &[PlannedAddonRoot],
     planned_entries: &[PlannedArchiveEntry],
     target_platform: HostPlatform,
 ) -> AppResult<()> {
-    let mut seen_addon_roots = BTreeMap::<String, &Vec<String>>::new();
-
-    for root in addon_roots {
-        let addon_name = addon_name_for_root(root)?;
-        let destination = Path::new(addon_name);
-        let key = platform_path_collision_key(destination, target_platform);
-        let Some(previous) = seen_addon_roots.insert(key, root) else {
-            continue;
-        };
-
-        let previous_addon_name = addon_name_for_root(previous)?;
-        if previous_addon_name == addon_name {
-            return Err(AppError::Validation(format!(
+    if let Some(collision) =
+        find_platform_path_collision(addon_roots.iter(), target_platform, |root| {
+            Path::new(&root.addon_name)
+        })
+    {
+        return match collision.kind {
+            PlatformPathCollisionKind::Exact => Err(AppError::Validation(format!(
                 "addon archive contains multiple addon roots that map to the same target directory: `{}` and `{}` -> {}",
-                format_archive_root(previous),
-                format_archive_root(root),
-                destination.display()
-            )));
-        }
-
-        return Err(AppError::Validation(format!(
-            "addon archive contains case-insensitive addon directory collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
-            format_archive_root(previous),
-            previous_addon_name,
-            format_archive_root(root),
-            addon_name
-        )));
-    }
-
-    let mut seen_entries = BTreeMap::<String, &PlannedArchiveEntry>::new();
-    for entry in planned_entries {
-        let key = platform_path_collision_key(&entry.destination_relative, target_platform);
-        let Some(previous) = seen_entries.insert(key, entry) else {
-            continue;
+                format_archive_root(&collision.previous.archive_root),
+                format_archive_root(&collision.current.archive_root),
+                collision.current.addon_name
+            ))),
+            PlatformPathCollisionKind::CaseInsensitive => Err(AppError::Validation(format!(
+                "addon archive contains case-insensitive addon directory collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
+                format_archive_root(&collision.previous.archive_root),
+                collision.previous.addon_name,
+                format_archive_root(&collision.current.archive_root),
+                collision.current.addon_name
+            ))),
         };
-
-        if previous.destination_relative == entry.destination_relative {
-            return Err(AppError::Validation(format!(
-                "addon archive maps multiple entries onto the same target path: `{}` and `{}` -> {}",
-                previous.archive_name,
-                entry.archive_name,
-                entry.destination_relative.display()
-            )));
-        }
-
-        return Err(AppError::Validation(format!(
-            "addon archive contains case-insensitive target path collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
-            previous.archive_name,
-            previous.destination_relative.display(),
-            entry.archive_name,
-            entry.destination_relative.display()
-        )));
     }
 
-    Ok(())
+    let Some(collision) =
+        find_platform_path_collision(planned_entries.iter(), target_platform, |entry| {
+            entry.destination_relative.as_path()
+        })
+    else {
+        return Ok(());
+    };
+
+    match collision.kind {
+        PlatformPathCollisionKind::Exact => Err(AppError::Validation(format!(
+            "addon archive maps multiple entries onto the same target path: `{}` and `{}` -> {}",
+            collision.previous.archive_name,
+            collision.current.archive_name,
+            collision.current.destination_relative.display()
+        ))),
+        PlatformPathCollisionKind::CaseInsensitive => Err(AppError::Validation(format!(
+            "addon archive contains case-insensitive target path collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
+            collision.previous.archive_name,
+            collision.previous.destination_relative.display(),
+            collision.current.archive_name,
+            collision.current.destination_relative.display()
+        ))),
+    }
 }
 
-fn match_addon_root(segments: &[String], roots: &[Vec<String>]) -> Option<usize> {
+fn match_addon_root(segments: &[String], roots: &[PlannedAddonRoot]) -> Option<usize> {
     roots.iter().position(|root| {
-        root.len() <= segments.len()
+        root.archive_root.len() <= segments.len()
             && root
+                .archive_root
                 .iter()
                 .zip(segments.iter())
                 .all(|(left, right)| left == right)
     })
 }
 
-fn addon_name_for_root(root: &[String]) -> AppResult<&str> {
+fn addon_name_for_archive_root(root: &[String]) -> AppResult<&str> {
     root.last()
         .map(String::as_str)
         .ok_or_else(|| AppError::Validation("invalid addon root".to_string()))
@@ -238,13 +242,13 @@ fn reject_unsupported_archive_symlink_entry(entry_name: &str, is_symlink: bool) 
 mod tests {
     use std::path::PathBuf;
 
-    use super::{PlannedArchiveEntry, validate_planned_destination_collisions};
+    use super::{PlannedAddonRoot, PlannedArchiveEntry, validate_planned_destination_collisions};
     use crate::core::install::HostPlatform;
 
     #[test]
     fn validate_planned_destination_collisions_rejects_case_insensitive_addon_roots_on_macos() {
         let error = validate_planned_destination_collisions(
-            &[vec!["WeakAuras".to_string()], vec!["weakauras".to_string()]],
+            &[planned_root("WeakAuras"), planned_root("weakauras")],
             &[],
             HostPlatform::MacOs,
         )
@@ -260,7 +264,7 @@ mod tests {
     #[test]
     fn validate_planned_destination_collisions_allows_case_distinct_addon_roots_on_linux() {
         validate_planned_destination_collisions(
-            &[vec!["WeakAuras".to_string()], vec!["weakauras".to_string()]],
+            &[planned_root("WeakAuras"), planned_root("weakauras")],
             &[],
             HostPlatform::Linux,
         )
@@ -270,7 +274,7 @@ mod tests {
     #[test]
     fn validate_planned_destination_collisions_rejects_case_insensitive_files_on_windows() {
         let error = validate_planned_destination_collisions(
-            &[vec!["WeakAuras".to_string()]],
+            &[planned_root("WeakAuras")],
             &[
                 PlannedArchiveEntry {
                     archive_index: 0,
@@ -299,7 +303,7 @@ mod tests {
     #[test]
     fn validate_planned_destination_collisions_allows_case_distinct_files_on_linux() {
         validate_planned_destination_collisions(
-            &[vec!["WeakAuras".to_string()]],
+            &[planned_root("WeakAuras")],
             &[
                 PlannedArchiveEntry {
                     archive_index: 0,
@@ -317,5 +321,12 @@ mod tests {
             HostPlatform::Linux,
         )
         .expect("linux should allow case-distinct file paths");
+    }
+
+    fn planned_root(addon_name: &str) -> PlannedAddonRoot {
+        PlannedAddonRoot {
+            archive_root: vec![addon_name.to_string()],
+            addon_name: addon_name.to_string(),
+        }
     }
 }

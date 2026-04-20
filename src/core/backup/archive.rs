@@ -13,7 +13,9 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
-use crate::core::archive_path::{join_segments, platform_path_collision_key, safe_zip_segments};
+use crate::core::archive_path::{
+    PlatformPathCollisionKind, find_platform_path_collision, join_segments, safe_zip_segments,
+};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
@@ -252,7 +254,6 @@ fn prepare_restore_archive(
     validate_backup_metadata(&metadata, installation)?;
 
     let mut entries = Vec::new();
-    let mut destination_keys = BTreeSet::new();
     let mut destination_paths = Vec::new();
 
     for archive_index in 0..archive.len() {
@@ -279,14 +280,6 @@ fn prepare_restore_archive(
                     "backup archive contains unsupported entry path: `{entry_name}`"
                 ))
             })?;
-        let collision_key = platform_path_collision_key(&destination, installation.platform);
-        if !destination_keys.insert(collision_key) {
-            return Err(AppError::Validation(format!(
-                "backup archive restores multiple entries onto the same destination: {}",
-                destination.display()
-            )));
-        }
-
         ensure_no_destination_prefix_conflict(&destination, &destination_paths)?;
         destination_paths.push(destination.clone());
         entries.push(PreparedRestoreEntry {
@@ -294,6 +287,26 @@ fn prepare_restore_archive(
             entry_name,
             destination,
         });
+    }
+
+    if let Some(collision) =
+        find_platform_path_collision(entries.iter(), installation.platform, |entry| {
+            entry.destination.as_path()
+        })
+    {
+        return match collision.kind {
+            PlatformPathCollisionKind::Exact => Err(AppError::Validation(format!(
+                "backup archive restores multiple entries onto the same destination: {}",
+                collision.current.destination.display()
+            ))),
+            PlatformPathCollisionKind::CaseInsensitive => Err(AppError::Validation(format!(
+                "backup archive contains case-insensitive restore destination collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
+                collision.previous.entry_name,
+                collision.previous.destination.display(),
+                collision.current.entry_name,
+                collision.current.destination.display()
+            ))),
+        };
     }
 
     Ok(PreparedRestoreArchive {
