@@ -1,4 +1,6 @@
-use super::*;
+use super::{CharacterMappingOverride, CharacterResource};
+use crate::core::error::{AppError, AppResult};
+use crate::core::lua_patch::CharacterMapping;
 
 pub(super) fn resolve_mapping_override<'a>(
     resource: &CharacterResource,

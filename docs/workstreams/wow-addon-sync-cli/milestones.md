@@ -435,6 +435,9 @@ Prepare the core for a future frontend.
   entrypoints, and internal source-entry shape under
   `core::bundle::external_package::{analyze,create_bundle,plan,source_entry}`, leaving
   `external_package.rs` as a thinner API shell over the already split pipeline modules
+- the first low-risk leaf bundle modules (`entry_layout`, `wtf_scope`,
+  `character_mapping_match`, `zip_write`) now use explicit imports instead of `super::*`,
+  starting the staged retirement of the transitional `core::bundle::imports` prelude
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

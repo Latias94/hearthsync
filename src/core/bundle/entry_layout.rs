@@ -1,4 +1,5 @@
-use super::*;
+use super::{MANIFEST_ENTRY, safe_zip_segments};
+use crate::core::error::AppResult;
 
 pub(super) enum BundleArchiveEntry<'a> {
     Metadata {

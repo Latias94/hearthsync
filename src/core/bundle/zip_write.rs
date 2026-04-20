@@ -6,8 +6,9 @@ use serde::Serialize;
 use walkdir::WalkDir;
 use zip::ZipWriter;
 
-use super::*;
+use super::{should_skip_path, to_zip_path, zip_dir_options, zip_file_options};
 use crate::core::archive_io::stream_file_to_zip;
+use crate::core::error::{AppError, AppResult};
 
 pub(super) fn add_path_to_zip(
     zip: &mut ZipWriter<File>,

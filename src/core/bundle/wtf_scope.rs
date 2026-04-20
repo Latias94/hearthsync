@@ -1,4 +1,4 @@
-use super::*;
+use super::WtfScope;
 
 pub(super) fn classify_account_wtf_scope<T>(relative_segments: &[T]) -> WtfScope
 where
