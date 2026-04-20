@@ -28,24 +28,11 @@ pub(super) fn handle_external_package_command(
         }
         ExternalPackageCommands::Plan {
             bundle_options,
-            install,
-            flavor,
-            mapping_file,
-            target_account,
-            target_server,
-            target_character,
-            selected_accounts,
-            all_accounts,
+            install_target,
+            apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
-            let apply_mappings = resolve_apply_mappings(
-                mapping_file.as_deref(),
-                target_account,
-                target_server,
-                target_character,
-                selected_accounts,
-                all_accounts,
-            )?;
+            let installation = resolve_cli_installation(&app, install_target)?;
+            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
             let external_package = build_external_package_bundle_request(bundle_options);
             let plan = app.plan_external_package_apply(build_plan_external_package_request(
                 external_package,
@@ -56,26 +43,13 @@ pub(super) fn handle_external_package_command(
         }
         ExternalPackageCommands::Apply {
             bundle_options,
-            install,
-            flavor,
+            install_target,
             dry_run,
             backup_output,
-            mapping_file,
-            target_account,
-            target_server,
-            target_character,
-            selected_accounts,
-            all_accounts,
+            apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
-            let apply_mappings = resolve_apply_mappings(
-                mapping_file.as_deref(),
-                target_account,
-                target_server,
-                target_character,
-                selected_accounts,
-                all_accounts,
-            )?;
+            let installation = resolve_cli_installation(&app, install_target)?;
+            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
             let external_package = build_external_package_bundle_request(bundle_options);
             let result = app.apply_external_package(build_apply_external_package_request(
                 external_package,

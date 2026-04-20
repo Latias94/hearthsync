@@ -12,7 +12,7 @@ pub use addon::{AddonCommands, AddonIndexCommands, AddonLockCommands};
 pub use backup::BackupCommands;
 pub use bundle::BundleCommands;
 pub use external_package::{ExternalPackageBundleOptions, ExternalPackageCommands};
-pub use shared::{ApplyPolicyArg, FlavorArg, PlatformArg};
+pub use shared::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -31,16 +31,12 @@ pub struct Cli {
 pub enum Commands {
     Scan,
     Inspect {
-        #[arg(long)]
-        install: PathBuf,
-        #[arg(long, value_enum)]
-        flavor: Option<FlavorArg>,
+        #[command(flatten)]
+        install_target: InstallTargetArgs,
     },
     Doctor {
-        #[arg(long)]
-        install: PathBuf,
-        #[arg(long, value_enum)]
-        flavor: Option<FlavorArg>,
+        #[command(flatten)]
+        install_target: InstallTargetArgs,
     },
     Backup {
         #[command(subcommand)]
@@ -72,4 +68,34 @@ pub enum ManifestCommands {
         #[arg(long)]
         file: PathBuf,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::*;
+
+    #[test]
+    fn parses_top_level_inspect_with_shared_install_target() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "inspect",
+            "--install",
+            "E:\\Games\\World of Warcraft",
+            "--flavor",
+            "retail",
+        ]);
+
+        match cli.command {
+            Commands::Inspect { install_target } => {
+                assert_eq!(
+                    install_target.install,
+                    PathBuf::from("E:\\Games\\World of Warcraft")
+                );
+                assert_eq!(install_target.flavor, Some(FlavorArg::Retail));
+            }
+            _ => panic!("expected inspect command"),
+        }
+    }
 }

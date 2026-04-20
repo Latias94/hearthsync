@@ -2,15 +2,13 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
-use super::FlavorArg;
+use super::InstallTargetArgs;
 
 #[derive(Debug, Subcommand)]
 pub enum BackupCommands {
     Create {
-        #[arg(long)]
-        install: PathBuf,
-        #[arg(long, value_enum)]
-        flavor: Option<FlavorArg>,
+        #[command(flatten)]
+        install_target: InstallTargetArgs,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -19,10 +17,8 @@ pub enum BackupCommands {
         dir: Option<PathBuf>,
     },
     Restore {
-        #[arg(long)]
-        install: PathBuf,
-        #[arg(long, value_enum)]
-        flavor: Option<FlavorArg>,
+        #[command(flatten)]
+        install_target: InstallTargetArgs,
         #[arg(long)]
         archive: Option<PathBuf>,
         #[arg(long)]

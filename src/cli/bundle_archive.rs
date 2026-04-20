@@ -12,12 +12,11 @@ pub(super) fn handle_bundle_archive_command(json: bool, command: BundleCommands)
 
     match command {
         BundleCommands::Pack {
-            install,
-            flavor,
+            install_target,
             manifest,
             output,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
+            let installation = resolve_cli_installation(&app, install_target)?;
             let bundle =
                 app.pack_bundle(build_pack_bundle_request(installation, manifest, output)?)?;
             render(json, &bundle, render_bundle_archive_created)?;

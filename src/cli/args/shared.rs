@@ -1,4 +1,6 @@
-use clap::ValueEnum;
+use std::path::PathBuf;
+
+use clap::{Args, ValueEnum};
 
 use crate::core::app::{HostPlatformValue, WowFlavorValue};
 use crate::core::manifest::ResourceApplyPolicy;
@@ -45,6 +47,30 @@ impl From<FlavorArg> for WowFlavorValue {
             FlavorArg::Xptr => WowFlavorValue::Xptr,
         }
     }
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct InstallTargetArgs {
+    #[arg(long, help = "World of Warcraft installation or product root")]
+    pub install: PathBuf,
+    #[arg(long, value_enum)]
+    pub flavor: Option<FlavorArg>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ApplyMappingArgs {
+    #[arg(long)]
+    pub mapping_file: Option<PathBuf>,
+    #[arg(long)]
+    pub target_account: Option<String>,
+    #[arg(long)]
+    pub target_server: Option<String>,
+    #[arg(long)]
+    pub target_character: Option<String>,
+    #[arg(long = "select-account")]
+    pub selected_accounts: Vec<String>,
+    #[arg(long)]
+    pub all_accounts: bool,
 }
 
 impl From<PlatformArg> for HostPlatformValue {

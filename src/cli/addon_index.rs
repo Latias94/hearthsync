@@ -21,15 +21,14 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             render(json, &inspection, render_addon_index_inspection)?;
         }
         AddonIndexCommands::Install {
-            install,
-            flavor,
+            install_target,
             file,
             name,
             dry_run,
             backup_output,
             replace_existing,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result = app.install_addon_index(build_install_addon_index_request(
                 installation,
                 file,
@@ -41,14 +40,13 @@ pub(super) fn handle_addon_index_command(json: bool, command: AddonIndexCommands
             render(json, &result, render_addon_index_install)?;
         }
         AddonIndexCommands::Update {
-            install,
-            flavor,
+            install_target,
             file,
             name,
             dry_run,
             backup_output,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result = app.update_addon_index(build_update_addon_index_request(
                 installation,
                 file,

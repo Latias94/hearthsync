@@ -14,24 +14,11 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
     match command {
         BundleCommands::Plan {
             bundle,
-            install,
-            flavor,
-            mapping_file,
-            target_account,
-            target_server,
-            target_character,
-            selected_accounts,
-            all_accounts,
+            install_target,
+            apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
-            let apply_mappings = resolve_apply_mappings(
-                mapping_file.as_deref(),
-                target_account,
-                target_server,
-                target_character,
-                selected_accounts,
-                all_accounts,
-            )?;
+            let installation = resolve_cli_installation(&app, install_target)?;
+            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
             let plan = app.plan_bundle_apply(build_plan_bundle_apply_request(
                 bundle,
                 installation,
@@ -41,26 +28,13 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
         }
         BundleCommands::Unpack {
             bundle,
-            install,
-            flavor,
+            install_target,
             dry_run,
             backup_output,
-            mapping_file,
-            target_account,
-            target_server,
-            target_character,
-            selected_accounts,
-            all_accounts,
+            apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
-            let apply_mappings = resolve_apply_mappings(
-                mapping_file.as_deref(),
-                target_account,
-                target_server,
-                target_character,
-                selected_accounts,
-                all_accounts,
-            )?;
+            let installation = resolve_cli_installation(&app, install_target)?;
+            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
             let result = app.apply_bundle(build_apply_bundle_request(
                 bundle,
                 installation,

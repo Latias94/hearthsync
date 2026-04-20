@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use super::{ApplyPolicyArg, FlavorArg, PlatformArg};
+use super::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
 
 #[derive(Debug, Subcommand)]
 pub enum ExternalPackageCommands {
@@ -18,22 +18,10 @@ pub enum ExternalPackageCommands {
     Plan {
         #[command(flatten)]
         bundle_options: ExternalPackageBundleOptions,
-        #[arg(long)]
-        install: PathBuf,
-        #[arg(long, value_enum)]
-        flavor: Option<FlavorArg>,
-        #[arg(long)]
-        mapping_file: Option<PathBuf>,
-        #[arg(long)]
-        target_account: Option<String>,
-        #[arg(long)]
-        target_server: Option<String>,
-        #[arg(long)]
-        target_character: Option<String>,
-        #[arg(long = "select-account")]
-        selected_accounts: Vec<String>,
-        #[arg(long)]
-        all_accounts: bool,
+        #[command(flatten)]
+        install_target: InstallTargetArgs,
+        #[command(flatten)]
+        apply_mapping: ApplyMappingArgs,
     },
     #[command(
         about = "Apply an external UI package directly through the normalized bundle pipeline"
@@ -41,26 +29,14 @@ pub enum ExternalPackageCommands {
     Apply {
         #[command(flatten)]
         bundle_options: ExternalPackageBundleOptions,
-        #[arg(long)]
-        install: PathBuf,
-        #[arg(long, value_enum)]
-        flavor: Option<FlavorArg>,
+        #[command(flatten)]
+        install_target: InstallTargetArgs,
         #[arg(long)]
         dry_run: bool,
         #[arg(long)]
         backup_output: Option<PathBuf>,
-        #[arg(long)]
-        mapping_file: Option<PathBuf>,
-        #[arg(long)]
-        target_account: Option<String>,
-        #[arg(long)]
-        target_server: Option<String>,
-        #[arg(long)]
-        target_character: Option<String>,
-        #[arg(long = "select-account")]
-        selected_accounts: Vec<String>,
-        #[arg(long)]
-        all_accounts: bool,
+        #[command(flatten)]
+        apply_mapping: ApplyMappingArgs,
     },
 }
 
@@ -167,21 +143,21 @@ mod tests {
             Commands::ExternalPackage { command } => match command {
                 ExternalPackageCommands::Apply {
                     bundle_options,
+                    apply_mapping,
                     dry_run,
-                    target_account,
-                    target_server,
-                    target_character,
-                    selected_accounts,
                     ..
                 } => {
                     assert_eq!(bundle_options.source_flavor, FlavorArg::Retail);
                     assert_eq!(bundle_options.source_platform, Some(PlatformArg::Windows));
                     assert_eq!(bundle_options.supported_targets, vec![FlavorArg::Retail]);
                     assert!(dry_run);
-                    assert_eq!(target_account.as_deref(), Some("ACCOUNT"));
-                    assert_eq!(target_server.as_deref(), Some("Illidan"));
-                    assert_eq!(target_character.as_deref(), Some("Examplemage"));
-                    assert_eq!(selected_accounts, vec!["ACCOUNT".to_string()]);
+                    assert_eq!(apply_mapping.target_account.as_deref(), Some("ACCOUNT"));
+                    assert_eq!(apply_mapping.target_server.as_deref(), Some("Illidan"));
+                    assert_eq!(
+                        apply_mapping.target_character.as_deref(),
+                        Some("Examplemage")
+                    );
+                    assert_eq!(apply_mapping.selected_accounts, vec!["ACCOUNT".to_string()]);
                 }
                 _ => panic!("expected apply command"),
             },

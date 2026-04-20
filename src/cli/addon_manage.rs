@@ -18,30 +18,28 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
 
     match command {
         AddonCommands::Search {
-            install,
-            flavor,
+            install_target,
             query,
             limit,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
+            let installation = resolve_cli_installation(&app, install_target)?;
             let results =
                 app.search_addons(build_search_addons_request(installation, query, limit))?;
             render(json, &results, render_addon_search_catalog)?;
         }
-        AddonCommands::List { install, flavor } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
+        AddonCommands::List { install_target } => {
+            let installation = resolve_cli_installation(&app, install_target)?;
             let inventory = app.list_addons(build_list_addons_request(installation))?;
             render(json, &inventory, render_addon_inventory)?;
         }
         AddonCommands::Install {
-            install,
-            flavor,
+            install_target,
             source,
             dry_run,
             backup_output,
             replace_existing,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
+            let installation = resolve_cli_installation(&app, install_target)?;
             let result = app.install_addon(build_install_addon_request(
                 installation,
                 source,
@@ -52,13 +50,12 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             render(json, &result, render_addon_install)?;
         }
         AddonCommands::Update {
-            install,
-            flavor,
+            install_target,
             name,
             dry_run,
             backup_output,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
+            let installation = resolve_cli_installation(&app, install_target)?;
             let result = app.update_addons(build_update_addons_request(
                 installation,
                 name,
@@ -68,13 +65,12 @@ pub(super) fn handle_basic_addon_command(json: bool, command: AddonCommands) -> 
             render(json, &result, render_addon_update)?;
         }
         AddonCommands::Remove {
-            install,
-            flavor,
+            install_target,
             name,
             dry_run,
             backup_output,
         } => {
-            let installation = resolve_cli_installation(&app, install, flavor)?;
+            let installation = resolve_cli_installation(&app, install_target)?;
             let result = app.remove_addons(build_remove_addons_request(
                 installation,
                 name,

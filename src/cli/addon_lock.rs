@@ -18,14 +18,14 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
     let app = extended_services();
 
     match command {
-        AddonLockCommands::Inspect { install, flavor } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+        AddonLockCommands::Inspect { install_target } => {
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let inspection =
                 app.inspect_addon_lock(build_inspect_addon_lock_request(installation))?;
             render(json, &inspection, render_addon_lock_inspection)?;
         }
-        AddonLockCommands::Write { install, flavor } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+        AddonLockCommands::Write { install_target } => {
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result = app.write_addon_lock(build_write_addon_lock_request(installation))?;
             render(json, &result, render_addon_lock_write)?;
         }
@@ -38,33 +38,30 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             render(json, &result, render_addon_lock_diff)?;
         }
         AddonLockCommands::Verify {
-            install,
-            flavor,
+            install_target,
             file,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result =
                 app.verify_addon_lock(build_verify_addon_lock_request(installation, file))?;
             render(json, &result, render_addon_lock_verify)?;
         }
         AddonLockCommands::Plan {
-            install,
-            flavor,
+            install_target,
             file,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result =
                 app.plan_addon_lock_sync(build_plan_addon_lock_request(installation, file))?;
             render(json, &result, render_addon_lock_plan)?;
         }
         AddonLockCommands::Apply {
-            install,
-            flavor,
+            install_target,
             file,
             backup_output,
             replace_existing,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result = app.apply_addon_lock_sync(build_apply_addon_lock_request(
                 installation,
                 file,

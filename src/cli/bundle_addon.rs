@@ -13,10 +13,9 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
     match command {
         BundleCommands::AddonPlan {
             bundle,
-            install,
-            flavor,
+            install_target,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result = app.plan_bundle_addon_lock(build_plan_bundle_addon_lock_request(
                 bundle,
                 installation,
@@ -25,12 +24,11 @@ pub(super) fn handle_bundle_addon_command(json: bool, command: BundleCommands) -
         }
         BundleCommands::AddonApply {
             bundle,
-            install,
-            flavor,
+            install_target,
             backup_output,
             replace_existing,
         } => {
-            let installation = resolve_cli_installation(app.stable(), install, flavor)?;
+            let installation = resolve_cli_installation(app.stable(), install_target)?;
             let result = app.apply_bundle_addon_lock(build_apply_bundle_addon_lock_request(
                 bundle,
                 installation,

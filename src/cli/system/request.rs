@@ -1,15 +1,12 @@
-use std::path::PathBuf;
-
-use crate::cli::FlavorArg;
+use crate::cli::InstallTargetArgs;
 use crate::core::app::InspectInstallationRequest;
 
 pub(super) fn build_inspect_installation_request(
-    path: PathBuf,
-    flavor: Option<FlavorArg>,
+    install_target: InstallTargetArgs,
 ) -> InspectInstallationRequest {
     InspectInstallationRequest {
-        path,
-        flavor: flavor.map(Into::into),
+        path: install_target.install,
+        flavor: install_target.flavor.map(Into::into),
     }
 }
 
@@ -18,15 +15,15 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::cli::FlavorArg;
+    use crate::cli::{FlavorArg, InstallTargetArgs};
     use crate::core::app::WowFlavorValue;
 
     #[test]
     fn build_inspect_installation_request_maps_flavor() {
-        let request = build_inspect_installation_request(
-            PathBuf::from("E:\\Games\\World of Warcraft"),
-            Some(FlavorArg::Retail),
-        );
+        let request = build_inspect_installation_request(InstallTargetArgs {
+            install: PathBuf::from("E:\\Games\\World of Warcraft"),
+            flavor: Some(FlavorArg::Retail),
+        });
 
         assert_eq!(request.path, PathBuf::from("E:\\Games\\World of Warcraft"));
         assert_eq!(request.flavor, Some(WowFlavorValue::Retail));

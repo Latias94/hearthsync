@@ -313,6 +313,10 @@ Prepare the core for a future frontend.
   external-package request projection now also live in domain `request` modules, so inline
   app-request struct assembly is effectively gone from `src/cli` except for the shared
   installation-resolution helper in `cli::app_support`
+- repeated CLI install-target and apply-mapping flags now live in shared `cli::args::shared`
+  shapes (`InstallTargetArgs`, `ApplyMappingArgs`), and the shared installation-resolution plus
+  mapping helpers now consume those shapes directly, reducing argument-definition drift between
+  addon, bundle, backup, system, and external-package commands
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

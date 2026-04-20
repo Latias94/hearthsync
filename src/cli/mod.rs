@@ -27,8 +27,8 @@ pub fn run() -> AppResult<()> {
 
     match cli.command {
         Commands::Scan => system::handle_scan(cli.json)?,
-        Commands::Inspect { install, flavor } => system::handle_inspect(cli.json, install, flavor)?,
-        Commands::Doctor { install, flavor } => system::handle_doctor(cli.json, install, flavor)?,
+        Commands::Inspect { install_target } => system::handle_inspect(cli.json, install_target)?,
+        Commands::Doctor { install_target } => system::handle_doctor(cli.json, install_target)?,
         Commands::Backup { command } => backup::handle_backup_command(cli.json, command)?,
         Commands::Bundle { command } => bundle::handle_bundle_command(cli.json, command)?,
         Commands::ExternalPackage { command } => {
