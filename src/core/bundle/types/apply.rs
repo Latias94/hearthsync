@@ -1,0 +1,157 @@
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
+use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount};
+use crate::core::lua_patch::CharacterMapping;
+use crate::core::manifest::{BundleManifest, ResourceApplyPolicy};
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BundleApplyPlan {
+    pub bundle_path: PathBuf,
+    pub target_flavor_root: PathBuf,
+    pub discovered_accounts: Vec<LocalWowAccount>,
+    pub selected_target_accounts: Vec<String>,
+    pub character_mappings: Vec<CharacterMapping>,
+    pub operations: Vec<ApplyOperation>,
+    pub summary: ApplyPlanSummary,
+    pub group_policies: ApplyGroupPolicies,
+    pub manifest: BundleManifest,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ApplyOperation {
+    pub group: ApplyGroup,
+    pub wtf_scope: Option<WtfScope>,
+    pub action: ApplyAction,
+    pub archive_name: String,
+    pub destination: PathBuf,
+    pub target_account: Option<String>,
+    pub target_server: Option<String>,
+    pub target_character: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ApplyPlanSummary {
+    pub files_to_add: usize,
+    pub files_to_replace: usize,
+    pub files_to_skip: usize,
+    pub paths_to_remove: usize,
+    pub files_to_preserve: usize,
+}
+
+impl ApplyPlanSummary {
+    pub(crate) fn from_operations(operations: &[ApplyOperation]) -> Self {
+        let mut summary = Self::default();
+
+        for operation in operations {
+            match operation.action {
+                ApplyAction::Remove => summary.paths_to_remove += 1,
+                ApplyAction::Add => summary.files_to_add += 1,
+                ApplyAction::Replace => summary.files_to_replace += 1,
+                ApplyAction::Skip => summary.files_to_skip += 1,
+                ApplyAction::Preserve => summary.files_to_preserve += 1,
+            }
+        }
+
+        summary
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplyAction {
+    Remove,
+    Add,
+    Replace,
+    Skip,
+    Preserve,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplyGroup {
+    Addons,
+    WtfCommon,
+    WtfCharacters,
+    Fonts,
+    InterfaceAssets,
+    Metadata,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WtfScope {
+    GlobalConfig,
+    RootSavedVariables,
+    AccountRootFile,
+    AccountSavedVariables,
+    CharacterSavedVariables,
+    CharacterState,
+    CacheLike,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ApplyGroupPolicies {
+    pub addons: GroupPolicy,
+    pub wtf_common: GroupPolicy,
+    pub wtf_characters: GroupPolicy,
+    pub fonts: GroupPolicy,
+    pub interface_assets: GroupPolicy,
+    pub metadata: GroupPolicy,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GroupPolicy {
+    pub policy: ResourceApplyPolicy,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnpackBundleRequest {
+    pub bundle_path: PathBuf,
+    pub installation: DetectedFlavorInstallation,
+    pub dry_run: bool,
+    pub backup_output_path: Option<PathBuf>,
+    pub apply_mappings: BundleApplyMappings,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UnpackedBundle {
+    pub bundle_path: PathBuf,
+    pub target_flavor_root: PathBuf,
+    pub dry_run: bool,
+    pub planned_files: usize,
+    pub written_files: usize,
+    pub rewritten_files: usize,
+    pub backup_path: Option<PathBuf>,
+    pub selected_target_accounts: Vec<String>,
+    pub plan_summary: ApplyPlanSummary,
+    pub character_mappings: Vec<CharacterMapping>,
+    pub manifest: BundleManifest,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BundleApplyMappings {
+    pub target_account: Option<String>,
+    pub target_server: Option<String>,
+    pub target_character: Option<String>,
+    #[serde(default)]
+    pub selected_accounts: Vec<String>,
+    #[serde(default)]
+    pub all_accounts: bool,
+    #[serde(default)]
+    pub characters: Vec<CharacterMappingOverride>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CharacterMappingOverride {
+    pub source_account: Option<String>,
+    pub source_server: String,
+    pub source_character: String,
+    pub target_account: Option<String>,
+    pub target_server: String,
+    pub target_character: String,
+}

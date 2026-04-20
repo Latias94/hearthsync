@@ -413,6 +413,9 @@ Prepare the core for a future frontend.
 - bundle WTF archive support now separates common WTF packing, character WTF packing, and
   source-account resolution under `core::bundle::wtf_archive::{common,character,resolve}`,
   leaving `wtf_archive.rs` as the thin re-export shell
+- bundle public DTOs now separate archive pack/inspect models, bundle-addon-lock models, and
+  bundle-apply models under `core::bundle::types::{archive,addon_lock,apply}`, leaving
+  `types.rs` as the thin re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
