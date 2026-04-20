@@ -389,6 +389,10 @@ Prepare the core for a future frontend.
 - bundle entry planning now separates archive-entry dispatch, common account replication, and
   character mapping under `core::bundle::entry_plan::{context,common,character}`, leaving
   `entry_plan.rs` as the small planning-context shell
+- bundle archive reading now separates entry-byte/materialization helpers, manifest plus entry-count
+  inspection, and embedded addon-lock extraction under
+  `core::bundle::archive_read::{entries,inspect,addon_lock}`, leaving `archive_read.rs` as the
+  small re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
