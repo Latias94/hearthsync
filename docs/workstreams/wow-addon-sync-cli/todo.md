@@ -147,6 +147,7 @@ The current blocking sequence is:
   - Current cleanup: bundle packing now separates archive write orchestration and resource-specific zip materialization into `core::bundle::packing::{pack,resources}`, leaving `packing.rs` as a thin re-export shell beside output/inspect helpers.
   - Current cleanup: bundle apply-source dispatch now separates cross-source reader state and prepared-source method dispatch into `core::bundle::apply_source::{reader,dispatch}`, leaving `apply_source.rs` as a thin shell beside bundle-archive and external-package source adapters.
   - Current cleanup: bundle root module now separates archive constants, public API exports, and internal legacy prelude imports into `core::bundle::{constants,exports,imports}`, leaving `mod.rs` focused on module wiring while existing `super::*` call sites are progressively retired.
+  - Current cleanup: external-package app-facing orchestration now separates analyze, bundle creation, apply-plan entrypoints, and internal source-entry shape into `core::bundle::external_package::{analyze,create_bundle,plan,source_entry}`, leaving `external_package.rs` as a thinner API shell over the already split pipeline modules.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

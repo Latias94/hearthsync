@@ -431,6 +431,10 @@ Prepare the core for a future frontend.
 - bundle root module now separates archive constants, public API exports, and internal legacy
   prelude imports under `core::bundle::{constants,exports,imports}`, leaving `mod.rs` focused on
   module wiring while existing `super::*` call sites are progressively retired
+- external-package app-facing orchestration now separates analyze, bundle creation, apply-plan
+  entrypoints, and internal source-entry shape under
+  `core::bundle::external_package::{analyze,create_bundle,plan,source_entry}`, leaving
+  `external_package.rs` as a thinner API shell over the already split pipeline modules
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
