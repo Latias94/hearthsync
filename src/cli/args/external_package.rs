@@ -1,0 +1,246 @@
+use std::path::PathBuf;
+
+use clap::{Args, Subcommand};
+
+use super::{ApplyPolicyArg, FlavorArg, PlatformArg};
+
+#[derive(Debug, Subcommand)]
+pub enum ExternalPackageCommands {
+    #[command(about = "Analyze an external UI package and summarize normalized resources")]
+    Inspect {
+        #[arg(
+            long,
+            help = "Path to an author-provided zip file or extracted directory"
+        )]
+        source: PathBuf,
+    },
+    #[command(about = "Build an apply plan for an external UI package without writing files")]
+    Plan {
+        #[command(flatten)]
+        bundle_options: ExternalPackageBundleOptions,
+        #[arg(long)]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(long)]
+        mapping_file: Option<PathBuf>,
+        #[arg(long)]
+        target_account: Option<String>,
+        #[arg(long)]
+        target_server: Option<String>,
+        #[arg(long)]
+        target_character: Option<String>,
+        #[arg(long = "select-account")]
+        selected_accounts: Vec<String>,
+        #[arg(long)]
+        all_accounts: bool,
+    },
+    #[command(
+        about = "Apply an external UI package directly through the normalized bundle pipeline"
+    )]
+    Apply {
+        #[command(flatten)]
+        bundle_options: ExternalPackageBundleOptions,
+        #[arg(long)]
+        install: PathBuf,
+        #[arg(long, value_enum)]
+        flavor: Option<FlavorArg>,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        backup_output: Option<PathBuf>,
+        #[arg(long)]
+        mapping_file: Option<PathBuf>,
+        #[arg(long)]
+        target_account: Option<String>,
+        #[arg(long)]
+        target_server: Option<String>,
+        #[arg(long)]
+        target_character: Option<String>,
+        #[arg(long = "select-account")]
+        selected_accounts: Vec<String>,
+        #[arg(long)]
+        all_accounts: bool,
+    },
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ExternalPackageBundleOptions {
+    #[arg(
+        long,
+        help = "Path to an author-provided zip file or extracted directory"
+    )]
+    pub source: PathBuf,
+    #[arg(long, value_enum, help = "WoW flavor that the source package targets")]
+    pub source_flavor: FlavorArg,
+    #[arg(long, value_enum, help = "Source platform if known")]
+    pub source_platform: Option<PlatformArg>,
+    #[arg(
+        long = "supported-target",
+        value_enum,
+        help = "Supported target flavor(s); defaults to source flavor"
+    )]
+    pub supported_targets: Vec<FlavorArg>,
+    #[arg(long, help = "Override the normalized package id")]
+    pub package_id: Option<String>,
+    #[arg(long, help = "Override the normalized package name")]
+    pub package_name: Option<String>,
+    #[arg(long, help = "Override the manifest created_by field")]
+    pub created_by: Option<String>,
+    #[arg(long, help = "Override the manifest description")]
+    pub description: Option<String>,
+    #[arg(
+        long,
+        help = "Disable backup creation in the generated temporary bundle manifest"
+    )]
+    pub no_backup: bool,
+    #[arg(long, value_enum, help = "Override addon apply policy")]
+    pub addons_policy: Option<ApplyPolicyArg>,
+    #[arg(long, value_enum, help = "Override common WTF apply policy")]
+    pub wtf_common_policy: Option<ApplyPolicyArg>,
+    #[arg(long, value_enum, help = "Override character WTF apply policy")]
+    pub wtf_characters_policy: Option<ApplyPolicyArg>,
+    #[arg(long, value_enum, help = "Override fonts apply policy")]
+    pub fonts_policy: Option<ApplyPolicyArg>,
+    #[arg(long, value_enum, help = "Override interface assets apply policy")]
+    pub interface_assets_policy: Option<ApplyPolicyArg>,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::super::{Cli, Commands};
+    use super::*;
+
+    #[test]
+    fn parses_external_package_inspect_command() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "external-package",
+            "inspect",
+            "--source",
+            "C:\\temp\\author-ui.zip",
+        ]);
+
+        match cli.command {
+            Commands::ExternalPackage { command } => match command {
+                ExternalPackageCommands::Inspect { source } => {
+                    assert_eq!(source, PathBuf::from("C:\\temp\\author-ui.zip"));
+                }
+                _ => panic!("expected inspect command"),
+            },
+            _ => panic!("expected external-package command"),
+        }
+    }
+
+    #[test]
+    fn parses_external_package_apply_command_with_mapping_inputs() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "external-package",
+            "apply",
+            "--source",
+            "C:\\temp\\author-ui.zip",
+            "--source-flavor",
+            "retail",
+            "--source-platform",
+            "windows",
+            "--supported-target",
+            "retail",
+            "--install",
+            "E:\\Games\\World of Warcraft",
+            "--flavor",
+            "retail",
+            "--dry-run",
+            "--target-account",
+            "ACCOUNT",
+            "--target-server",
+            "Illidan",
+            "--target-character",
+            "Examplemage",
+            "--select-account",
+            "ACCOUNT",
+        ]);
+
+        match cli.command {
+            Commands::ExternalPackage { command } => match command {
+                ExternalPackageCommands::Apply {
+                    bundle_options,
+                    dry_run,
+                    target_account,
+                    target_server,
+                    target_character,
+                    selected_accounts,
+                    ..
+                } => {
+                    assert_eq!(bundle_options.source_flavor, FlavorArg::Retail);
+                    assert_eq!(bundle_options.source_platform, Some(PlatformArg::Windows));
+                    assert_eq!(bundle_options.supported_targets, vec![FlavorArg::Retail]);
+                    assert!(dry_run);
+                    assert_eq!(target_account.as_deref(), Some("ACCOUNT"));
+                    assert_eq!(target_server.as_deref(), Some("Illidan"));
+                    assert_eq!(target_character.as_deref(), Some("Examplemage"));
+                    assert_eq!(selected_accounts, vec!["ACCOUNT".to_string()]);
+                }
+                _ => panic!("expected apply command"),
+            },
+            _ => panic!("expected external-package command"),
+        }
+    }
+
+    #[test]
+    fn parses_external_package_plan_command_with_bundle_overrides() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "external-package",
+            "plan",
+            "--source",
+            "C:\\temp\\author-ui.zip",
+            "--source-flavor",
+            "retail",
+            "--package-id",
+            "author-ui",
+            "--package-name",
+            "Author UI",
+            "--created-by",
+            "newbeebox-import",
+            "--description",
+            "normalized import",
+            "--no-backup",
+            "--addons-policy",
+            "mirror",
+            "--wtf-common-policy",
+            "share",
+            "--install",
+            "E:\\Games\\World of Warcraft",
+            "--flavor",
+            "retail",
+        ]);
+
+        match cli.command {
+            Commands::ExternalPackage { command } => match command {
+                ExternalPackageCommands::Plan { bundle_options, .. } => {
+                    assert_eq!(bundle_options.package_id.as_deref(), Some("author-ui"));
+                    assert_eq!(bundle_options.package_name.as_deref(), Some("Author UI"));
+                    assert_eq!(
+                        bundle_options.created_by.as_deref(),
+                        Some("newbeebox-import")
+                    );
+                    assert_eq!(
+                        bundle_options.description.as_deref(),
+                        Some("normalized import")
+                    );
+                    assert!(bundle_options.no_backup);
+                    assert_eq!(bundle_options.addons_policy, Some(ApplyPolicyArg::Mirror));
+                    assert_eq!(
+                        bundle_options.wtf_common_policy,
+                        Some(ApplyPolicyArg::Share)
+                    );
+                }
+                _ => panic!("expected plan command"),
+            },
+            _ => panic!("expected external-package command"),
+        }
+    }
+}
