@@ -1,7 +1,18 @@
 use super::storage::{
     lock_package_name, lock_package_version, package_content_sha256_with_missing, read_addon_lock,
 };
-use super::*;
+use std::collections::BTreeSet;
+use std::path::Path;
+
+use crate::core::addon::TrackedAddonPackage;
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
+
+use super::{
+    AddonLock, AddonLockDiffResult, AddonLockFieldChange, AddonLockPackage, AddonLockPackageDiff,
+    AddonLockPackageDirectoryIssue, AddonLockPackageSnapshot, AddonLockVerifyResult,
+    comparison_key, left_label, lock_path,
+};
 
 pub fn diff_addon_locks(left_path: &Path, right_path: &Path) -> AppResult<AddonLockDiffResult> {
     let left = read_addon_lock(left_path)?;

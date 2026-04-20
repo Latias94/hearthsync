@@ -1,4 +1,6 @@
-use super::*;
+use crate::core::addon::{AddonPackageMetadata, PreparedAddonPackage, TrackedAddonPackage};
+
+use super::AddonLockPackage;
 
 #[derive(Debug)]
 pub(super) struct PreparedAddonLockApply {

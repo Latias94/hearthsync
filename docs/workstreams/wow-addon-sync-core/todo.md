@@ -166,6 +166,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: app response DTOs no longer own CLI text rendering or redundant accessor sugar;
     presentation formatting now lives in CLI code, and wrapper results behave like data objects
     instead of mini service facades.
+    Current cleanup: `ExternalPackageBundleHandle` no longer relies on `Deref` field forwarding;
+    callers now opt into the wrapped result explicitly through `AsRef`, keeping the stable app
+    boundary honest about where the temporary-bundle lifetime handle ends and response data begins.
     Current cleanup: display-oriented helper methods on app value types are moving back to CLI or
     runtime edges, so public request/response enums remain data shapes instead of mixed-in
     formatting utilities.

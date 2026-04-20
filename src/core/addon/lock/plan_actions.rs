@@ -2,7 +2,16 @@ use super::plan_model::PlannedLockAction;
 use super::plan_support::{
     directory_conflicts, has_material_changes, lock_action_sort_key, preflight_expected_source,
 };
-use super::*;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+
+use crate::core::addon::TrackedAddonPackage;
+use crate::core::error::{AppError, AppResult};
+
+use super::{
+    AddonLockDiffResult, AddonLockPackage, AddonLockPackageDiff, AddonLockPackageSnapshot,
+    AddonLockSyncAction, AddonLockSyncActionKind,
+};
 
 pub(super) struct ActionBuildInputs<'a> {
     pub(super) diff: &'a AddonLockDiffResult,

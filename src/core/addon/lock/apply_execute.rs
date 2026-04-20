@@ -2,7 +2,12 @@ use super::apply_model::{
     MetadataOnlyAddonLockAction, PreparedAddonLockApply, metadata_from_lock_package,
 };
 use super::storage::now_rfc3339;
-use super::*;
+use crate::core::addon::{
+    install_prepared_package_task, load_registry, remove_selected_packages_task, save_registry,
+    update_prepared_packages_task,
+};
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
     ensure_task_not_cancelled,

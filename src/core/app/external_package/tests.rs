@@ -235,6 +235,7 @@ fn external_package_service_create_bundle_uses_runtime_platform_and_output_dir()
             }),
         })
         .expect("create bundle with runtime defaults");
+    let prepared = prepared.as_ref();
 
     assert_eq!(
         prepared.manifest.source.platform,
@@ -266,7 +267,7 @@ fn external_package_service_create_bundle_keeps_temporary_bundle_alive_while_han
         })
         .expect("create temporary bundle");
 
-    let archive_path = prepared.bundle.archive_path.clone();
+    let archive_path = prepared.as_ref().bundle.archive_path.clone();
     assert!(archive_path.is_file());
 
     drop(prepared);

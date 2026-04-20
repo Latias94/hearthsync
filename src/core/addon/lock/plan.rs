@@ -6,9 +6,19 @@ use super::plan_support::{
     missing_directory_map, tracked_directory_owner_map,
 };
 use super::source_resolution::resolved_source_override_map;
-use super::storage::read_addon_lock;
+use super::storage::{lock_path, read_addon_lock};
 use super::verify::{compare_lock_snapshots, lock_snapshots, snapshot_from_tracked_package};
-use super::*;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
+
+use crate::core::addon::list_addons;
+use crate::core::error::AppResult;
+use crate::core::install::DetectedFlavorInstallation;
+
+use super::{
+    AddonLockDiffResult, AddonLockPackageDirectoryIssue, AddonLockPlanResult,
+    AddonLockSourceOverride, AddonLockSyncActionKind,
+};
 
 pub fn plan_addon_lock_sync(
     installation: &DetectedFlavorInstallation,

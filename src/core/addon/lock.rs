@@ -12,22 +12,11 @@ mod storage;
 mod tests;
 mod verify;
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::addon::{
-    AddonInventory, AddonPackageMetadata, AddonProvider, AddonRegistry, AddonSourceRef,
-    DefaultAddonProvider, PreparedAddonPackage, TrackedAddon, TrackedAddonPackage,
-    install_prepared_package_task, list_addons, load_registry,
-    prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_provider,
-    remove_selected_packages_task, rollback_or_report_addon_error, save_registry,
-    update_prepared_packages_task,
-};
-use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
-use crate::core::error::{AppError, AppResult};
+use crate::core::addon::{AddonSourceRef, TrackedAddon};
 use crate::core::install::DetectedFlavorInstallation;
 
 pub(crate) use self::apply::apply_addon_lock_sync_task_with_provider;

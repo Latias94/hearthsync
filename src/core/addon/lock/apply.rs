@@ -3,7 +3,13 @@ use super::apply_prepare::prepare_addon_lock_apply_with_provider;
 use super::plan::build_addon_lock_plan;
 use super::source_resolution::resolved_source_override_map;
 use super::verify::verify_addon_lock;
-use super::*;
+use std::path::PathBuf;
+
+use crate::core::addon::{AddonProvider, DefaultAddonProvider, rollback_or_report_addon_error};
+use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
+use crate::core::error::{AppError, AppResult};
+
+use super::{AddonLockApplyRequest, AddonLockApplyResult, AddonLockSyncActionKind};
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,

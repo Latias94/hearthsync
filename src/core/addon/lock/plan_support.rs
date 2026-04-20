@@ -1,4 +1,13 @@
-use super::*;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+
+use crate::core::addon::{AddonInventory, AddonSourceRef, TrackedAddonPackage};
+use crate::core::error::{AppError, AppResult};
+
+use super::{
+    AddonLock, AddonLockFieldChange, AddonLockPackage, AddonLockPackageDirectoryIssue,
+    AddonLockSyncActionKind, comparison_key,
+};
 
 pub(super) fn expected_package_map(
     lock: &AddonLock,

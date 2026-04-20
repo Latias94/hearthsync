@@ -1,4 +1,6 @@
-use super::*;
+use crate::core::addon::TrackedAddonPackage;
+
+use super::{AddonLockPackage, AddonLockPlanResult, AddonLockSyncAction};
 
 #[derive(Debug, Clone)]
 pub(super) struct PlannedLockAction {

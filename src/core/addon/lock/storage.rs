@@ -6,7 +6,19 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
 
-use super::*;
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use crate::core::addon::{
+    AddonPackageMetadata, AddonRegistry, TrackedAddon, TrackedAddonPackage, load_registry,
+};
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
+
+use super::{
+    AddonLock, AddonLockInspection, AddonLockPackage, AddonLockWriteResult, comparison_key,
+};
 
 pub fn inspect_addon_lock(
     installation: &DetectedFlavorInstallation,

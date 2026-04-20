@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::path::PathBuf;
 
 use serde::Serialize;
@@ -48,14 +47,6 @@ impl ExternalPackageBundleHandle {
             result,
             _prepared: value,
         }
-    }
-}
-
-impl Deref for ExternalPackageBundleHandle {
-    type Target = ExternalPackageBundleResult;
-
-    fn deref(&self) -> &Self::Target {
-        &self.result
     }
 }
 

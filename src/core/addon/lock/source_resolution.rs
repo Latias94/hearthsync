@@ -1,4 +1,15 @@
-use super::*;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use serde::Deserialize;
+
+use crate::core::addon::{
+    prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_provider,
+};
+use crate::core::error::{AppError, AppResult};
+
+use super::{AddonLockPackage, AddonLockSourceOverride};
 
 #[derive(Debug, Clone, Deserialize)]
 struct AddonLockSidecarSourceIndex {

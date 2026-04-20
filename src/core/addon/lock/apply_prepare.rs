@@ -3,7 +3,13 @@ use super::apply_model::{
 };
 use super::plan::AddonLockPlanContext;
 use super::source_resolution::prepare_expected_lock_package_with_provider;
-use super::*;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
+
+use super::AddonLockSyncActionKind;
 
 pub(super) fn prepare_addon_lock_apply_with_provider<P>(
     provider: &P,
