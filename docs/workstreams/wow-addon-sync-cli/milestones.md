@@ -393,6 +393,9 @@ Prepare the core for a future frontend.
   inspection, and embedded addon-lock extraction under
   `core::bundle::archive_read::{entries,inspect,addon_lock}`, leaving `archive_read.rs` as the
   small re-export shell
+- bundle character mapping now separates target-resolution mechanics and input/error validation
+  under `core::bundle::character_mapping::{resolution,validation}`, leaving
+  `character_mapping.rs` focused on per-resource mode dispatch
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
