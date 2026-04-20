@@ -403,6 +403,10 @@ Prepare the core for a future frontend.
 - bundle apply policy logic now separates cleanup-root planning, resource-group policy lookup, and
   operation/group ordering under `core::bundle::apply_policy::{cleanup,policy,order}`, leaving
   `apply_policy.rs` as the thin re-export shell
+- bundle addon-source archive support now separates addon-index path resolution, generated
+  addon-lock loading, and embedded source-archive materialization under
+  `core::bundle::addon_source_archive::{index_paths,lock,source_bundle}`, leaving
+  `addon_source_archive.rs` as the thin re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
