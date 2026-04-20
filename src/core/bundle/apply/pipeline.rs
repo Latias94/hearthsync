@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use super::super::apply_model::prepared::PreparedBundleApply;
-use super::super::types::UnpackedBundle;
+use super::super::types::apply::UnpackedBundle;
 use super::executor::BundleExecutor;
 use super::result::{project_dry_run_result, project_executed_result};
 use super::task_context::BundleApplyTaskContext;

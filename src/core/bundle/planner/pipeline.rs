@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::super::apply_model::prepared::{PreparedApplySource, PreparedBundleApply};
-use super::super::types::{BundleApplyMappings, BundleApplyPlan};
+use super::super::types::apply::{BundleApplyMappings, BundleApplyPlan};
 use super::logical::plan_apply_from_entries;
 use super::model::ResolvedPreviewApply;
 use super::preview::{build_pending_preview_apply, finalize_pending_preview_apply};

@@ -1,7 +1,7 @@
 use tempfile::tempdir;
 
 use super::super::packing::pack::pack_bundle;
-use super::super::types::PackBundleRequest;
+use super::super::types::archive::PackBundleRequest;
 use super::materialize::{create_staging_installation, materialize_analysis_to_installation};
 use super::prepare::prepare_external_package_artifacts;
 use super::types::{CreateExternalPackageBundleRequest, PreparedExternalPackageBundle};

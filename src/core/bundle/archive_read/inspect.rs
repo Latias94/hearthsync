@@ -4,7 +4,7 @@ use std::io::Read;
 use zip::ZipArchive;
 
 use super::super::constants::MANIFEST_ENTRY;
-use super::super::types::BundleEntryCounts;
+use super::super::types::archive::BundleEntryCounts;
 use crate::core::error::AppResult;
 use crate::core::manifest::BundleManifest;
 

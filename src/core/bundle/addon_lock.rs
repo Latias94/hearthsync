@@ -4,7 +4,9 @@ use tempfile::TempDir;
 
 use super::archive_read::addon_lock::extract_embedded_addon_lock;
 use super::constants::ADDON_LOCK_ENTRY;
-use super::types::{BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan};
+use super::types::addon_lock::{
+    BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan,
+};
 use crate::core::addon::lock::{
     AddonLockApplyRequest, AddonLockSourceOverride, apply_addon_lock_sync,
     plan_addon_lock_sync_with_source_overrides,

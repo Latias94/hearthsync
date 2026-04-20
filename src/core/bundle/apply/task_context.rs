@@ -1,7 +1,7 @@
 use crate::core::task::TaskKind;
 
 use super::super::apply_model::prepared::PreparedApplyOperation;
-use super::super::types::ApplyAction;
+use super::super::types::apply::ApplyAction;
 
 #[derive(Debug, Clone, Copy)]
 pub(in crate::core::bundle) enum BundleApplyTaskContext {

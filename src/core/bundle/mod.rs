@@ -25,23 +25,30 @@ mod zip_write;
 
 pub use addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
 pub use apply::{unpack_bundle, unpack_bundle_task};
-pub(crate) use external_package::author_package_apply_defaults;
-pub use external_package::{
+pub use external_package::analyze::analyze_external_package;
+pub use external_package::create_bundle::create_external_package_bundle;
+pub(crate) use external_package::manifest::author_package_apply_defaults;
+pub use external_package::plan::plan_external_package_apply;
+pub use external_package::tasks::{
+    analyze_external_package_task, apply_external_package, apply_external_package_task,
+    plan_external_package_apply_task,
+};
+pub use external_package::types::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,
     ExternalPackageEntry, ExternalPackageSourceKind, ExternalPackageSummary,
     ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningCode,
     ExternalPackageWarningGroup, PlanExternalPackageApplyRequest, PreparedExternalPackageBundle,
-    analyze_external_package, analyze_external_package_task, apply_external_package,
-    apply_external_package_task, create_external_package_bundle, plan_external_package_apply,
-    plan_external_package_apply_task,
 };
 pub use packing::inspect::{inspect_bundle, load_apply_mappings};
 pub use packing::pack::pack_bundle;
 pub use planner::pipeline::plan_bundle_apply;
-pub use types::{
-    ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
-    BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,
-    BundleApplyPlan, BundleEntryCounts, BundleInspection, CharacterMappingOverride, CreatedBundle,
-    GroupPolicy, PackBundleRequest, UnpackBundleRequest, UnpackedBundle, WtfScope,
+pub use types::addon_lock::{
+    BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan,
 };
+pub use types::apply::{
+    ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
+    BundleApplyMappings, BundleApplyPlan, CharacterMappingOverride, GroupPolicy,
+    UnpackBundleRequest, UnpackedBundle, WtfScope,
+};
+pub use types::archive::{BundleEntryCounts, BundleInspection, CreatedBundle, PackBundleRequest};

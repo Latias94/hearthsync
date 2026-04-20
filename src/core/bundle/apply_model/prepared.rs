@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use crate::core::lua_patch::CharacterMapping;
 
-use super::super::external_package::ExternalPackageSourceKind;
-use super::super::types::{ApplyAction, ApplyOperation, BundleApplyPlan};
+use super::super::external_package::types::ExternalPackageSourceKind;
+use super::super::types::apply::{ApplyAction, ApplyOperation, BundleApplyPlan};
 use super::preview::PreviewOperation;
 
 #[derive(Debug, Clone)]

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use super::super::apply_model::prepared::{PreparedApplyOperation, PreparedApplySource};
 use super::super::execution::apply::execute_apply_operations;
 use super::super::execution::rollback::rollback_or_report_apply_error;
-use super::super::types::BundleApplyPlan;
+use super::super::types::apply::BundleApplyPlan;
 use super::task_context::BundleApplyTaskContext;
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::AppResult;

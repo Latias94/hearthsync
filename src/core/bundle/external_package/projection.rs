@@ -1,4 +1,4 @@
-use super::super::types::{BundleApplyPlan, UnpackedBundle};
+use super::super::types::apply::{BundleApplyPlan, UnpackedBundle};
 use super::types::{AppliedExternalPackage, ExternalPackageAnalysis, ExternalPackageApplyPlan};
 
 pub(super) fn project_external_package_plan(

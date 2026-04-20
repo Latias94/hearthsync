@@ -1,4 +1,4 @@
-use super::super::types::{ApplyGroup, WtfScope};
+use super::super::types::apply::{ApplyGroup, WtfScope};
 use super::source_entry::SourceEntry;
 use super::types::{
     ExternalPackageEntry, ExternalPackageWarning, ExternalPackageWarningCategory,

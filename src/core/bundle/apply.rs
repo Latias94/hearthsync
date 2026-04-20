@@ -1,5 +1,5 @@
 use super::planner::pipeline::prepare_bundle_apply;
-use super::types::{UnpackBundleRequest, UnpackedBundle};
+use super::types::apply::{UnpackBundleRequest, UnpackedBundle};
 use crate::core::error::AppResult;
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskPhase, TaskProgressSink,

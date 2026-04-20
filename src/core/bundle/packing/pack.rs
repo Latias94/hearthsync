@@ -2,7 +2,7 @@ use std::fs::{self, File};
 
 use zip::ZipWriter;
 
-use super::super::types::{CreatedBundle, PackBundleRequest};
+use super::super::types::archive::{CreatedBundle, PackBundleRequest};
 use super::output::{default_bundle_output_base_dir, now_rfc3339, resolve_bundle_output_path};
 use super::resources::{
     add_addon_indexes_to_zip, add_addons_to_zip, add_fonts_to_zip, add_interface_assets_to_zip,

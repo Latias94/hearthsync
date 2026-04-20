@@ -4,7 +4,8 @@ use std::path::Path;
 use zip::ZipArchive;
 
 use super::super::archive_read::inspect::{count_bundle_entries, read_manifest_from_archive};
-use super::super::types::{BundleApplyMappings, BundleInspection};
+use super::super::types::apply::BundleApplyMappings;
+use super::super::types::archive::BundleInspection;
 use crate::core::error::AppResult;
 
 pub fn inspect_bundle(path: &Path) -> AppResult<BundleInspection> {

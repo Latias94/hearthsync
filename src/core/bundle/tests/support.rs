@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-use super::super::external_package::CreateExternalPackageBundleRequest;
+use crate::core::bundle::CreateExternalPackageBundleRequest;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 use crate::core::manifest::{
     ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use super::super::apply_model::planned::PlannedEntry;
 use super::super::shared::path::join_segments;
-use super::super::types::ApplyGroup;
+use super::super::types::apply::ApplyGroup;
 use super::EntryPlanningContext;
 use crate::core::lua_patch::CharacterMapping;
 

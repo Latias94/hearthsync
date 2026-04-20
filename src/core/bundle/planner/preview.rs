@@ -7,7 +7,7 @@ use super::super::apply_model::prepared::{
 use super::super::apply_model::preview::PreviewOperation;
 use super::super::apply_policy::order::{apply_action_order, apply_group_order};
 use super::super::execution::compare::file_contents_equal_to_bytes;
-use super::super::types::{
+use super::super::types::apply::{
     ApplyAction, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyPlan, GroupPolicy,
 };
 use super::model::{

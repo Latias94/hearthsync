@@ -215,6 +215,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: `core::bundle::apply` and `core::bundle::packing` now follow the same
     pattern internally, so non-public bundle code depends on their concrete child modules while
     `core::bundle::mod` remains the stable public export owner.
+    Current cleanup: `core::bundle::{types,external_package}` now also only delimit
+    parent-visible subdomains for internal callers, while `core::bundle::mod` owns the single
+    public export whitelist for bundle DTOs and external-package API entrypoints.
     Current cleanup: the bundle root now re-exports its public API directly from owner modules and
     the transitional `core::bundle::exports` shell has been removed, so bundle contract changes no
     longer hide behind an extra wildcard export layer.

@@ -7,7 +7,7 @@ use super::super::character_mapping::build_character_mappings;
 use super::super::entry_plan::context::plan_extractable_entries;
 use super::super::target_accounts::compatibility::validate_target_compatibility;
 use super::super::target_accounts::selection::resolve_selected_target_accounts;
-use super::super::types::BundleApplyMappings;
+use super::super::types::apply::BundleApplyMappings;
 use super::model::{LogicalBundleApply, LogicalEntryDisposition, LogicalEntryOperation};
 use crate::core::error::AppResult;
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};

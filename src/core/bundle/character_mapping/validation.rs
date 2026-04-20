@@ -1,4 +1,4 @@
-use super::super::types::BundleApplyMappings;
+use super::super::types::apply::BundleApplyMappings;
 use crate::core::error::{AppError, AppResult};
 use crate::core::manifest::{CharacterMappingMode, CharacterResource};
 

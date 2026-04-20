@@ -3,14 +3,10 @@ use std::fs;
 use tempfile::tempdir;
 use zip::ZipArchive;
 
-use super::super::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
-use super::super::apply::unpack_bundle;
-use super::super::packing::inspect::inspect_bundle;
-use super::super::packing::pack::pack_bundle;
-use super::super::types::*;
 use super::support::*;
 use crate::core::addon::lock::plan_addon_lock_sync;
 use crate::core::addon::{InstallAddonRequest, install_addon};
+use crate::core::bundle::*;
 use crate::core::manifest::{CharacterMappingMode, ResourceApplyPolicy};
 
 #[test]

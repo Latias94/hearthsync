@@ -1,6 +1,6 @@
 use super::super::apply_model::prepared::{PreparedApplySource, PreparedBundleApply};
 use super::super::planner::pipeline::prepare_apply_from_source;
-use super::super::types::BundleApplyMappings;
+use super::super::types::apply::BundleApplyMappings;
 use super::analyze::analyze_external_package;
 use super::manifest::build_external_manifest;
 use super::normalized::{

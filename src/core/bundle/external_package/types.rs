@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
-use crate::core::bundle::types::{
-    ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyMappings,
-    CreatedBundle, WtfScope,
+use crate::core::bundle::types::apply::{
+    ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyMappings, WtfScope,
 };
+use crate::core::bundle::types::archive::CreatedBundle;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, LocalWowAccount, WowFlavor};
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::{ApplyDefaults, BundleManifest, BundleResources};

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::core::lua_patch::CharacterMapping;
 
-use super::super::types::{ApplyGroup, WtfScope};
+use super::super::types::apply::{ApplyGroup, WtfScope};
 
 #[derive(Debug, Clone)]
 pub(in crate::core::bundle) struct PlannedEntry {

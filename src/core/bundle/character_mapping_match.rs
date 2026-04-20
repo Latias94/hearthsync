@@ -2,7 +2,7 @@ use crate::core::error::{AppError, AppResult};
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::CharacterResource;
 
-use super::types::CharacterMappingOverride;
+use super::types::apply::CharacterMappingOverride;
 
 pub(super) fn resolve_mapping_override<'a>(
     resource: &CharacterResource,

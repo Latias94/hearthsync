@@ -2,12 +2,8 @@ use std::fs;
 
 use tempfile::tempdir;
 
-use super::super::apply::unpack_bundle;
-use super::super::external_package::*;
-use super::super::packing::inspect::inspect_bundle;
-use super::super::planner::pipeline::plan_bundle_apply;
-use super::super::types::*;
 use super::support::*;
+use crate::core::bundle::*;
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::manifest::{ApplyDefaults, CharacterMappingMode, ResourceApplyPolicy};
 use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
