@@ -102,7 +102,7 @@ The current blocking sequence is:
   - Current cleanup: addon-index CLI output now also shares formatter helpers in `cli::output`, so inspect/install/update handlers no longer carry inline string assembly closures.
   - Current cleanup: addon search/list/install/update/remove CLI output now also shares formatter helpers in `cli::output`, so addon inventory and package-operation summaries are no longer built inline in the handler.
   - Current cleanup: bundle archive/apply/external-package CLI output now also shares formatter helpers in `cli::output`, and the shared character-mapping plus external-package warning formatters now live there so those command modules stop depending on helper ownership scattered across sibling files.
-  - Current cleanup: there are currently no remaining inline `render(json, ..., |item| ...)` text closures under `src/cli`; the next cleanup question is whether `cli::output` should stay as one file or split by domain.
+  - Current cleanup: there are currently no remaining inline `render(json, ..., |item| ...)` text closures under `src/cli`; `cli::output` is now split by domain (`addon`, `addon_lock`, `bundle`, `external_package`, `system`, `backup`, `shared`), while `output.rs` stays as the thin API shell and formatter tests live beside their domain modules with shared test fixtures.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

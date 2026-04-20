@@ -293,6 +293,10 @@ Prepare the core for a future frontend.
   too, so those command handlers no longer duplicate account, mapping, or warning summary assembly
 - the current CLI command handlers no longer keep inline `render(json, ..., |item| ...)` text
   closures; human-readable rendering is now concentrated under `cli::output`
+- `cli::output` is now split by domain modules (`addon`, `addon_lock`, `bundle`,
+  `external_package`, `system`, `backup`, `shared`), with `output.rs` reduced to a stable API
+  shell and formatter tests colocated with their domain renderers, so future CLI text changes can
+  stay localized instead of reopening one growing monolithic file
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
