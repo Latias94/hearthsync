@@ -1,120 +1,18 @@
 use super::planner::prepare_bundle_apply;
 use super::*;
 use crate::core::task::{
-    CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
+    CancellationToken, NeverCancel, NoopProgressSink, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,
 };
+
+mod task_context;
+
+pub(crate) use task_context::BundleApplyTaskContext;
 
 struct BundleExecution {
     backup_path: Option<PathBuf>,
     written_files: usize,
     rewritten_files: usize,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum BundleApplyTaskContext {
-    BundleApply,
-    ExternalPackageApply,
-}
-
-impl BundleApplyTaskContext {
-    fn task_kind(self) -> TaskKind {
-        match self {
-            Self::BundleApply => TaskKind::BundleApply,
-            Self::ExternalPackageApply => TaskKind::ExternalPackageApply,
-        }
-    }
-
-    fn planning_message(self, operation_count: usize) -> String {
-        match self {
-            Self::BundleApply => {
-                format!("Prepared bundle apply plan with {operation_count} operation(s)")
-            }
-            Self::ExternalPackageApply => {
-                format!("Prepared external package apply plan with {operation_count} operation(s)")
-            }
-        }
-    }
-
-    fn dry_run_completed_message(self) -> &'static str {
-        match self {
-            Self::BundleApply => "Bundle dry run completed without filesystem writes",
-            Self::ExternalPackageApply => {
-                "External package dry run completed without filesystem writes"
-            }
-        }
-    }
-
-    fn backup_message(self) -> &'static str {
-        match self {
-            Self::BundleApply => "Creating backup checkpoint before bundle apply",
-            Self::ExternalPackageApply => {
-                "Creating backup checkpoint before external package apply"
-            }
-        }
-    }
-
-    fn backup_label(self) -> &'static str {
-        match self {
-            Self::BundleApply => "bundle-apply",
-            Self::ExternalPackageApply => "external-package-apply",
-        }
-    }
-
-    fn failure_label(self) -> &'static str {
-        match self {
-            Self::BundleApply => "bundle apply",
-            Self::ExternalPackageApply => "external-package apply",
-        }
-    }
-
-    fn executing_message(self, operation_count: usize) -> String {
-        match self {
-            Self::BundleApply => {
-                format!("Executing {operation_count} planned bundle operation(s)")
-            }
-            Self::ExternalPackageApply => {
-                format!("Executing {operation_count} planned external package operation(s)")
-            }
-        }
-    }
-
-    fn operation_message(
-        self,
-        operation_index: usize,
-        operation_count: usize,
-        operation: &PreparedApplyOperation,
-    ) -> String {
-        let action = match operation.action {
-            ApplyAction::Remove => "remove",
-            ApplyAction::Add => "add",
-            ApplyAction::Replace => "replace",
-            ApplyAction::Skip => "skip",
-            ApplyAction::Preserve => "preserve",
-        };
-        let target = match self {
-            Self::BundleApply => "bundle",
-            Self::ExternalPackageApply => "external package",
-        };
-
-        format!(
-            "Executing {target} operation {}/{}: {action} `{}`",
-            operation_index + 1,
-            operation_count,
-            operation.destination.display()
-        )
-    }
-
-    fn completed_message(self, written_files: usize) -> String {
-        match self {
-            Self::BundleApply => {
-                format!("Bundle apply completed with {written_files} written file(s)")
-            }
-            Self::ExternalPackageApply => {
-                format!("External package apply completed with {written_files} written file(s)")
-            }
-        }
-    }
 }
 
 struct BundleExecutor<'a> {

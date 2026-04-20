@@ -363,6 +363,8 @@ Prepare the core for a future frontend.
   entry planning no longer owns byte-comparison and final apply-plan projection details
 - bundle planner logical apply construction now lives under `core::bundle::planner::logical`,
   leaving the planner root focused on bundle/external source entry orchestration
+- bundle apply task message/context policy now lives under `core::bundle::apply::task_context`,
+  separating shared bundle/external-package progress wording from the filesystem execution flow
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
