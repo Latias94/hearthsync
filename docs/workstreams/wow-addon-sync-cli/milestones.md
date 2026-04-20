@@ -326,6 +326,12 @@ Prepare the core for a future frontend.
 - install-target based CLI handlers now also share execution helpers in `cli::app_support`
   (`render_with_installation`, `render_with_apply_target`), reducing repeated resolve-target →
   app-call → render control flow across addon, addon-index, addon-lock, backup, and bundle flows
+- manifest example/validate now also project through `cli::system::request` and
+  `cli::output::system`, so the remaining system-only manifest commands follow the same shared
+  result/render boundary as the rest of the CLI
+- addon and bundle top-level routers now dispatch directly into variant-specific handlers, removing
+  the old subordinate “internal CLI routing error” dead branches and making command ownership more
+  explicit at the routing boundary
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

@@ -1,14 +1,19 @@
 use super::app_support::{render_with_value, stable_services};
 use super::output::{
     render_installation_health_report, render_installation_inspection, render_installation_scan,
+    render_manifest_example, render_manifest_validation,
 };
 use super::{InstallTargetArgs, ManifestCommands};
 use crate::core::error::AppResult;
-use crate::core::manifest::{example_manifest, load_manifest};
 
 mod request;
 
-use request::build_inspect_installation_request;
+pub(in crate::cli) use request::{ManifestExampleResult, ManifestValidationResult};
+
+use request::{
+    build_inspect_installation_request, build_manifest_example_result,
+    build_manifest_validation_result,
+};
 
 pub(super) fn handle_scan(json: bool) -> AppResult<()> {
     let app = stable_services();
@@ -36,23 +41,13 @@ pub(super) fn handle_doctor(json: bool, install_target: InstallTargetArgs) -> Ap
 pub(super) fn handle_manifest_command(json: bool, command: ManifestCommands) -> AppResult<()> {
     match command {
         ManifestCommands::Example => {
-            print!("{}", example_manifest()?);
+            render_with_value(json, build_manifest_example_result, render_manifest_example)?
         }
-        ManifestCommands::Validate { file } => {
-            let manifest = load_manifest(&file)?;
-            manifest.validate()?;
-            if json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "status": "ok",
-                        "path": file,
-                    }))?
-                );
-            } else {
-                println!("Manifest is valid: {}", file.display());
-            }
-        }
+        ManifestCommands::Validate { file } => render_with_value(
+            json,
+            || build_manifest_validation_result(file),
+            render_manifest_validation,
+        )?,
     }
 
     Ok(())

@@ -2,6 +2,8 @@ use crate::core::app::{
     InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,
 };
 
+use crate::cli::system::{ManifestExampleResult, ManifestValidationResult};
+
 pub(in crate::cli) fn render_installation_scan(item: &InstallationScanResult) -> String {
     if item.installations.is_empty() {
         "No World of Warcraft installations detected.".to_string()
@@ -62,6 +64,14 @@ pub(in crate::cli) fn render_installation_health_report(
     lines.join("\n")
 }
 
+pub(in crate::cli) fn render_manifest_example(item: &ManifestExampleResult) -> String {
+    item.content.trim_end().to_string()
+}
+
+pub(in crate::cli) fn render_manifest_validation(item: &ManifestValidationResult) -> String {
+    format!("Manifest is valid: {}", item.path.display())
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -118,5 +128,24 @@ mod tests {
         assert!(rendered.contains("Flavor: retail"));
         assert!(rendered.contains("Product root: C:\\Games\\World of Warcraft"));
         assert!(rendered.contains("Health: healthy"));
+    }
+
+    #[test]
+    fn render_manifest_example_returns_toml_content_without_extra_trailing_newlines() {
+        let rendered = render_manifest_example(&ManifestExampleResult {
+            content: "schema_version = 1\n\n".to_string(),
+        });
+
+        assert_eq!(rendered, "schema_version = 1");
+    }
+
+    #[test]
+    fn render_manifest_validation_reports_valid_path() {
+        let rendered = render_manifest_validation(&ManifestValidationResult {
+            status: "ok".to_string(),
+            path: PathBuf::from("bundle/manifest.toml"),
+        });
+
+        assert_eq!(rendered, "Manifest is valid: bundle/manifest.toml");
     }
 }

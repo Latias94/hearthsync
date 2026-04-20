@@ -1,5 +1,22 @@
+use std::path::PathBuf;
+
+use serde::Serialize;
+
 use crate::cli::InstallTargetArgs;
 use crate::core::app::InspectInstallationRequest;
+use crate::core::error::AppResult;
+use crate::core::manifest::{example_manifest, load_manifest};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(in crate::cli) struct ManifestExampleResult {
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(in crate::cli) struct ManifestValidationResult {
+    pub status: String,
+    pub path: PathBuf,
+}
 
 pub(super) fn build_inspect_installation_request(
     install_target: InstallTargetArgs,
@@ -10,9 +27,27 @@ pub(super) fn build_inspect_installation_request(
     }
 }
 
+pub(super) fn build_manifest_example_result() -> AppResult<ManifestExampleResult> {
+    Ok(ManifestExampleResult {
+        content: example_manifest()?,
+    })
+}
+
+pub(super) fn build_manifest_validation_result(
+    file: PathBuf,
+) -> AppResult<ManifestValidationResult> {
+    let manifest = load_manifest(&file)?;
+    manifest.validate()?;
+
+    Ok(ManifestValidationResult {
+        status: "ok".to_string(),
+        path: file,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{fs, path::PathBuf};
 
     use super::*;
     use crate::cli::{FlavorArg, InstallTargetArgs};
@@ -27,5 +62,32 @@ mod tests {
 
         assert_eq!(request.path, PathBuf::from("E:\\Games\\World of Warcraft"));
         assert_eq!(request.flavor, Some(WowFlavorValue::Retail));
+    }
+
+    #[test]
+    fn build_manifest_example_result_returns_valid_manifest_content() {
+        let result = build_manifest_example_result().expect("example manifest");
+
+        let manifest: crate::core::manifest::BundleManifest =
+            toml::from_str(&result.content).expect("parse example manifest");
+
+        manifest.validate().expect("valid example manifest");
+    }
+
+    #[test]
+    fn build_manifest_validation_result_loads_and_validates_manifest_file() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let manifest_path = temp_dir.path().join("manifest.toml");
+        fs::write(
+            &manifest_path,
+            crate::core::manifest::example_manifest().expect("example manifest"),
+        )
+        .expect("write manifest");
+
+        let result =
+            build_manifest_validation_result(manifest_path.clone()).expect("valid manifest");
+
+        assert_eq!(result.status, "ok");
+        assert_eq!(result.path, manifest_path);
     }
 }

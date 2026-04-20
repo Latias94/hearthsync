@@ -34,6 +34,7 @@ pub(super) use self::external_package::{
 };
 pub(super) use self::system::{
     render_installation_health_report, render_installation_inspection, render_installation_scan,
+    render_manifest_example, render_manifest_validation,
 };
 
 pub(super) fn render<T, F>(json: bool, value: &T, text_renderer: F) -> AppResult<()>
