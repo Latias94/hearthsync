@@ -5,20 +5,20 @@ mod classify;
 mod manifest;
 mod materialize;
 mod normalized;
+mod prepare;
 mod projection;
 mod source;
 mod tasks;
 mod types;
 
 use super::*;
-use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
-use crate::core::manifest::BundleManifest;
+use crate::core::install::HostPlatform;
 use analysis::build_analysis;
 use classify::classify_source_entries;
 pub(crate) use manifest::author_package_apply_defaults;
-use manifest::build_external_manifest;
 use materialize::{create_staging_installation, materialize_analysis_to_installation};
-use normalized::{build_external_package_entry_source_map, validate_unique_normalized_paths};
+use normalized::build_external_package_entry_source_map;
+use prepare::prepare_external_package_artifacts;
 use projection::project_external_package_plan;
 use source::{collect_source_entries, detect_source_kind};
 pub use tasks::{
@@ -37,12 +37,6 @@ pub use types::{
 struct SourceEntry {
     source_path: String,
     segments: Vec<String>,
-}
-
-#[derive(Debug)]
-struct PreparedExternalPackageApply {
-    analysis: ExternalPackageAnalysis,
-    prepared_apply: PreparedBundleApply,
 }
 
 pub fn analyze_external_package(
@@ -123,44 +117,4 @@ pub fn plan_external_package_apply(
     )?;
 
     Ok(project_external_package_plan(analysis, plan))
-}
-
-fn prepare_external_package_artifacts(
-    request: &CreateExternalPackageBundleRequest,
-) -> AppResult<(ExternalPackageAnalysis, BundleManifest)> {
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: request.source_path.clone(),
-    })?;
-    validate_unique_normalized_paths(&analysis)?;
-
-    let manifest = build_external_manifest(&analysis, request);
-    manifest.validate()?;
-
-    Ok((analysis, manifest))
-}
-
-fn prepare_external_package_apply(
-    external_package: CreateExternalPackageBundleRequest,
-    installation: &DetectedFlavorInstallation,
-    apply_mappings: &BundleApplyMappings,
-) -> AppResult<PreparedExternalPackageApply> {
-    let (analysis, manifest) = prepare_external_package_artifacts(&external_package)?;
-    let entry_source_map = build_external_package_entry_source_map(&analysis)?;
-    let source_path = analysis.source_path.clone();
-    let prepared_apply = super::planner::prepare_apply_from_source(
-        &source_path,
-        installation,
-        manifest,
-        apply_mappings,
-        PreparedApplySource::ExternalPackage {
-            source_path: source_path.clone(),
-            source_kind: analysis.source_kind,
-            entry_source_map,
-        },
-    )?;
-
-    Ok(PreparedExternalPackageApply {
-        analysis,
-        prepared_apply,
-    })
 }

@@ -380,6 +380,9 @@ Prepare the core for a future frontend.
   `core::bundle::apply_source::bundle_archive` and
   `core::bundle::apply_source::external_package`, so `apply_source.rs` is reduced to source-kind
   dispatch
+- external package manifest preparation, normalized-path validation, and prepared-apply assembly
+  now live under `core::bundle::external_package::prepare`, reducing `external_package.rs` to the
+  app-facing analyze/create/plan shell around the split import pipeline
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

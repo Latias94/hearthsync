@@ -1,8 +1,9 @@
+use super::prepare::prepare_external_package_apply;
 use super::projection::project_applied_external_package;
 use super::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     ExternalPackageAnalysis, ExternalPackageApplyPlan, PlanExternalPackageApplyRequest,
-    analyze_external_package, plan_external_package_apply, prepare_external_package_apply,
+    analyze_external_package, plan_external_package_apply,
 };
 use crate::core::bundle::apply::{BundleApplyTaskContext, execute_prepared_apply_with_context};
 use crate::core::error::AppResult;
