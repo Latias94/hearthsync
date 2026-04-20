@@ -410,6 +410,9 @@ Prepare the core for a future frontend.
 - bundle execution now separates filesystem apply/materialization, target-byte comparison, and
   rollback error wrapping under `core::bundle::execution::{apply,compare,rollback}`, leaving
   `execution.rs` as the thin re-export shell
+- bundle WTF archive support now separates common WTF packing, character WTF packing, and
+  source-account resolution under `core::bundle::wtf_archive::{common,character,resolve}`,
+  leaving `wtf_archive.rs` as the thin re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
