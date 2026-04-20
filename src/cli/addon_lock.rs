@@ -4,11 +4,15 @@ use super::output::{
     render, render_addon_lock_apply, render_addon_lock_diff, render_addon_lock_inspection,
     render_addon_lock_plan, render_addon_lock_verify, render_addon_lock_write,
 };
-use crate::core::app::{
-    ApplyAddonLockAppRequest, DiffAddonLockRequest, InspectAddonLockRequest,
-    PlanAddonLockSyncRequest, VerifyAddonLockRequest, WriteAddonLockRequest,
-};
 use crate::core::error::AppResult;
+
+mod request;
+
+use request::{
+    build_apply_addon_lock_request, build_diff_addon_lock_request,
+    build_inspect_addon_lock_request, build_plan_addon_lock_request,
+    build_verify_addon_lock_request, build_write_addon_lock_request,
+};
 
 pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) -> AppResult<()> {
     let app = extended_services();
@@ -16,22 +20,21 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
     match command {
         AddonLockCommands::Inspect { install, flavor } => {
             let installation = resolve_cli_installation(app.stable(), install, flavor)?;
-            let inspection = app.inspect_addon_lock(InspectAddonLockRequest { installation })?;
+            let inspection =
+                app.inspect_addon_lock(build_inspect_addon_lock_request(installation))?;
             render(json, &inspection, render_addon_lock_inspection)?;
         }
         AddonLockCommands::Write { install, flavor } => {
             let installation = resolve_cli_installation(app.stable(), install, flavor)?;
-            let result = app.write_addon_lock(WriteAddonLockRequest { installation })?;
+            let result = app.write_addon_lock(build_write_addon_lock_request(installation))?;
             render(json, &result, render_addon_lock_write)?;
         }
         AddonLockCommands::Diff {
             left_file,
             right_file,
         } => {
-            let result = app.diff_addon_locks(DiffAddonLockRequest {
-                left_lock_path: left_file,
-                right_lock_path: right_file,
-            })?;
+            let result =
+                app.diff_addon_locks(build_diff_addon_lock_request(left_file, right_file))?;
             render(json, &result, render_addon_lock_diff)?;
         }
         AddonLockCommands::Verify {
@@ -40,10 +43,8 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             file,
         } => {
             let installation = resolve_cli_installation(app.stable(), install, flavor)?;
-            let result = app.verify_addon_lock(VerifyAddonLockRequest {
-                installation,
-                lock_path: file,
-            })?;
+            let result =
+                app.verify_addon_lock(build_verify_addon_lock_request(installation, file))?;
             render(json, &result, render_addon_lock_verify)?;
         }
         AddonLockCommands::Plan {
@@ -52,10 +53,8 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             file,
         } => {
             let installation = resolve_cli_installation(app.stable(), install, flavor)?;
-            let result = app.plan_addon_lock_sync(PlanAddonLockSyncRequest {
-                installation,
-                lock_path: file,
-            })?;
+            let result =
+                app.plan_addon_lock_sync(build_plan_addon_lock_request(installation, file))?;
             render(json, &result, render_addon_lock_plan)?;
         }
         AddonLockCommands::Apply {
@@ -66,13 +65,12 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             replace_existing,
         } => {
             let installation = resolve_cli_installation(app.stable(), install, flavor)?;
-            let result = app.apply_addon_lock_sync(ApplyAddonLockAppRequest {
+            let result = app.apply_addon_lock_sync(build_apply_addon_lock_request(
                 installation,
-                lock_path: file,
-                backup_output_path: backup_output,
+                file,
+                backup_output,
                 replace_existing,
-                source_overrides: Vec::new(),
-            })?;
+            ))?;
             render(json, &result, render_addon_lock_apply)?;
         }
     }

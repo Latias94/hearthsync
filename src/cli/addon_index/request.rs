@@ -1,0 +1,89 @@
+use std::path::PathBuf;
+
+use crate::core::app::{
+    InspectAddonIndexRequest, InstallAddonIndexAppRequest, ResolvedInstallationValue,
+    UpdateAddonIndexAppRequest,
+};
+
+pub(super) fn build_inspect_addon_index_request(index_path: PathBuf) -> InspectAddonIndexRequest {
+    InspectAddonIndexRequest { index_path }
+}
+
+pub(super) fn build_install_addon_index_request(
+    installation: ResolvedInstallationValue,
+    index_path: PathBuf,
+    name: String,
+    dry_run: bool,
+    backup_output_path: Option<PathBuf>,
+    replace_existing: bool,
+) -> InstallAddonIndexAppRequest {
+    InstallAddonIndexAppRequest {
+        installation,
+        index_path,
+        name,
+        dry_run,
+        backup_output_path,
+        replace_existing,
+    }
+}
+
+pub(super) fn build_update_addon_index_request(
+    installation: ResolvedInstallationValue,
+    index_path: PathBuf,
+    name: Option<String>,
+    dry_run: bool,
+    backup_output_path: Option<PathBuf>,
+) -> UpdateAddonIndexAppRequest {
+    UpdateAddonIndexAppRequest {
+        installation,
+        index_path,
+        name,
+        dry_run,
+        backup_output_path,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+    use crate::cli::test_support::sample_installation;
+
+    #[test]
+    fn build_inspect_addon_index_request_preserves_index_path() {
+        let request = build_inspect_addon_index_request(PathBuf::from("addons.index.toml"));
+
+        assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+    }
+
+    #[test]
+    fn build_install_and_update_addon_index_requests_preserve_options() {
+        let install = build_install_addon_index_request(
+            sample_installation(),
+            PathBuf::from("addons.index.toml"),
+            "WeakAuras".to_string(),
+            true,
+            Some(PathBuf::from("backups")),
+            true,
+        );
+        let update = build_update_addon_index_request(
+            sample_installation(),
+            PathBuf::from("addons.index.toml"),
+            Some("WeakAuras".to_string()),
+            false,
+            None,
+        );
+
+        assert_eq!(install.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(install.name, "WeakAuras");
+        assert!(install.dry_run);
+        assert_eq!(install.backup_output_path, Some(PathBuf::from("backups")));
+        assert!(install.replace_existing);
+
+        assert_eq!(update.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(update.name.as_deref(), Some("WeakAuras"));
+        assert!(!update.dry_run);
+        assert!(update.backup_output_path.is_none());
+    }
+}

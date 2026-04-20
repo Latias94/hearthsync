@@ -13,6 +13,8 @@ mod external_package;
 mod mapping;
 mod output;
 mod system;
+#[cfg(test)]
+mod test_support;
 
 use clap::Parser;
 

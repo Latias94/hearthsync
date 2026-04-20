@@ -38,20 +38,8 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::core::app::{BundleApplyMappingsValue, HostPlatformValue, WowFlavorValue};
-
-    fn sample_installation() -> ResolvedInstallationValue {
-        ResolvedInstallationValue {
-            platform: HostPlatformValue::Windows,
-            flavor: WowFlavorValue::Retail,
-            product_root: PathBuf::from("C:\\Games\\World of Warcraft"),
-            flavor_root: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_"),
-            interface_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface"),
-            addon_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface\\AddOns"),
-            wtf_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\WTF"),
-            fonts_dir: PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Fonts"),
-        }
-    }
+    use crate::cli::test_support::sample_installation;
+    use crate::core::app::BundleApplyMappingsValue;
 
     #[test]
     fn build_plan_bundle_apply_request_preserves_fields() {

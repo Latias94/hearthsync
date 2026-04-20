@@ -309,6 +309,10 @@ Prepare the core for a future frontend.
 - apply-mapping file loading plus CLI override merging now lives in shared `cli::mapping`, so
   bundle-apply and external-package no longer couple to helper ownership in a sibling command
   module
+- addon-lock, addon-index, backup, bundle-addon, bundle-archive, system, and the remaining
+  external-package request projection now also live in domain `request` modules, so inline
+  app-request struct assembly is effectively gone from `src/cli` except for the shared
+  installation-resolution helper in `cli::app_support`
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

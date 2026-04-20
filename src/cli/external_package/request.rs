@@ -1,7 +1,17 @@
+use std::path::PathBuf;
+
 use crate::cli::ExternalPackageBundleOptions;
 use crate::core::app::{
-    BundleApplyDefaultsValue, CreateExternalPackageBundleAppRequest, ResourceApplyPolicyValue,
+    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
+    BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest,
+    PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
 };
+
+pub(super) fn build_analyze_external_package_request(
+    source_path: PathBuf,
+) -> AnalyzeExternalPackageAppRequest {
+    AnalyzeExternalPackageAppRequest { source_path }
+}
 
 pub(super) fn build_external_package_bundle_request(
     options: ExternalPackageBundleOptions,
@@ -75,13 +85,42 @@ fn build_external_package_apply_defaults(
     Some(defaults)
 }
 
+pub(super) fn build_plan_external_package_request(
+    external_package: CreateExternalPackageBundleAppRequest,
+    installation: ResolvedInstallationValue,
+    apply_mappings: BundleApplyMappingsValue,
+) -> PlanExternalPackageApplyAppRequest {
+    PlanExternalPackageApplyAppRequest {
+        external_package,
+        installation,
+        apply_mappings,
+    }
+}
+
+pub(super) fn build_apply_external_package_request(
+    external_package: CreateExternalPackageBundleAppRequest,
+    installation: ResolvedInstallationValue,
+    dry_run: bool,
+    backup_output_path: Option<PathBuf>,
+    apply_mappings: BundleApplyMappingsValue,
+) -> ApplyExternalPackageAppRequest {
+    ApplyExternalPackageAppRequest {
+        external_package,
+        installation,
+        dry_run,
+        backup_output_path,
+        apply_mappings,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use crate::cli::test_support::sample_installation;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
-    use crate::core::app::{HostPlatformValue, WowFlavorValue};
+    use crate::core::app::{BundleApplyMappingsValue, HostPlatformValue, WowFlavorValue};
 
     #[test]
     fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {
@@ -190,6 +229,63 @@ mod tests {
         assert_eq!(
             apply_defaults.interface_assets,
             ResourceApplyPolicyValue::Mirror
+        );
+    }
+
+    #[test]
+    fn build_analyze_external_package_request_preserves_source_path() {
+        let request = build_analyze_external_package_request(PathBuf::from("C:\\temp\\author-ui"));
+
+        assert_eq!(request.source_path, PathBuf::from("C:\\temp\\author-ui"));
+    }
+
+    #[test]
+    fn build_plan_and_apply_external_package_requests_preserve_execution_fields() {
+        let external_package =
+            build_external_package_bundle_request(ExternalPackageBundleOptions {
+                source: PathBuf::from("C:\\temp\\author-ui.zip"),
+                source_flavor: FlavorArg::Retail,
+                source_platform: None,
+                supported_targets: Vec::new(),
+                package_id: None,
+                package_name: None,
+                created_by: None,
+                description: None,
+                no_backup: false,
+                addons_policy: None,
+                wtf_common_policy: None,
+                wtf_characters_policy: None,
+                fonts_policy: None,
+                interface_assets_policy: None,
+            });
+        let plan = build_plan_external_package_request(
+            external_package.clone(),
+            sample_installation(),
+            BundleApplyMappingsValue::default(),
+        );
+        let apply = build_apply_external_package_request(
+            external_package,
+            sample_installation(),
+            true,
+            Some(PathBuf::from("backups")),
+            BundleApplyMappingsValue::default(),
+        );
+
+        assert_eq!(
+            plan.external_package.source_path,
+            PathBuf::from("C:\\temp\\author-ui.zip")
+        );
+        assert_eq!(
+            plan.installation.flavor_root,
+            PathBuf::from("C:\\Games\\World of Warcraft\\_retail_")
+        );
+        assert!(plan.apply_mappings.selected_accounts.is_empty());
+
+        assert!(apply.dry_run);
+        assert_eq!(apply.backup_output_path, Some(PathBuf::from("backups")));
+        assert_eq!(
+            apply.installation.addon_dir,
+            PathBuf::from("C:\\Games\\World of Warcraft\\_retail_\\Interface\\AddOns")
         );
     }
 }

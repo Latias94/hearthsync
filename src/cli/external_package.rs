@@ -5,15 +5,14 @@ use super::output::{
     render, render_external_package_analysis, render_external_package_apply,
     render_external_package_plan,
 };
-use crate::core::app::{
-    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
-    PlanExternalPackageApplyAppRequest,
-};
 use crate::core::error::AppResult;
 
 mod request;
 
-use request::build_external_package_bundle_request;
+use request::{
+    build_analyze_external_package_request, build_apply_external_package_request,
+    build_external_package_bundle_request, build_plan_external_package_request,
+};
 
 pub(super) fn handle_external_package_command(
     json: bool,
@@ -23,9 +22,8 @@ pub(super) fn handle_external_package_command(
 
     match command {
         ExternalPackageCommands::Inspect { source } => {
-            let analysis = app.analyze_external_package(AnalyzeExternalPackageAppRequest {
-                source_path: source,
-            })?;
+            let analysis =
+                app.analyze_external_package(build_analyze_external_package_request(source))?;
             render(json, &analysis, render_external_package_analysis)?;
         }
         ExternalPackageCommands::Plan {
@@ -48,11 +46,12 @@ pub(super) fn handle_external_package_command(
                 selected_accounts,
                 all_accounts,
             )?;
-            let plan = app.plan_external_package_apply(PlanExternalPackageApplyAppRequest {
-                external_package: build_external_package_bundle_request(bundle_options),
+            let external_package = build_external_package_bundle_request(bundle_options);
+            let plan = app.plan_external_package_apply(build_plan_external_package_request(
+                external_package,
                 installation,
                 apply_mappings,
-            })?;
+            ))?;
             render(json, &plan, render_external_package_plan)?;
         }
         ExternalPackageCommands::Apply {
@@ -77,13 +76,14 @@ pub(super) fn handle_external_package_command(
                 selected_accounts,
                 all_accounts,
             )?;
-            let result = app.apply_external_package(ApplyExternalPackageAppRequest {
-                external_package: build_external_package_bundle_request(bundle_options),
+            let external_package = build_external_package_bundle_request(bundle_options);
+            let result = app.apply_external_package(build_apply_external_package_request(
+                external_package,
                 installation,
                 dry_run,
-                backup_output_path: backup_output,
+                backup_output,
                 apply_mappings,
-            })?;
+            ))?;
             render(json, &result, render_external_package_apply)?;
         }
     }

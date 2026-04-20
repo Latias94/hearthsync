@@ -6,9 +6,12 @@ use super::output::{
     render_installation_scan,
 };
 use super::{FlavorArg, ManifestCommands};
-use crate::core::app::InspectInstallationRequest;
 use crate::core::error::AppResult;
 use crate::core::manifest::{example_manifest, load_manifest};
+
+mod request;
+
+use request::build_inspect_installation_request;
 
 pub(super) fn handle_scan(json: bool) -> AppResult<()> {
     let app = stable_services();
@@ -22,10 +25,8 @@ pub(super) fn handle_inspect(
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
     let app = stable_services();
-    let inspection = app.inspect_installation(InspectInstallationRequest {
-        path: install,
-        flavor: flavor.map(Into::into),
-    })?;
+    let inspection =
+        app.inspect_installation(build_inspect_installation_request(install, flavor))?;
     render(json, &inspection, render_installation_inspection)
 }
 
@@ -35,10 +36,8 @@ pub(super) fn handle_doctor(
     flavor: Option<FlavorArg>,
 ) -> AppResult<()> {
     let app = stable_services();
-    let inspection = app.inspect_installation(InspectInstallationRequest {
-        path: install,
-        flavor: flavor.map(Into::into),
-    })?;
+    let inspection =
+        app.inspect_installation(build_inspect_installation_request(install, flavor))?;
     render(json, &inspection.health, render_installation_health_report)
 }
 
