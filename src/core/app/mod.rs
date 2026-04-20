@@ -83,14 +83,24 @@ pub use response::installation::{
 };
 pub use runtime::AppRuntime;
 pub use stable::StableAppServices;
-pub use types::{
+pub use types::addon::{
     AddonPackageMetadataValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AppRuntimeCapabilitiesValue, ApplyActionValue, ApplyGroupValue,
-    BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
+    AddonProviderRetryPolicyValue, AppRuntimeCapabilitiesValue,
+};
+pub use types::backup::BackupGroupValue;
+pub use types::bundle::{
+    ApplyActionValue, ApplyGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
     BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
     BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-    CharacterMappingModeValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-    ExternalHelperPolicyValue, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
-    ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue, WtfScopeValue,
+    CharacterMappingModeValue, ResourceApplyPolicyValue, WtfScopeValue,
+};
+pub use types::external_package::{
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+};
+pub use types::install::{
+    HealthStatusValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
+};
+pub use types::runtime::{
+    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
+    HelperStrategyValue,
 };
