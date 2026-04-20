@@ -161,11 +161,11 @@ impl ExtendedAppServices {
         self.stable.bundles().apply_addon_lock(request)
     }
 
-    pub(crate) fn addon_indexes(&self) -> AddonIndexService {
+    pub(super) fn addon_indexes(&self) -> AddonIndexService {
         AddonIndexService::with_runtime(self.stable.runtime.clone())
     }
 
-    pub(crate) fn addon_locks(&self) -> AddonLockService {
+    pub(super) fn addon_locks(&self) -> AddonLockService {
         AddonLockService::with_runtime(self.stable.runtime.clone())
     }
 }

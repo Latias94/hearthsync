@@ -10,26 +10,26 @@ use crate::core::app::{
 use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
-pub struct AddonIndexService {
+pub(super) struct AddonIndexService {
     runtime: AppRuntime,
 }
 
 impl AddonIndexService {
     #[cfg(test)]
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub fn with_runtime(runtime: AppRuntime) -> Self {
+    pub(super) fn with_runtime(runtime: AppRuntime) -> Self {
         Self { runtime }
     }
 
     #[cfg(test)]
-    pub(crate) fn runtime(&self) -> &AppRuntime {
+    pub(super) fn runtime(&self) -> &AppRuntime {
         &self.runtime
     }
 
-    pub fn inspect(
+    pub(super) fn inspect(
         &self,
         request: InspectAddonIndexRequest,
     ) -> AppResult<AddonIndexInspectionResult> {
@@ -37,14 +37,14 @@ impl AddonIndexService {
         Ok(AddonIndexInspectionResult::from_domain(inspection))
     }
 
-    pub fn install(
+    pub(super) fn install(
         &self,
         request: InstallAddonIndexAppRequest,
     ) -> AppResult<AddonIndexInstallResult> {
         task_support::run_service_task_direct(self, request, Self::install_task)
     }
 
-    pub fn install_task<TCancel, TProgress>(
+    pub(super) fn install_task<TCancel, TProgress>(
         &self,
         request: InstallAddonIndexAppRequest,
         cancellation: &TCancel,
@@ -63,14 +63,14 @@ impl AddonIndexService {
         Ok(AddonIndexInstallResult::from_domain(installed))
     }
 
-    pub fn install_collecting_progress(
+    pub(super) fn install_collecting_progress(
         &self,
         request: InstallAddonIndexAppRequest,
     ) -> AppResult<TaskRun<AddonIndexInstallResult>> {
         task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
-    pub fn install_with_callbacks<FCancel, FProgress>(
+    pub(super) fn install_with_callbacks<FCancel, FProgress>(
         &self,
         request: InstallAddonIndexAppRequest,
         is_cancelled: FCancel,
@@ -89,11 +89,14 @@ impl AddonIndexService {
         )
     }
 
-    pub fn update(&self, request: UpdateAddonIndexAppRequest) -> AppResult<AddonIndexUpdateResult> {
+    pub(super) fn update(
+        &self,
+        request: UpdateAddonIndexAppRequest,
+    ) -> AppResult<AddonIndexUpdateResult> {
         task_support::run_service_task_direct(self, request, Self::update_task)
     }
 
-    pub fn update_task<TCancel, TProgress>(
+    pub(super) fn update_task<TCancel, TProgress>(
         &self,
         request: UpdateAddonIndexAppRequest,
         cancellation: &TCancel,
@@ -112,14 +115,14 @@ impl AddonIndexService {
         Ok(AddonIndexUpdateResult::from_domain(updated))
     }
 
-    pub fn update_collecting_progress(
+    pub(super) fn update_collecting_progress(
         &self,
         request: UpdateAddonIndexAppRequest,
     ) -> AppResult<TaskRun<AddonIndexUpdateResult>> {
         task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
-    pub fn update_with_callbacks<FCancel, FProgress>(
+    pub(super) fn update_with_callbacks<FCancel, FProgress>(
         &self,
         request: UpdateAddonIndexAppRequest,
         is_cancelled: FCancel,

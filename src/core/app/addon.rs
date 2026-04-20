@@ -11,26 +11,29 @@ use crate::core::app::{
 use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
-pub struct AddonService {
+pub(super) struct AddonService {
     runtime: AppRuntime,
 }
 
 impl AddonService {
     #[cfg(test)]
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub fn with_runtime(runtime: AppRuntime) -> Self {
+    pub(super) fn with_runtime(runtime: AppRuntime) -> Self {
         Self { runtime }
     }
 
     #[cfg(test)]
-    pub(crate) fn runtime(&self) -> &AppRuntime {
+    pub(super) fn runtime(&self) -> &AppRuntime {
         &self.runtime
     }
 
-    pub fn search(&self, request: SearchAddonsRequest) -> AppResult<AddonSearchCatalogResult> {
+    pub(super) fn search(
+        &self,
+        request: SearchAddonsRequest,
+    ) -> AppResult<AddonSearchCatalogResult> {
         let results = search_addons_with_provider(
             self.runtime.addon_provider(),
             request.into_domain_request(),
@@ -38,20 +41,20 @@ impl AddonService {
         Ok(AddonSearchCatalogResult::from_domain(results))
     }
 
-    pub fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
+    pub(super) fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
         let installation = request.into_domain_installation();
         let inventory = list_addons(&installation)?;
         Ok(AddonInventoryResult::from_domain(inventory))
     }
 
-    pub fn install(
+    pub(super) fn install(
         &self,
         request: InstallAddonAppRequest,
     ) -> AppResult<InstalledAddonPackageResult> {
         task_support::run_service_task_direct(self, request, Self::install_task)
     }
 
-    pub fn install_task<TCancel, TProgress>(
+    pub(super) fn install_task<TCancel, TProgress>(
         &self,
         request: InstallAddonAppRequest,
         cancellation: &TCancel,
@@ -70,14 +73,14 @@ impl AddonService {
         Ok(InstalledAddonPackageResult::from_domain(installed))
     }
 
-    pub fn install_collecting_progress(
+    pub(super) fn install_collecting_progress(
         &self,
         request: InstallAddonAppRequest,
     ) -> AppResult<TaskRun<InstalledAddonPackageResult>> {
         task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
-    pub fn install_with_callbacks<FCancel, FProgress>(
+    pub(super) fn install_with_callbacks<FCancel, FProgress>(
         &self,
         request: InstallAddonAppRequest,
         is_cancelled: FCancel,
@@ -96,11 +99,14 @@ impl AddonService {
         )
     }
 
-    pub fn update(&self, request: UpdateAddonAppRequest) -> AppResult<UpdatedAddonPackageResult> {
+    pub(super) fn update(
+        &self,
+        request: UpdateAddonAppRequest,
+    ) -> AppResult<UpdatedAddonPackageResult> {
         task_support::run_service_task_direct(self, request, Self::update_task)
     }
 
-    pub fn update_task<TCancel, TProgress>(
+    pub(super) fn update_task<TCancel, TProgress>(
         &self,
         request: UpdateAddonAppRequest,
         cancellation: &TCancel,
@@ -119,14 +125,14 @@ impl AddonService {
         Ok(UpdatedAddonPackageResult::from_domain(updated))
     }
 
-    pub fn update_collecting_progress(
+    pub(super) fn update_collecting_progress(
         &self,
         request: UpdateAddonAppRequest,
     ) -> AppResult<TaskRun<UpdatedAddonPackageResult>> {
         task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
-    pub fn update_with_callbacks<FCancel, FProgress>(
+    pub(super) fn update_with_callbacks<FCancel, FProgress>(
         &self,
         request: UpdateAddonAppRequest,
         is_cancelled: FCancel,
@@ -145,11 +151,14 @@ impl AddonService {
         )
     }
 
-    pub fn remove(&self, request: RemoveAddonAppRequest) -> AppResult<RemovedAddonPackageResult> {
+    pub(super) fn remove(
+        &self,
+        request: RemoveAddonAppRequest,
+    ) -> AppResult<RemovedAddonPackageResult> {
         task_support::run_service_task_direct(self, request, Self::remove_task)
     }
 
-    pub fn remove_task<TCancel, TProgress>(
+    pub(super) fn remove_task<TCancel, TProgress>(
         &self,
         request: RemoveAddonAppRequest,
         cancellation: &TCancel,
@@ -167,14 +176,14 @@ impl AddonService {
         Ok(RemovedAddonPackageResult::from_domain(removed))
     }
 
-    pub fn remove_collecting_progress(
+    pub(super) fn remove_collecting_progress(
         &self,
         request: RemoveAddonAppRequest,
     ) -> AppResult<TaskRun<RemovedAddonPackageResult>> {
         task_support::run_service_task_collecting(self, request, Self::remove_task)
     }
 
-    pub fn remove_with_callbacks<FCancel, FProgress>(
+    pub(super) fn remove_with_callbacks<FCancel, FProgress>(
         &self,
         request: RemoveAddonAppRequest,
         is_cancelled: FCancel,

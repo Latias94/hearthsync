@@ -199,16 +199,16 @@ desktop work.
 - addon-lock CLI output now shares formatter helpers in `cli::output`, keeping command handlers
   focused on app orchestration while repeated diff/verify/apply text rendering logic lives at the
   presentation edge
-- raw `StableAppServices` service accessors and direct runtime access are now crate-visible only, so
-  the public stable boundary stays centered on direct/task entrypoints instead of leaking a second
-  service-factory-style API
+- raw `StableAppServices` service accessors and direct runtime access now stay inside the
+  `core::app` module boundary, so the public stable boundary stays centered on direct/task
+  entrypoints instead of leaking a second service-factory-style API
 - `ExtendedAppServices` now composes `StableAppServices` through an explicit stable bridge instead of
   `Deref` compatibility, so the app root no longer masquerades as the stable surface by accident
 - the broader non-stable app root is now named `ExtendedAppServices`, which makes its role as an
   extension boundary clearer than the previous `HearthSyncApp` name
 - raw `runtime()` access on individual app services is now test-only, so runtime wiring is kept as
   an internal assembly detail instead of a public extension seam
-- internal `*Service` implementation types are now crate-only re-exports, so public consumers are
+- internal `*Service` implementation types are now app-internal re-exports, so public consumers are
   steered toward `ExtendedAppServices` / `StableAppServices` instead of depending on internal app wiring
 - internal service convenience constructors are now test-only, so production assembly routes
   through the explicit app roots instead of scattered implementation helpers

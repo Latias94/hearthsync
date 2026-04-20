@@ -8,41 +8,44 @@ use crate::core::backup::{create_backup, list_backups, restore_backup_selection_
 use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
-pub struct BackupService {
+pub(super) struct BackupService {
     runtime: AppRuntime,
 }
 
 impl BackupService {
     #[cfg(test)]
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub fn with_runtime(runtime: AppRuntime) -> Self {
+    pub(super) fn with_runtime(runtime: AppRuntime) -> Self {
         Self { runtime }
     }
 
     #[cfg(test)]
-    pub(crate) fn runtime(&self) -> &AppRuntime {
+    pub(super) fn runtime(&self) -> &AppRuntime {
         &self.runtime
     }
 
-    pub fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
+    pub(super) fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
         let created = create_backup(request.into_domain_request(&self.runtime))?;
         Ok(CreatedBackupResult::from_domain(created))
     }
 
-    pub fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
+    pub(super) fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
         let backup_dir = request.into_backup_dir(&self.runtime);
         let catalog = list_backups(backup_dir.as_deref())?;
         Ok(BackupCatalogResult::from_domain(catalog))
     }
 
-    pub fn restore(&self, request: RestoreBackupAppRequest) -> AppResult<RestoredBackupResult> {
+    pub(super) fn restore(
+        &self,
+        request: RestoreBackupAppRequest,
+    ) -> AppResult<RestoredBackupResult> {
         task_support::run_service_task_direct(self, request, Self::restore_task)
     }
 
-    pub fn restore_task<TCancel, TProgress>(
+    pub(super) fn restore_task<TCancel, TProgress>(
         &self,
         request: RestoreBackupAppRequest,
         cancellation: &TCancel,
@@ -60,14 +63,14 @@ impl BackupService {
         Ok(RestoredBackupResult::from_domain(restored))
     }
 
-    pub fn restore_collecting_progress(
+    pub(super) fn restore_collecting_progress(
         &self,
         request: RestoreBackupAppRequest,
     ) -> AppResult<TaskRun<RestoredBackupResult>> {
         task_support::run_service_task_collecting(self, request, Self::restore_task)
     }
 
-    pub fn restore_with_callbacks<FCancel, FProgress>(
+    pub(super) fn restore_with_callbacks<FCancel, FProgress>(
         &self,
         request: RestoreBackupAppRequest,
         is_cancelled: FCancel,

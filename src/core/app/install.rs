@@ -6,26 +6,26 @@ use super::{
 };
 
 #[derive(Debug, Clone, Default)]
-pub struct InstallationService {
+pub(super) struct InstallationService {
     runtime: AppRuntime,
 }
 
 impl InstallationService {
-    pub fn with_runtime(runtime: AppRuntime) -> Self {
+    pub(super) fn with_runtime(runtime: AppRuntime) -> Self {
         Self { runtime }
     }
 
     #[cfg(test)]
-    pub(crate) fn runtime(&self) -> &AppRuntime {
+    pub(super) fn runtime(&self) -> &AppRuntime {
         &self.runtime
     }
 
-    pub fn scan(&self) -> AppResult<InstallationScanResult> {
+    pub(super) fn scan(&self) -> AppResult<InstallationScanResult> {
         let installations = self.runtime.scan_installations()?;
         Ok(InstallationScanResult::from_installations(installations))
     }
 
-    pub fn inspect(
+    pub(super) fn inspect(
         &self,
         request: InspectInstallationRequest,
     ) -> AppResult<InstallationInspectionResult> {
@@ -33,7 +33,7 @@ impl InstallationService {
         Ok(InstallationInspectionResult::from_domain(inspection))
     }
 
-    pub fn resolve(
+    pub(super) fn resolve(
         &self,
         request: ResolveInstallationRequest,
     ) -> AppResult<ResolvedInstallationValue> {

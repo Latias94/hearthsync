@@ -23,14 +23,14 @@ where
 pub use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressEvent, TaskProgressSink, TaskRun,
 };
-pub(crate) use addon::AddonService;
-pub(crate) use addon_index::AddonIndexService;
-pub(crate) use addon_lock::AddonLockService;
-pub(crate) use backup::BackupService;
-pub(crate) use bundle::BundleService;
+pub(in crate::core::app) use addon::AddonService;
+pub(in crate::core::app) use addon_index::AddonIndexService;
+pub(in crate::core::app) use addon_lock::AddonLockService;
+pub(in crate::core::app) use backup::BackupService;
+pub(in crate::core::app) use bundle::BundleService;
 pub use extended::ExtendedAppServices;
-pub(crate) use external_package::ExternalPackageService;
-pub(crate) use install::InstallationService;
+pub(in crate::core::app) use external_package::ExternalPackageService;
+pub(in crate::core::app) use install::InstallationService;
 pub use request::addon::{
     InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, SearchAddonsRequest,
     UpdateAddonAppRequest,
