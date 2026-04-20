@@ -344,6 +344,9 @@ Prepare the core for a future frontend.
 - external package staging-installation creation and normalized file materialization now live under
   `core::bundle::external_package::materialize`, keeping import execution mechanics separate from
   analysis, manifest construction, and app-facing projection
+- external package derived analysis data and generated manifest construction now live under
+  `core::bundle::external_package::analysis` and `core::bundle::external_package::manifest`, so
+  summary/resource projection and author-package defaults are isolated from command orchestration
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

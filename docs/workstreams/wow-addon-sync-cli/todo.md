@@ -118,6 +118,7 @@ The current blocking sequence is:
   - Current cleanup: external package source discovery and safe path normalization now live in `core::bundle::external_package::source`, beginning the split of the large author-package import module into smaller pipeline stages.
   - Current cleanup: external package classification and warning production now live in `core::bundle::external_package::classify`, separating source enumeration from addon/WTF/fonts/interface resource recognition.
   - Current cleanup: external package staging-installation creation and source-to-target file materialization now live in `core::bundle::external_package::materialize`, keeping normalized import execution separate from analysis and manifest construction.
+  - Current cleanup: external package analysis summarization/resource projection and generated manifest construction now live in `core::bundle::external_package::analysis` and `core::bundle::external_package::manifest`, so the main module keeps less derived-data assembly inline.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

@@ -1,24 +1,26 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use tempfile::{TempDir, tempdir};
 
+mod analysis;
 mod classify;
+mod manifest;
 mod materialize;
 mod source;
 
 use super::*;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-use crate::core::manifest::{
-    ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
-    MappingRules, PackageMetadata, ResourceApplyPolicy, SourceInstallation,
-};
+use crate::core::manifest::{ApplyDefaults, BundleManifest, BundleResources};
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,
 };
+use analysis::build_analysis;
 use classify::classify_source_entries;
+pub(crate) use manifest::author_package_apply_defaults;
+use manifest::build_external_manifest;
 use materialize::{create_staging_installation, materialize_analysis_to_installation};
 use source::{collect_source_entries, detect_source_kind};
 
@@ -221,29 +223,15 @@ pub fn analyze_external_package(
 
     let source_kind = detect_source_kind(&source_path)?;
     let source_entries = collect_source_entries(&source_path, source_kind)?;
-    let (mut entries, mut warnings) = classify_source_entries(&source_entries);
+    let (entries, warnings) = classify_source_entries(&source_entries);
 
-    entries.sort_by(|left, right| {
-        left.normalized_path
-            .cmp(&right.normalized_path)
-            .then_with(|| left.source_path.cmp(&right.source_path))
-    });
-    warnings.sort();
-    warnings.dedup();
-
-    let summary = build_summary(source_entries.len(), &entries, &warnings);
-    let resources = build_resources(&entries);
-
-    Ok(ExternalPackageAnalysis {
-        package_id: package_id_from_source_path(&source_path),
-        package_name: package_name_from_source_path(&source_path),
+    Ok(build_analysis(
         source_path,
         source_kind,
+        source_entries.len(),
         entries,
-        resources,
-        summary,
         warnings,
-    })
+    ))
 }
 
 pub fn analyze_external_package_task<TCancel, TProgress>(
@@ -456,7 +444,7 @@ fn prepare_external_package_artifacts(
     })?;
     validate_unique_normalized_paths(&analysis)?;
 
-    let manifest = build_external_manifest(&analysis, request)?;
+    let manifest = build_external_manifest(&analysis, request);
     manifest.validate()?;
 
     Ok((analysis, manifest))
@@ -486,120 +474,6 @@ fn prepare_external_package_apply(
         analysis,
         prepared_apply,
     })
-}
-
-fn build_summary(
-    total_files: usize,
-    entries: &[ExternalPackageEntry],
-    warnings: &[ExternalPackageWarning],
-) -> ExternalPackageSummary {
-    let mut warning_groups = BTreeMap::new();
-    for warning in warnings {
-        *warning_groups
-            .entry((warning.category, warning.code))
-            .or_insert(0usize) += 1;
-    }
-
-    let mut summary = ExternalPackageSummary {
-        total_files,
-        normalized_files: entries.len(),
-        ignored_files: total_files.saturating_sub(entries.len()),
-        warning_count: warnings.len(),
-        addon_warning_count: warnings
-            .iter()
-            .filter(|warning| warning.category == ExternalPackageWarningCategory::Addon)
-            .count(),
-        wtf_warning_count: warnings
-            .iter()
-            .filter(|warning| warning.category == ExternalPackageWarningCategory::Wtf)
-            .count(),
-        warning_groups: warning_groups
-            .into_iter()
-            .map(|((category, code), count)| ExternalPackageWarningGroup {
-                category,
-                code,
-                count,
-            })
-            .collect(),
-        ..ExternalPackageSummary::default()
-    };
-
-    for entry in entries {
-        match entry.group {
-            ApplyGroup::Addons => summary.addons += 1,
-            ApplyGroup::WtfCommon => summary.wtf_common += 1,
-            ApplyGroup::WtfCharacters => summary.wtf_characters += 1,
-            ApplyGroup::Fonts => summary.fonts += 1,
-            ApplyGroup::InterfaceAssets => summary.interface_assets += 1,
-            ApplyGroup::Metadata => {}
-        }
-    }
-
-    summary
-}
-
-fn build_resources(entries: &[ExternalPackageEntry]) -> BundleResources {
-    let mut addons = BTreeSet::new();
-    let mut characters = BTreeSet::new();
-    let mut interface_assets = BTreeSet::new();
-    let mut wtf_common = false;
-    let mut fonts = false;
-
-    for entry in entries {
-        match entry.group {
-            ApplyGroup::Addons => {
-                if let Some(addon_name) = normalized_path_tail(&entry.normalized_path, "addons") {
-                    addons.insert(addon_name.to_string());
-                }
-            }
-            ApplyGroup::WtfCommon => {
-                wtf_common = true;
-            }
-            ApplyGroup::WtfCharacters => {
-                if let (Some(source_account), Some(source_server), Some(source_character)) = (
-                    entry.source_account.as_deref(),
-                    entry.source_server.as_deref(),
-                    entry.source_character.as_deref(),
-                ) {
-                    characters.insert((
-                        source_account.to_string(),
-                        source_server.to_string(),
-                        source_character.to_string(),
-                    ));
-                }
-            }
-            ApplyGroup::Fonts => {
-                fonts = true;
-            }
-            ApplyGroup::InterfaceAssets => {
-                if let Some(asset_name) = normalized_path_tail(&entry.normalized_path, "interface")
-                {
-                    interface_assets.insert(asset_name.to_string());
-                }
-            }
-            ApplyGroup::Metadata => {}
-        }
-    }
-
-    BundleResources {
-        addons: addons.into_iter().collect(),
-        wtf_common,
-        wtf_characters: characters
-            .into_iter()
-            .map(
-                |(source_account, source_server, source_character)| CharacterResource {
-                    source_account: Some(source_account),
-                    source_server,
-                    source_character,
-                    target_hint: None,
-                },
-            )
-            .collect(),
-        fonts,
-        interface_assets: interface_assets.into_iter().collect(),
-        addon_lock: false,
-        addon_indexes: Vec::new(),
-    }
 }
 
 fn validate_unique_normalized_paths(analysis: &ExternalPackageAnalysis) -> AppResult<()> {
@@ -646,78 +520,6 @@ fn build_external_package_entry_source_map(
     Ok(entry_source_map)
 }
 
-fn build_external_manifest(
-    analysis: &ExternalPackageAnalysis,
-    request: &CreateExternalPackageBundleRequest,
-) -> AppResult<BundleManifest> {
-    let package_id = request
-        .package_id
-        .clone()
-        .unwrap_or_else(|| analysis.package_id.clone());
-    let package_name = request
-        .package_name
-        .clone()
-        .unwrap_or_else(|| analysis.package_name.clone());
-    let created_by = request
-        .created_by
-        .clone()
-        .unwrap_or_else(|| "external-package".to_string());
-    let description = request.description.clone().or_else(|| {
-        Some(format!(
-            "Normalized import bundle created from external package `{}`.",
-            analysis.source_path.display()
-        ))
-    });
-    let supported_targets = if request.supported_targets.is_empty() {
-        vec![request.source_flavor]
-    } else {
-        request.supported_targets.clone()
-    };
-    let character_mode = if analysis.resources.wtf_characters.is_empty() {
-        CharacterMappingMode::KeepOriginal
-    } else {
-        CharacterMappingMode::Prompt
-    };
-
-    Ok(BundleManifest {
-        schema_version: 1,
-        package: PackageMetadata {
-            id: package_id,
-            name: package_name,
-            created_by,
-            description,
-        },
-        source: SourceInstallation {
-            flavor: request.source_flavor,
-            platform: request.source_platform,
-            exported_at: None,
-            supported_targets,
-        },
-        resources: analysis.resources.clone(),
-        mapping: MappingRules {
-            character_mode,
-            rewrite_profile_keys: true,
-            rewrite_identity_strings: true,
-            allow_cross_platform: true,
-        },
-        apply: request
-            .apply_defaults
-            .clone()
-            .unwrap_or_else(author_package_apply_defaults),
-    })
-}
-
-pub(crate) fn author_package_apply_defaults() -> ApplyDefaults {
-    ApplyDefaults {
-        create_backup: true,
-        addons: ResourceApplyPolicy::Mirror,
-        wtf_common: ResourceApplyPolicy::Share,
-        wtf_characters: ResourceApplyPolicy::ReplaceSelected,
-        fonts: ResourceApplyPolicy::Mirror,
-        interface_assets: ResourceApplyPolicy::Mirror,
-    }
-}
-
 fn project_external_package_plan(
     analysis: ExternalPackageAnalysis,
     plan: BundleApplyPlan,
@@ -752,30 +554,4 @@ fn project_applied_external_package(
         character_mappings: result.character_mappings,
         manifest: result.manifest,
     }
-}
-
-fn package_id_from_source_path(path: &Path) -> String {
-    let candidate = package_name_from_source_path(path);
-    let normalized = safe_file_part(&candidate);
-    if normalized.is_empty() {
-        "external-package".to_string()
-    } else {
-        normalized
-    }
-}
-
-fn package_name_from_source_path(path: &Path) -> String {
-    path.file_stem()
-        .or_else(|| path.file_name())
-        .and_then(|value| value.to_str())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("external-package")
-        .to_string()
-}
-
-fn normalized_path_tail<'a>(normalized_path: &'a str, root: &str) -> Option<&'a str> {
-    normalized_path
-        .strip_prefix(root)
-        .and_then(|value| value.strip_prefix('/'))
-        .and_then(|value| value.split('/').next())
 }
