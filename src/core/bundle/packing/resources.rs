@@ -4,7 +4,21 @@ use std::path::Path;
 
 use zip::ZipWriter;
 
-use super::super::*;
+use super::super::addon_source_archive::{
+    add_bundle_addon_sources_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
+};
+use super::super::constants::{
+    ADDON_INDEX_ENTRY_ROOT, ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY, MANIFEST_ENTRY,
+};
+use super::super::shared::{validate_plain_name, zip_file_options};
+use super::super::wtf_archive::{
+    add_character_wtf_to_zip, add_common_wtf_to_zip, resolve_character_account,
+};
+use super::super::zip_write::{add_path_to_zip, write_toml_to_zip};
+use crate::core::addon::lock::write_addon_lock;
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
+use crate::core::manifest::{BundleManifest, CharacterResource};
 
 pub(in crate::core::bundle::packing) fn add_addons_to_zip(
     zip: &mut ZipWriter<File>,

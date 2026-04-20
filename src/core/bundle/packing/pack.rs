@@ -2,13 +2,14 @@ use std::fs::{self, File};
 
 use zip::ZipWriter;
 
-use super::super::*;
+use super::super::types::{CreatedBundle, PackBundleRequest};
 use super::output::{default_bundle_output_base_dir, now_rfc3339, resolve_bundle_output_path};
 use super::resources::{
     add_addon_indexes_to_zip, add_addons_to_zip, add_fonts_to_zip, add_interface_assets_to_zip,
     add_optional_addon_lock_to_zip, add_wtf_characters_to_zip, add_wtf_common_to_zip_if_enabled,
     write_manifest_to_zip,
 };
+use crate::core::error::{AppError, AppResult};
 
 pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
     validate_pack_request(&request)?;

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
-use crate::core::bundle::{
+use crate::core::bundle::types::{
     ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyMappings,
     CreatedBundle, WtfScope,
 };

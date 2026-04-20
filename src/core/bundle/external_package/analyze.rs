@@ -1,7 +1,7 @@
 use super::analysis::build_analysis;
 use super::classify::classify_source_entries;
 use super::source::{collect_source_entries, detect_source_kind};
-use super::{AnalyzeExternalPackageRequest, ExternalPackageAnalysis};
+use super::types::{AnalyzeExternalPackageRequest, ExternalPackageAnalysis};
 use crate::core::error::{AppError, AppResult};
 
 pub fn analyze_external_package(

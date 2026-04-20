@@ -4,7 +4,8 @@ use std::path::{Component, Path};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
-use super::{ExternalPackageSourceKind, SourceEntry};
+use super::source_entry::SourceEntry;
+use super::types::ExternalPackageSourceKind;
 use crate::core::bundle::shared::{safe_zip_segments, should_skip_path, to_zip_path};
 use crate::core::error::{AppError, AppResult};
 

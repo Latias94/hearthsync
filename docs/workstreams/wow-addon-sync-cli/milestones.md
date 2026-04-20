@@ -369,15 +369,13 @@ Prepare the core for a future frontend.
 - bundle apply-source, planner, and execution internals now all use explicit owner-module imports
   instead of `super::*`, and `core::bundle::imports` has shrunk again by dropping obsolete
   apply-policy, rollback, rewrite-preview, discovery, and path-resolution transitional items
-- there are currently no remaining `use super::*;` or `use super::super::*;` call sites under
-  `src/core/bundle`; the next cleanup slice is retiring the remaining explicit
-  `super::super::{...}` root-scope imports module by module
-- bundle apply-model, apply result/task-context, planner model, packing inspection, and the last
-  low-risk root helpers now also import directly from owner modules instead of routing through the
-  `core::bundle` root compatibility scope
-- remaining root-scoped compatibility imports under `src/core/bundle` are now limited to the
-  `external_package` family and `tests.rs`, and `core::bundle::imports` has shrunk to the small
-  bridge still needed by those call sites
+- bundle packing and addon-source-archive internals now also use explicit owner-module imports,
+  bringing `src/core/bundle` to zero remaining wildcard import call sites
+- bundle apply-model, apply result/task-context, planner model, packing inspection/output, and
+  the `external_package` family now also import directly from owner modules instead of routing
+  through the `core::bundle` root compatibility scope
+- the transitional `core::bundle::imports` prelude has now been deleted, and the only remaining
+  bundle-root import surface inside `src/core/bundle` is the test-only `tests.rs` shell
 - bundle apply task message/context policy now lives under `core::bundle::apply::task_context`,
   separating shared bundle/external-package progress wording from the filesystem execution flow
 - bundle apply filesystem execution, backup creation, and rollback handling now live under
@@ -440,9 +438,9 @@ Prepare the core for a future frontend.
 - bundle apply-source dispatch now separates cross-source reader state and prepared-source method
   dispatch under `core::bundle::apply_source::{reader,dispatch}`, leaving `apply_source.rs` as
   the thin shell beside bundle-archive and external-package source adapters
-- bundle root module now separates archive constants, public API exports, and internal legacy
-  prelude imports under `core::bundle::{constants,exports,imports}`, leaving `mod.rs` focused on
-  module wiring while existing `super::*` call sites are progressively retired
+- bundle root module now separates archive constants and public API exports under
+  `core::bundle::{constants,exports}`, with the legacy `imports` prelude retired after the
+  remaining owner-module imports were made explicit
 - external-package app-facing orchestration now separates analyze, bundle creation, apply-plan
   entrypoints, and internal source-entry shape under
   `core::bundle::external_package::{analyze,create_bundle,plan,source_entry}`, leaving

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use super::super::*;
+use super::super::shared::validate_plain_name;
+use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle) fn resolve_addon_index_paths(
     addon_indexes: &[String],

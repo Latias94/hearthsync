@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use super::{
+use super::super::shared::safe_file_part;
+use super::super::types::ApplyGroup;
+use super::types::{
     ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageSourceKind,
     ExternalPackageSummary, ExternalPackageWarning, ExternalPackageWarningCategory,
     ExternalPackageWarningGroup,
 };
-use crate::core::bundle::ApplyGroup;
-use crate::core::bundle::shared::safe_file_part;
 use crate::core::manifest::{BundleResources, CharacterResource};
 
 pub(super) fn build_analysis(

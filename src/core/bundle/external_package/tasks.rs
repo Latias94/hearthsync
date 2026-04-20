@@ -1,11 +1,12 @@
+use super::super::apply::{BundleApplyTaskContext, execute_prepared_apply_with_context};
+use super::analyze::analyze_external_package;
+use super::plan::plan_external_package_apply;
 use super::prepare::prepare_external_package_apply;
 use super::projection::project_applied_external_package;
-use super::{
+use super::types::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     ExternalPackageAnalysis, ExternalPackageApplyPlan, PlanExternalPackageApplyRequest,
-    analyze_external_package, plan_external_package_apply,
 };
-use crate::core::bundle::apply::{BundleApplyTaskContext, execute_prepared_apply_with_context};
 use crate::core::error::AppResult;
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,

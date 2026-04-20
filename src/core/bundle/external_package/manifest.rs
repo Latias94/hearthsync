@@ -1,4 +1,4 @@
-use super::{CreateExternalPackageBundleRequest, ExternalPackageAnalysis};
+use super::types::{CreateExternalPackageBundleRequest, ExternalPackageAnalysis};
 use crate::core::manifest::{
     ApplyDefaults, BundleManifest, CharacterMappingMode, MappingRules, PackageMetadata,
     ResourceApplyPolicy, SourceInstallation,

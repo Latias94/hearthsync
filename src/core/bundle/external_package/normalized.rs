@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::ExternalPackageAnalysis;
+use super::types::ExternalPackageAnalysis;
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn validate_unique_normalized_paths(

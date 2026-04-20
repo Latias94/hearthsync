@@ -1,13 +1,14 @@
+use super::super::apply_model::{PreparedApplySource, PreparedBundleApply};
+use super::super::planner::prepare_apply_from_source;
+use super::super::types::BundleApplyMappings;
+use super::analyze::analyze_external_package;
 use super::manifest::build_external_manifest;
 use super::normalized::{
     build_external_package_entry_source_map, validate_unique_normalized_paths,
 };
-use super::{
+use super::types::{
     AnalyzeExternalPackageRequest, CreateExternalPackageBundleRequest, ExternalPackageAnalysis,
-    analyze_external_package,
 };
-use crate::core::bundle::planner::prepare_apply_from_source;
-use crate::core::bundle::{BundleApplyMappings, PreparedApplySource, PreparedBundleApply};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;

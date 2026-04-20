@@ -1,9 +1,10 @@
 use tempfile::tempdir;
 
+use super::super::packing::pack_bundle;
+use super::super::types::PackBundleRequest;
 use super::materialize::{create_staging_installation, materialize_analysis_to_installation};
 use super::prepare::prepare_external_package_artifacts;
-use super::{CreateExternalPackageBundleRequest, PreparedExternalPackageBundle};
-use crate::core::bundle::{PackBundleRequest, pack_bundle};
+use super::types::{CreateExternalPackageBundleRequest, PreparedExternalPackageBundle};
 use crate::core::error::AppResult;
 use crate::core::install::HostPlatform;
 

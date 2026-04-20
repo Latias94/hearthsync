@@ -1,10 +1,11 @@
-use super::{
+use super::super::types::{ApplyGroup, WtfScope};
+use super::source_entry::SourceEntry;
+use super::types::{
     ExternalPackageEntry, ExternalPackageWarning, ExternalPackageWarningCategory,
-    ExternalPackageWarningCode, SourceEntry,
+    ExternalPackageWarningCode,
 };
 use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
 use crate::core::bundle::wtf_scope::{classify_account_wtf_scope, classify_character_wtf_scope};
-use crate::core::bundle::{ApplyGroup, WtfScope};
 
 pub(super) fn classify_source_entries(
     source_entries: &[SourceEntry],

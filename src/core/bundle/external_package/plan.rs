@@ -1,8 +1,9 @@
+use super::super::apply_model::PreparedApplySource;
+use super::super::planner::plan_apply_from_source;
 use super::normalized::build_external_package_entry_source_map;
 use super::prepare::prepare_external_package_artifacts;
 use super::projection::project_external_package_plan;
-use super::{ExternalPackageApplyPlan, PlanExternalPackageApplyRequest};
-use crate::core::bundle::PreparedApplySource;
+use super::types::{ExternalPackageApplyPlan, PlanExternalPackageApplyRequest};
 use crate::core::error::AppResult;
 
 pub fn plan_external_package_apply(
@@ -16,7 +17,7 @@ pub fn plan_external_package_apply(
         source_kind: analysis.source_kind,
         entry_source_map,
     };
-    let plan = super::super::planner::plan_apply_from_source(
+    let plan = plan_apply_from_source(
         &source_path,
         &request.installation,
         manifest,

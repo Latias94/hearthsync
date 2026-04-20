@@ -13,7 +13,6 @@ mod entry_plan;
 mod execution;
 mod exports;
 mod external_package;
-mod imports;
 mod packing;
 mod planner;
 mod shared;
@@ -25,6 +24,4 @@ mod wtf_archive;
 mod wtf_scope;
 mod zip_write;
 
-use self::constants::*;
 pub use self::exports::*;
-use self::imports::*;

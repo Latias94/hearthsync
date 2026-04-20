@@ -3,8 +3,14 @@ use std::path::Path;
 use tempfile::tempdir;
 use zip::ZipWriter;
 
+use super::super::constants::ADDON_SOURCE_ENTRY_ROOT;
+use super::super::shared::{
+    BundleAddonSourceEntry, BundleAddonSourceIndex, safe_file_part, validate_plain_name,
+};
 use super::super::zip_write::add_path_to_zip;
-use super::super::*;
+use crate::core::addon::lock::{AddonLockPackage, addon_lock_package_comparison_key};
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
 
 pub(in crate::core::bundle) fn add_bundle_addon_sources_to_zip(
     zip: &mut ZipWriter<std::fs::File>,
