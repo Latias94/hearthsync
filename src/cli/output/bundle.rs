@@ -7,7 +7,7 @@ use super::shared::{
     format_selected_accounts,
 };
 
-pub(super) fn render_bundle_archive_created(item: &CreatedBundleResult) -> String {
+pub(in crate::cli) fn render_bundle_archive_created(item: &CreatedBundleResult) -> String {
     format!(
         "Created bundle: {}\nArchived files: {}\nPackage: {}",
         item.archive_path.display(),
@@ -16,7 +16,7 @@ pub(super) fn render_bundle_archive_created(item: &CreatedBundleResult) -> Strin
     )
 }
 
-pub(super) fn render_bundle_archive_inspection(item: &BundleInspectionResult) -> String {
+pub(in crate::cli) fn render_bundle_archive_inspection(item: &BundleInspectionResult) -> String {
     format!(
         "Bundle: {}\nPackage: {}\nSource flavor: {}\nFiles: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}",
         item.archive_path.display(),
@@ -32,7 +32,7 @@ pub(super) fn render_bundle_archive_inspection(item: &BundleInspectionResult) ->
     )
 }
 
-pub(super) fn render_bundle_apply_plan(item: &BundleApplyPlanResult) -> String {
+pub(in crate::cli) fn render_bundle_apply_plan(item: &BundleApplyPlanResult) -> String {
     format!(
         "Bundle: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}",
         item.bundle_path.display(),
@@ -48,7 +48,7 @@ pub(super) fn render_bundle_apply_plan(item: &BundleApplyPlanResult) -> String {
     )
 }
 
-pub(super) fn render_bundle_apply(item: &BundleApplyResult) -> String {
+pub(in crate::cli) fn render_bundle_apply(item: &BundleApplyResult) -> String {
     let backup = item
         .backup_path
         .as_ref()

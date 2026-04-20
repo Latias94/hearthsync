@@ -2,7 +2,7 @@ use crate::core::app::{
     BackupCatalogResult, BackupGroupValue, CreatedBackupResult, RestoredBackupResult,
 };
 
-pub(super) fn render_backup_created(item: &CreatedBackupResult) -> String {
+pub(in crate::cli) fn render_backup_created(item: &CreatedBackupResult) -> String {
     format!(
         "Created backup: {}\nArchived files: {}\nGroups: {}",
         item.archive_path.display(),
@@ -11,7 +11,7 @@ pub(super) fn render_backup_created(item: &CreatedBackupResult) -> String {
     )
 }
 
-pub(super) fn render_backup_catalog(item: &BackupCatalogResult) -> String {
+pub(in crate::cli) fn render_backup_catalog(item: &BackupCatalogResult) -> String {
     if item.entries.is_empty() {
         format!(
             "Backup dir: {}\nNo backups found.",
@@ -39,7 +39,7 @@ pub(super) fn render_backup_catalog(item: &BackupCatalogResult) -> String {
     }
 }
 
-pub(super) fn render_backup_restored(item: &RestoredBackupResult) -> String {
+pub(in crate::cli) fn render_backup_restored(item: &RestoredBackupResult) -> String {
     format!(
         "Restored backup: {}\nRestored files: {}\nCreated at: {}\nLabel: {}\nGroups: {}",
         item.archive_path.display(),

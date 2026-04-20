@@ -1,6 +1,5 @@
 use super::ExternalPackageCommands;
-use super::app_support::{resolve_cli_installation, stable_services};
-use super::mapping::resolve_apply_mappings;
+use super::app_support::{resolve_cli_apply_target, stable_services};
 use super::output::{
     render, render_external_package_analysis, render_external_package_apply,
     render_external_package_plan,
@@ -31,13 +30,12 @@ pub(super) fn handle_external_package_command(
             install_target,
             apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
+            let target = resolve_cli_apply_target(&app, install_target, apply_mapping)?;
             let external_package = build_external_package_bundle_request(bundle_options);
             let plan = app.plan_external_package_apply(build_plan_external_package_request(
                 external_package,
-                installation,
-                apply_mappings,
+                target.installation,
+                target.apply_mappings,
             ))?;
             render(json, &plan, render_external_package_plan)?;
         }
@@ -48,15 +46,14 @@ pub(super) fn handle_external_package_command(
             backup_output,
             apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
+            let target = resolve_cli_apply_target(&app, install_target, apply_mapping)?;
             let external_package = build_external_package_bundle_request(bundle_options);
             let result = app.apply_external_package(build_apply_external_package_request(
                 external_package,
-                installation,
+                target.installation,
                 dry_run,
                 backup_output,
-                apply_mappings,
+                target.apply_mappings,
             ))?;
             render(json, &result, render_external_package_apply)?;
         }

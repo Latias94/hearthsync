@@ -317,6 +317,12 @@ Prepare the core for a future frontend.
   shapes (`InstallTargetArgs`, `ApplyMappingArgs`), and the shared installation-resolution plus
   mapping helpers now consume those shapes directly, reducing argument-definition drift between
   addon, bundle, backup, system, and external-package commands
+- `cli::output` root now re-exports domain renderers directly, so the module remains a thin API
+  surface around shared JSON/text dispatch instead of duplicating one-line forwarding functions for
+  every formatter
+- bundle-apply and external-package CLI handlers now also share one apply-target resolution helper
+  in `cli::app_support`, so installation resolution plus apply-mapping resolution no longer drift
+  between those two plan/apply entrypoints
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

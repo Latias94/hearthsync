@@ -7,7 +7,7 @@ use crate::core::app::{
 
 use super::shared::{format_optional_path_or_none, format_string_list_or_none};
 
-pub(super) fn render_addon_index_inspection(item: &AddonIndexInspectionResult) -> String {
+pub(in crate::cli) fn render_addon_index_inspection(item: &AddonIndexInspectionResult) -> String {
     let packages = item
         .packages
         .iter()
@@ -33,7 +33,7 @@ pub(super) fn render_addon_index_inspection(item: &AddonIndexInspectionResult) -
     )
 }
 
-pub(super) fn render_addon_index_install(item: &AddonIndexInstallResult) -> String {
+pub(in crate::cli) fn render_addon_index_install(item: &AddonIndexInstallResult) -> String {
     let backup = item
         .install
         .backup_path
@@ -71,7 +71,7 @@ pub(super) fn render_addon_index_install(item: &AddonIndexInstallResult) -> Stri
     }
 }
 
-pub(super) fn render_addon_index_update(item: &AddonIndexUpdateResult) -> String {
+pub(in crate::cli) fn render_addon_index_update(item: &AddonIndexUpdateResult) -> String {
     let backup = item
         .update
         .backup_path
@@ -104,7 +104,7 @@ pub(super) fn render_addon_index_update(item: &AddonIndexUpdateResult) -> String
     }
 }
 
-pub(super) fn render_addon_search_catalog(item: &AddonSearchCatalogResult) -> String {
+pub(in crate::cli) fn render_addon_search_catalog(item: &AddonSearchCatalogResult) -> String {
     if item.results.is_empty() {
         format!("Query: {}\nNo addons found.", item.query)
     } else {
@@ -131,7 +131,7 @@ pub(super) fn render_addon_search_catalog(item: &AddonSearchCatalogResult) -> St
     }
 }
 
-pub(super) fn render_addon_inventory(item: &AddonInventoryResult) -> String {
+pub(in crate::cli) fn render_addon_inventory(item: &AddonInventoryResult) -> String {
     let tracked = if item.tracked_packages.is_empty() {
         "none".to_string()
     } else {
@@ -161,7 +161,7 @@ pub(super) fn render_addon_inventory(item: &AddonInventoryResult) -> String {
     )
 }
 
-pub(super) fn render_addon_install(item: &InstalledAddonPackageResult) -> String {
+pub(in crate::cli) fn render_addon_install(item: &InstalledAddonPackageResult) -> String {
     let backup = format_optional_path_or_none(item.backup_path.as_deref());
     let replaced = format_string_list_or_none(&item.replaced_addons);
     let addons = format_tracked_addon_names(&item.addons);
@@ -190,7 +190,7 @@ pub(super) fn render_addon_install(item: &InstalledAddonPackageResult) -> String
     }
 }
 
-pub(super) fn render_addon_update(item: &UpdatedAddonPackageResult) -> String {
+pub(in crate::cli) fn render_addon_update(item: &UpdatedAddonPackageResult) -> String {
     let backup = format_optional_path_or_none(item.backup_path.as_deref());
     let packages = format_tracked_package_summaries(&item.updated_packages);
 
@@ -213,7 +213,7 @@ pub(super) fn render_addon_update(item: &UpdatedAddonPackageResult) -> String {
     }
 }
 
-pub(super) fn render_addon_remove(item: &RemovedAddonPackageResult) -> String {
+pub(in crate::cli) fn render_addon_remove(item: &RemovedAddonPackageResult) -> String {
     let backup = format_optional_path_or_none(item.backup_path.as_deref());
     let packages = if item.removed_packages.is_empty() {
         "none".to_string()

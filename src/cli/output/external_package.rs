@@ -7,7 +7,9 @@ use super::shared::{
     format_external_package_warnings, format_selected_accounts, format_string_list_or_none,
 };
 
-pub(super) fn render_external_package_analysis(item: &ExternalPackageAnalysisResult) -> String {
+pub(in crate::cli) fn render_external_package_analysis(
+    item: &ExternalPackageAnalysisResult,
+) -> String {
     let warnings = format_external_package_warnings(&item.warnings, &item.summary);
 
     format!(
@@ -33,7 +35,9 @@ pub(super) fn render_external_package_analysis(item: &ExternalPackageAnalysisRes
     )
 }
 
-pub(super) fn render_external_package_plan(item: &ExternalPackageApplyPlanResult) -> String {
+pub(in crate::cli) fn render_external_package_plan(
+    item: &ExternalPackageApplyPlanResult,
+) -> String {
     format!(
         "External package: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nWarnings: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}",
         item.analysis.source_path.display(),
@@ -50,7 +54,7 @@ pub(super) fn render_external_package_plan(item: &ExternalPackageApplyPlanResult
     )
 }
 
-pub(super) fn render_external_package_apply(item: &ExternalPackageApplyResult) -> String {
+pub(in crate::cli) fn render_external_package_apply(item: &ExternalPackageApplyResult) -> String {
     let backup = item
         .backup_path
         .as_ref()

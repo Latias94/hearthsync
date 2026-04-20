@@ -5,11 +5,11 @@ use crate::core::app::{
     BundleAddonLockPlanResult,
 };
 
-pub(super) fn render_addon_lock_plan(item: &AddonLockPlanResult) -> String {
+pub(in crate::cli) fn render_addon_lock_plan(item: &AddonLockPlanResult) -> String {
     render_addon_lock_plan_summary(&format!("Lock: {}", item.lock_path.display()), item)
 }
 
-pub(super) fn render_addon_lock_apply(item: &AddonLockApplyResult) -> String {
+pub(in crate::cli) fn render_addon_lock_apply(item: &AddonLockApplyResult) -> String {
     render_addon_lock_apply_summary(
         vec![
             format!("Lock: {}", item.lock_path.display()),
@@ -27,14 +27,14 @@ pub(super) fn render_addon_lock_apply(item: &AddonLockApplyResult) -> String {
     )
 }
 
-pub(super) fn render_bundle_addon_lock_plan(item: &BundleAddonLockPlanResult) -> String {
+pub(in crate::cli) fn render_bundle_addon_lock_plan(item: &BundleAddonLockPlanResult) -> String {
     render_addon_lock_plan_summary(
         &format!("Bundle: {}", item.bundle_path.display()),
         &item.plan,
     )
 }
 
-pub(super) fn render_bundle_addon_lock_apply(item: &BundleAddonLockApplyResult) -> String {
+pub(in crate::cli) fn render_bundle_addon_lock_apply(item: &BundleAddonLockApplyResult) -> String {
     render_addon_lock_apply_summary(
         vec![
             format!("Bundle: {}", item.bundle_path.display()),
@@ -53,7 +53,7 @@ pub(super) fn render_bundle_addon_lock_apply(item: &BundleAddonLockApplyResult) 
     )
 }
 
-pub(super) fn render_addon_lock_inspection(item: &AddonLockInspectionResult) -> String {
+pub(in crate::cli) fn render_addon_lock_inspection(item: &AddonLockInspectionResult) -> String {
     let packages = item
         .packages
         .iter()
@@ -82,7 +82,7 @@ pub(super) fn render_addon_lock_inspection(item: &AddonLockInspectionResult) -> 
     )
 }
 
-pub(super) fn render_addon_lock_write(item: &AddonLockWriteResult) -> String {
+pub(in crate::cli) fn render_addon_lock_write(item: &AddonLockWriteResult) -> String {
     if item.removed {
         format!(
             "Removed addon lock: {}\nTracked packages: 0",
@@ -97,7 +97,7 @@ pub(super) fn render_addon_lock_write(item: &AddonLockWriteResult) -> String {
     }
 }
 
-pub(super) fn render_addon_lock_diff(item: &AddonLockDiffResult) -> String {
+pub(in crate::cli) fn render_addon_lock_diff(item: &AddonLockDiffResult) -> String {
     let mut lines = vec![
         format!("Left: {}", item.left_label),
         format!("Right: {}", item.right_label),
@@ -122,7 +122,7 @@ pub(super) fn render_addon_lock_diff(item: &AddonLockDiffResult) -> String {
     lines.join("\n")
 }
 
-pub(super) fn render_addon_lock_verify(item: &AddonLockVerifyResult) -> String {
+pub(in crate::cli) fn render_addon_lock_verify(item: &AddonLockVerifyResult) -> String {
     let mut lines = vec![
         format!("Lock: {}", item.lock_path.display()),
         format!("Installation: {}", item.installation_root.display()),

@@ -1,6 +1,5 @@
 use super::BundleCommands;
-use super::app_support::{resolve_cli_installation, stable_services};
-use super::mapping::resolve_apply_mappings;
+use super::app_support::{resolve_cli_apply_target, stable_services};
 use super::output::{render, render_bundle_apply, render_bundle_apply_plan};
 use crate::core::error::{AppError, AppResult};
 
@@ -17,12 +16,11 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             install_target,
             apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
+            let target = resolve_cli_apply_target(&app, install_target, apply_mapping)?;
             let plan = app.plan_bundle_apply(build_plan_bundle_apply_request(
                 bundle,
-                installation,
-                apply_mappings,
+                target.installation,
+                target.apply_mappings,
             ))?;
             render(json, &plan, render_bundle_apply_plan)?;
         }
@@ -33,14 +31,13 @@ pub(super) fn handle_bundle_apply_command(json: bool, command: BundleCommands) -
             backup_output,
             apply_mapping,
         } => {
-            let installation = resolve_cli_installation(&app, install_target)?;
-            let apply_mappings = resolve_apply_mappings(apply_mapping)?;
+            let target = resolve_cli_apply_target(&app, install_target, apply_mapping)?;
             let result = app.apply_bundle(build_apply_bundle_request(
                 bundle,
-                installation,
+                target.installation,
                 dry_run,
                 backup_output,
-                apply_mappings,
+                target.apply_mappings,
             ))?;
             render(json, &result, render_bundle_apply)?;
         }

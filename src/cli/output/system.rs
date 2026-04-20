@@ -2,7 +2,7 @@ use crate::core::app::{
     InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,
 };
 
-pub(super) fn render_installation_scan(item: &InstallationScanResult) -> String {
+pub(in crate::cli) fn render_installation_scan(item: &InstallationScanResult) -> String {
     if item.installations.is_empty() {
         "No World of Warcraft installations detected.".to_string()
     } else {
@@ -21,7 +21,9 @@ pub(super) fn render_installation_scan(item: &InstallationScanResult) -> String 
     }
 }
 
-pub(super) fn render_installation_inspection(item: &InstallationInspectionResult) -> String {
+pub(in crate::cli) fn render_installation_inspection(
+    item: &InstallationInspectionResult,
+) -> String {
     format!(
         "Flavor: {}\nProduct root: {}\nFlavor root: {}\nAddOns: {}\nWTF: {}\nFonts: {}\nHealth: {}",
         item.installation.flavor.as_str(),
@@ -34,7 +36,9 @@ pub(super) fn render_installation_inspection(item: &InstallationInspectionResult
     )
 }
 
-pub(super) fn render_installation_health_report(health: &InstallationHealthResult) -> String {
+pub(in crate::cli) fn render_installation_health_report(
+    health: &InstallationHealthResult,
+) -> String {
     let mut lines = vec![format!("Status: {}", health.status_label)];
 
     if health.missing_paths.is_empty() {
