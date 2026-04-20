@@ -374,8 +374,8 @@ Prepare the core for a future frontend.
 - bundle apply-model, apply result/task-context, planner model, packing inspection/output, and
   the `external_package` family now also import directly from owner modules instead of routing
   through the `core::bundle` root compatibility scope
-- the transitional `core::bundle::imports` prelude has now been deleted, and the only remaining
-  bundle-root import surface inside `src/core/bundle` is the test-only `tests.rs` shell
+- the transitional `core::bundle::imports` prelude has now been deleted, and there are currently
+  no remaining bundle-internal consumers of the bundle root shell under `src/core/bundle`
 - bundle apply task message/context policy now lives under `core::bundle::apply::task_context`,
   separating shared bundle/external-package progress wording from the filesystem execution flow
 - bundle apply filesystem execution, backup creation, and rollback handling now live under

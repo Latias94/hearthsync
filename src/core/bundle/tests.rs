@@ -6,14 +6,20 @@ use tempfile::tempdir;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use super::{
-    AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, BundleAddonLockApplyRequest,
-    BundleApplyMappings, CreateExternalPackageBundleRequest, PackBundleRequest,
-    PlanExternalPackageApplyRequest, UnpackBundleRequest, analyze_external_package,
-    analyze_external_package_task, apply_bundle_addon_lock, apply_external_package,
-    apply_external_package_task, create_external_package_bundle, inspect_bundle, pack_bundle,
-    plan_bundle_addon_lock, plan_bundle_apply, plan_external_package_apply,
-    plan_external_package_apply_task, unpack_bundle, unpack_bundle_task,
+use super::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
+use super::apply::{unpack_bundle, unpack_bundle_task};
+use super::external_package::{
+    AnalyzeExternalPackageRequest, ApplyExternalPackageRequest, CreateExternalPackageBundleRequest,
+    ExternalPackageSourceKind, ExternalPackageWarningCategory, ExternalPackageWarningCode,
+    ExternalPackageWarningGroup, PlanExternalPackageApplyRequest, analyze_external_package,
+    analyze_external_package_task, apply_external_package, apply_external_package_task,
+    create_external_package_bundle, plan_external_package_apply, plan_external_package_apply_task,
+};
+use super::packing::{inspect_bundle, pack_bundle};
+use super::planner::plan_bundle_apply;
+use super::types::{
+    ApplyAction, ApplyGroup, BundleAddonLockApplyRequest, BundleApplyMappings, PackBundleRequest,
+    UnpackBundleRequest, WtfScope,
 };
 use crate::core::addon::lock::plan_addon_lock_sync;
 use crate::core::addon::{InstallAddonRequest, install_addon};
@@ -162,10 +168,7 @@ fn analyze_external_package_zip_normalizes_wrapped_ui_layout() {
     .expect("analyze external package");
 
     assert_eq!(analysis.source_path, package_path);
-    assert_eq!(
-        analysis.source_kind,
-        super::ExternalPackageSourceKind::ZipArchive
-    );
+    assert_eq!(analysis.source_kind, ExternalPackageSourceKind::ZipArchive);
     assert_eq!(analysis.package_id, "author-ui-pack");
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
     assert!(analysis.resources.wtf_common);
@@ -214,10 +217,7 @@ fn analyze_external_package_directory_fixture_normalizes_wrapped_ui_layout() {
     .expect("analyze external package directory fixture");
 
     assert_eq!(analysis.source_path, package_root);
-    assert_eq!(
-        analysis.source_kind,
-        super::ExternalPackageSourceKind::Directory
-    );
+    assert_eq!(analysis.source_kind, ExternalPackageSourceKind::Directory);
     assert_eq!(analysis.package_id, "external_package_author_ui_wrapped");
     assert_eq!(
         analysis.package_name,
@@ -249,10 +249,7 @@ fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_s
     .expect("analyze external package dirty fixture");
 
     assert_eq!(analysis.source_path, package_root);
-    assert_eq!(
-        analysis.source_kind,
-        super::ExternalPackageSourceKind::Directory
-    );
+    assert_eq!(analysis.source_kind, ExternalPackageSourceKind::Directory);
     assert_eq!(analysis.package_id, "external_package_dirty_mixed_case");
     assert_eq!(analysis.summary.total_files, 8);
     assert_eq!(analysis.summary.normalized_files, 7);
@@ -262,9 +259,9 @@ fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_s
     assert_eq!(analysis.summary.wtf_warning_count, 0);
     assert_eq!(
         analysis.summary.warning_groups,
-        vec![super::ExternalPackageWarningGroup {
-            category: super::ExternalPackageWarningCategory::Addon,
-            code: super::ExternalPackageWarningCode::AddonRootNotDetected,
+        vec![ExternalPackageWarningGroup {
+            category: ExternalPackageWarningCategory::Addon,
+            code: ExternalPackageWarningCode::AddonRootNotDetected,
             count: 1,
         }]
     );
@@ -282,23 +279,23 @@ fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_s
     );
     assert_eq!(analysis.warnings.len(), 1);
     assert!(analysis.warnings.iter().any(|warning| {
-        warning.code == super::ExternalPackageWarningCode::AddonRootNotDetected
+        warning.code == ExternalPackageWarningCode::AddonRootNotDetected
             && warning.message.contains("no addon root was detected")
             && warning.source_path.contains("BrokenAddon/README.txt")
     }));
 
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path == "wtf/common/root/SavedVariables/Broken.lua"
-            && entry.wtf_scope == Some(super::WtfScope::RootSavedVariables)
+            && entry.wtf_scope == Some(WtfScope::RootSavedVariables)
     }));
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path == "wtf/common/accounts/ACC1/config-cache.wtf"
-            && entry.wtf_scope == Some(super::WtfScope::CacheLike)
+            && entry.wtf_scope == Some(WtfScope::CacheLike)
     }));
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path
             == "wtf/characters/ACC1/Illidan/Targetone/SavedVariables/MeetingStone.lua"
-            && entry.wtf_scope == Some(super::WtfScope::CharacterSavedVariables)
+            && entry.wtf_scope == Some(WtfScope::CharacterSavedVariables)
     }));
 }
 
@@ -314,10 +311,7 @@ fn analyze_external_package_zip_dirty_fixture_matches_directory_behavior() {
     .expect("analyze dirty external package zip");
 
     assert_eq!(analysis.source_path, package_path);
-    assert_eq!(
-        analysis.source_kind,
-        super::ExternalPackageSourceKind::ZipArchive
-    );
+    assert_eq!(analysis.source_kind, ExternalPackageSourceKind::ZipArchive);
     assert_eq!(analysis.package_id, "dirty-author-pack");
     assert_eq!(analysis.summary.total_files, 8);
     assert_eq!(analysis.summary.normalized_files, 7);
@@ -325,9 +319,9 @@ fn analyze_external_package_zip_dirty_fixture_matches_directory_behavior() {
     assert_eq!(analysis.summary.warning_count, 1);
     assert_eq!(
         analysis.summary.warning_groups,
-        vec![super::ExternalPackageWarningGroup {
-            category: super::ExternalPackageWarningCategory::Addon,
-            code: super::ExternalPackageWarningCode::AddonRootNotDetected,
+        vec![ExternalPackageWarningGroup {
+            category: ExternalPackageWarningCategory::Addon,
+            code: ExternalPackageWarningCode::AddonRootNotDetected,
             count: 1,
         }]
     );
@@ -362,7 +356,7 @@ fn analyze_external_package_directory_accepts_variant_toc_names() {
     assert!(analysis.warnings.is_empty());
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path == "addons/DBM-Core/DBM-Core_Mainline.toc"
-            && entry.group == super::ApplyGroup::Addons
+            && entry.group == ApplyGroup::Addons
     }));
 }
 
@@ -573,10 +567,7 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
     })
     .expect("analyze external package directory");
 
-    assert_eq!(
-        analysis.source_kind,
-        super::ExternalPackageSourceKind::Directory
-    );
+    assert_eq!(analysis.source_kind, ExternalPackageSourceKind::Directory);
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
     assert!(analysis.resources.fonts);
     assert!(analysis.resources.wtf_common);
@@ -589,7 +580,7 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
     assert!(analysis.warnings.is_empty());
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path == "wtf/common/root/SavedVariables/Broken.lua"
-            && entry.wtf_scope == Some(super::WtfScope::RootSavedVariables)
+            && entry.wtf_scope == Some(WtfScope::RootSavedVariables)
     }));
 }
 
@@ -672,17 +663,17 @@ fn external_package_bundle_can_reuse_plan_and_unpack_pipeline() {
     assert!(
         plan.operations
             .iter()
-            .any(|item| item.group == super::ApplyGroup::Addons)
+            .any(|item| item.group == ApplyGroup::Addons)
     );
     assert!(
         plan.operations
             .iter()
-            .any(|item| item.group == super::ApplyGroup::WtfCommon)
+            .any(|item| item.group == ApplyGroup::WtfCommon)
     );
     assert!(
         plan.operations
             .iter()
-            .any(|item| item.group == super::ApplyGroup::WtfCharacters)
+            .any(|item| item.group == ApplyGroup::WtfCharacters)
     );
 
     let result = unpack_bundle(UnpackBundleRequest {
@@ -773,17 +764,17 @@ fn plan_external_package_apply_wraps_normalization_and_bundle_planning() {
     assert!(
         plan.operations
             .iter()
-            .any(|item| item.group == super::ApplyGroup::Addons)
+            .any(|item| item.group == ApplyGroup::Addons)
     );
     assert!(
         plan.operations
             .iter()
-            .any(|item| item.group == super::ApplyGroup::WtfCommon)
+            .any(|item| item.group == ApplyGroup::WtfCommon)
     );
     assert!(
         plan.operations
             .iter()
-            .any(|item| item.group == super::ApplyGroup::WtfCharacters)
+            .any(|item| item.group == ApplyGroup::WtfCharacters)
     );
 }
 
@@ -1041,19 +1032,19 @@ fn plan_external_package_apply_uses_author_package_default_profile_when_apply_de
     assert_eq!(plan.summary.files_to_preserve, 1);
 
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.addon_dir.join("WeakAuras")
     }));
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.fonts_dir
     }));
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.interface_dir.join("SharedXML")
     }));
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination
                 == target_installation
                     .wtf_dir
@@ -1064,7 +1055,7 @@ fn plan_external_package_apply_uses_author_package_default_profile_when_apply_de
     }));
     assert!(plan.operations.iter().any(|operation| {
         operation.archive_name == "wtf/common/Config.wtf"
-            && operation.action == super::ApplyAction::Preserve
+            && operation.action == ApplyAction::Preserve
     }));
 }
 
@@ -1185,15 +1176,15 @@ fn plan_external_package_apply_supports_windows_package_to_macos_target_with_pol
     assert_eq!(plan.summary.files_to_preserve, 2);
 
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.addon_dir.join("WeakAuras")
     }));
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.interface_dir.join("SharedXML")
     }));
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination
                 == target_installation
                     .wtf_dir
@@ -1204,11 +1195,10 @@ fn plan_external_package_apply_supports_windows_package_to_macos_target_with_pol
     }));
     assert!(plan.operations.iter().any(|operation| {
         operation.archive_name == "wtf/common/Config.wtf"
-            && operation.action == super::ApplyAction::Preserve
+            && operation.action == ApplyAction::Preserve
     }));
     assert!(plan.operations.iter().any(|operation| {
-        operation.archive_name == "fonts/FRIZQT__.ttf"
-            && operation.action == super::ApplyAction::Preserve
+        operation.archive_name == "fonts/FRIZQT__.ttf" && operation.action == ApplyAction::Preserve
     }));
 }
 
@@ -1666,8 +1656,7 @@ fn plan_bundle_apply_discovers_local_accounts_and_selected_accounts() {
     assert_eq!(plan.selected_target_accounts, vec!["ACC_A".to_string()]);
     assert!(plan.summary.files_to_add > 0);
     assert!(plan.operations.iter().any(|item| {
-        item.group == super::ApplyGroup::WtfCommon
-            && item.target_account.as_deref() == Some("ACC_A")
+        item.group == ApplyGroup::WtfCommon && item.target_account.as_deref() == Some("ACC_A")
     }));
 }
 
@@ -1959,12 +1948,12 @@ fn analyze_external_package_serializes_warning_groups_for_machine_consumers() {
 #[test]
 fn external_package_warning_code_serialization_matches_display_codes() {
     let codes = [
-        super::ExternalPackageWarningCode::AddonRootNotDetected,
-        super::ExternalPackageWarningCode::UnsupportedWtfLayout,
-        super::ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
-        super::ExternalPackageWarningCode::WtfAccountPathWithoutFile,
-        super::ExternalPackageWarningCode::WtfSavedVariablesPathWithoutFile,
-        super::ExternalPackageWarningCode::UnsupportedWtfNestedAccountLayout,
+        ExternalPackageWarningCode::AddonRootNotDetected,
+        ExternalPackageWarningCode::UnsupportedWtfLayout,
+        ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
+        ExternalPackageWarningCode::WtfAccountPathWithoutFile,
+        ExternalPackageWarningCode::WtfSavedVariablesPathWithoutFile,
+        ExternalPackageWarningCode::UnsupportedWtfNestedAccountLayout,
     ];
 
     for code in codes {
@@ -2003,7 +1992,7 @@ fn bundle_apply_plan_uses_explicit_resource_group_order() {
     for operation in plan
         .operations
         .iter()
-        .filter(|operation| operation.action == super::ApplyAction::Add)
+        .filter(|operation| operation.action == ApplyAction::Add)
     {
         if groups.last().copied() != Some(operation.group) {
             groups.push(operation.group);
@@ -2013,11 +2002,11 @@ fn bundle_apply_plan_uses_explicit_resource_group_order() {
     assert_eq!(
         groups,
         vec![
-            super::ApplyGroup::Addons,
-            super::ApplyGroup::InterfaceAssets,
-            super::ApplyGroup::Fonts,
-            super::ApplyGroup::WtfCommon,
-            super::ApplyGroup::WtfCharacters,
+            ApplyGroup::Addons,
+            ApplyGroup::InterfaceAssets,
+            ApplyGroup::Fonts,
+            ApplyGroup::WtfCommon,
+            ApplyGroup::WtfCharacters,
         ]
     );
 }
@@ -2110,35 +2099,35 @@ fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
 
     assert_eq!(
         scope_for("wtf/common/Config.wtf"),
-        Some(super::WtfScope::GlobalConfig)
+        Some(WtfScope::GlobalConfig)
     );
     assert_eq!(
         scope_for("wtf/common/root/SavedVariables/RootDetails.lua"),
-        Some(super::WtfScope::RootSavedVariables)
+        Some(WtfScope::RootSavedVariables)
     );
     assert_eq!(
         scope_for("wtf/common/accounts/ACCOUNT/account-settings.wtf"),
-        Some(super::WtfScope::AccountRootFile)
+        Some(WtfScope::AccountRootFile)
     );
     assert_eq!(
         scope_for("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
-        Some(super::WtfScope::AccountSavedVariables)
+        Some(WtfScope::AccountSavedVariables)
     );
     assert_eq!(
         scope_for("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),
-        Some(super::WtfScope::CharacterSavedVariables)
+        Some(WtfScope::CharacterSavedVariables)
     );
     assert_eq!(
         scope_for("wtf/characters/ACCOUNT/Illidan/Examplemage/AddOns.txt"),
-        Some(super::WtfScope::CharacterState)
+        Some(WtfScope::CharacterState)
     );
     assert_eq!(
         scope_for("wtf/common/accounts/ACCOUNT/config-cache.wtf"),
-        Some(super::WtfScope::CacheLike)
+        Some(WtfScope::CacheLike)
     );
     assert_eq!(
         scope_for("wtf/characters/ACCOUNT/Illidan/Examplemage/config-cache.wtf"),
-        Some(super::WtfScope::CacheLike)
+        Some(WtfScope::CacheLike)
     );
 }
 
@@ -2176,7 +2165,7 @@ fn plan_bundle_apply_skips_identical_files() {
     assert!(
         plan.operations
             .iter()
-            .all(|operation| operation.action == super::ApplyAction::Skip)
+            .all(|operation| operation.action == ApplyAction::Skip)
     );
 }
 
@@ -2204,7 +2193,7 @@ fn plan_apply_from_entries_with_reader_skips_byte_reads_for_deterministic_add_op
     assert_eq!(plan.summary.files_to_replace, 0);
     assert_eq!(plan.summary.files_to_skip, 0);
     assert_eq!(plan.operations.len(), 1);
-    assert_eq!(plan.operations[0].action, super::ApplyAction::Add);
+    assert_eq!(plan.operations[0].action, ApplyAction::Add);
 }
 
 #[test]
@@ -2231,7 +2220,7 @@ fn plan_apply_from_entries_with_reader_reads_bytes_when_existing_target_needs_pr
     assert_eq!(plan.summary.files_to_replace, 0);
     assert_eq!(plan.summary.files_to_skip, 1);
     assert_eq!(plan.operations.len(), 1);
-    assert_eq!(plan.operations[0].action, super::ApplyAction::Skip);
+    assert_eq!(plan.operations[0].action, ApplyAction::Skip);
 }
 
 #[test]
@@ -2674,7 +2663,7 @@ fn preserve_policy_plans_without_writing_files() {
     assert!(
         plan.operations
             .iter()
-            .all(|operation| operation.action == super::ApplyAction::Preserve)
+            .all(|operation| operation.action == ApplyAction::Preserve)
     );
 
     let result = unpack_bundle(UnpackBundleRequest {
@@ -2734,11 +2723,11 @@ fn share_policy_preserves_existing_target_files_and_adds_missing_files() {
     .expect("plan bundle");
     assert!(plan.operations.iter().any(|operation| {
         operation.archive_name == "wtf/common/Config.wtf"
-            && operation.action == super::ApplyAction::Preserve
+            && operation.action == ApplyAction::Preserve
     }));
     assert!(plan.operations.iter().any(|operation| {
         operation.archive_name == "wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"
-            && operation.action == super::ApplyAction::Add
+            && operation.action == ApplyAction::Add
     }));
 
     let result = unpack_bundle(UnpackBundleRequest {
@@ -2802,7 +2791,7 @@ fn mirror_policy_removes_existing_addon_root_before_copy() {
     .expect("plan bundle");
     assert!(plan.summary.paths_to_remove >= 1);
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.addon_dir.join("WeakAuras")
     }));
 
@@ -2867,7 +2856,7 @@ fn sync_policy_alias_removes_existing_addon_root_before_copy() {
     .expect("plan bundle");
     assert!(plan.summary.paths_to_remove >= 1);
     assert!(plan.operations.iter().any(|operation| {
-        operation.action == super::ApplyAction::Remove
+        operation.action == ApplyAction::Remove
             && operation.destination == target_installation.addon_dir.join("WeakAuras")
     }));
 

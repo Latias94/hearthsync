@@ -153,7 +153,7 @@ The current blocking sequence is:
   - Current cleanup: bundle entry-planning and target-account selection helpers now also use explicit imports instead of `super::*`, and `core::bundle::imports` has shrunk further by dropping unused path and character-mode transitional items.
   - Current cleanup: bundle apply-source, planner, execution, packing, and addon-source-archive internals now all use explicit owner-module imports instead of `super::*`, and there are currently no remaining wildcard import call sites under `src/core/bundle`.
   - Current cleanup: bundle apply-model, apply result/task context, planner model, packing inspection/output, and the `external_package` family now import directly from their owner modules instead of routing through bundle-root compatibility re-exports.
-  - Current cleanup: `src/core/bundle/tests.rs` is currently the only remaining bundle file still importing through the bundle root shell; the next cleanup slice is retiring that test-only root import layer.
+  - Current cleanup: `src/core/bundle/tests.rs` now also imports directly from owner modules, so there are currently no remaining bundle-internal consumers of the bundle root shell under `src/core/bundle`.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
