@@ -338,6 +338,9 @@ Prepare the core for a future frontend.
 - external package source discovery and safe source-path normalization now live under
   `core::bundle::external_package::source`, starting the split of the large author-package import
   module into focused pipeline stages without changing runtime behavior
+- external package classification and warning production now live under
+  `core::bundle::external_package::classify`, keeping addon/WTF/fonts/interface recognition
+  separate from source enumeration and later bundle materialization
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
