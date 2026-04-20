@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::*;
 use crate::core::addon::canonicalize_local_archive_path;
 use crate::core::error::{AppError, AppResult};
+
+use super::{AddonIndex, AddonIndexInspection, AddonIndexPackage, AddonSourceRef};
 
 pub fn inspect_addon_index(path: &Path) -> AppResult<AddonIndexInspection> {
     let index = load_addon_index(path)?;

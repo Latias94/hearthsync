@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
 
-use super::*;
 use crate::core::addon::{PreparedAddonPackage, TrackedAddonPackage};
 use crate::core::error::{AppError, AppResult};
+
+use super::AddonIndexPackage;
 
 pub(super) fn match_index_package_to_tracked_package(
     package: &AddonIndexPackage,

@@ -1,12 +1,22 @@
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 
-use super::*;
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,
+};
+
+use super::registry::registry_path;
+use super::{
+    AddonPackageMetadata, AddonProvider, AddonRegistry, DefaultAddonProvider, InstallAddonRequest,
+    InstalledAddonPackageResult, PreparedAddonPackage, RemoveAddonRequest,
+    RemovedAddonPackageResult, TrackedAddonPackage, UpdateAddonRequest, UpdatedAddonPackageResult,
+    install_prepared_package_task, load_registry, prepare_package_from_source_input_with_provider,
+    prepare_package_from_source_ref_with_provider, remove_selected_packages_task,
+    rollback_or_report_addon_error, update_prepared_packages_task,
 };
 
 #[derive(Debug)]

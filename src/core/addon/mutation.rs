@@ -5,13 +5,16 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
 
-use super::*;
 use crate::core::backup::restore_backup;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
     ensure_task_not_cancelled,
+};
+
+use super::{
+    AddonRegistry, PreparedAddonPackage, TrackedAddonPackage, load_registry, save_registry,
 };
 
 #[derive(Clone, Copy)]

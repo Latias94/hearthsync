@@ -1,4 +1,10 @@
-use super::*;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use crate::core::error::AppResult;
+use crate::core::install::DetectedFlavorInstallation;
+
+use super::{AddonRegistry, lock};
 
 pub(crate) fn load_registry(installation: &DetectedFlavorInstallation) -> AppResult<AddonRegistry> {
     let path = registry_path(installation);

@@ -156,6 +156,7 @@ The current blocking sequence is:
   - Current cleanup: `src/core/bundle/tests.rs` now also imports directly from owner modules, so there are currently no remaining bundle-internal consumers of the bundle root shell under `src/core/bundle`.
   - Current cleanup: the oversized `src/core/bundle/tests.rs` file is now split into domain test modules (`tests/packing.rs`, `tests/external_package.rs`, `tests/apply.rs`) with shared fixtures centralized in `tests/support.rs`, which lowers review friction for the next fearless bundle refactors.
   - Current cleanup: `core::addon::lock` internals now also use explicit owner-module and crate imports instead of `super::*`, and `src/core/addon/lock.rs` no longer acts as a hidden dependency prelude for its child modules.
+  - Current cleanup: the remaining `core::addon` and `core::addon::index` execution/registry/storage internals now also use explicit imports instead of `super::*`, so the addon root no longer acts as a hidden import prelude for mutation and index flows either.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

@@ -6,7 +6,6 @@ use super::storage::{
     ensure_package_supports_flavor, find_index_package, load_addon_index,
     resolve_index_package_source,
 };
-use super::*;
 use crate::core::addon::{
     AddonPackageMetadata, AddonProvider, AddonRegistry, DefaultAddonProvider,
     InstallAddonExecutionPlan, InstallPreparedAddonRequest, PreparedAddonPackage,
@@ -20,6 +19,11 @@ use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressEvent,
     TaskProgressSink, emit_task_progress, ensure_task_not_cancelled,
+};
+
+use super::{
+    AddonIndex, AddonIndexInstallRequest, AddonIndexInstallResult, AddonIndexPackage,
+    AddonIndexUpdateRequest, AddonIndexUpdateResult,
 };
 
 struct IndexInstallPlan {
