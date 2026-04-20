@@ -407,6 +407,9 @@ Prepare the core for a future frontend.
   addon-lock loading, and embedded source-archive materialization under
   `core::bundle::addon_source_archive::{index_paths,lock,source_bundle}`, leaving
   `addon_source_archive.rs` as the thin re-export shell
+- bundle execution now separates filesystem apply/materialization, target-byte comparison, and
+  rollback error wrapping under `core::bundle::execution::{apply,compare,rollback}`, leaving
+  `execution.rs` as the thin re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
