@@ -114,6 +114,7 @@ The current blocking sequence is:
   - Current cleanup: install-target based CLI handlers now also share `render_with_installation(...)` and apply-target handlers share `render_with_apply_target(...)` in `cli::app_support`, so addon/addon-index/addon-lock/backup/bundle command modules no longer repeat the same resolve-target → invoke app → render control flow.
   - Current cleanup: manifest example/validate now also flow through `cli::system::request` plus `cli::output::system`, so even the remaining system-only manifest commands no longer hand-roll JSON/text printing outside the shared renderer boundary.
   - Current cleanup: addon and bundle top-level routers now dispatch directly into variant-specific handlers, deleting the old “internal CLI routing error” dead branches from subordinate command modules.
+  - Current cleanup: fallible CLI request projection now has an explicit `render_with_fallible_installation(...)` helper, so `bundle pack` no longer smuggles `AppResult` through the normal request generic before invoking the app service.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

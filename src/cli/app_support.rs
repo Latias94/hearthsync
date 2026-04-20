@@ -61,6 +61,26 @@ where
     render(json, &result, text_renderer)
 }
 
+pub(super) fn render_with_fallible_installation<Req, Res, Build, Invoke, Format>(
+    json: bool,
+    services: &StableAppServices,
+    install_target: InstallTargetArgs,
+    build_request: Build,
+    invoke: Invoke,
+    text_renderer: Format,
+) -> AppResult<()>
+where
+    Res: Serialize,
+    Build: FnOnce(ResolvedInstallationValue) -> AppResult<Req>,
+    Invoke: FnOnce(Req) -> AppResult<Res>,
+    Format: FnOnce(&Res) -> String,
+{
+    let installation = resolve_cli_installation(services, install_target)?;
+    let request = build_request(installation)?;
+    let result = invoke(request)?;
+    render(json, &result, text_renderer)
+}
+
 pub(super) fn render_with_value<Res, Invoke, Format>(
     json: bool,
     invoke: Invoke,

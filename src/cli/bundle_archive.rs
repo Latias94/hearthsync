@@ -1,5 +1,5 @@
 use super::InstallTargetArgs;
-use super::app_support::{render_with_installation, render_with_value, stable_services};
+use super::app_support::{render_with_fallible_installation, render_with_value, stable_services};
 use super::output::{render_bundle_archive_created, render_bundle_archive_inspection};
 use crate::core::error::AppResult;
 
@@ -15,12 +15,12 @@ pub(super) fn handle_bundle_pack(
 ) -> AppResult<()> {
     let app = stable_services();
 
-    render_with_installation(
+    render_with_fallible_installation(
         json,
         &app,
         install_target,
         |installation| build_pack_bundle_request(installation, manifest, output),
-        |request| app.pack_bundle(request?),
+        |request| app.pack_bundle(request),
         render_bundle_archive_created,
     )
 }

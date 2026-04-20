@@ -332,6 +332,9 @@ Prepare the core for a future frontend.
 - addon and bundle top-level routers now dispatch directly into variant-specific handlers, removing
   the old subordinate “internal CLI routing error” dead branches and making command ownership more
   explicit at the routing boundary
+- fallible CLI request projection now uses an explicit `render_with_fallible_installation(...)`
+  helper, so `bundle pack` keeps manifest loading errors in the request-building step instead of
+  passing `AppResult` as a pseudo-request into the app invocation closure
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
