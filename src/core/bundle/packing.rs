@@ -1,13 +1,16 @@
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+mod inspect;
+mod output;
 
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
-use zip::{ZipArchive, ZipWriter};
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+
+use zip::ZipWriter;
 
 use super::*;
 use crate::core::error::{AppError, AppResult};
+pub use inspect::{inspect_bundle, load_apply_mappings};
+use output::{default_bundle_output_base_dir, now_rfc3339, resolve_bundle_output_path};
 
 pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
     request.manifest.validate()?;
@@ -33,7 +36,7 @@ pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
         &default_output_base_dir,
     )?;
     if let Some(parent) = archive_path.parent() {
-        fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent)?;
     }
 
     let file = File::create(&archive_path)?;
@@ -125,76 +128,4 @@ pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
         archived_files,
         manifest: request.manifest,
     })
-}
-
-pub fn inspect_bundle(path: &Path) -> AppResult<BundleInspection> {
-    let archive_path = path.to_path_buf();
-    let file = File::open(path)?;
-    let mut archive = ZipArchive::new(file)?;
-    let manifest = read_manifest_from_archive(&mut archive)?;
-    manifest.validate()?;
-    let entries = count_bundle_entries(&mut archive)?;
-
-    Ok(BundleInspection {
-        archive_path,
-        manifest,
-        entries,
-    })
-}
-
-pub fn load_apply_mappings(path: &Path) -> AppResult<BundleApplyMappings> {
-    let content = fs::read_to_string(path)?;
-    Ok(toml::from_str(&content)?)
-}
-
-fn resolve_bundle_output_path(
-    output_path: Option<&Path>,
-    manifest: &BundleManifest,
-    timestamp: &str,
-    default_base_dir: &Path,
-) -> AppResult<PathBuf> {
-    let file_name = format!(
-        "bundle-{}-{}.zip",
-        safe_file_part(&manifest.package.id),
-        compact_timestamp(timestamp)
-    );
-
-    match output_path {
-        Some(path) if path.extension().is_some_and(|extension| extension == "zip") => {
-            Ok(resolve_output_reference(path, default_base_dir))
-        }
-        Some(path) => Ok(resolve_output_reference(path, default_base_dir).join(file_name)),
-        None => Ok(default_base_dir.join(file_name)),
-    }
-}
-
-fn default_bundle_output_base_dir(
-    installation: &DetectedFlavorInstallation,
-    manifest_base_dir: Option<&Path>,
-) -> PathBuf {
-    manifest_base_dir
-        .map(Path::to_path_buf)
-        .or_else(|| installation.product_root.parent().map(Path::to_path_buf))
-        .unwrap_or_else(|| installation.product_root.clone())
-}
-
-fn resolve_output_reference(path: &Path, default_base_dir: &Path) -> PathBuf {
-    if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        default_base_dir.join(path)
-    }
-}
-
-fn now_rfc3339() -> AppResult<String> {
-    OffsetDateTime::now_utc()
-        .format(&Rfc3339)
-        .map_err(|error| AppError::Validation(error.to_string()))
-}
-
-fn compact_timestamp(timestamp: &str) -> String {
-    timestamp
-        .chars()
-        .filter(|char| char.is_ascii_alphanumeric())
-        .collect::<String>()
 }

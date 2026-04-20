@@ -383,6 +383,9 @@ Prepare the core for a future frontend.
 - external package manifest preparation, normalized-path validation, and prepared-apply assembly
   now live under `core::bundle::external_package::prepare`, reducing `external_package.rs` to the
   app-facing analyze/create/plan shell around the split import pipeline
+- bundle packing output-path/timestamp policy and archive inspection helpers now live under
+  `core::bundle::packing::output` and `core::bundle::packing::inspect`, so `packing.rs` stays
+  focused on archive creation instead of also owning naming and read-only inspection concerns
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
