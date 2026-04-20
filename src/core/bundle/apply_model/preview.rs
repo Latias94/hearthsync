@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::core::lua_patch::CharacterMapping;
 
-use super::super::{ApplyAction, ApplyGroup, ApplyOperation};
+use super::super::types::{ApplyAction, ApplyGroup, ApplyOperation};
 use super::planned::{PlannedCleanup, PlannedEntry};
 
 #[derive(Debug, Clone)]

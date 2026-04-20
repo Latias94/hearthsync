@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use crate::core::lua_patch::CharacterMapping;
 
-use super::super::{ApplyAction, BundleApplyPlan, ExternalPackageSourceKind};
+use super::super::external_package::ExternalPackageSourceKind;
+use super::super::types::{ApplyAction, ApplyOperation, BundleApplyPlan};
 use super::preview::PreviewOperation;
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ pub(in crate::core::bundle) enum PreparedApplySource {
 impl PreparedApplyOperation {
     pub(in crate::core::bundle) fn from_preview(preview_operation: PreviewOperation) -> Self {
         let (
-            super::super::ApplyOperation {
+            ApplyOperation {
                 action,
                 archive_name,
                 destination,

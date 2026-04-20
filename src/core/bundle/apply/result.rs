@@ -1,4 +1,4 @@
-use super::super::{BundleApplyPlan, UnpackedBundle};
+use super::super::types::{BundleApplyPlan, UnpackedBundle};
 use super::executor::BundleExecution;
 
 pub(super) fn project_dry_run_result(plan: BundleApplyPlan) -> UnpackedBundle {

@@ -1,4 +1,5 @@
-use super::{MANIFEST_ENTRY, safe_zip_segments};
+use super::constants::MANIFEST_ENTRY;
+use super::shared::safe_zip_segments;
 use crate::core::error::AppResult;
 
 pub(super) enum BundleArchiveEntry<'a> {

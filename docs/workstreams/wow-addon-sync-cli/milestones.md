@@ -372,6 +372,12 @@ Prepare the core for a future frontend.
 - there are currently no remaining `use super::*;` or `use super::super::*;` call sites under
   `src/core/bundle`; the next cleanup slice is retiring the remaining explicit
   `super::super::{...}` root-scope imports module by module
+- bundle apply-model, apply result/task-context, planner model, packing inspection, and the last
+  low-risk root helpers now also import directly from owner modules instead of routing through the
+  `core::bundle` root compatibility scope
+- remaining root-scoped compatibility imports under `src/core/bundle` are now limited to the
+  `external_package` family and `tests.rs`, and `core::bundle::imports` has shrunk to the small
+  bridge still needed by those call sites
 - bundle apply task message/context policy now lives under `core::bundle::apply::task_context`,
   separating shared bundle/external-package progress wording from the filesystem execution flow
 - bundle apply filesystem execution, backup creation, and rollback handling now live under
