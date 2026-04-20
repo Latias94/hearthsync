@@ -371,6 +371,8 @@ Prepare the core for a future frontend.
 - bundle apply dry-run/execute result projection now lives under
   `core::bundle::apply::result`, so the root apply flow no longer assembles `UnpackedBundle`
   inline
+- shared prepared-apply orchestration for bundle archives and external packages now lives under
+  `core::bundle::apply::pipeline`, leaving `apply.rs` as the bundle-specific task entry shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
