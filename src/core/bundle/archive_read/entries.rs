@@ -4,8 +4,9 @@ use std::path::Path;
 
 use zip::ZipArchive;
 
-use super::super::*;
+use super::super::shared::safe_zip_segments;
 use crate::core::archive_io::copy_reader_to_path;
+use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle) fn collect_bundle_entry_names(
     bundle_path: &Path,

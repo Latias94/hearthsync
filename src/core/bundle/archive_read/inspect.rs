@@ -3,7 +3,10 @@ use std::io::Read;
 
 use zip::ZipArchive;
 
-use super::super::*;
+use super::super::constants::MANIFEST_ENTRY;
+use super::super::types::BundleEntryCounts;
+use crate::core::error::AppResult;
+use crate::core::manifest::BundleManifest;
 
 pub(in crate::core::bundle) fn read_manifest_from_archive(
     archive: &mut ZipArchive<File>,

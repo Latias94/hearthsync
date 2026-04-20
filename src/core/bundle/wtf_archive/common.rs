@@ -4,8 +4,9 @@ use std::path::Path;
 
 use zip::ZipWriter;
 
+use super::super::shared::validate_plain_name;
 use super::super::zip_write::add_path_to_zip;
-use super::super::*;
+use crate::core::error::AppResult;
 
 pub(in crate::core::bundle) fn add_common_wtf_to_zip(
     zip: &mut ZipWriter<File>,

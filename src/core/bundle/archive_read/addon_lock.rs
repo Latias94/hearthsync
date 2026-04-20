@@ -5,8 +5,12 @@ use std::path::Path;
 use tempfile::tempdir;
 use zip::ZipArchive;
 
-use super::super::*;
+use super::super::addon_lock::ExtractedAddonLock;
+use super::super::constants::{ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY};
+use super::super::shared::{BundleAddonSourceIndex, join_segments, safe_zip_segments};
+use crate::core::addon::lock::AddonLockSourceOverride;
 use crate::core::archive_io::copy_reader_to_path;
+use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle) fn extract_embedded_addon_lock(
     bundle_path: &Path,

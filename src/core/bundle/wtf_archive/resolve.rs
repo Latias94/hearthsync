@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use super::super::*;
+use super::super::shared::validate_plain_name;
+use crate::core::error::{AppError, AppResult};
+use crate::core::manifest::CharacterResource;
 
 pub(in crate::core::bundle) fn resolve_character_account(
     wtf_dir: &Path,

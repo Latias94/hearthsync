@@ -1,4 +1,5 @@
-use super::super::*;
+use super::super::types::ApplyGroup;
+use crate::core::manifest::{BundleManifest, ResourceApplyPolicy};
 
 pub(in crate::core::bundle) fn resource_policy_for_group(
     manifest: &BundleManifest,

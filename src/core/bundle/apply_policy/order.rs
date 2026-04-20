@@ -1,4 +1,4 @@
-use super::super::*;
+use super::super::types::{ApplyAction, ApplyGroup};
 
 pub(in crate::core::bundle) fn apply_action_order(action: ApplyAction) -> u8 {
     match action {

@@ -1,6 +1,5 @@
 pub(in crate::core::bundle) use std::fs;
 
-pub(in crate::core::bundle) use super::addon_lock::ExtractedAddonLock;
 pub(in crate::core::bundle) use super::addon_source_archive::{
     add_bundle_addon_sources_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
 };
@@ -20,9 +19,9 @@ pub(in crate::core::bundle) use super::character_mapping::build_character_mappin
 pub(in crate::core::bundle) use super::entry_plan::plan_extractable_entries;
 pub(in crate::core::bundle) use super::execution::file_contents_equal_to_bytes;
 pub(in crate::core::bundle) use super::shared::{
-    BundleAddonSourceEntry, BundleAddonSourceIndex, join_segments, resolve_zip_style_path,
-    safe_file_part, safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name,
-    zip_dir_options, zip_file_options,
+    BundleAddonSourceEntry, BundleAddonSourceIndex, resolve_zip_style_path, safe_file_part,
+    safe_zip_segments, should_skip_path, to_zip_path, validate_plain_name, zip_dir_options,
+    zip_file_options,
 };
 pub(in crate::core::bundle) use super::target_accounts::{
     resolve_selected_target_accounts, validate_target_compatibility,
@@ -32,8 +31,7 @@ pub(in crate::core::bundle) use super::wtf_archive::{
 };
 pub(in crate::core::bundle) use super::zip_write::{add_path_to_zip, write_toml_to_zip};
 pub(in crate::core::bundle) use crate::core::addon::lock::{
-    AddonLock, AddonLockPackage, AddonLockSourceOverride, addon_lock_package_comparison_key,
-    write_addon_lock,
+    AddonLock, AddonLockPackage, addon_lock_package_comparison_key, write_addon_lock,
 };
 pub(in crate::core::bundle) use crate::core::backup::restore_backup;
 pub(in crate::core::bundle) use crate::core::error::{AppError, AppResult};

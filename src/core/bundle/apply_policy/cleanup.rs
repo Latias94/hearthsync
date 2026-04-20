@@ -1,8 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use super::super::*;
+use super::super::apply_model::{PlannedCleanup, PlannedEntry};
+use super::super::types::{ApplyGroup, WtfScope};
 use super::policy::resource_policy_for_group;
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
+use crate::core::manifest::{BundleManifest, ResourceApplyPolicy};
 
 pub(in crate::core::bundle) fn build_cleanup_operations(
     planned_entries: &[PlannedEntry],
