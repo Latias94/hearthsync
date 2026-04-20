@@ -335,6 +335,9 @@ Prepare the core for a future frontend.
 - fallible CLI request projection now uses an explicit `render_with_fallible_installation(...)`
   helper, so `bundle pack` keeps manifest loading errors in the request-building step instead of
   passing `AppResult` as a pseudo-request into the app invocation closure
+- external package source discovery and safe source-path normalization now live under
+  `core::bundle::external_package::source`, starting the split of the large author-package import
+  module into focused pipeline stages without changing runtime behavior
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
