@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
 
-use super::super::archive_read::{
+use super::super::archive_read::entries::{
     extract_archive_entry_to_path, read_bundle_entry_bytes_from_archive,
 };
 use super::super::external_package::ExternalPackageSourceKind;

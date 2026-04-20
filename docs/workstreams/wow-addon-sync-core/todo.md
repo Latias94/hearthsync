@@ -202,6 +202,9 @@ ways that a future frontend can depend on without learning internal domain seams
     visible to their parent module (`pub(super)`), and `core::app::mod` owns the single explicit
     request/result export whitelist instead of splitting that responsibility across duplicate
     aggregation lists or `response::*`.
+    Current cleanup: `core::bundle::{archive_read,apply_policy,target_accounts}` no longer
+    re-export function sets from thin shell modules. Those modules now only delimit subdomains,
+    while bundle internals import the concrete child modules they actually depend on.
     Current cleanup: the bundle root now re-exports its public API directly from owner modules and
     the transitional `core::bundle::exports` shell has been removed, so bundle contract changes no
     longer hide behind an extra wildcard export layer.

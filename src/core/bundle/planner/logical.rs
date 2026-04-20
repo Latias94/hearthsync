@@ -1,14 +1,12 @@
 use std::path::Path;
 
 use super::super::apply_model::PlannedEntry;
-use super::super::apply_policy::{
-    build_cleanup_operations, cleanup_scope_for_entry, resource_policy_for_group,
-};
+use super::super::apply_policy::cleanup::{build_cleanup_operations, cleanup_scope_for_entry};
+use super::super::apply_policy::policy::resource_policy_for_group;
 use super::super::character_mapping::build_character_mappings;
 use super::super::entry_plan::plan_extractable_entries;
-use super::super::target_accounts::{
-    resolve_selected_target_accounts, validate_target_compatibility,
-};
+use super::super::target_accounts::compatibility::validate_target_compatibility;
+use super::super::target_accounts::selection::resolve_selected_target_accounts;
 use super::super::types::BundleApplyMappings;
 use super::model::{LogicalBundleApply, LogicalEntryDisposition, LogicalEntryOperation};
 use crate::core::error::AppResult;

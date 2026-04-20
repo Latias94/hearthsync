@@ -3,7 +3,7 @@ use std::path::Path;
 
 use zip::ZipArchive;
 
-use super::super::archive_read::{count_bundle_entries, read_manifest_from_archive};
+use super::super::archive_read::inspect::{count_bundle_entries, read_manifest_from_archive};
 use super::super::types::{BundleApplyMappings, BundleInspection};
 use crate::core::error::AppResult;
 

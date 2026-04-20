@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 
-use super::archive_read::extract_embedded_addon_lock;
+use super::archive_read::addon_lock::extract_embedded_addon_lock;
 use super::constants::ADDON_LOCK_ENTRY;
 use super::types::{BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan};
 use crate::core::addon::lock::{
