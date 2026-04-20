@@ -159,7 +159,7 @@ The current blocking sequence is:
   - Current cleanup: the remaining `core::addon` and `core::addon::index` execution/registry/storage internals now also use explicit imports instead of `super::*`, so the addon root no longer acts as a hidden import prelude for mutation and index flows either.
   - Current cleanup: CLI request/args/output tests plus `core::task` tests now also use explicit imports instead of `super::*`, and there are currently no remaining wildcard-import call sites under `src/`.
   - Current cleanup: `cli::mod` now re-exports its crate-internal command and argument surface through an explicit list, with test-only enum helpers gated behind `#[cfg(test)]`, so the CLI root no longer behaves like a wildcard prelude over `cli::args`.
-  - Current cleanup: `core::app::{request,response}` now keep explicit aggregation lists, `core::app::mod` exposes app DTOs through explicit whitelists instead of `response::*`, and `core::bundle::exports.rs` has been retired in favor of direct owner-module exports from `core::bundle::mod`.
+  - Current cleanup: `core::app::request` and `core::app::response` child modules are now parent-visible only (`pub(super)`), while `core::app::mod` owns the single explicit app DTO export whitelist instead of routing visibility through `response::*` or duplicate aggregation lists; `core::bundle::exports.rs` has also been retired in favor of direct owner-module exports from `core::bundle::mod`.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

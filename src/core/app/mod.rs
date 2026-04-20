@@ -24,38 +24,62 @@ pub(crate) use bundle::BundleService;
 pub use extended::ExtendedAppServices;
 pub(crate) use external_package::ExternalPackageService;
 pub(crate) use install::InstallationService;
-pub use request::{
-    AddonLockSourceOverrideRequest, AnalyzeExternalPackageAppRequest, ApplyAddonLockAppRequest,
-    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyExternalPackageAppRequest,
-    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, DiffAddonLockRequest,
-    InspectAddonIndexRequest, InspectAddonLockRequest, InspectBundleRequest,
-    InspectInstallationRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
-    ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
-    PlanBundleAddonLockRequest, PlanBundleApplyRequest, PlanExternalPackageApplyAppRequest,
-    RemoveAddonAppRequest, ResolveInstallationRequest, RestoreBackupAppRequest,
-    SearchAddonsRequest, UpdateAddonAppRequest, UpdateAddonIndexAppRequest, VerifyAddonLockRequest,
+pub use request::addon::{
+    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, SearchAddonsRequest,
+    UpdateAddonAppRequest,
+};
+pub use request::addon_index::{
+    InspectAddonIndexRequest, InstallAddonIndexAppRequest, UpdateAddonIndexAppRequest,
+};
+pub use request::addon_lock::{
+    AddonLockSourceOverrideRequest, ApplyAddonLockAppRequest, DiffAddonLockRequest,
+    InspectAddonLockRequest, PlanAddonLockSyncRequest, VerifyAddonLockRequest,
     WriteAddonLockRequest,
 };
-pub use response::{
+pub use request::backup::{CreateBackupAppRequest, ListBackupsRequest, RestoreBackupAppRequest};
+pub use request::bundle::{
+    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, InspectBundleRequest,
+    PackBundleAppRequest, PlanBundleAddonLockRequest, PlanBundleApplyRequest,
+};
+pub use request::external_package::{
+    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
+    CreateExternalPackageBundleAppRequest, PlanExternalPackageApplyAppRequest,
+};
+pub use request::installation::{InspectInstallationRequest, ResolveInstallationRequest};
+pub use response::addon::{
+    AddonInventoryResult, AddonSearchCatalogResult, AddonSearchResult, AddonSourceKindResult,
+    AddonSourceResult, InstalledAddonPackageResult, RemovedAddonPackageResult,
+    TrackedAddonPackageResult, TrackedAddonResult, UpdatedAddonPackageResult,
+};
+pub use response::addon_index::{
     AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexPackageResult,
-    AddonIndexUpdateResult, AddonInventoryResult, AddonLockApplyResult, AddonLockDiffResult,
-    AddonLockFieldChangeResult, AddonLockInspectionResult, AddonLockPackageDiffResult,
-    AddonLockPackageDirectoryIssueResult, AddonLockPackageResult, AddonLockPackageSnapshotResult,
-    AddonLockPlanResult, AddonLockSyncActionResult, AddonLockVerifyResult, AddonLockWriteResult,
-    AddonSearchCatalogResult, AddonSearchResult, AddonSourceKindResult, AddonSourceResult,
-    ApplyGroupPoliciesResult, ApplyOperationResult, ApplyPlanSummaryResult, BackupCatalogResult,
-    BackupEntryResult, BackupMetadataResult, BundleAddonLockApplyResult, BundleAddonLockPlanResult,
-    BundleApplyPlanResult, BundleApplyResult, BundleCharacterResourceResult,
-    BundleEntryCountsResult, BundleInspectionResult, BundleManifestResult,
-    BundleMappingRulesResult, BundlePackageResult, BundleResourcesResult, BundleSourceResult,
-    CharacterMappingResult, CreatedBackupResult, CreatedBundleResult,
+    AddonIndexUpdateResult,
+};
+pub use response::addon_lock::{
+    AddonLockApplyResult, AddonLockDiffResult, AddonLockFieldChangeResult,
+    AddonLockInspectionResult, AddonLockPackageDiffResult, AddonLockPackageDirectoryIssueResult,
+    AddonLockPackageResult, AddonLockPackageSnapshotResult, AddonLockPlanResult,
+    AddonLockSyncActionResult, AddonLockVerifyResult, AddonLockWriteResult,
+};
+pub use response::backup::{
+    BackupCatalogResult, BackupEntryResult, BackupMetadataResult, CreatedBackupResult,
+    RestoredBackupResult,
+};
+pub use response::bundle::{
+    ApplyGroupPoliciesResult, ApplyOperationResult, ApplyPlanSummaryResult,
+    BundleAddonLockApplyResult, BundleAddonLockPlanResult, BundleApplyPlanResult,
+    BundleApplyResult, BundleCharacterResourceResult, BundleEntryCountsResult,
+    BundleInspectionResult, BundleManifestResult, BundleMappingRulesResult, BundlePackageResult,
+    BundleResourcesResult, BundleSourceResult, CharacterMappingResult, CreatedBundleResult,
+    GroupPolicyResult, LocalWowAccountResult, LocalWowCharacterResult,
+};
+pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
     ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
-    GroupPolicyResult, InstallationHealthResult, InstallationInspectionResult,
-    InstallationScanResult, InstalledAddonPackageResult, LocalWowAccountResult,
-    LocalWowCharacterResult, RemovedAddonPackageResult, RestoredBackupResult,
-    TrackedAddonPackageResult, TrackedAddonResult, UpdatedAddonPackageResult,
+};
+pub use response::installation::{
+    InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,
 };
 pub use runtime::AppRuntime;
 pub use stable::StableAppServices;
