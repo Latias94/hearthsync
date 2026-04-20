@@ -117,6 +117,7 @@ The current blocking sequence is:
   - Current cleanup: fallible CLI request projection now has an explicit `render_with_fallible_installation(...)` helper, so `bundle pack` no longer smuggles `AppResult` through the normal request generic before invoking the app service.
   - Current cleanup: external package source discovery and safe path normalization now live in `core::bundle::external_package::source`, beginning the split of the large author-package import module into smaller pipeline stages.
   - Current cleanup: external package classification and warning production now live in `core::bundle::external_package::classify`, separating source enumeration from addon/WTF/fonts/interface resource recognition.
+  - Current cleanup: external package staging-installation creation and source-to-target file materialization now live in `core::bundle::external_package::materialize`, keeping normalized import execution separate from analysis and manifest construction.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
