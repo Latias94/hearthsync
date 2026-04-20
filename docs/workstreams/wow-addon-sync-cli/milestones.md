@@ -386,6 +386,9 @@ Prepare the core for a future frontend.
 - bundle packing output-path/timestamp policy and archive inspection helpers now live under
   `core::bundle::packing::output` and `core::bundle::packing::inspect`, so `packing.rs` stays
   focused on archive creation instead of also owning naming and read-only inspection concerns
+- bundle entry planning now separates archive-entry dispatch, common account replication, and
+  character mapping under `core::bundle::entry_plan::{context,common,character}`, leaving
+  `entry_plan.rs` as the small planning-context shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
