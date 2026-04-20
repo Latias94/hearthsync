@@ -396,6 +396,10 @@ Prepare the core for a future frontend.
 - bundle character mapping now separates target-resolution mechanics and input/error validation
   under `core::bundle::character_mapping::{resolution,validation}`, leaving
   `character_mapping.rs` focused on per-resource mode dispatch
+- bundle target-account logic now separates common-account selection, source-account target
+  inference, and installation compatibility checks under
+  `core::bundle::target_accounts::{selection,common,compatibility}`, leaving
+  `target_accounts.rs` as the thin re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
