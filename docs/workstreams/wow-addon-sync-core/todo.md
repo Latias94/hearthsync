@@ -190,6 +190,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: bundle and external-package response factories now share one
     `core::app::response` collection-projection helper, reducing repeated Vec domain-to-app
     conversion code in the largest plan/apply response payloads.
+    Current cleanup: the same collection-projection helper now covers addon, addon-lock,
+    addon-index, backup, and installation response payloads too, so app response factories have one
+    idiom for domain collection projection across the current service surface.
     Current cleanup: app request contracts no longer expose public `From<app request> for domain`
     conversions. Crate-internal projection now lives on explicit `into_domain_*` helpers so the
     stable frontend boundary no longer advertises domain request types as part of its public trait

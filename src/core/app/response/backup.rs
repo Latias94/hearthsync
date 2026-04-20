@@ -8,6 +8,8 @@ use crate::core::backup::{
     RestoredBackup as DomainRestoredBackup,
 };
 
+use super::map_domain_vec;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct BackupEntryResult {
     pub backup_id: String,
@@ -30,12 +32,7 @@ impl BackupEntryResult {
             label: value.metadata.label,
             flavor: value.metadata.flavor,
             flavor_root: value.metadata.flavor_root,
-            groups: value
-                .metadata
-                .groups
-                .into_iter()
-                .map(BackupGroupValue::from_domain)
-                .collect(),
+            groups: map_domain_vec(value.metadata.groups, BackupGroupValue::from_domain),
         }
     }
 }
@@ -62,11 +59,7 @@ impl BackupMetadataResult {
             flavor: value.flavor,
             flavor_root: value.flavor_root,
             group_count,
-            groups: value
-                .groups
-                .into_iter()
-                .map(BackupGroupValue::from_domain)
-                .collect(),
+            groups: map_domain_vec(value.groups, BackupGroupValue::from_domain),
         }
     }
 }
@@ -119,11 +112,7 @@ impl BackupCatalogResult {
         Self {
             backup_dir: value.backup_dir,
             entry_count,
-            entries: value
-                .entries
-                .into_iter()
-                .map(BackupEntryResult::from_domain)
-                .collect(),
+            entries: map_domain_vec(value.entries, BackupEntryResult::from_domain),
         }
     }
 }

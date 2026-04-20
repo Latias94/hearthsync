@@ -11,6 +11,8 @@ use crate::core::addon::{
 };
 use crate::core::app::AddonPackageMetadataValue;
 
+use super::map_domain_vec;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AddonSourceKindResult {
@@ -140,11 +142,7 @@ impl TrackedAddonPackageResult {
             installed_at: value.installed_at,
             updated_at: value.updated_at,
             addon_count,
-            addons: value
-                .addons
-                .into_iter()
-                .map(TrackedAddonResult::from_domain)
-                .collect(),
+            addons: map_domain_vec(value.addons, TrackedAddonResult::from_domain),
             metadata: value.metadata.map(AddonPackageMetadataValue::from_domain),
         }
     }
@@ -174,11 +172,10 @@ impl AddonInventoryResult {
             registry_path: value.registry_path,
             tracked_package_count,
             tracked_addon_count,
-            tracked_packages: value
-                .tracked_packages
-                .into_iter()
-                .map(TrackedAddonPackageResult::from_domain)
-                .collect(),
+            tracked_packages: map_domain_vec(
+                value.tracked_packages,
+                TrackedAddonPackageResult::from_domain,
+            ),
             untracked_addons: value.untracked_addons,
         }
     }
@@ -232,11 +229,7 @@ impl AddonSearchCatalogResult {
         Self {
             query: value.query,
             result_count,
-            results: value
-                .results
-                .into_iter()
-                .map(AddonSearchResult::from_domain)
-                .collect(),
+            results: map_domain_vec(value.results, AddonSearchResult::from_domain),
         }
     }
 }
@@ -270,11 +263,7 @@ impl InstalledAddonPackageResult {
             source_label,
             package_id: value.package_id,
             addon_count,
-            addons: value
-                .addons
-                .into_iter()
-                .map(TrackedAddonResult::from_domain)
-                .collect(),
+            addons: map_domain_vec(value.addons, TrackedAddonResult::from_domain),
             files_to_write: value.files_to_write,
             written_files: value.written_files,
             replaced_addon_count,
@@ -306,11 +295,10 @@ impl UpdatedAddonPackageResult {
             files_to_write: value.files_to_write,
             written_files: value.written_files,
             updated_package_count,
-            updated_packages: value
-                .updated_packages
-                .into_iter()
-                .map(TrackedAddonPackageResult::from_domain)
-                .collect(),
+            updated_packages: map_domain_vec(
+                value.updated_packages,
+                TrackedAddonPackageResult::from_domain,
+            ),
             backup_path: value.backup_path,
         }
     }
@@ -337,11 +325,10 @@ impl RemovedAddonPackageResult {
             dry_run: value.dry_run,
             registry_path: value.registry_path,
             removed_package_count,
-            removed_packages: value
-                .removed_packages
-                .into_iter()
-                .map(TrackedAddonPackageResult::from_domain)
-                .collect(),
+            removed_packages: map_domain_vec(
+                value.removed_packages,
+                TrackedAddonPackageResult::from_domain,
+            ),
             removed_addon_count,
             removed_addons: value.removed_addons,
             registry_cleaned: value.registry_cleaned,

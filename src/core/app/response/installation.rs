@@ -7,6 +7,8 @@ use crate::core::install::{
     DetectedFlavorInstallation, InstallationHealth, ProductInstallInspection,
 };
 
+use super::map_domain_vec;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct InstallationScanResult {
     pub installation_count: usize,
@@ -16,10 +18,7 @@ pub struct InstallationScanResult {
 impl InstallationScanResult {
     pub(crate) fn from_installations(installations: Vec<DetectedFlavorInstallation>) -> Self {
         let installation_count = installations.len();
-        let installations = installations
-            .into_iter()
-            .map(ResolvedInstallationValue::from_domain)
-            .collect();
+        let installations = map_domain_vec(installations, ResolvedInstallationValue::from_domain);
 
         Self {
             installation_count,
@@ -63,11 +62,7 @@ impl InstallationInspectionResult {
         Self {
             requested_path: value.requested_path,
             product_root: value.product_root,
-            available_flavors: value
-                .available_flavors
-                .into_iter()
-                .map(WowFlavorValue::from_domain)
-                .collect(),
+            available_flavors: map_domain_vec(value.available_flavors, WowFlavorValue::from_domain),
             installation: ResolvedInstallationValue::from_domain(value.installation),
             health: InstallationHealthResult::from_domain(value.health),
         }

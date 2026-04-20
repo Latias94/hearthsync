@@ -8,6 +8,7 @@ use crate::core::addon::index::{
 };
 
 use super::addon::{AddonSourceResult, InstalledAddonPackageResult, UpdatedAddonPackageResult};
+use super::map_domain_vec;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AddonIndexPackageResult {
@@ -59,12 +60,7 @@ impl AddonIndexInspectionResult {
             name: value.index.name,
             description: value.index.description,
             package_count: value.package_count,
-            packages: value
-                .index
-                .packages
-                .into_iter()
-                .map(AddonIndexPackageResult::from_domain)
-                .collect(),
+            packages: map_domain_vec(value.index.packages, AddonIndexPackageResult::from_domain),
         }
     }
 }
@@ -101,11 +97,10 @@ impl AddonIndexUpdateResult {
         Self {
             index_path: value.index_path,
             selected_package_count,
-            selected_packages: value
-                .selected_packages
-                .into_iter()
-                .map(AddonIndexPackageResult::from_domain)
-                .collect(),
+            selected_packages: map_domain_vec(
+                value.selected_packages,
+                AddonIndexPackageResult::from_domain,
+            ),
             update: UpdatedAddonPackageResult::from_domain(value.update),
         }
     }
