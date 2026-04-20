@@ -363,6 +363,9 @@ Prepare the core for a future frontend.
   entry planning no longer owns byte-comparison and final apply-plan projection details
 - bundle planner logical apply construction now lives under `core::bundle::planner::logical`,
   leaving the planner root focused on bundle/external source entry orchestration
+- bundle planner source/entry-reader orchestration now lives under
+  `core::bundle::planner::pipeline`, so the planner root is now just a re-export shell over the
+  split planning phases
 - bundle apply task message/context policy now lives under `core::bundle::apply::task_context`,
   separating shared bundle/external-package progress wording from the filesystem execution flow
 - bundle apply filesystem execution, backup creation, and rollback handling now live under

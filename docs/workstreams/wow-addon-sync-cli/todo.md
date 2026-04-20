@@ -125,6 +125,7 @@ The current blocking sequence is:
   - Current cleanup: bundle planner internal state shapes now live in `core::bundle::planner::model`, preparing the next split between logical planning and preview finalization.
   - Current cleanup: bundle planner preview finalization now lives in `core::bundle::planner::preview`, so logical entry planning no longer owns byte-comparison and final apply-plan projection details.
   - Current cleanup: bundle planner logical apply construction now lives in `core::bundle::planner::logical`, leaving the planner root focused on bundle/external source entry orchestration.
+  - Current cleanup: bundle planner source/entry-reader orchestration now lives in `core::bundle::planner::pipeline`, so the planner root is now just a re-export shell over the split planning phases.
   - Current cleanup: bundle apply task message/context policy now lives in `core::bundle::apply::task_context`, separating shared bundle/external-package progress wording from the filesystem execution flow.
   - Current cleanup: bundle apply filesystem execution, backup creation, and rollback handling now live in `core::bundle::apply::executor`, leaving the apply root focused on task entrypoints and result projection.
   - Current cleanup: bundle apply dry-run/execute result projection now lives in `core::bundle::apply::result`, so the root apply flow no longer assembles `UnpackedBundle` inline.
