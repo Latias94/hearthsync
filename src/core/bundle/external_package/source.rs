@@ -41,6 +41,9 @@ fn collect_directory_entries(root: &Path) -> AppResult<Vec<SourceEntry>> {
 
     for entry in WalkDir::new(root) {
         let entry = entry.map_err(|error| AppError::Validation(error.to_string()))?;
+        let entry_path = entry.path().display().to_string();
+        reject_unsupported_symlink_entry("directory", &entry_path, entry.file_type().is_symlink())?;
+
         if entry.file_type().is_dir() {
             continue;
         }
@@ -77,11 +80,7 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
         let entry_name = entry.name().to_string();
-        if entry.is_symlink() {
-            return Err(AppError::Validation(format!(
-                "external package zip entry uses unsupported symlink metadata: {entry_name}"
-            )));
-        }
+        reject_unsupported_symlink_entry("zip", &entry_name, entry.is_symlink())?;
 
         if entry.is_dir() {
             continue;
@@ -138,4 +137,41 @@ fn should_ignore_source_segments(segments: &[String]) -> bool {
     segments
         .iter()
         .any(|segment| segment.eq_ignore_ascii_case("__MACOSX"))
+}
+
+fn reject_unsupported_symlink_entry(
+    source_kind: &str,
+    entry_path: &str,
+    is_symlink: bool,
+) -> AppResult<()> {
+    if is_symlink {
+        return Err(AppError::Validation(format!(
+            "external package {source_kind} entry uses unsupported symlink metadata: {entry_path}"
+        )));
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reject_unsupported_symlink_entry;
+
+    #[test]
+    fn reject_unsupported_symlink_entry_reports_directory_sources() {
+        let error =
+            reject_unsupported_symlink_entry("directory", "AuthorUI/Fonts/FRIZQT__.ttf", true)
+                .expect_err("directory symlink should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("external package directory entry"));
+        assert!(message.contains("unsupported symlink metadata"));
+        assert!(message.contains("AuthorUI/Fonts/FRIZQT__.ttf"));
+    }
+
+    #[test]
+    fn reject_unsupported_symlink_entry_allows_regular_sources() {
+        reject_unsupported_symlink_entry("directory", "AuthorUI/WTF/Config.wtf", false)
+            .expect("regular directory entry should pass");
+    }
 }
