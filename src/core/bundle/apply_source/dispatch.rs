@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::super::*;
+use super::super::apply_model::PreparedApplySource;
 use super::bundle_archive::{
     bundle_manifest_from_archive, logical_entry_names_from_bundle_archive,
     materialize_bundle_archive_entry, open_bundle_archive_reader, read_bundle_archive_entry_bytes,
@@ -10,6 +10,8 @@ use super::external_package::{
     open_external_package_reader, read_external_package_entry_bytes,
 };
 use super::reader::ApplySourceReader;
+use crate::core::error::{AppError, AppResult};
+use crate::core::manifest::BundleManifest;
 
 impl PreparedApplySource {
     pub(in crate::core::bundle) fn bundle_manifest(&self) -> AppResult<BundleManifest> {

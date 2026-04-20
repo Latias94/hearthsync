@@ -1,10 +1,22 @@
 use std::path::{Path, PathBuf};
 
-use super::super::*;
+use super::super::apply_model::{
+    PlannedEntry, PreparedApplyOperation, PreparedApplySource, PreparedBundleApply,
+    PreviewOperation,
+};
+use super::super::apply_policy::{apply_action_order, apply_group_order};
+use super::super::execution::file_contents_equal_to_bytes;
+use super::super::types::{
+    ApplyAction, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyPlan, GroupPolicy,
+};
 use super::model::{
     LogicalBundleApply, LogicalEntryDisposition, PendingExistingTargetPreviewEntry,
     PendingPreviewApply, ResolvedPreviewApply,
 };
+use crate::core::error::AppResult;
+use crate::core::install::LocalWowAccount;
+use crate::core::lua_patch::{CharacterMapping, LuaRewriteOptions, preview_lua_bytes_rewrite};
+use crate::core::manifest::{BundleManifest, ResourceApplyPolicy};
 
 pub(super) fn build_pending_preview_apply(
     logical_apply: LogicalBundleApply,

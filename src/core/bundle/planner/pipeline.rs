@@ -1,9 +1,13 @@
 use std::path::Path;
 
-use super::super::*;
+use super::super::apply_model::{PreparedApplySource, PreparedBundleApply};
+use super::super::types::{BundleApplyMappings, BundleApplyPlan};
 use super::logical::plan_apply_from_entries;
 use super::model::ResolvedPreviewApply;
 use super::preview::{build_pending_preview_apply, finalize_pending_preview_apply};
+use crate::core::error::AppResult;
+use crate::core::install::DetectedFlavorInstallation;
+use crate::core::manifest::BundleManifest;
 
 pub fn plan_bundle_apply(
     bundle_path: &Path,

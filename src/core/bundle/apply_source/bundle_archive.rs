@@ -7,8 +7,9 @@ use super::super::archive_read::{
     collect_bundle_entry_names, extract_archive_entry_to_path,
     read_bundle_entry_bytes_from_archive, read_manifest_from_archive,
 };
-use super::super::*;
 use super::reader::ApplySourceReader;
+use crate::core::error::{AppError, AppResult};
+use crate::core::manifest::BundleManifest;
 
 pub(in crate::core::bundle::apply_source) fn bundle_manifest_from_archive(
     bundle_path: &Path,

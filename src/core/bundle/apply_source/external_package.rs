@@ -7,8 +7,10 @@ use zip::ZipArchive;
 use super::super::archive_read::{
     extract_archive_entry_to_path, read_bundle_entry_bytes_from_archive,
 };
-use super::super::*;
+use super::super::external_package::ExternalPackageSourceKind;
+use super::super::shared::resolve_zip_style_path;
 use super::reader::ApplySourceReader;
+use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle::apply_source) fn logical_entry_names_from_external_package(
     entry_source_map: &BTreeMap<String, String>,

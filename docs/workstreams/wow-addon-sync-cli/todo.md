@@ -151,6 +151,8 @@ The current blocking sequence is:
   - Current cleanup: the first low-risk leaf bundle modules (`entry_layout`, `wtf_scope`, `character_mapping_match`, `zip_write`) now use explicit imports instead of `super::*`, starting the staged retirement of `core::bundle::imports`.
   - Current cleanup: bundle addon-lock/apply/character-mapping roots plus their key helper modules now also use explicit imports instead of `super::*`, and `core::bundle::imports` has been reduced accordingly by removing no-longer-needed archive/apply/backup transitional re-exports.
   - Current cleanup: bundle entry-planning and target-account selection helpers now also use explicit imports instead of `super::*`, and `core::bundle::imports` has shrunk further by dropping unused path and character-mode transitional items.
+  - Current cleanup: bundle apply-source, planner, and execution internals now also use explicit owner-module imports instead of `super::*`, and `core::bundle::imports` has been reduced again by removing the no-longer-needed planning, apply-policy, rollback, rewrite-preview, and path-resolution transitional items.
+  - Current cleanup: there are currently no remaining `use super::*;` or `use super::super::*;` call sites under `src/core/bundle`; the next retirement step is converting the remaining explicit `super::super::{...}` root-scope imports to direct owner-module imports.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

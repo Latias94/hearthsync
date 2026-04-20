@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use super::super::*;
+use crate::core::backup::restore_backup;
+use crate::core::error::{AppError, AppResult};
+use crate::core::install::DetectedFlavorInstallation;
 
 pub(in crate::core::bundle) fn rollback_or_report_apply_error<T>(
     error: AppError,

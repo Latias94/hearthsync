@@ -3,8 +3,12 @@ use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 
-use super::super::*;
-use crate::core::lua_patch::rewrite_lua_file;
+use super::super::apply_model::{PreparedApplyOperation, PreparedApplySource};
+use super::super::apply_source::ApplySourceReader;
+use super::super::types::ApplyAction;
+use crate::core::error::AppResult;
+use crate::core::lua_patch::{LuaRewriteOptions, rewrite_lua_file};
+use crate::core::manifest::BundleManifest;
 
 pub(in crate::core::bundle) fn execute_apply_operations<TBeforeOperation>(
     source: &PreparedApplySource,

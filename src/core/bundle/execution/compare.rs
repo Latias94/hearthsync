@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
 
-use super::super::*;
+use crate::core::error::AppResult;
 
 pub(in crate::core::bundle) fn file_contents_equal_to_bytes(
     bytes: &[u8],
