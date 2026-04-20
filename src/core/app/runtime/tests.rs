@@ -3,12 +3,13 @@ use std::path::PathBuf;
 
 use tempfile::tempdir;
 
-use super::*;
 use crate::core::app::{
-    AddonProviderRetryPolicyValue, ExternalHelperAvailabilityValue,
+    AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
+    AppRuntime, AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue,
     ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HelperStrategyValue,
     HostPlatformValue,
 };
+use crate::core::addon::DefaultAddonProvider;
 
 #[test]
 fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {

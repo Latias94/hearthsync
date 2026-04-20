@@ -6,14 +6,16 @@ use tempfile::tempdir;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-use super::*;
 use crate::core::addon::{
     AddonProvider, AddonSearchRequest as ProviderAddonSearchRequest, AddonSearchResult,
     AddonSourceRef, InstallAddonRequest, MaterializeSourceInputRequest,
     MaterializeSourceRefRequest, MaterializedAddonSource, install_addon,
 };
-use crate::core::app::{AppRuntime, ResolvedInstallationValue};
-use crate::core::error::AppError;
+use crate::core::app::{
+    AddonIndexService, AddonIndexUpdateResult, AppRuntime, InspectAddonIndexRequest,
+    InstallAddonIndexAppRequest, ResolvedInstallationValue, UpdateAddonIndexAppRequest,
+};
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 

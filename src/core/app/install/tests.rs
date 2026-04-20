@@ -3,9 +3,9 @@ use std::path::Path;
 
 use tempfile::tempdir;
 
-use super::*;
 use crate::core::app::{
-    AddonService, HealthStatusValue, HostPlatformValue, ListAddonsRequest, WowFlavorValue,
+    AddonService, AppRuntime, HealthStatusValue, HostPlatformValue, InspectInstallationRequest,
+    InstallationService, ListAddonsRequest, ResolveInstallationRequest, WowFlavorValue,
 };
 
 #[test]

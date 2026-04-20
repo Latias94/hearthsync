@@ -1,6 +1,12 @@
 use std::path::PathBuf;
 
-use super::*;
+use crate::core::app::{
+    AddonPackageMetadataValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
+    BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
+    BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue,
+    BundlePackageValue, BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue,
+    HealthStatusValue, HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue,
+};
 use crate::core::manifest::ResourceApplyPolicy;
 
 #[test]

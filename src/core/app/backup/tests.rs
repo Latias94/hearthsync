@@ -4,8 +4,10 @@ use std::path::Path;
 
 use tempfile::tempdir;
 
-use super::*;
-use crate::core::app::{AppRuntime, ResolvedInstallationValue};
+use crate::core::app::{
+    AppRuntime, BackupService, CreateBackupAppRequest, ListBackupsRequest,
+    ResolvedInstallationValue, RestoreBackupAppRequest,
+};
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
 

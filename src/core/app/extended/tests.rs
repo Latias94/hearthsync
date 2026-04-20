@@ -3,10 +3,10 @@ use std::path::Path;
 
 use tempfile::tempdir;
 
-use super::*;
 use crate::core::app::{
     AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-    AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    AppRuntime, AppRuntimeCapabilitiesValue, ExtendedAppServices,
+    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
     ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
     InspectInstallationRequest, ResolveInstallationRequest, WowFlavorValue,
 };

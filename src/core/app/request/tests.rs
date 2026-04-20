@@ -1,13 +1,19 @@
 use std::path::PathBuf;
 
-use super::*;
 use crate::core::addon::InstallAddonRequest as DomainInstallAddonRequest;
 use crate::core::app::{
-    AddonPackageMetadataValue, AppRuntime, BackupGroupValue, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
-    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
-    BundleSourceValue, CharacterMappingModeValue, HostPlatformValue, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, WowFlavorValue,
+    AddonPackageMetadataValue, AppRuntime, ApplyAddonLockAppRequest,
+    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyExternalPackageAppRequest,
+    BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
+    BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
+    BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
+    CharacterMappingModeValue, CreateBackupAppRequest,
+    CreateExternalPackageBundleAppRequest, HostPlatformValue, InstallAddonAppRequest,
+    InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest,
+    PackBundleAppRequest, PlanAddonLockSyncRequest, PlanBundleApplyRequest,
+    PlanExternalPackageApplyAppRequest, RemoveAddonAppRequest, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, RestoreBackupAppRequest, UpdateAddonAppRequest,
+    UpdateAddonIndexAppRequest, WowFlavorValue,
 };
 use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
