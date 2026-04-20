@@ -280,5 +280,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   of treating symlink targets as portable regular-file payloads
 - archive path validation now rejects Windows-reserved segment characters, device names, and
   trailing-dot / trailing-space segments so cross-platform imports fail early
+- backup restore archive preparation now rejects symlink entries up front and reuses the same
+  portable archive-segment validation as bundle/external-package ingest, so restore-time path
+  safety no longer trails import-time path safety
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

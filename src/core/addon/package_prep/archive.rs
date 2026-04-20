@@ -1,10 +1,11 @@
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use zip::ZipArchive;
 
 use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
 use crate::core::archive_io::copy_reader_to_path;
+use crate::core::archive_path::{join_segments, safe_zip_segments};
 use crate::core::error::{AppError, AppResult};
 
 use super::PreparedAddonDirectory;
@@ -103,31 +104,4 @@ fn match_addon_root(segments: &[&str], roots: &[Vec<String>]) -> Option<usize> {
                 .zip(segments.iter())
                 .all(|(left, right)| left.as_str() == *right)
     })
-}
-
-fn safe_zip_segments(entry_name: &str) -> AppResult<Vec<&str>> {
-    let mut segments = Vec::new();
-    for segment in entry_name.split('/') {
-        if segment.is_empty() {
-            continue;
-        }
-
-        if segment == "." || segment == ".." || segment.contains('\\') {
-            return Err(AppError::Validation(format!(
-                "unsafe archive path: `{entry_name}`"
-            )));
-        }
-
-        segments.push(segment);
-    }
-
-    Ok(segments)
-}
-
-fn join_segments(root: &Path, segments: &[&str]) -> PathBuf {
-    let mut path = root.to_path_buf();
-    for segment in segments {
-        path.push(segment);
-    }
-    path
 }

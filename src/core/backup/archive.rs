@@ -13,6 +13,7 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
+use crate::core::archive_path::{join_segments, safe_zip_segments};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
 use crate::core::task::{
@@ -256,11 +257,11 @@ fn prepare_restore_archive(
 
     for archive_index in 0..archive.len() {
         let entry = archive.by_index(archive_index)?;
+        let entry_name = entry.name().to_string();
+        reject_unsupported_restore_symlink_entry(&entry_name, entry.is_symlink())?;
         if entry.is_dir() {
             continue;
         }
-
-        let entry_name = entry.name().to_string();
         if entry_name == "backup.toml" {
             continue;
         }
@@ -641,31 +642,14 @@ fn deduped_groups_in_order(groups: &[BackupGroup]) -> Vec<BackupGroup> {
     unique
 }
 
-fn safe_zip_segments(entry_name: &str) -> AppResult<Vec<&str>> {
-    let mut segments = Vec::new();
-    for segment in entry_name.split('/') {
-        if segment.is_empty() {
-            continue;
-        }
-
-        if segment == "." || segment == ".." || segment.contains('\\') {
-            return Err(AppError::Validation(format!(
-                "unsafe backup path: `{entry_name}`"
-            )));
-        }
-
-        segments.push(segment);
+fn reject_unsupported_restore_symlink_entry(entry_name: &str, is_symlink: bool) -> AppResult<()> {
+    if is_symlink {
+        return Err(AppError::Validation(format!(
+            "backup archive entry uses unsupported symlink metadata: {entry_name}"
+        )));
     }
 
-    Ok(segments)
-}
-
-fn join_segments(root: &Path, segments: &[&str]) -> PathBuf {
-    let mut path = root.to_path_buf();
-    for segment in segments {
-        path.push(segment);
-    }
-    path
+    Ok(())
 }
 
 fn restore_execution_step_message(step: RestoreExecutionStep<'_>) -> Option<String> {

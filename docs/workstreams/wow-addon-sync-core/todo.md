@@ -303,6 +303,9 @@ enough that these rules live in one place.
   Current progress: archive path validation now also rejects Windows-reserved segment characters,
   device names, and trailing-dot / trailing-space segments so portable bundles and author-package
   zips fail early instead of depending on target filesystem quirks.
+  Current progress: backup restore archive preparation now rejects symlink entries before any
+  transactional restore work begins and reuses the same portable archive-segment validation as
+  bundle/external-package ingest, so restore safety no longer lags behind import safety.
 
 Exit criteria:
 

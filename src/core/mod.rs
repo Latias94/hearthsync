@@ -2,6 +2,7 @@ pub mod addon;
 mod addon_layout;
 pub mod app;
 mod archive_io;
+mod archive_path;
 pub mod backup;
 pub mod bundle;
 pub mod error;

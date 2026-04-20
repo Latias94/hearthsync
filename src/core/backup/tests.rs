@@ -397,7 +397,128 @@ fn restore_backup_rolls_back_to_pre_restore_state_when_apply_fails() {
     );
 }
 
+#[test]
+fn restore_backup_rejects_symlink_entries_without_touching_target() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), WowFlavor::Retail);
+    let archive_path = temp.path().join("symlink-backup.zip");
+
+    fs::create_dir_all(installation.addon_dir.join("WeakAuras")).expect("addon dir");
+    fs::write(
+        installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc"),
+        "before-restore",
+    )
+    .expect("write addon");
+
+    write_test_backup_archive_with_entries(
+        &archive_path,
+        BackupMetadata {
+            schema_version: 1,
+            created_at: "2026-04-20T12:00:00Z".to_string(),
+            label: Some("symlink".to_string()),
+            flavor: installation.flavor.as_str().to_string(),
+            flavor_root: installation.flavor_root.clone(),
+            groups: vec![BackupGroup::Addons],
+        },
+        &[TestBackupArchiveEntry::Symlink {
+            name: "addons/WeakAuras/WeakAuras.toc",
+            target: "../Elsewhere/WeakAuras.toc",
+        }],
+    );
+
+    let error = restore_backup(&archive_path, &installation).expect_err("symlink should fail");
+    let message = error.to_string();
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains("addons/WeakAuras/WeakAuras.toc"));
+    assert_eq!(
+        fs::read_to_string(
+            installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("WeakAuras.toc")
+        )
+        .expect("addon toc"),
+        "before-restore"
+    );
+}
+
+#[test]
+fn restore_backup_rejects_non_portable_archive_paths() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), WowFlavor::Retail);
+
+    fs::create_dir_all(installation.addon_dir.join("WeakAuras")).expect("addon dir");
+    fs::write(
+        installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc"),
+        "before-restore",
+    )
+    .expect("write addon");
+
+    for (archive_name, archive_file_name) in [
+        (
+            "addons//WeakAuras/WeakAuras.toc",
+            "backup-invalid-empty-segment.zip",
+        ),
+        (
+            "addons/Weak:Auras/WeakAuras.toc",
+            "backup-invalid-reserved-char.zip",
+        ),
+        ("addons/CON/WeakAuras.toc", "backup-invalid-device-name.zip"),
+    ] {
+        let archive_path = temp.path().join(archive_file_name);
+        write_test_backup_archive_with_entries(
+            &archive_path,
+            BackupMetadata {
+                schema_version: 1,
+                created_at: "2026-04-20T12:00:00Z".to_string(),
+                label: Some("unsafe-path".to_string()),
+                flavor: installation.flavor.as_str().to_string(),
+                flavor_root: installation.flavor_root.clone(),
+                groups: vec![BackupGroup::Addons],
+            },
+            &[TestBackupArchiveEntry::File {
+                name: archive_name,
+                content: "## Interface: 110000",
+            }],
+        );
+
+        let error = restore_backup(&archive_path, &installation)
+            .expect_err("non-portable archive path should fail");
+        assert!(matches!(error, crate::core::error::AppError::Validation(_)));
+        assert!(error.to_string().contains("unsafe archive path"));
+        assert_eq!(
+            fs::read_to_string(
+                installation
+                    .addon_dir
+                    .join("WeakAuras")
+                    .join("WeakAuras.toc")
+            )
+            .expect("addon toc"),
+            "before-restore"
+        );
+    }
+}
+
+enum TestBackupArchiveEntry<'a> {
+    File { name: &'a str, content: &'a str },
+    Symlink { name: &'a str, target: &'a str },
+}
+
 fn write_test_backup_archive(path: &Path, metadata: BackupMetadata) {
+    write_test_backup_archive_with_entries(path, metadata, &[]);
+}
+
+fn write_test_backup_archive_with_entries(
+    path: &Path,
+    metadata: BackupMetadata,
+    entries: &[TestBackupArchiveEntry<'_>],
+) {
     let file = File::create(path).expect("archive file");
     let mut zip = ZipWriter::new(file);
     zip.start_file("backup.toml", SimpleFileOptions::default())
@@ -408,6 +529,20 @@ fn write_test_backup_archive(path: &Path, metadata: BackupMetadata) {
             .as_bytes(),
     )
     .expect("write backup metadata");
+    for entry in entries {
+        match entry {
+            TestBackupArchiveEntry::File { name, content } => {
+                zip.start_file(*name, SimpleFileOptions::default())
+                    .expect("start backup entry");
+                zip.write_all(content.as_bytes())
+                    .expect("write backup entry");
+            }
+            TestBackupArchiveEntry::Symlink { name, target } => {
+                zip.add_symlink(*name, *target, SimpleFileOptions::default())
+                    .expect("add backup symlink entry");
+            }
+        }
+    }
     zip.finish().expect("finish archive");
 }
 
