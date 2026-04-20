@@ -566,6 +566,7 @@ fn prepare_package_from_source_input_can_use_fake_provider() {
         &FakeProvider,
         "fake:bundle",
         Some(WowFlavor::Retail),
+        HostPlatform::Windows,
         &cancellation,
     )
     .expect("prepare package");
@@ -665,6 +666,13 @@ fn install_addon_task_forwards_cancellation_into_provider_prepare() {
 }
 
 fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {
+    create_fixture_installation_for_platform(root, HostPlatform::Windows)
+}
+
+fn create_fixture_installation_for_platform(
+    root: &Path,
+    platform: HostPlatform,
+) -> DetectedFlavorInstallation {
     let product_root = root.join("World of Warcraft");
     let flavor_root = product_root.join("_retail_");
     let interface_dir = flavor_root.join("Interface");
@@ -677,7 +685,7 @@ fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {
     fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
     DetectedFlavorInstallation {
-        platform: HostPlatform::Windows,
+        platform,
         product_root,
         flavor_root,
         flavor: WowFlavor::Retail,
@@ -733,4 +741,42 @@ fn create_addon_archive_with_symlink_entry(path: &Path, name: &str, target: &str
     zip.add_symlink(name, target, SimpleFileOptions::default())
         .expect("add symlink entry");
     zip.finish().expect("finish zip");
+}
+
+#[test]
+fn install_addon_from_local_archive_rejects_case_insensitive_addon_root_collisions_on_windows() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation_for_platform(temp.path(), HostPlatform::Windows);
+    let archive_path = temp.path().join("collision-pack.zip");
+
+    create_addon_archive(
+        &archive_path,
+        &[
+            (
+                "WeakAuras/WeakAuras.toc",
+                "## Interface: 110000\n## Title: WeakAuras\n",
+            ),
+            (
+                "weakauras/weakauras.toc",
+                "## Interface: 110000\n## Title: WeakAuras Lower\n",
+            ),
+        ],
+    );
+
+    let error = install_addon(InstallAddonRequest {
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect_err("case-insensitive addon roots should fail");
+
+    let message = error.to_string();
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(message.contains("case-insensitive addon directory collisions"));
+    assert!(message.contains("WeakAuras"));
+    assert!(message.contains("weakauras"));
+    assert!(!installation.addon_dir.join("WeakAuras").exists());
 }

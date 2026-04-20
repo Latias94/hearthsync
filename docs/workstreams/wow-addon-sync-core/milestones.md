@@ -288,6 +288,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon local-archive package preparation now also rejects zip symlink entries, so addon
   install/update flows share the same archive-metadata safety floor as backup restore and
   external-package ingest
+- addon local-archive preparation now also validates staged addon-directory and file target
+  collisions using the selected target platform's case-sensitivity rules, so Windows/default-macOS
+  installs fail fast on case-only archive conflicts instead of depending on host filesystem behavior
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
 - bundle archive inspect/apply/addon-lock extraction now also reject symlink entries up front, so

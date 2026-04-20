@@ -315,6 +315,10 @@ enough that these rules live in one place.
   Current progress: addon local-archive package preparation now also rejects zip symlink entries,
   so first-party addon install/update flows share the same archive-metadata safety floor as backup
   restore and external-package ingest.
+  Current progress: addon local-archive preparation now also validates staged addon-directory and
+  file target collisions using the selected target platform's case-sensitivity rules, so
+  Windows/default-macOS installs fail fast on case-only archive conflicts instead of depending on
+  host filesystem behavior during extraction.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.

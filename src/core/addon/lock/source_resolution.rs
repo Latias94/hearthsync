@@ -125,17 +125,21 @@ pub(super) fn prepare_expected_lock_package_with_provider<P>(
     expected: &AddonLockPackage,
     source_override_path: Option<&Path>,
     target_flavor: crate::core::install::WowFlavor,
+    target_platform: crate::core::install::HostPlatform,
     cancellation: &dyn crate::core::task::CancellationToken,
 ) -> AppResult<crate::core::addon::PreparedAddonPackage>
 where
     P: crate::core::addon::AddonProvider + ?Sized,
 {
     match source_override_path {
-        Some(path) => prepare_package_from_archive_with_source(expected.source.clone(), path),
+        Some(path) => {
+            prepare_package_from_archive_with_source(expected.source.clone(), path, target_platform)
+        }
         None => prepare_package_from_source_ref_with_provider(
             provider,
             &expected.source,
             Some(target_flavor),
+            target_platform,
             cancellation,
         ),
     }

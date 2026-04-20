@@ -11,7 +11,7 @@ use super::provider::{
 };
 use super::{AddonSourceRef, PreparedAddonDirectory, PreparedAddonPackage, TrackedAddon};
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::WowFlavor;
+use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::CancellationToken;
 
 use self::archive::extract_archive_addons;
@@ -22,6 +22,7 @@ pub(crate) fn prepare_package_from_source_input_with_provider<P>(
     provider: &P,
     source: &str,
     target_flavor: Option<WowFlavor>,
+    target_platform: HostPlatform,
     cancellation: &dyn CancellationToken,
 ) -> AppResult<PreparedAddonPackage>
 where
@@ -39,6 +40,7 @@ where
     prepare_package_from_archive(
         materialized.source_ref,
         &materialized.archive_path,
+        target_platform,
         stage_dir,
     )
 }
@@ -47,6 +49,7 @@ pub(crate) fn prepare_package_from_source_ref_with_provider<P>(
     provider: &P,
     source: &AddonSourceRef,
     target_flavor: Option<WowFlavor>,
+    target_platform: HostPlatform,
     cancellation: &dyn CancellationToken,
 ) -> AppResult<PreparedAddonPackage>
 where
@@ -64,6 +67,7 @@ where
     prepare_package_from_archive(
         materialized.source_ref,
         &materialized.archive_path,
+        target_platform,
         stage_dir,
     )
 }
@@ -71,17 +75,19 @@ where
 pub(crate) fn prepare_package_from_archive_with_source(
     source: AddonSourceRef,
     archive_path: &Path,
+    target_platform: HostPlatform,
 ) -> AppResult<PreparedAddonPackage> {
     let stage_dir = tempdir()?;
-    prepare_package_from_archive(source, archive_path, stage_dir)
+    prepare_package_from_archive(source, archive_path, target_platform, stage_dir)
 }
 
 fn prepare_package_from_archive(
     source: AddonSourceRef,
     archive_path: &Path,
+    target_platform: HostPlatform,
     stage_dir: TempDir,
 ) -> AppResult<PreparedAddonPackage> {
-    let addons = extract_archive_addons(archive_path, stage_dir.path())?;
+    let addons = extract_archive_addons(archive_path, stage_dir.path(), target_platform)?;
     if addons.is_empty() {
         return Err(AppError::Validation(
             "archive does not contain any detectable addon directories".to_string(),

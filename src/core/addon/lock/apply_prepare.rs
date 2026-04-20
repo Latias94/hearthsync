@@ -55,6 +55,7 @@ where
                         .get(&action.action.comparison_key)
                         .map(PathBuf::as_path),
                     installation.flavor,
+                    installation.platform,
                     cancellation,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);
@@ -74,6 +75,7 @@ where
                         .get(&action.action.comparison_key)
                         .map(PathBuf::as_path),
                     installation.flavor,
+                    installation.platform,
                     cancellation,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);

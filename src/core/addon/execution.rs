@@ -351,6 +351,7 @@ where
         provider,
         &request.source,
         Some(request.installation.flavor),
+        request.installation.platform,
         cancellation,
     )?;
     prepare_install_prepared_addon(InstallPreparedAddonRequest {
@@ -502,6 +503,7 @@ where
             provider,
             &package.source,
             Some(request.installation.flavor),
+            request.installation.platform,
             cancellation,
         )?);
     }

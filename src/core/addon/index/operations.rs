@@ -278,6 +278,7 @@ where
         provider,
         &resolved_source,
         Some(request.installation.flavor),
+        request.installation.platform,
         cancellation,
     )?;
     let install_plan = prepare_install_prepared_addon(InstallPreparedAddonRequest {
@@ -331,6 +332,7 @@ where
             provider,
             &resolved_source,
             Some(request.installation.flavor),
+            request.installation.platform,
             cancellation,
         )?;
         prepared.metadata = Some(metadata_from_index_package(&index, package));
