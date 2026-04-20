@@ -8,15 +8,15 @@ use super::super::archive_read::{
     extract_archive_entry_to_path, read_bundle_entry_bytes_from_archive,
 };
 use super::super::*;
-use super::ApplySourceReader;
+use super::reader::ApplySourceReader;
 
-pub(super) fn logical_entry_names_from_external_package(
+pub(in crate::core::bundle::apply_source) fn logical_entry_names_from_external_package(
     entry_source_map: &BTreeMap<String, String>,
 ) -> AppResult<Vec<String>> {
     Ok(entry_source_map.keys().cloned().collect())
 }
 
-pub(super) fn open_external_package_reader(
+pub(in crate::core::bundle::apply_source) fn open_external_package_reader(
     source_path: &Path,
     source_kind: ExternalPackageSourceKind,
 ) -> AppResult<ApplySourceReader> {
@@ -31,7 +31,7 @@ pub(super) fn open_external_package_reader(
     }
 }
 
-pub(super) fn read_external_package_entry_bytes(
+pub(in crate::core::bundle::apply_source) fn read_external_package_entry_bytes(
     source_path: &Path,
     source_kind: ExternalPackageSourceKind,
     entry_source_map: &BTreeMap<String, String>,
@@ -56,7 +56,7 @@ pub(super) fn read_external_package_entry_bytes(
     }
 }
 
-pub(super) fn materialize_external_package_entry(
+pub(in crate::core::bundle::apply_source) fn materialize_external_package_entry(
     source_path: &Path,
     source_kind: ExternalPackageSourceKind,
     entry_source_map: &BTreeMap<String, String>,

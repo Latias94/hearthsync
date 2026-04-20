@@ -8,26 +8,30 @@ use super::super::archive_read::{
     read_bundle_entry_bytes_from_archive, read_manifest_from_archive,
 };
 use super::super::*;
-use super::ApplySourceReader;
+use super::reader::ApplySourceReader;
 
-pub(super) fn bundle_manifest_from_archive(bundle_path: &Path) -> AppResult<BundleManifest> {
+pub(in crate::core::bundle::apply_source) fn bundle_manifest_from_archive(
+    bundle_path: &Path,
+) -> AppResult<BundleManifest> {
     let file = File::open(bundle_path)?;
     let mut archive = ZipArchive::new(file)?;
     read_manifest_from_archive(&mut archive)
 }
 
-pub(super) fn logical_entry_names_from_bundle_archive(
+pub(in crate::core::bundle::apply_source) fn logical_entry_names_from_bundle_archive(
     bundle_path: &Path,
 ) -> AppResult<Vec<String>> {
     collect_bundle_entry_names(bundle_path)
 }
 
-pub(super) fn open_bundle_archive_reader(bundle_path: &Path) -> AppResult<ApplySourceReader> {
+pub(in crate::core::bundle::apply_source) fn open_bundle_archive_reader(
+    bundle_path: &Path,
+) -> AppResult<ApplySourceReader> {
     let file = File::open(bundle_path)?;
     Ok(ApplySourceReader::BundleArchive(ZipArchive::new(file)?))
 }
 
-pub(super) fn read_bundle_archive_entry_bytes(
+pub(in crate::core::bundle::apply_source) fn read_bundle_archive_entry_bytes(
     reader: &mut ApplySourceReader,
     logical_name: &str,
 ) -> AppResult<Vec<u8>> {
@@ -35,7 +39,7 @@ pub(super) fn read_bundle_archive_entry_bytes(
     read_bundle_entry_bytes_from_archive(archive, logical_name)
 }
 
-pub(super) fn materialize_bundle_archive_entry(
+pub(in crate::core::bundle::apply_source) fn materialize_bundle_archive_entry(
     reader: &mut ApplySourceReader,
     logical_name: &str,
     destination: &Path,

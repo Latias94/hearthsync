@@ -425,6 +425,9 @@ Prepare the core for a future frontend.
 - bundle packing now separates archive write orchestration and resource-specific zip
   materialization under `core::bundle::packing::{pack,resources}`, leaving `packing.rs` as the
   thin re-export shell beside output and inspect helpers
+- bundle apply-source dispatch now separates cross-source reader state and prepared-source method
+  dispatch under `core::bundle::apply_source::{reader,dispatch}`, leaving `apply_source.rs` as
+  the thin shell beside bundle-archive and external-package source adapters
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
