@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::super::map_owned_vec;
 use super::{RuntimeDefaultableRequest, apply_backup_output_default};
 use crate::core::addon::lock::{
     AddonLockApplyRequest as DomainAddonLockApplyRequest,
@@ -98,11 +99,10 @@ impl ApplyAddonLockAppRequest {
             lock_path: request.lock_path,
             backup_output_path: request.backup_output_path,
             replace_existing: request.replace_existing,
-            source_overrides: request
-                .source_overrides
-                .into_iter()
-                .map(AddonLockSourceOverrideRequest::into_domain_override)
-                .collect(),
+            source_overrides: map_owned_vec(
+                request.source_overrides,
+                AddonLockSourceOverrideRequest::into_domain_override,
+            ),
         })
     }
 }

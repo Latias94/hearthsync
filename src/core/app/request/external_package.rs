@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::super::map_owned_vec;
 use super::{
     RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
     apply_source_platform_default,
@@ -63,11 +64,7 @@ impl CreateExternalPackageBundleAppRequest {
             source_path: self.source_path,
             source_flavor: self.source_flavor.into_domain(),
             source_platform: self.source_platform.map(HostPlatformValue::into_domain),
-            supported_targets: self
-                .supported_targets
-                .into_iter()
-                .map(WowFlavorValue::into_domain)
-                .collect(),
+            supported_targets: map_owned_vec(self.supported_targets, WowFlavorValue::into_domain),
             output_path: self.output_path,
             package_id: self.package_id,
             package_name: self.package_name,

@@ -15,8 +15,8 @@ use crate::core::addon::lock::{
     AddonLockWriteResult as DomainAddonLockWriteResult,
 };
 
+use super::super::map_owned_vec;
 use super::addon::{AddonSourceResult, TrackedAddonResult};
-use super::map_domain_vec;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AddonLockPackageResult {
@@ -60,7 +60,7 @@ impl AddonLockPackageResult {
             updated_at: value.updated_at,
             addon_directories: value.addon_directories,
             addon_count,
-            addons: map_domain_vec(value.addons, TrackedAddonResult::from_domain),
+            addons: map_owned_vec(value.addons, TrackedAddonResult::from_domain),
         }
     }
 }
@@ -79,7 +79,7 @@ impl AddonLockInspectionResult {
             lock_path: value.lock_path,
             generated_at: value.lock.generated_at,
             package_count: value.package_count,
-            packages: map_domain_vec(value.lock.packages, AddonLockPackageResult::from_domain),
+            packages: map_owned_vec(value.lock.packages, AddonLockPackageResult::from_domain),
         }
     }
 }
@@ -172,7 +172,7 @@ impl AddonLockPackageDiffResult {
             comparison_key: value.comparison_key,
             left: AddonLockPackageSnapshotResult::from_domain(value.left),
             right: AddonLockPackageSnapshotResult::from_domain(value.right),
-            changes: map_domain_vec(value.changes, AddonLockFieldChangeResult::from_domain),
+            changes: map_owned_vec(value.changes, AddonLockFieldChangeResult::from_domain),
         }
     }
 }
@@ -209,15 +209,15 @@ impl AddonLockDiffResult {
             added_package_count,
             removed_package_count,
             changed_package_count,
-            added_packages: map_domain_vec(
+            added_packages: map_owned_vec(
                 value.added_packages,
                 AddonLockPackageSnapshotResult::from_domain,
             ),
-            removed_packages: map_domain_vec(
+            removed_packages: map_owned_vec(
                 value.removed_packages,
                 AddonLockPackageSnapshotResult::from_domain,
             ),
-            changed_packages: map_domain_vec(
+            changed_packages: map_owned_vec(
                 value.changed_packages,
                 AddonLockPackageDiffResult::from_domain,
             ),
@@ -267,7 +267,7 @@ impl AddonLockVerifyResult {
             untracked_addon_count,
             untracked_addons: value.untracked_addons,
             missing_package_count,
-            missing_addon_directories: map_domain_vec(
+            missing_addon_directories: map_owned_vec(
                 value.missing_addon_directories,
                 AddonLockPackageDirectoryIssueResult::from_domain,
             ),
@@ -344,7 +344,7 @@ impl AddonLockPlanResult {
             untracked_addon_count,
             untracked_addons: value.untracked_addons,
             action_count,
-            actions: map_domain_vec(value.actions, AddonLockSyncActionResult::from_domain),
+            actions: map_owned_vec(value.actions, AddonLockSyncActionResult::from_domain),
         }
     }
 }
@@ -383,7 +383,7 @@ impl AddonLockApplyResult {
             untracked_addon_count,
             untracked_addons: value.untracked_addons,
             action_count,
-            actions: map_domain_vec(value.actions, AddonLockSyncActionResult::from_domain),
+            actions: map_owned_vec(value.actions, AddonLockSyncActionResult::from_domain),
             verification: AddonLockVerifyResult::from_domain(value.verification),
         }
     }

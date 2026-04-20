@@ -13,6 +13,13 @@ mod stable;
 mod task_support;
 mod types;
 
+fn map_owned_vec<TInput, TOutput, FConvert>(values: Vec<TInput>, convert: FConvert) -> Vec<TOutput>
+where
+    FConvert: FnMut(TInput) -> TOutput,
+{
+    values.into_iter().map(convert).collect()
+}
+
 pub use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressEvent, TaskProgressSink, TaskRun,
 };

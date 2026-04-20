@@ -13,6 +13,7 @@ use crate::core::manifest::{
     SourceInstallation as DomainSourceInstallation,
 };
 
+use super::super::map_owned_vec;
 use super::install::{HostPlatformValue, WowFlavorValue};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -83,11 +84,7 @@ impl BundleSourceValue {
             flavor: WowFlavorValue::from_domain(value.flavor),
             platform: value.platform.map(HostPlatformValue::from_domain),
             exported_at: value.exported_at,
-            supported_targets: value
-                .supported_targets
-                .into_iter()
-                .map(WowFlavorValue::from_domain)
-                .collect(),
+            supported_targets: map_owned_vec(value.supported_targets, WowFlavorValue::from_domain),
         }
     }
 
@@ -96,11 +93,7 @@ impl BundleSourceValue {
             flavor: self.flavor.into_domain(),
             platform: self.platform.map(HostPlatformValue::into_domain),
             exported_at: self.exported_at,
-            supported_targets: self
-                .supported_targets
-                .into_iter()
-                .map(WowFlavorValue::into_domain)
-                .collect(),
+            supported_targets: map_owned_vec(self.supported_targets, WowFlavorValue::into_domain),
         }
     }
 }
@@ -149,11 +142,10 @@ impl BundleResourcesValue {
         Self {
             addons: value.addons,
             wtf_common: value.wtf_common,
-            wtf_characters: value
-                .wtf_characters
-                .into_iter()
-                .map(BundleCharacterResourceValue::from_domain)
-                .collect(),
+            wtf_characters: map_owned_vec(
+                value.wtf_characters,
+                BundleCharacterResourceValue::from_domain,
+            ),
             fonts: value.fonts,
             interface_assets: value.interface_assets,
             addon_lock: value.addon_lock,
@@ -165,11 +157,10 @@ impl BundleResourcesValue {
         DomainBundleResources {
             addons: self.addons,
             wtf_common: self.wtf_common,
-            wtf_characters: self
-                .wtf_characters
-                .into_iter()
-                .map(BundleCharacterResourceValue::into_domain)
-                .collect(),
+            wtf_characters: map_owned_vec(
+                self.wtf_characters,
+                BundleCharacterResourceValue::into_domain,
+            ),
             fonts: self.fonts,
             interface_assets: self.interface_assets,
             addon_lock: self.addon_lock,
@@ -258,11 +249,10 @@ impl BundleApplyMappingsValue {
             target_character: value.target_character,
             selected_accounts: value.selected_accounts,
             all_accounts: value.all_accounts,
-            characters: value
-                .characters
-                .into_iter()
-                .map(BundleCharacterMappingOverrideValue::from_domain)
-                .collect(),
+            characters: map_owned_vec(
+                value.characters,
+                BundleCharacterMappingOverrideValue::from_domain,
+            ),
         }
     }
 
@@ -273,11 +263,10 @@ impl BundleApplyMappingsValue {
             target_character: self.target_character,
             selected_accounts: self.selected_accounts,
             all_accounts: self.all_accounts,
-            characters: self
-                .characters
-                .into_iter()
-                .map(BundleCharacterMappingOverrideValue::into_domain)
-                .collect(),
+            characters: map_owned_vec(
+                self.characters,
+                BundleCharacterMappingOverrideValue::into_domain,
+            ),
         }
     }
 }

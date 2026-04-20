@@ -11,7 +11,7 @@ use crate::core::addon::{
 };
 use crate::core::app::AddonPackageMetadataValue;
 
-use super::map_domain_vec;
+use super::super::map_owned_vec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -142,7 +142,7 @@ impl TrackedAddonPackageResult {
             installed_at: value.installed_at,
             updated_at: value.updated_at,
             addon_count,
-            addons: map_domain_vec(value.addons, TrackedAddonResult::from_domain),
+            addons: map_owned_vec(value.addons, TrackedAddonResult::from_domain),
             metadata: value.metadata.map(AddonPackageMetadataValue::from_domain),
         }
     }
@@ -172,7 +172,7 @@ impl AddonInventoryResult {
             registry_path: value.registry_path,
             tracked_package_count,
             tracked_addon_count,
-            tracked_packages: map_domain_vec(
+            tracked_packages: map_owned_vec(
                 value.tracked_packages,
                 TrackedAddonPackageResult::from_domain,
             ),
@@ -229,7 +229,7 @@ impl AddonSearchCatalogResult {
         Self {
             query: value.query,
             result_count,
-            results: map_domain_vec(value.results, AddonSearchResult::from_domain),
+            results: map_owned_vec(value.results, AddonSearchResult::from_domain),
         }
     }
 }
@@ -263,7 +263,7 @@ impl InstalledAddonPackageResult {
             source_label,
             package_id: value.package_id,
             addon_count,
-            addons: map_domain_vec(value.addons, TrackedAddonResult::from_domain),
+            addons: map_owned_vec(value.addons, TrackedAddonResult::from_domain),
             files_to_write: value.files_to_write,
             written_files: value.written_files,
             replaced_addon_count,
@@ -295,7 +295,7 @@ impl UpdatedAddonPackageResult {
             files_to_write: value.files_to_write,
             written_files: value.written_files,
             updated_package_count,
-            updated_packages: map_domain_vec(
+            updated_packages: map_owned_vec(
                 value.updated_packages,
                 TrackedAddonPackageResult::from_domain,
             ),
@@ -325,7 +325,7 @@ impl RemovedAddonPackageResult {
             dry_run: value.dry_run,
             registry_path: value.registry_path,
             removed_package_count,
-            removed_packages: map_domain_vec(
+            removed_packages: map_owned_vec(
                 value.removed_packages,
                 TrackedAddonPackageResult::from_domain,
             ),
