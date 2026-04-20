@@ -187,6 +187,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: runtime-backed request defaults now share `core::app::request` field helpers
     plus one `RuntimeDefaultableRequest` projection trait, so backup-output, backup-dir,
     bundle-output, and source-platform defaults no longer drift across request families.
+    Current cleanup: bundle and external-package response factories now share one
+    `core::app::response` collection-projection helper, reducing repeated Vec domain-to-app
+    conversion code in the largest plan/apply response payloads.
     Current cleanup: app request contracts no longer expose public `From<app request> for domain`
     conversions. Crate-internal projection now lives on explicit `into_domain_*` helpers so the
     stable frontend boundary no longer advertises domain request types as part of its public trait

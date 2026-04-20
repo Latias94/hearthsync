@@ -19,6 +19,7 @@ use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::BundleResources;
 
 use super::addon_lock::{AddonLockApplyResult, AddonLockPlanResult};
+use super::map_domain_vec;
 
 pub type BundlePackageResult = BundlePackageValue;
 pub type BundleSourceResult = BundleSourceValue;
@@ -49,11 +50,10 @@ impl BundleResourcesResult {
             addon_count,
             wtf_common: value.wtf_common,
             wtf_character_count,
-            wtf_characters: value
-                .wtf_characters
-                .into_iter()
-                .map(BundleCharacterResourceResult::from_domain)
-                .collect(),
+            wtf_characters: map_domain_vec(
+                value.wtf_characters,
+                BundleCharacterResourceResult::from_domain,
+            ),
             fonts: value.fonts,
             interface_assets: value.interface_assets,
             interface_asset_count,
@@ -161,11 +161,7 @@ impl LocalWowAccountResult {
             account_name: value.account_name,
             account_dir: value.account_dir,
             saved_variables_dir: value.saved_variables_dir,
-            characters: value
-                .characters
-                .into_iter()
-                .map(LocalWowCharacterResult::from_domain)
-                .collect(),
+            characters: map_domain_vec(value.characters, LocalWowCharacterResult::from_domain),
         }
     }
 }
@@ -302,22 +298,16 @@ impl BundleApplyPlanResult {
         Self {
             bundle_path: value.bundle_path,
             target_flavor_root: value.target_flavor_root,
-            discovered_accounts: value
-                .discovered_accounts
-                .into_iter()
-                .map(LocalWowAccountResult::from_domain)
-                .collect(),
+            discovered_accounts: map_domain_vec(
+                value.discovered_accounts,
+                LocalWowAccountResult::from_domain,
+            ),
             selected_target_accounts: value.selected_target_accounts,
-            character_mappings: value
-                .character_mappings
-                .into_iter()
-                .map(CharacterMappingResult::from_domain)
-                .collect(),
-            operations: value
-                .operations
-                .into_iter()
-                .map(ApplyOperationResult::from_domain)
-                .collect(),
+            character_mappings: map_domain_vec(
+                value.character_mappings,
+                CharacterMappingResult::from_domain,
+            ),
+            operations: map_domain_vec(value.operations, ApplyOperationResult::from_domain),
             summary: ApplyPlanSummaryResult::from_domain(value.summary),
             helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from_domain(value.group_policies),
@@ -353,11 +343,10 @@ impl BundleApplyResult {
             backup_path: value.backup_path,
             selected_target_accounts: value.selected_target_accounts,
             plan_summary: ApplyPlanSummaryResult::from_domain(value.plan_summary),
-            character_mappings: value
-                .character_mappings
-                .into_iter()
-                .map(CharacterMappingResult::from_domain)
-                .collect(),
+            character_mappings: map_domain_vec(
+                value.character_mappings,
+                CharacterMappingResult::from_domain,
+            ),
             manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }

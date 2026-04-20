@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use super::map_domain_vec;
 use crate::core::app::{
     ApplyGroupValue, ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
     HelperStrategyValue, WtfScopeValue,
@@ -147,11 +148,10 @@ impl ExternalPackageSummaryResult {
             warning_count: value.warning_count,
             addon_warning_count: value.addon_warning_count,
             wtf_warning_count: value.wtf_warning_count,
-            warning_groups: value
-                .warning_groups
-                .into_iter()
-                .map(ExternalPackageWarningGroupResult::from_domain)
-                .collect(),
+            warning_groups: map_domain_vec(
+                value.warning_groups,
+                ExternalPackageWarningGroupResult::from_domain,
+            ),
         }
     }
 }
@@ -179,18 +179,10 @@ impl ExternalPackageAnalysisResult {
             package_id: value.package_id,
             package_name: value.package_name,
             entry_count,
-            entries: value
-                .entries
-                .into_iter()
-                .map(ExternalPackageEntryResult::from_domain)
-                .collect(),
+            entries: map_domain_vec(value.entries, ExternalPackageEntryResult::from_domain),
             resources: BundleResourcesResult::from_domain(value.resources),
             summary: ExternalPackageSummaryResult::from_domain(value.summary),
-            warnings: value
-                .warnings
-                .into_iter()
-                .map(ExternalPackageWarningResult::from_domain)
-                .collect(),
+            warnings: map_domain_vec(value.warnings, ExternalPackageWarningResult::from_domain),
         }
     }
 }
@@ -217,22 +209,16 @@ impl ExternalPackageApplyPlanResult {
         Self {
             analysis: ExternalPackageAnalysisResult::from_domain(value.analysis),
             target_flavor_root: value.target_flavor_root,
-            discovered_accounts: value
-                .discovered_accounts
-                .into_iter()
-                .map(LocalWowAccountResult::from_domain)
-                .collect(),
+            discovered_accounts: map_domain_vec(
+                value.discovered_accounts,
+                LocalWowAccountResult::from_domain,
+            ),
             selected_target_accounts: value.selected_target_accounts,
-            character_mappings: value
-                .character_mappings
-                .into_iter()
-                .map(CharacterMappingResult::from_domain)
-                .collect(),
-            operations: value
-                .operations
-                .into_iter()
-                .map(ApplyOperationResult::from_domain)
-                .collect(),
+            character_mappings: map_domain_vec(
+                value.character_mappings,
+                CharacterMappingResult::from_domain,
+            ),
+            operations: map_domain_vec(value.operations, ApplyOperationResult::from_domain),
             summary: ApplyPlanSummaryResult::from_domain(value.summary),
             helper_strategy,
             group_policies: ApplyGroupPoliciesResult::from_domain(value.group_policies),
@@ -268,11 +254,10 @@ impl ExternalPackageApplyResult {
             backup_path: value.backup_path,
             selected_target_accounts: value.selected_target_accounts,
             plan_summary: ApplyPlanSummaryResult::from_domain(value.plan_summary),
-            character_mappings: value
-                .character_mappings
-                .into_iter()
-                .map(CharacterMappingResult::from_domain)
-                .collect(),
+            character_mappings: map_domain_vec(
+                value.character_mappings,
+                CharacterMappingResult::from_domain,
+            ),
             manifest: BundleManifestResult::from_domain(value.manifest),
         }
     }
