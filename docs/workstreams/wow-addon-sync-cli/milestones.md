@@ -419,6 +419,9 @@ Prepare the core for a future frontend.
 - bundle shared helpers now separate addon-source index models, path-safety utilities, and zip
   option helpers under `core::bundle::shared::{addon_source_index,path,zip_options}`, leaving
   `shared.rs` as the thin re-export shell
+- bundle apply preparation models now separate planned-entry state, preview operations, and
+  prepared execution state under `core::bundle::apply_model::{planned,preview,prepared}`,
+  leaving `apply_model.rs` as the thin re-export shell
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
