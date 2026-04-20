@@ -288,6 +288,9 @@ enough that these rules live in one place.
   exists.
 - [ ] broaden archive-compatibility coverage for author packages and large real-world inputs
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
+  Current progress: bundle apply planning now rejects planned target-path collisions using the
+  target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two
+  archive entries differ only by case while Linux targets may still plan distinct paths.
 - [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and
   caller-working-directory assumptions
   Current progress: bundle export no longer defaults output paths or relative output references

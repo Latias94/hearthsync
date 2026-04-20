@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::super::apply_model::planned::PlannedEntry;
@@ -9,7 +10,8 @@ use super::super::target_accounts::compatibility::validate_target_compatibility;
 use super::super::target_accounts::selection::resolve_selected_target_accounts;
 use super::super::types::apply::BundleApplyMappings;
 use super::model::{LogicalBundleApply, LogicalEntryDisposition, LogicalEntryOperation};
-use crate::core::error::AppResult;
+use crate::core::archive_path::platform_path_collision_key;
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount, discover_local_accounts};
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::{BundleManifest, ResourceApplyPolicy};
@@ -38,6 +40,7 @@ pub(super) fn plan_apply_from_entries(
         apply_mappings,
         &selected_target_accounts,
     )?;
+    validate_planned_destination_collisions(&planned_entries, installation)?;
 
     build_logical_apply(
         plan_path,
@@ -48,6 +51,39 @@ pub(super) fn plan_apply_from_entries(
         character_mappings,
         planned_entries,
     )
+}
+
+fn validate_planned_destination_collisions(
+    planned_entries: &[PlannedEntry],
+    installation: &DetectedFlavorInstallation,
+) -> AppResult<()> {
+    let mut seen = BTreeMap::<String, &PlannedEntry>::new();
+
+    for entry in planned_entries {
+        let key = platform_path_collision_key(&entry.destination, installation.platform);
+        let Some(previous) = seen.insert(key, entry) else {
+            continue;
+        };
+
+        if previous.destination == entry.destination {
+            return Err(AppError::Validation(format!(
+                "bundle archive maps multiple entries onto the same target path: `{}` and `{}` -> {}",
+                previous.archive_name,
+                entry.archive_name,
+                entry.destination.display()
+            )));
+        }
+
+        return Err(AppError::Validation(format!(
+            "bundle archive contains case-insensitive target path collisions: `{}` -> {} and `{}` -> {} would map to the same path on Windows/default macOS targets",
+            previous.archive_name,
+            previous.destination.display(),
+            entry.archive_name,
+            entry.destination.display()
+        )));
+    }
+
+    Ok(())
 }
 
 fn build_logical_apply(

@@ -294,5 +294,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   first-party bundle ingestion no longer trails addon/external-package/backup archive safety
 - bundle archive entry validation now also rejects non-portable path segments during inspect/apply,
   aligning first-party bundle archives with the same portable-name floor as other archive inputs
+- bundle apply planning now rejects target-path collisions using the selected target platform's
+  case-sensitivity rules, with regression coverage for macOS rejection and Linux case-distinct
+  planning
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

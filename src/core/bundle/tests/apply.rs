@@ -8,6 +8,7 @@ use super::super::constants::MANIFEST_ENTRY;
 use super::super::planner::pipeline::{plan_apply_from_entries_with_reader, prepare_bundle_apply};
 use super::support::*;
 use crate::core::bundle::*;
+use crate::core::install::HostPlatform;
 use crate::core::manifest::{CharacterMappingMode, CharacterResource, ResourceApplyPolicy};
 use crate::core::task::{CancellationToken, NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
 
@@ -1312,6 +1313,53 @@ fn unpack_bundle_rejects_non_portable_entry_paths() {
     .expect_err("unsafe bundle entry path should fail");
 
     assert!(error.to_string().contains("unsafe archive path"));
+}
+
+#[test]
+fn plan_bundle_apply_rejects_case_insensitive_target_collisions_on_macos() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("case-collision-bundle.zip");
+    let installation =
+        create_fixture_installation_on_platform(temp.path(), false, HostPlatform::MacOs);
+    let manifest = toml::to_string_pretty(&sample_manifest()).expect("manifest");
+    create_archive_with_raw_entries(
+        &bundle_path,
+        &[
+            (MANIFEST_ENTRY, &manifest),
+            ("addons/WeakAuras/WeakAuras.toc", "toc-a"),
+            ("addons/weakauras/weakauras.toc", "toc-b"),
+        ],
+    );
+
+    let error = plan_bundle_apply(&bundle_path, &installation, &BundleApplyMappings::default())
+        .expect_err("case-insensitive target collisions should fail on macOS");
+
+    let message = error.to_string();
+    assert!(message.contains("case-insensitive target path collisions"));
+    assert!(message.contains("addons/WeakAuras/WeakAuras.toc"));
+    assert!(message.contains("addons/weakauras/weakauras.toc"));
+}
+
+#[test]
+fn plan_bundle_apply_allows_case_distinct_targets_on_linux() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("case-distinct-bundle.zip");
+    let installation =
+        create_fixture_installation_on_platform(temp.path(), false, HostPlatform::Linux);
+    let manifest = toml::to_string_pretty(&sample_manifest()).expect("manifest");
+    create_archive_with_raw_entries(
+        &bundle_path,
+        &[
+            (MANIFEST_ENTRY, &manifest),
+            ("addons/WeakAuras/WeakAuras.toc", "toc-a"),
+            ("addons/weakauras/weakauras.toc", "toc-b"),
+        ],
+    );
+
+    let plan = plan_bundle_apply(&bundle_path, &installation, &BundleApplyMappings::default())
+        .expect("case-distinct targets should be allowed on Linux");
+
+    assert_eq!(plan.summary.files_to_add, 2);
 }
 
 #[test]

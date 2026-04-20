@@ -2,6 +2,7 @@ use std::path::Component;
 use std::path::{Path, PathBuf};
 
 use crate::core::error::{AppError, AppResult};
+use crate::core::install::HostPlatform;
 
 pub(in crate::core) fn safe_zip_segments(archive_name: &str) -> AppResult<Vec<&str>> {
     let mut segments = Vec::new();
@@ -58,6 +59,14 @@ pub(in crate::core) fn join_segments(root: &Path, segments: &[&str]) -> PathBuf 
     path
 }
 
+pub(in crate::core) fn platform_path_collision_key(path: &Path, platform: HostPlatform) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    match platform {
+        HostPlatform::Windows | HostPlatform::MacOs => normalized.to_lowercase(),
+        HostPlatform::Linux | HostPlatform::Unknown => normalized,
+    }
+}
+
 pub(in crate::core) fn safe_relative_segments(
     relative_path: &Path,
     path_kind: &str,
@@ -90,7 +99,8 @@ pub(in crate::core) fn safe_relative_segments(
 mod tests {
     use std::path::Path;
 
-    use super::{safe_relative_segments, safe_zip_segments};
+    use super::{platform_path_collision_key, safe_relative_segments, safe_zip_segments};
+    use crate::core::install::HostPlatform;
 
     #[test]
     fn safe_zip_segments_rejects_empty_segments() {
@@ -185,6 +195,38 @@ mod tests {
                 "SavedVariables".to_string(),
                 "Details.lua".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn platform_path_collision_key_folds_windows_and_macos_paths() {
+        assert_eq!(
+            platform_path_collision_key(
+                Path::new("Interface/AddOns/WeakAuras"),
+                HostPlatform::Windows,
+            ),
+            "interface/addons/weakauras"
+        );
+        assert_eq!(
+            platform_path_collision_key(
+                Path::new("Interface/AddOns/WeakAuras"),
+                HostPlatform::MacOs
+            ),
+            "interface/addons/weakauras"
+        );
+    }
+
+    #[test]
+    fn platform_path_collision_key_preserves_linux_case() {
+        assert_ne!(
+            platform_path_collision_key(
+                Path::new("Interface/AddOns/WeakAuras"),
+                HostPlatform::Linux,
+            ),
+            platform_path_collision_key(
+                Path::new("interface/addons/weakauras"),
+                HostPlatform::Linux,
+            )
         );
     }
 }

@@ -13,9 +13,9 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{copy_reader_to_path, stream_file_to_zip};
-use crate::core::archive_path::{join_segments, safe_zip_segments};
+use crate::core::archive_path::{join_segments, platform_path_collision_key, safe_zip_segments};
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
+use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
     ensure_task_not_cancelled,
@@ -279,7 +279,7 @@ fn prepare_restore_archive(
                     "backup archive contains unsupported entry path: `{entry_name}`"
                 ))
             })?;
-        let collision_key = destination_collision_key(&destination, installation.platform);
+        let collision_key = platform_path_collision_key(&destination, installation.platform);
         if !destination_keys.insert(collision_key) {
             return Err(AppError::Validation(format!(
                 "backup archive restores multiple entries onto the same destination: {}",
@@ -529,14 +529,6 @@ fn backup_group_for_entry_path(entry_name: &str) -> AppResult<BackupGroup> {
         _ => Err(AppError::Validation(format!(
             "backup archive contains unsupported root entry: `{entry_name}`"
         ))),
-    }
-}
-
-fn destination_collision_key(path: &Path, platform: HostPlatform) -> String {
-    let normalized = path.to_string_lossy().replace('\\', "/");
-    match platform {
-        HostPlatform::Windows | HostPlatform::MacOs => normalized.to_ascii_lowercase(),
-        HostPlatform::Linux | HostPlatform::Unknown => normalized,
     }
 }
 
