@@ -5,7 +5,8 @@ use zip::ZipArchive;
 
 use super::super::addon_lock::{apply_bundle_addon_lock, plan_bundle_addon_lock};
 use super::super::apply::unpack_bundle;
-use super::super::packing::{inspect_bundle, pack_bundle};
+use super::super::packing::inspect::inspect_bundle;
+use super::super::packing::pack::pack_bundle;
 use super::super::types::*;
 use super::support::*;
 use crate::core::addon::lock::plan_addon_lock_sync;

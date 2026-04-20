@@ -212,6 +212,9 @@ ways that a future frontend can depend on without learning internal domain seams
     also use explicit child-module imports for addon-source archive helpers, apply-source reader
     state, entry planning, and planner pipeline functions instead of internal shell-level
     re-exports.
+    Current cleanup: `core::bundle::apply` and `core::bundle::packing` now follow the same
+    pattern internally, so non-public bundle code depends on their concrete child modules while
+    `core::bundle::mod` remains the stable public export owner.
     Current cleanup: the bundle root now re-exports its public API directly from owner modules and
     the transitional `core::bundle::exports` shell has been removed, so bundle contract changes no
     longer hide behind an extra wildcard export layer.

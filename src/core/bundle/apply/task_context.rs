@@ -4,7 +4,7 @@ use super::super::apply_model::prepared::PreparedApplyOperation;
 use super::super::types::ApplyAction;
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum BundleApplyTaskContext {
+pub(in crate::core::bundle) enum BundleApplyTaskContext {
     BundleApply,
     ExternalPackageApply,
 }

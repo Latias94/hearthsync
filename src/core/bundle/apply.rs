@@ -5,14 +5,12 @@ use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,
 };
+use task_context::BundleApplyTaskContext;
 
 mod executor;
-mod pipeline;
+pub(super) mod pipeline;
 mod result;
-mod task_context;
-
-pub(in crate::core::bundle) use pipeline::execute_prepared_apply_with_context;
-pub(crate) use task_context::BundleApplyTaskContext;
+pub(super) mod task_context;
 
 pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
     let cancellation = NeverCancel;
@@ -48,7 +46,7 @@ where
         &request.apply_mappings,
     )?;
 
-    execute_prepared_apply_with_context(
+    pipeline::execute_prepared_apply_with_context(
         prepared,
         request.installation,
         request.dry_run,

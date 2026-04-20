@@ -1,4 +1,5 @@
-use super::super::apply::{BundleApplyTaskContext, execute_prepared_apply_with_context};
+use super::super::apply::pipeline::execute_prepared_apply_with_context;
+use super::super::apply::task_context::BundleApplyTaskContext;
 use super::analyze::analyze_external_package;
 use super::plan::plan_external_package_apply;
 use super::prepare::prepare_external_package_apply;

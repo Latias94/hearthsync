@@ -4,7 +4,7 @@ use super::super::apply_model::prepared::{PreparedApplyOperation, PreparedApplyS
 use super::super::execution::apply::execute_apply_operations;
 use super::super::execution::rollback::rollback_or_report_apply_error;
 use super::super::types::BundleApplyPlan;
-use super::BundleApplyTaskContext;
+use super::task_context::BundleApplyTaskContext;
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
