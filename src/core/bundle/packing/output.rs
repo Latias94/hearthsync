@@ -8,7 +8,7 @@ use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;
 
-pub(super) fn resolve_bundle_output_path(
+pub(in crate::core::bundle::packing) fn resolve_bundle_output_path(
     output_path: Option<&Path>,
     manifest: &BundleManifest,
     timestamp: &str,
@@ -29,7 +29,7 @@ pub(super) fn resolve_bundle_output_path(
     }
 }
 
-pub(super) fn default_bundle_output_base_dir(
+pub(in crate::core::bundle::packing) fn default_bundle_output_base_dir(
     installation: &DetectedFlavorInstallation,
     manifest_base_dir: Option<&Path>,
 ) -> PathBuf {
@@ -47,7 +47,7 @@ fn resolve_output_reference(path: &Path, default_base_dir: &Path) -> PathBuf {
     }
 }
 
-pub(super) fn now_rfc3339() -> AppResult<String> {
+pub(in crate::core::bundle::packing) fn now_rfc3339() -> AppResult<String> {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(|error| AppError::Validation(error.to_string()))

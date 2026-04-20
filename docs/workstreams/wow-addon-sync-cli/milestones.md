@@ -422,6 +422,9 @@ Prepare the core for a future frontend.
 - bundle apply preparation models now separate planned-entry state, preview operations, and
   prepared execution state under `core::bundle::apply_model::{planned,preview,prepared}`,
   leaving `apply_model.rs` as the thin re-export shell
+- bundle packing now separates archive write orchestration and resource-specific zip
+  materialization under `core::bundle::packing::{pack,resources}`, leaving `packing.rs` as the
+  thin re-export shell beside output and inspect helpers
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract

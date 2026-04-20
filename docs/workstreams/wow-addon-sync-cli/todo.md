@@ -144,6 +144,7 @@ The current blocking sequence is:
   - Current cleanup: bundle public DTOs now separate archive pack/inspect models, bundle-addon-lock models, and bundle-apply models into `core::bundle::types::{archive,addon_lock,apply}`, leaving `types.rs` as a thin re-export shell.
   - Current cleanup: bundle shared helpers now separate addon-source index models, path-safety utilities, and zip option helpers into `core::bundle::shared::{addon_source_index,path,zip_options}`, leaving `shared.rs` as a thin re-export shell.
   - Current cleanup: bundle apply preparation models now separate planned-entry state, preview operations, and prepared execution state into `core::bundle::apply_model::{planned,preview,prepared}`, leaving `apply_model.rs` as a thin re-export shell.
+  - Current cleanup: bundle packing now separates archive write orchestration and resource-specific zip materialization into `core::bundle::packing::{pack,resources}`, leaving `packing.rs` as a thin re-export shell beside output/inspect helpers.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop
