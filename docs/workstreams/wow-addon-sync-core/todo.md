@@ -315,6 +315,9 @@ enough that these rules live in one place.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.
+  Current progress: bundle archive inspect/apply/addon-lock extraction now also reject symlink
+  entries up front, so first-party bundle ingestion no longer trails addon/external-package/backup
+  archive safety.
 
 Exit criteria:
 

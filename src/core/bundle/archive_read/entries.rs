@@ -5,6 +5,7 @@ use std::path::Path;
 use zip::ZipArchive;
 
 use super::super::shared::path::safe_zip_segments;
+use super::safety::reject_unsupported_bundle_symlink_entry;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::error::{AppError, AppResult};
 
@@ -17,10 +18,12 @@ pub(in crate::core::bundle) fn collect_bundle_entry_names(
 
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
+        let entry_name = entry.name().to_string();
+        reject_unsupported_bundle_symlink_entry(&entry_name, entry.is_symlink())?;
         if entry.is_dir() {
             continue;
         }
-        entry_names.push(entry.name().to_string());
+        entry_names.push(entry_name);
     }
 
     Ok(entry_names)
@@ -33,6 +36,7 @@ pub(in crate::core::bundle) fn read_bundle_entry_bytes_from_archive(
     let mut entry = archive
         .by_name(archive_name)
         .map_err(|_| AppError::NotFound(format!("bundle entry is missing: {archive_name}")))?;
+    reject_unsupported_bundle_symlink_entry(entry.name(), entry.is_symlink())?;
     let mut bytes = Vec::new();
     entry.read_to_end(&mut bytes)?;
     Ok(bytes)
@@ -52,5 +56,6 @@ pub(in crate::core::bundle) fn extract_archive_entry_to_path(
     let mut entry = archive
         .by_name(archive_name)
         .map_err(|_| AppError::NotFound(format!("bundle entry is missing: {archive_name}")))?;
+    reject_unsupported_bundle_symlink_entry(entry.name(), entry.is_symlink())?;
     copy_reader_to_path(&mut entry, destination)
 }

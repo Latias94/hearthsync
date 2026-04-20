@@ -290,5 +290,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   external-package ingest
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
+- bundle archive inspect/apply/addon-lock extraction now also reject symlink entries up front, so
+  first-party bundle ingestion no longer trails addon/external-package/backup archive safety
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

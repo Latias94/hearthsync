@@ -3,6 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 use zip::ZipArchive;
 
+use super::super::constants::{ADDON_LOCK_ENTRY, MANIFEST_ENTRY};
 use super::support::*;
 use crate::core::addon::lock::plan_addon_lock_sync;
 use crate::core::addon::{InstallAddonRequest, install_addon};
@@ -270,4 +271,38 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
             .join("WeakAuras.toc")
             .exists()
     );
+}
+
+#[test]
+fn inspect_bundle_rejects_symlink_manifest_entries() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("symlink-manifest-bundle.zip");
+    create_archive_with_symlink_entry(&bundle_path, MANIFEST_ENTRY, "../manifest.toml");
+
+    let error = inspect_bundle(&bundle_path).expect_err("symlink manifest should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains(MANIFEST_ENTRY));
+}
+
+#[test]
+fn plan_bundle_addon_lock_rejects_symlink_embedded_lock() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("symlink-addon-lock-bundle.zip");
+    let installation = create_fixture_installation(temp.path(), false);
+    let manifest = toml::to_string_pretty(&sample_manifest()).expect("manifest");
+    create_archive_with_raw_entries_and_symlink(
+        &bundle_path,
+        &[(MANIFEST_ENTRY, &manifest)],
+        ADDON_LOCK_ENTRY,
+        "../outside-lock.toml",
+    );
+
+    let error =
+        plan_bundle_addon_lock(&bundle_path, &installation).expect_err("symlink lock should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains(ADDON_LOCK_ENTRY));
 }

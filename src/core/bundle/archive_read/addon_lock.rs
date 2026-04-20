@@ -9,6 +9,7 @@ use super::super::addon_lock::ExtractedAddonLock;
 use super::super::constants::{ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY};
 use super::super::shared::addon_source_index::BundleAddonSourceIndex;
 use super::super::shared::path::{join_segments, safe_zip_segments};
+use super::safety::reject_unsupported_bundle_symlink_entry;
 use crate::core::addon::lock::AddonLockSourceOverride;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::error::{AppError, AppResult};
@@ -26,6 +27,7 @@ pub(in crate::core::bundle) fn extract_embedded_addon_lock(
                 "bundle does not contain embedded addon lock `{ADDON_LOCK_ENTRY}`"
             ))
         })?;
+        reject_unsupported_bundle_symlink_entry(lock_entry.name(), lock_entry.is_symlink())?;
         copy_reader_to_path(&mut lock_entry, &lock_path)?;
     }
 
@@ -44,6 +46,7 @@ fn extract_bundle_addon_source_overrides(
 ) -> AppResult<Vec<AddonLockSourceOverride>> {
     let source_index = match archive.by_name(ADDON_SOURCE_INDEX_ENTRY) {
         Ok(mut entry) => {
+            reject_unsupported_bundle_symlink_entry(entry.name(), entry.is_symlink())?;
             let mut content = String::new();
             entry.read_to_string(&mut content)?;
             toml::from_str::<BundleAddonSourceIndex>(&content)?
@@ -75,6 +78,7 @@ fn extract_bundle_addon_source_overrides(
                 "bundle addon source archive is missing: {archive_entry_name}"
             ))
         })?;
+        reject_unsupported_bundle_symlink_entry(source_entry.name(), source_entry.is_symlink())?;
         let extracted_path = join_segments(stage_root, &segments);
         copy_reader_to_path(&mut source_entry, &extracted_path)?;
 

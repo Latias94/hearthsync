@@ -4,6 +4,7 @@ use std::fs;
 use tempfile::tempdir;
 use zip::ZipArchive;
 
+use super::super::constants::MANIFEST_ENTRY;
 use super::super::planner::pipeline::{plan_apply_from_entries_with_reader, prepare_bundle_apply};
 use super::support::*;
 use crate::core::bundle::*;
@@ -1258,6 +1259,33 @@ fn unpack_bundle_dry_run_does_not_write_files() {
             .join("WeakAuras.toc")
             .exists()
     );
+}
+
+#[test]
+fn unpack_bundle_rejects_symlink_payload_entries() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("symlink-payload-bundle.zip");
+    let installation = create_fixture_installation(temp.path(), false);
+    let manifest = toml::to_string_pretty(&sample_manifest()).expect("manifest");
+    create_archive_with_raw_entries_and_symlink(
+        &bundle_path,
+        &[(MANIFEST_ENTRY, &manifest)],
+        "addons/WeakAuras/WeakAuras.toc",
+        "../outside.toc",
+    );
+
+    let error = unpack_bundle(UnpackBundleRequest {
+        bundle_path,
+        installation,
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        apply_mappings: BundleApplyMappings::default(),
+    })
+    .expect_err("symlink payload should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains("addons/WeakAuras/WeakAuras.toc"));
 }
 
 #[test]
