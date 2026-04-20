@@ -13,7 +13,11 @@ pub(in crate::core::bundle) fn read_manifest_from_archive(
     archive: &mut ZipArchive<File>,
 ) -> AppResult<BundleManifest> {
     let mut manifest_file = archive.by_name(MANIFEST_ENTRY)?;
-    reject_unsupported_bundle_symlink_entry(manifest_file.name(), manifest_file.is_symlink())?;
+    reject_unsupported_bundle_symlink_entry(
+        manifest_file.name(),
+        manifest_file.is_symlink(),
+        manifest_file.is_dir(),
+    )?;
     let mut content = String::new();
     manifest_file.read_to_string(&mut content)?;
     Ok(toml::from_str(&content)?)
@@ -26,7 +30,7 @@ pub(in crate::core::bundle) fn count_bundle_entries(
 
     for index in 0..archive.len() {
         let file = archive.by_index(index)?;
-        reject_unsupported_bundle_symlink_entry(file.name(), file.is_symlink())?;
+        reject_unsupported_bundle_symlink_entry(file.name(), file.is_symlink(), file.is_dir())?;
         if file.is_dir() {
             continue;
         }

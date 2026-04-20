@@ -292,5 +292,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   sources, so non-portable relative names fail consistently before normalization
 - bundle archive inspect/apply/addon-lock extraction now also reject symlink entries up front, so
   first-party bundle ingestion no longer trails addon/external-package/backup archive safety
+- bundle archive entry validation now also rejects non-portable path segments during inspect/apply,
+  aligning first-party bundle archives with the same portable-name floor as other archive inputs
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

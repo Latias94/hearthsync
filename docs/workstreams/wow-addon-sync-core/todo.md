@@ -318,6 +318,9 @@ enough that these rules live in one place.
   Current progress: bundle archive inspect/apply/addon-lock extraction now also reject symlink
   entries up front, so first-party bundle ingestion no longer trails addon/external-package/backup
   archive safety.
+  Current progress: bundle archive entry validation now also rejects non-portable path segments
+  during inspect/apply, so first-party bundle archives fail on the same portable-name floor as
+  addon/external-package/backup archives.
 
 Exit criteria:
 

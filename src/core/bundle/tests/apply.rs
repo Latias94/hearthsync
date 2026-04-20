@@ -1289,6 +1289,32 @@ fn unpack_bundle_rejects_symlink_payload_entries() {
 }
 
 #[test]
+fn unpack_bundle_rejects_non_portable_entry_paths() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("unsafe-path-bundle.zip");
+    let installation = create_fixture_installation(temp.path(), false);
+    let manifest = toml::to_string_pretty(&sample_manifest()).expect("manifest");
+    create_archive_with_raw_entries(
+        &bundle_path,
+        &[
+            (MANIFEST_ENTRY, &manifest),
+            ("addons/Weak:Auras/WeakAuras.toc", "toc"),
+        ],
+    );
+
+    let error = unpack_bundle(UnpackBundleRequest {
+        bundle_path,
+        installation,
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        apply_mappings: BundleApplyMappings::default(),
+    })
+    .expect_err("unsafe bundle entry path should fail");
+
+    assert!(error.to_string().contains("unsafe archive path"));
+}
+
+#[test]
 fn preserve_policy_plans_without_writing_files() {
     let source = tempdir().expect("source temp dir");
     let target = tempdir().expect("target temp dir");

@@ -287,6 +287,24 @@ fn inspect_bundle_rejects_symlink_manifest_entries() {
 }
 
 #[test]
+fn inspect_bundle_rejects_non_portable_entry_paths() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("unsafe-path-bundle.zip");
+    let manifest = toml::to_string_pretty(&sample_manifest()).expect("manifest");
+    create_archive_with_raw_entries(
+        &bundle_path,
+        &[
+            (MANIFEST_ENTRY, &manifest),
+            ("addons/Weak:Auras/WeakAuras.toc", "toc"),
+        ],
+    );
+
+    let error = inspect_bundle(&bundle_path).expect_err("unsafe entry path should fail");
+
+    assert!(error.to_string().contains("unsafe archive path"));
+}
+
+#[test]
 fn plan_bundle_addon_lock_rejects_symlink_embedded_lock() {
     let temp = tempdir().expect("temp dir");
     let bundle_path = temp.path().join("symlink-addon-lock-bundle.zip");
