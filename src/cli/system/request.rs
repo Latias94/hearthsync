@@ -49,7 +49,10 @@ pub(super) fn build_manifest_validation_result(
 mod tests {
     use std::{fs, path::PathBuf};
 
-    use super::*;
+    use super::{
+        build_inspect_installation_request, build_manifest_example_result,
+        build_manifest_validation_result,
+    };
     use crate::cli::{FlavorArg, InstallTargetArgs};
     use crate::core::app::WowFlavorValue;
 

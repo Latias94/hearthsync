@@ -67,7 +67,11 @@ pub(super) fn build_apply_addon_lock_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{
+        build_apply_addon_lock_request, build_diff_addon_lock_request,
+        build_inspect_addon_lock_request, build_plan_addon_lock_request,
+        build_verify_addon_lock_request, build_write_addon_lock_request,
+    };
     use crate::cli::test_support::sample_installation;
 
     #[test]

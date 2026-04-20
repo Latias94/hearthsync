@@ -101,7 +101,10 @@ mod tests {
         sample_bundle_manifest, sample_character_mapping, sample_external_package_analysis,
         sample_group_policies, sample_local_account,
     };
-    use super::*;
+    use super::{
+        render_external_package_analysis, render_external_package_apply,
+        render_external_package_plan,
+    };
     use crate::core::app::{
         ApplyPlanSummaryResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
         HelperStrategyValue,

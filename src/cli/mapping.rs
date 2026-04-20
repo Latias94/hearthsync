@@ -51,7 +51,8 @@ pub(super) fn resolve_apply_mappings(
 mod tests {
     use std::fs;
 
-    use super::*;
+    use super::resolve_apply_mappings;
+    use crate::cli::ApplyMappingArgs;
 
     #[test]
     fn resolve_apply_mappings_merges_file_and_cli_overrides() {

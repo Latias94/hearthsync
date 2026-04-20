@@ -221,7 +221,10 @@ pub fn ensure_task_not_cancelled(
 mod tests {
     use std::cell::{Cell, RefCell};
 
-    use super::*;
+    use super::{
+        AppError, TaskKind, TaskPhase, emit_task_progress, ensure_task_not_cancelled,
+        run_task_with_callbacks, run_task_with_collected_progress,
+    };
 
     #[test]
     fn run_task_with_collected_progress_returns_result_and_events() {

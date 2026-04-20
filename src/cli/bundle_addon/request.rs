@@ -32,7 +32,7 @@ pub(super) fn build_apply_bundle_addon_lock_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{build_apply_bundle_addon_lock_request, build_plan_bundle_addon_lock_request};
     use crate::cli::test_support::sample_installation;
 
     #[test]

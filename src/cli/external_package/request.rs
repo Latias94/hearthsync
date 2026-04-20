@@ -117,10 +117,16 @@ pub(super) fn build_apply_external_package_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{
+        ExternalPackageBundleOptions, build_analyze_external_package_request,
+        build_apply_external_package_request, build_external_package_bundle_request,
+        build_plan_external_package_request,
+    };
     use crate::cli::test_support::sample_installation;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
-    use crate::core::app::{BundleApplyMappingsValue, HostPlatformValue, WowFlavorValue};
+    use crate::core::app::{
+        BundleApplyMappingsValue, HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue,
+    };
 
     #[test]
     fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {

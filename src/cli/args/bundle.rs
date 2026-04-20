@@ -58,10 +58,12 @@ pub enum BundleCommands {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use clap::Parser;
 
     use super::super::{Cli, Commands};
-    use super::*;
+    use super::BundleCommands;
 
     #[test]
     fn parses_bundle_unpack_with_shared_install_and_mapping_args() {

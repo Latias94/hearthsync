@@ -37,7 +37,7 @@ pub(super) fn build_apply_bundle_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{build_apply_bundle_request, build_plan_bundle_apply_request};
     use crate::cli::test_support::sample_installation;
     use crate::core::app::BundleApplyMappingsValue;
 

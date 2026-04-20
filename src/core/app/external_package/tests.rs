@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, AppRuntime,
-    BundleApplyDefaultsValue, BundleApplyMappingsValue,
-    CreateExternalPackageBundleAppRequest, ExternalPackageService, HelperStrategyValue,
-    HostPlatformValue, PlanExternalPackageApplyAppRequest, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, WowFlavorValue,
+    AnalyzeExternalPackageAppRequest, AppRuntime, ApplyExternalPackageAppRequest,
+    BundleApplyDefaultsValue, BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest,
+    ExternalPackageService, HelperStrategyValue, HostPlatformValue,
+    PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
+    WowFlavorValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};

@@ -47,7 +47,10 @@ pub(super) fn build_update_addon_index_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{
+        build_inspect_addon_index_request, build_install_addon_index_request,
+        build_update_addon_index_request,
+    };
     use crate::cli::test_support::sample_installation;
 
     #[test]

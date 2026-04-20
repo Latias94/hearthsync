@@ -72,7 +72,9 @@ pub(super) fn build_remove_addons_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{
+        build_install_addon_request, build_remove_addons_request, build_update_addons_request,
+    };
     use crate::cli::test_support::sample_installation;
 
     #[test]

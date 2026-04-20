@@ -94,7 +94,10 @@ mod tests {
         sample_bundle_character_resource, sample_bundle_manifest, sample_character_mapping,
         sample_group_policies, sample_local_account,
     };
-    use super::*;
+    use super::{
+        render_bundle_apply, render_bundle_apply_plan, render_bundle_archive_created,
+        render_bundle_archive_inspection,
+    };
     use crate::core::app::{
         ApplyPlanSummaryResult, BundleApplyPlanResult, BundleApplyResult, BundleEntryCountsResult,
         BundleInspectionResult, BundleResourcesResult, CreatedBundleResult, HelperStrategyValue,

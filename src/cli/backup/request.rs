@@ -44,8 +44,11 @@ pub(super) fn build_restore_backup_request(
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{
+        build_create_backup_request, build_list_backups_request, build_restore_backup_request,
+    };
     use crate::cli::test_support::sample_installation;
+    use crate::core::app::BackupGroupValue;
 
     #[test]
     fn build_create_backup_request_sets_default_groups() {

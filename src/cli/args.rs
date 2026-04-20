@@ -72,9 +72,11 @@ pub enum ManifestCommands {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use clap::Parser;
 
-    use super::*;
+    use super::{Cli, Commands, FlavorArg};
 
     #[test]
     fn parses_top_level_inspect_with_shared_install_target() {

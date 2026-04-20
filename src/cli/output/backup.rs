@@ -72,7 +72,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::super::test_support::sample_backup_metadata;
-    use super::*;
+    use super::{render_backup_catalog, render_backup_created, render_backup_restored};
     use crate::core::app::{
         BackupCatalogResult, BackupEntryResult, BackupGroupValue, CreatedBackupResult,
         RestoredBackupResult,

@@ -166,7 +166,7 @@ fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::format_external_package_warnings;
     use crate::core::app::{
         ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
         ExternalPackageWarningCodeValue, ExternalPackageWarningGroupResult,

@@ -308,7 +308,10 @@ mod tests {
     use super::super::test_support::{
         sample_addon_lock_apply, sample_addon_lock_plan, sample_snapshot,
     };
-    use super::*;
+    use super::{
+        render_addon_lock_apply, render_addon_lock_diff, render_addon_lock_plan,
+        render_addon_lock_verify, render_bundle_addon_lock_apply, render_bundle_addon_lock_plan,
+    };
     use crate::core::app::{
         AddonLockDiffResult, AddonLockFieldChangeResult, AddonLockPackageDiffResult,
         AddonLockPackageDirectoryIssueResult, AddonLockVerifyResult, BundleAddonLockApplyResult,

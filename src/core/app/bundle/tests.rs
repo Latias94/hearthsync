@@ -4,12 +4,11 @@ use std::path::Path;
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AppRuntime, ApplyBundleAppRequest, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, BundleManifestValue, BundleMappingRulesValue,
-    BundlePackageValue, BundleResourcesValue, BundleService, BundleSourceValue,
-    CharacterMappingModeValue, HelperStrategyValue, PackBundleAppRequest,
-    PlanBundleApplyRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
-    WowFlavorValue,
+    AppRuntime, ApplyBundleAppRequest, BundleApplyDefaultsValue, BundleApplyMappingsValue,
+    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
+    BundleService, BundleSourceValue, CharacterMappingModeValue, HelperStrategyValue,
+    PackBundleAppRequest, PlanBundleApplyRequest, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, WowFlavorValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};

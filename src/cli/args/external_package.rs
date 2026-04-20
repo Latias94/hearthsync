@@ -84,10 +84,13 @@ pub struct ExternalPackageBundleOptions {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use clap::Parser;
 
     use super::super::{Cli, Commands};
-    use super::*;
+    use super::{ExternalPackageCommands, FlavorArg, PlatformArg};
+    use crate::cli::ApplyPolicyArg;
 
     #[test]
     fn parses_external_package_inspect_command() {

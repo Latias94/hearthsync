@@ -279,7 +279,11 @@ mod tests {
     use super::super::test_support::{
         sample_index_package, sample_source, sample_tracked_addon, sample_tracked_package,
     };
-    use super::*;
+    use super::{
+        render_addon_index_inspection, render_addon_index_install, render_addon_index_update,
+        render_addon_install, render_addon_inventory, render_addon_remove,
+        render_addon_search_catalog, render_addon_update,
+    };
     use crate::core::app::{
         AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexUpdateResult,
         AddonInventoryResult, AddonSearchCatalogResult, AddonSearchResult,

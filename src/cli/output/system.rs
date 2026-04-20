@@ -77,7 +77,11 @@ mod tests {
     use std::path::PathBuf;
 
     use super::super::test_support::sample_installation;
-    use super::*;
+    use super::{
+        render_installation_health_report, render_installation_inspection,
+        render_installation_scan, render_manifest_example, render_manifest_validation,
+    };
+    use crate::cli::system::{ManifestExampleResult, ManifestValidationResult};
     use crate::core::app::{
         HealthStatusValue, InstallationHealthResult, InstallationInspectionResult,
         InstallationScanResult, WowFlavorValue,

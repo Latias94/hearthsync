@@ -31,7 +31,7 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use super::*;
+    use super::{build_inspect_bundle_request, build_pack_bundle_request};
     use crate::cli::test_support::sample_installation;
     use crate::core::manifest::example_manifest;
 

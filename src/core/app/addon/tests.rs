@@ -13,9 +13,8 @@ use crate::core::addon::{
     MaterializedAddonSource,
 };
 use crate::core::app::{
-    AddonPackageMetadataValue, AddonService, AppRuntime,
-    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest,
-    ResolvedInstallationValue, SearchAddonsRequest, UpdateAddonAppRequest,
+    AddonPackageMetadataValue, AddonService, AppRuntime, InstallAddonAppRequest, ListAddonsRequest,
+    RemoveAddonAppRequest, ResolvedInstallationValue, SearchAddonsRequest, UpdateAddonAppRequest,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};

@@ -5,8 +5,7 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AddonLockService, ApplyAddonLockAppRequest, PlanAddonLockSyncRequest,
-    ResolvedInstallationValue,
+    AddonLockService, ApplyAddonLockAppRequest, PlanAddonLockSyncRequest, ResolvedInstallationValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};
