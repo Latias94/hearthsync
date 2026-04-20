@@ -1,4 +1,4 @@
-use super::planner::prepare_bundle_apply;
+use super::planner::pipeline::prepare_bundle_apply;
 use super::types::{UnpackBundleRequest, UnpackedBundle};
 use crate::core::error::AppResult;
 use crate::core::task::{

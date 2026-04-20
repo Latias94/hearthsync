@@ -6,7 +6,7 @@ use zip::ZipArchive;
 
 use super::super::apply::{unpack_bundle, unpack_bundle_task};
 use super::super::packing::{inspect_bundle, pack_bundle};
-use super::super::planner::{
+use super::super::planner::pipeline::{
     plan_apply_from_entries_with_reader, plan_bundle_apply, prepare_bundle_apply,
 };
 use super::super::types::*;

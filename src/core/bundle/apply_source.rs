@@ -1,6 +1,4 @@
-mod bundle_archive;
+pub(super) mod bundle_archive;
 mod dispatch;
-mod external_package;
-mod reader;
-
-pub(in crate::core::bundle) use reader::ApplySourceReader;
+pub(super) mod external_package;
+pub(super) mod reader;

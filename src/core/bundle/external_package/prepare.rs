@@ -1,5 +1,5 @@
 use super::super::apply_model::prepared::{PreparedApplySource, PreparedBundleApply};
-use super::super::planner::prepare_apply_from_source;
+use super::super::planner::pipeline::prepare_apply_from_source;
 use super::super::types::BundleApplyMappings;
 use super::analyze::analyze_external_package;
 use super::manifest::build_external_manifest;

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 use super::super::apply_model::prepared::{PreparedApplyOperation, PreparedApplySource};
-use super::super::apply_source::ApplySourceReader;
+use super::super::apply_source::reader::ApplySourceReader;
 use super::super::types::ApplyAction;
 use crate::core::error::AppResult;
 use crate::core::lua_patch::{LuaRewriteOptions, rewrite_lua_file};

@@ -37,7 +37,7 @@ pub use external_package::{
     plan_external_package_apply_task,
 };
 pub use packing::{inspect_bundle, load_apply_mappings, pack_bundle};
-pub use planner::plan_bundle_apply;
+pub use planner::pipeline::plan_bundle_apply;
 pub use types::{
     ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
     BundleAddonLockApply, BundleAddonLockApplyRequest, BundleAddonLockPlan, BundleApplyMappings,

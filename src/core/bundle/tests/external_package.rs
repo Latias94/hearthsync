@@ -5,7 +5,7 @@ use tempfile::tempdir;
 use super::super::apply::unpack_bundle;
 use super::super::external_package::*;
 use super::super::packing::inspect_bundle;
-use super::super::planner::plan_bundle_apply;
+use super::super::planner::pipeline::plan_bundle_apply;
 use super::super::types::*;
 use super::support::*;
 use crate::core::install::{HostPlatform, WowFlavor};

@@ -4,9 +4,9 @@ use std::path::Path;
 
 use zip::ZipWriter;
 
-use super::super::addon_source_archive::{
-    add_bundle_addon_sources_to_zip, read_generated_addon_lock, resolve_addon_index_paths,
-};
+use super::super::addon_source_archive::index_paths::resolve_addon_index_paths;
+use super::super::addon_source_archive::lock::read_generated_addon_lock;
+use super::super::addon_source_archive::source_bundle::add_bundle_addon_sources_to_zip;
 use super::super::constants::{
     ADDON_INDEX_ENTRY_ROOT, ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY, MANIFEST_ENTRY,
 };
