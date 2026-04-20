@@ -359,6 +359,8 @@ Prepare the core for a future frontend.
   analyze/create/plan orchestration
 - bundle planner internal state shapes now live under `core::bundle::planner::model`, preparing
   the next split between logical planning and preview finalization
+- bundle planner preview finalization now lives under `core::bundle::planner::preview`, so logical
+  entry planning no longer owns byte-comparison and final apply-plan projection details
 - install discovery is now app-first from the CLI perspective; the reusable frontend-facing route is
   the direct installation surface on `core::app::StableAppServices`, not old direct domain helpers
 - frontend stabilization is now mainly gated by planner-boundary cleanup and stronger app-contract
