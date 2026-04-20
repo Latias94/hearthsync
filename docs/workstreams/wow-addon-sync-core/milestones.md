@@ -283,5 +283,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - backup restore archive preparation now rejects symlink entries up front and reuses the same
   portable archive-segment validation as bundle/external-package ingest, so restore-time path
   safety no longer trails import-time path safety
+- backup creation now also rejects local directory/interface symlink entries instead of following
+  link targets into the archive, keeping backup payloads bounded to the intended WoW tree
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening

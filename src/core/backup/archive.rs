@@ -330,7 +330,9 @@ fn add_directory_group(
 
     for entry in WalkDir::new(source_dir).follow_links(false) {
         let entry = entry.map_err(|error| AppError::Validation(error.to_string()))?;
+        let file_type = entry.file_type();
         let path = entry.path();
+        reject_unsupported_backup_source_symlink("directory", path, file_type.is_symlink())?;
         let relative = path
             .strip_prefix(source_dir)
             .map_err(|error| AppError::Validation(error.to_string()))?;
@@ -341,7 +343,7 @@ fn add_directory_group(
 
         let archive_path = archive_root.join(relative);
 
-        if entry.file_type().is_dir() {
+        if file_type.is_dir() {
             zip.add_directory(to_zip_path(&archive_path), zip_dir_options())?;
             continue;
         }
@@ -362,16 +364,18 @@ fn add_interface_assets_group(zip: &mut ZipWriter<File>, interface_dir: &Path) -
 
     for entry in fs::read_dir(interface_dir)? {
         let entry = entry?;
+        let file_type = entry.file_type()?;
         let path = entry.path();
+        reject_unsupported_backup_source_symlink("interface asset", &path, file_type.is_symlink())?;
         let name = entry.file_name();
         if name.to_string_lossy().eq_ignore_ascii_case("AddOns") {
             continue;
         }
 
         let archive_root = Path::new("interface").join(name);
-        if path.is_dir() {
+        if file_type.is_dir() {
             archived_files += add_directory_group(zip, &path, &archive_root)?;
-        } else if path.is_file() {
+        } else if file_type.is_file() {
             write_file_to_zip(zip, &path, &archive_root)?;
             archived_files += 1;
         }
@@ -640,6 +644,21 @@ fn deduped_groups_in_order(groups: &[BackupGroup]) -> Vec<BackupGroup> {
         }
     }
     unique
+}
+
+pub(super) fn reject_unsupported_backup_source_symlink(
+    source_kind: &str,
+    entry_path: &Path,
+    is_symlink: bool,
+) -> AppResult<()> {
+    if is_symlink {
+        return Err(AppError::Validation(format!(
+            "backup {source_kind} entry uses unsupported symlink metadata: {}",
+            entry_path.display()
+        )));
+    }
+
+    Ok(())
 }
 
 fn reject_unsupported_restore_symlink_entry(entry_name: &str, is_symlink: bool) -> AppResult<()> {

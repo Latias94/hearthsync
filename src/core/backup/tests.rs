@@ -505,6 +505,31 @@ fn restore_backup_rejects_non_portable_archive_paths() {
     }
 }
 
+#[test]
+fn reject_unsupported_backup_source_symlink_reports_directory_entries() {
+    let error = super::archive::reject_unsupported_backup_source_symlink(
+        "directory",
+        Path::new("Interface/AddOns/WeakAuras"),
+        true,
+    )
+    .expect_err("directory symlink should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("backup directory entry"));
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains("Interface/AddOns/WeakAuras"));
+}
+
+#[test]
+fn reject_unsupported_backup_source_symlink_allows_regular_entries() {
+    super::archive::reject_unsupported_backup_source_symlink(
+        "interface asset",
+        Path::new("Interface/SharedMedia"),
+        false,
+    )
+    .expect("regular entry should pass");
+}
+
 enum TestBackupArchiveEntry<'a> {
     File { name: &'a str, content: &'a str },
     Symlink { name: &'a str, target: &'a str },

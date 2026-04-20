@@ -306,6 +306,9 @@ enough that these rules live in one place.
   Current progress: backup restore archive preparation now rejects symlink entries before any
   transactional restore work begins and reuses the same portable archive-segment validation as
   bundle/external-package ingest, so restore safety no longer lags behind import safety.
+  Current progress: backup creation now also rejects local directory/interface symlink entries
+  instead of following link targets into the archive, so backup payloads stay portable and bounded
+  to the intended WoW tree.
 
 Exit criteria:
 
