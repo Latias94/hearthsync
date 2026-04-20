@@ -1,3 +1,4 @@
+use std::path::Component;
 use std::path::{Path, PathBuf};
 
 use crate::core::error::{AppError, AppResult};
@@ -57,9 +58,39 @@ pub(in crate::core) fn join_segments(root: &Path, segments: &[&str]) -> PathBuf 
     path
 }
 
+pub(in crate::core) fn safe_relative_segments(
+    relative_path: &Path,
+    path_kind: &str,
+) -> AppResult<Vec<String>> {
+    let mut segments = Vec::new();
+
+    for component in relative_path.components() {
+        let Component::Normal(segment) = component else {
+            return Err(AppError::Validation(format!(
+                "unsafe {path_kind}: {}",
+                relative_path.display()
+            )));
+        };
+
+        let segment = segment.to_string_lossy().to_string();
+        if !is_safe_archive_segment(&segment) {
+            return Err(AppError::Validation(format!(
+                "unsafe {path_kind}: {}",
+                relative_path.display()
+            )));
+        }
+
+        segments.push(segment);
+    }
+
+    Ok(segments)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::safe_zip_segments;
+    use std::path::Path;
+
+    use super::{safe_relative_segments, safe_zip_segments};
 
     #[test]
     fn safe_zip_segments_rejects_empty_segments() {
@@ -111,6 +142,48 @@ mod tests {
                 "ACCOUNT",
                 "SavedVariables",
                 "Details.lua"
+            ]
+        );
+    }
+
+    #[test]
+    fn safe_relative_segments_rejects_non_normal_components() {
+        let error = safe_relative_segments(
+            Path::new("./AuthorUI/Interface/AddOns/WeakAuras"),
+            "directory entry path",
+        )
+        .expect_err("relative path should reject current-directory components");
+
+        assert!(error.to_string().contains("unsafe directory entry path"));
+    }
+
+    #[test]
+    fn safe_relative_segments_rejects_windows_reserved_segments() {
+        for relative_path in [
+            Path::new("AuthorUI/Interface/AddOns/Weak:Auras"),
+            Path::new("AuthorUI/Fonts/CON.ttf"),
+            Path::new("AuthorUI/Fonts/FRIZQT__.ttf "),
+        ] {
+            let error = safe_relative_segments(relative_path, "directory entry path")
+                .expect_err("relative path should reject non-portable segments");
+            assert!(error.to_string().contains("unsafe directory entry path"));
+        }
+    }
+
+    #[test]
+    fn safe_relative_segments_accepts_portable_names() {
+        assert_eq!(
+            safe_relative_segments(
+                Path::new("AuthorUI/WTF/Account/SavedVariables/Details.lua"),
+                "directory entry path",
+            )
+            .expect("portable relative path"),
+            vec![
+                "AuthorUI".to_string(),
+                "WTF".to_string(),
+                "Account".to_string(),
+                "SavedVariables".to_string(),
+                "Details.lua".to_string()
             ]
         );
     }

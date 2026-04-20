@@ -1,11 +1,12 @@
 use std::fs::File;
-use std::path::{Component, Path};
+use std::path::Path;
 
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
 use super::source_entry::SourceEntry;
 use super::types::ExternalPackageSourceKind;
+use crate::core::archive_path::safe_relative_segments;
 use crate::core::bundle::shared::path::{safe_zip_segments, should_skip_path, to_zip_path};
 use crate::core::error::{AppError, AppResult};
 
@@ -58,7 +59,7 @@ fn collect_directory_entries(root: &Path) -> AppResult<Vec<SourceEntry>> {
                 entry.path().display()
             ))
         })?;
-        let segments = safe_relative_segments(relative_path)?;
+        let segments = safe_relative_segments(relative_path, "directory entry path")?;
         if should_ignore_source_segments(&segments) {
             continue;
         }
@@ -109,30 +110,6 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
 
     Ok(entries)
 }
-
-fn safe_relative_segments(relative_path: &Path) -> AppResult<Vec<String>> {
-    let mut segments = Vec::new();
-
-    for component in relative_path.components() {
-        let Component::Normal(segment) = component else {
-            return Err(AppError::Validation(format!(
-                "unsafe directory entry path: {}",
-                relative_path.display()
-            )));
-        };
-        let segment = segment.to_string_lossy().to_string();
-        if segment.is_empty() || segment == "." || segment == ".." {
-            return Err(AppError::Validation(format!(
-                "unsafe directory entry path: {}",
-                relative_path.display()
-            )));
-        }
-        segments.push(segment);
-    }
-
-    Ok(segments)
-}
-
 fn should_ignore_source_segments(segments: &[String]) -> bool {
     segments
         .iter()
@@ -155,7 +132,10 @@ fn reject_unsupported_symlink_entry(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::reject_unsupported_symlink_entry;
+    use crate::core::archive_path::safe_relative_segments;
 
     #[test]
     fn reject_unsupported_symlink_entry_reports_directory_sources() {
@@ -173,5 +153,19 @@ mod tests {
     fn reject_unsupported_symlink_entry_allows_regular_sources() {
         reject_unsupported_symlink_entry("directory", "AuthorUI/WTF/Config.wtf", false)
             .expect("regular directory entry should pass");
+    }
+
+    #[test]
+    fn safe_relative_segments_reject_non_portable_directory_segments() {
+        for relative_path in [
+            Path::new("AuthorUI/Interface/AddOns/Weak:Auras"),
+            Path::new("AuthorUI/Fonts/CON.ttf"),
+            Path::new("AuthorUI/Fonts/FRIZQT__.ttf "),
+        ] {
+            let error = safe_relative_segments(relative_path, "directory entry path")
+                .expect_err("non-portable directory segment should fail");
+
+            assert!(error.to_string().contains("unsafe directory entry path"));
+        }
     }
 }

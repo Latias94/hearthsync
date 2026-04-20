@@ -475,6 +475,17 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
 }
 
 #[test]
+fn analyze_external_package_directory_rejects_non_portable_relative_segments() {
+    let error = crate::core::archive_path::safe_relative_segments(
+        std::path::Path::new("AuthorUI/Interface/AddOns/Weak:Auras/WeakAuras.toc"),
+        "directory entry path",
+    )
+    .expect_err("non-portable directory segment should fail");
+
+    assert!(error.to_string().contains("unsafe directory entry path"));
+}
+
+#[test]
 fn create_external_package_bundle_produces_reusable_first_party_bundle() {
     let temp = tempdir().expect("temp dir");
     let package_path = temp.path().join("author-ui-pack.zip");

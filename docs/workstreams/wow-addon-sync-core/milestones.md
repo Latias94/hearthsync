@@ -288,5 +288,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon local-archive package preparation now also rejects zip symlink entries, so addon
   install/update flows share the same archive-metadata safety floor as backup restore and
   external-package ingest
+- external-package directory sources now reuse the same portable segment validation as zip
+  sources, so non-portable relative names fail consistently before normalization
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening
