@@ -127,6 +127,7 @@ The current blocking sequence is:
   - Current cleanup: bundle planner logical apply construction now lives in `core::bundle::planner::logical`, leaving the planner root focused on bundle/external source entry orchestration.
   - Current cleanup: bundle apply task message/context policy now lives in `core::bundle::apply::task_context`, separating shared bundle/external-package progress wording from the filesystem execution flow.
   - Current cleanup: bundle apply filesystem execution, backup creation, and rollback handling now live in `core::bundle::apply::executor`, leaving the apply root focused on task entrypoints and result projection.
+  - Current cleanup: bundle apply dry-run/execute result projection now lives in `core::bundle::apply::result`, so the root apply flow no longer assembles `UnpackedBundle` inline.
 - [x] Replace duplicated addon-root detection with one shared classifier reused by addon install and external-package import
 - [x] Support addon archives whose `.toc` file name differs from the directory name
 - [x] Normalize `WTF/Account/SavedVariables` external-package imports instead of warning-only drop

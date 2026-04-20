@@ -6,9 +6,11 @@ use crate::core::task::{
 };
 
 mod executor;
+mod result;
 mod task_context;
 
 use executor::BundleExecutor;
+use result::{project_dry_run_result, project_executed_result};
 pub(crate) use task_context::BundleApplyTaskContext;
 
 pub fn unpack_bundle(request: UnpackBundleRequest) -> AppResult<UnpackedBundle> {
@@ -83,19 +85,7 @@ where
     ensure_task_not_cancelled(cancellation, task_context.task_kind(), TaskPhase::Planning)?;
 
     if dry_run {
-        let result = UnpackedBundle {
-            bundle_path: plan.bundle_path,
-            target_flavor_root: plan.target_flavor_root,
-            dry_run: true,
-            planned_files: plan.operations.len(),
-            written_files: 0,
-            rewritten_files: 0,
-            backup_path: None,
-            selected_target_accounts: plan.selected_target_accounts,
-            plan_summary: plan.summary,
-            character_mappings: plan.character_mappings,
-            manifest: plan.manifest,
-        };
+        let result = project_dry_run_result(plan);
         emit_task_progress(
             progress,
             task_context.task_kind(),
@@ -113,19 +103,7 @@ where
         progress,
     )?;
 
-    let result = UnpackedBundle {
-        bundle_path: plan.bundle_path,
-        target_flavor_root: plan.target_flavor_root,
-        dry_run: false,
-        planned_files: plan.operations.len(),
-        written_files: execution.written_files,
-        rewritten_files: execution.rewritten_files,
-        backup_path: execution.backup_path,
-        selected_target_accounts: plan.selected_target_accounts,
-        plan_summary: plan.summary,
-        character_mappings: plan.character_mappings,
-        manifest: plan.manifest,
-    };
+    let result = project_executed_result(plan, execution);
     emit_task_progress(
         progress,
         task_context.task_kind(),
