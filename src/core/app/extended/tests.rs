@@ -61,6 +61,8 @@ fn extended_app_services_builds_services_with_shared_runtime() {
         app.addon_locks().runtime().host_platform(),
         HostPlatformValue::MacOs
     );
+    assert!(std::ptr::eq(app.addon_indexes(), app.addon_indexes()));
+    assert!(std::ptr::eq(app.addon_locks(), app.addon_locks()));
 }
 
 #[test]

@@ -214,6 +214,89 @@ fn analyze_external_package_directory_accepts_variant_toc_names() {
 }
 
 #[test]
+fn apply_external_package_keeps_case_mixed_addon_subtree_on_macos_target() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let package_root = source.path().join("AuthorUI");
+    let exact_case_root = package_root
+        .join("Interface")
+        .join("AddOns")
+        .join("WeakAuras");
+    let mixed_case_root = package_root
+        .join("Interface")
+        .join("AddOns")
+        .join("weakauras");
+
+    fs::create_dir_all(&exact_case_root).expect("exact addon root");
+    fs::create_dir_all(mixed_case_root.join("Modules")).expect("mixed-case addon subtree");
+    fs::write(
+        exact_case_root.join("WeakAuras.toc"),
+        "## Interface: 110000\n## Title: WeakAuras\n",
+    )
+    .expect("toc");
+    fs::write(mixed_case_root.join("Core.lua"), "print('wa core')").expect("core");
+    fs::write(
+        mixed_case_root.join("Modules").join("Module.lua"),
+        "print('wa module')",
+    )
+    .expect("module");
+
+    let target_installation =
+        create_fixture_installation_on_platform(target.path(), false, HostPlatform::MacOs);
+    let result = apply_external_package(ApplyExternalPackageRequest {
+        external_package: CreateExternalPackageBundleRequest {
+            source_path: package_root,
+            source_flavor: WowFlavor::Retail,
+            source_platform: Some(HostPlatform::Windows),
+            supported_targets: vec![WowFlavor::Retail],
+            output_path: None,
+            package_id: None,
+            package_name: None,
+            created_by: None,
+            description: None,
+            apply_defaults: Some(ApplyDefaults {
+                create_backup: false,
+                addons: ResourceApplyPolicy::Mirror,
+                wtf_common: ResourceApplyPolicy::Share,
+                wtf_characters: ResourceApplyPolicy::ReplaceSelected,
+                fonts: ResourceApplyPolicy::Mirror,
+                interface_assets: ResourceApplyPolicy::Mirror,
+            }),
+        },
+        installation: target_installation.clone(),
+        dry_run: false,
+        backup_output_path: None,
+        apply_mappings: BundleApplyMappings::default(),
+    })
+    .expect("apply external package with case-mixed addon subtree");
+
+    assert_eq!(target_installation.platform, HostPlatform::MacOs);
+    assert!(!result.dry_run);
+    assert_eq!(result.written_files, 3);
+    assert_eq!(
+        fs::read_to_string(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Core.lua")
+        )
+        .expect("core"),
+        "print('wa core')"
+    );
+    assert_eq!(
+        fs::read_to_string(
+            target_installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Modules")
+                .join("Module.lua")
+        )
+        .expect("module"),
+        "print('wa module')"
+    );
+}
+
+#[test]
 fn analyze_external_package_conflict_fixture_exposes_duplicate_normalized_paths() {
     let package_root = external_package_conflict_fixture_root();
 

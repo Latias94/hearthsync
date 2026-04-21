@@ -18,7 +18,9 @@ use crate::core::app::{
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};
-use crate::core::task::{NeverCancel, TaskKind, TaskPhase, TaskProgressEvent, VecTaskProgressSink};
+use crate::core::task::{
+    NeverCancel, TaskKind, TaskPhase, TaskProgressCode, TaskProgressEvent, VecTaskProgressSink,
+};
 
 #[test]
 fn addon_service_install_and_list_roundtrip_local_archive() {
@@ -153,6 +155,24 @@ fn addon_service_install_collecting_progress_returns_install_task_events() {
         .expect("install addon with collected progress");
 
     assert_eq!(run.result.package_id, "weakauras");
+    assert!(run.task_id.starts_with("task-"));
+    assert!(
+        run.progress
+            .iter()
+            .all(|event| event.task_id.as_deref() == Some(run.task_id.as_str()))
+    );
+    let step = run
+        .progress
+        .iter()
+        .find(|event| {
+            event.task == TaskKind::AddonInstall
+                && event.phase == TaskPhase::Executing
+                && event.message.contains("Installing addon directory")
+        })
+        .expect("install step event");
+    assert_eq!(step.code, Some(TaskProgressCode::WriteAddonDirectory));
+    assert_eq!(step.current, Some(1));
+    assert_eq!(step.total, Some(1));
     assert_addon_task_progress(
         &run.progress,
         TaskKind::AddonInstall,
@@ -259,10 +279,24 @@ fn addon_service_update_with_callbacks_uses_plain_closures() {
 
     assert_eq!(result.updated_packages.len(), 1);
     assert!(seen.borrow().len() >= 4);
+    let callback_task_id = seen.borrow()[0].task_id.clone();
+    assert!(
+        callback_task_id
+            .as_deref()
+            .is_some_and(|task_id| task_id.starts_with("task-"))
+    );
+    assert!(
+        seen.borrow()
+            .iter()
+            .all(|event| event.task_id == callback_task_id)
+    );
     assert!(seen.borrow().iter().any(|event| {
         event.task == TaskKind::AddonUpdate
             && event.phase == TaskPhase::Executing
             && event.message.contains("Writing updated addon directory")
+            && event.code == Some(TaskProgressCode::WriteAddonDirectory)
+            && event.current == Some(1)
+            && event.total == Some(1)
     }));
     assert!(cancellation_checks.get() >= 3);
 }

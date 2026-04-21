@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use crate::core::addon::{
     AddonPackageMetadata, AddonRegistry, TrackedAddon, TrackedAddonPackage, load_registry,
 };
+use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -265,7 +266,7 @@ fn write_addon_lock_file(path: &Path, lock: &AddonLock) -> AppResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(path, toml::to_string_pretty(lock)?)?;
+    write_bytes_atomically(path, toml::to_string_pretty(lock)?.as_bytes())?;
     Ok(())
 }
 

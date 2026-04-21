@@ -4,9 +4,20 @@ use super::{
 };
 use crate::core::error::AppResult;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct StableAppServices {
     pub(super) runtime: AppRuntime,
+    installations: InstallationService,
+    addons: AddonService,
+    backups: BackupService,
+    bundles: BundleService,
+    external_packages: ExternalPackageService,
+}
+
+impl Default for StableAppServices {
+    fn default() -> Self {
+        Self::with_runtime(AppRuntime::default())
+    }
 }
 
 impl StableAppServices {
@@ -15,7 +26,14 @@ impl StableAppServices {
     }
 
     pub fn with_runtime(runtime: AppRuntime) -> Self {
-        Self { runtime }
+        Self {
+            installations: InstallationService::with_runtime(runtime.clone()),
+            addons: AddonService::with_runtime(runtime.clone()),
+            backups: BackupService::with_runtime(runtime.clone()),
+            bundles: BundleService::with_runtime(runtime.clone()),
+            external_packages: ExternalPackageService::with_runtime(runtime.clone()),
+            runtime,
+        }
     }
 
     #[cfg(test)]
@@ -327,24 +345,24 @@ impl StableAppServices {
             .apply_with_callbacks(request, is_cancelled, on_progress)
     }
 
-    pub(super) fn installations(&self) -> InstallationService {
-        InstallationService::with_runtime(self.runtime.clone())
+    pub(super) fn installations(&self) -> &InstallationService {
+        &self.installations
     }
 
-    pub(super) fn addons(&self) -> AddonService {
-        AddonService::with_runtime(self.runtime.clone())
+    pub(super) fn addons(&self) -> &AddonService {
+        &self.addons
     }
 
-    pub(super) fn backups(&self) -> BackupService {
-        BackupService::with_runtime(self.runtime.clone())
+    pub(super) fn backups(&self) -> &BackupService {
+        &self.backups
     }
 
-    pub(super) fn bundles(&self) -> BundleService {
-        BundleService::with_runtime(self.runtime.clone())
+    pub(super) fn bundles(&self) -> &BundleService {
+        &self.bundles
     }
 
-    pub(super) fn external_packages(&self) -> ExternalPackageService {
-        ExternalPackageService::with_runtime(self.runtime.clone())
+    pub(super) fn external_packages(&self) -> &ExternalPackageService {
+        &self.external_packages
     }
 }
 #[cfg(test)]

@@ -3,6 +3,7 @@ mod addon_layout;
 pub mod app;
 mod archive_io;
 mod archive_path;
+mod atomic_write;
 pub mod backup;
 pub mod bundle;
 pub mod error;

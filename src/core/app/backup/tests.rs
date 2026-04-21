@@ -9,7 +9,7 @@ use crate::core::app::{
     ResolvedInstallationValue, RestoreBackupAppRequest,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
-use crate::core::task::{TaskKind, TaskPhase, TaskProgressEvent};
+use crate::core::task::{TaskKind, TaskPhase, TaskProgressCode, TaskProgressEvent};
 
 #[test]
 fn backup_service_restore_collecting_progress_returns_restore_task_events() {
@@ -55,6 +55,19 @@ fn backup_service_restore_collecting_progress_returns_restore_task_events() {
         .expect("restore with collected progress");
 
     assert_eq!(run.result.restored_files, 1);
+    assert!(run.task_id.starts_with("task-"));
+    assert!(
+        run.progress
+            .iter()
+            .all(|event| event.task_id.as_deref() == Some(run.task_id.as_str()))
+    );
+    let restore_entry = run
+        .progress
+        .iter()
+        .find(|event| event.code == Some(TaskProgressCode::RestoreEntry))
+        .expect("restore entry progress");
+    assert_eq!(restore_entry.current, Some(1));
+    assert_eq!(restore_entry.total, Some(1));
     assert_backup_restore_task_progress(&run.progress);
 }
 

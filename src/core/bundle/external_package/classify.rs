@@ -3,15 +3,20 @@ use super::types::{
     ExternalPackageEntry, ExternalPackageWarning, ExternalPackageWarningCategory,
     ExternalPackageWarningCode,
 };
-use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
+use crate::core::addon_layout::{
+    AddonRootPrefixMatchKind, addon_root_prefix_match_kind,
+    discover_addon_roots_from_entry_segments,
+};
 use crate::core::bundle::entry_layout::classify_bundle_archive_entry;
 use crate::core::error::{AppError, AppResult};
+use crate::core::install::HostPlatform;
 
 pub(super) fn classify_source_entries(
     source_entries: &[SourceEntry],
 ) -> AppResult<(Vec<ExternalPackageEntry>, Vec<ExternalPackageWarning>)> {
     let addon_roots = discover_addon_roots_from_entry_segments(
         source_entries.iter().map(|entry| entry.segments.as_slice()),
+        HostPlatform::Windows,
     );
     let mut entries = Vec::new();
     let mut warnings = Vec::new();
@@ -48,9 +53,7 @@ fn classify_addon_path(
     segments: &[String],
     addon_roots: &[Vec<String>],
 ) -> AddonPathClassification {
-    let root = addon_roots
-        .iter()
-        .find(|root| starts_with_segments(segments, root));
+    let root = find_addon_root(segments, addon_roots);
     let Some(root) = root else {
         if find_segment_index(segments, "AddOns").is_some() {
             return AddonPathClassification::MissingRoot;
@@ -317,12 +320,25 @@ fn build_wtf_warning(source_path: &str, warning_kind: WtfWarningKind) -> Externa
     )
 }
 
-fn starts_with_segments(segments: &[String], prefix: &[String]) -> bool {
-    prefix.len() <= segments.len()
-        && prefix
-            .iter()
-            .zip(segments.iter())
-            .all(|(left, right)| left == right)
+fn find_addon_root<'a>(
+    segments: &[String],
+    addon_roots: &'a [Vec<String>],
+) -> Option<&'a [String]> {
+    let mut case_insensitive_match = None;
+
+    for root in addon_roots {
+        match addon_root_prefix_match_kind(segments, root, HostPlatform::Windows) {
+            Some(AddonRootPrefixMatchKind::Exact) => return Some(root.as_slice()),
+            Some(AddonRootPrefixMatchKind::CaseInsensitive) => {
+                if case_insensitive_match.is_none() {
+                    case_insensitive_match = Some(root.as_slice());
+                }
+            }
+            None => {}
+        }
+    }
+
+    case_insensitive_match
 }
 
 fn join_normalized_segments(root: &str, name: &str, rest: &[String]) -> String {
@@ -397,6 +413,29 @@ mod tests {
             }
             AddonPathClassification::None => {
                 panic!("AddOns subtree without root should request warning")
+            }
+        }
+    }
+
+    #[test]
+    fn classify_addon_path_recognizes_case_mixed_subtree_on_windows_portability_floor() {
+        let roots = vec![vec![
+            "AuthorUI".to_string(),
+            "Interface".to_string(),
+            "AddOns".to_string(),
+            "WeakAuras".to_string(),
+        ]];
+        let segments = segments(&["AuthorUI", "Interface", "AddOns", "weakauras", "Core.lua"]);
+
+        match classify_addon_path(&segments, &roots) {
+            AddonPathClassification::Recognized(normalized_path) => {
+                assert_eq!(normalized_path, "addons/WeakAuras/Core.lua");
+            }
+            AddonPathClassification::MissingRoot => {
+                panic!("case-mixed addon subtree should still be recognized")
+            }
+            AddonPathClassification::None => {
+                panic!("case-mixed addon subtree should be classified")
             }
         }
     }

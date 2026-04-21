@@ -21,7 +21,8 @@ where
 }
 
 pub use crate::core::task::{
-    CancellationToken, TaskKind, TaskPhase, TaskProgressEvent, TaskProgressSink, TaskRun,
+    CancellationToken, TaskKind, TaskPhase, TaskProgressCode, TaskProgressEvent, TaskProgressSink,
+    TaskRun,
 };
 pub(in crate::core::app) use addon::AddonService;
 pub(in crate::core::app) use addon_index::AddonIndexService;

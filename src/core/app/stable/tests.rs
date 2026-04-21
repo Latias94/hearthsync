@@ -51,6 +51,17 @@ fn stable_app_services_share_runtime_with_first_wave_gui_services() {
         services.addons().runtime().host_platform(),
         HostPlatformValue::MacOs
     );
+    assert!(std::ptr::eq(
+        services.installations(),
+        services.installations()
+    ));
+    assert!(std::ptr::eq(services.addons(), services.addons()));
+    assert!(std::ptr::eq(services.backups(), services.backups()));
+    assert!(std::ptr::eq(services.bundles(), services.bundles()));
+    assert!(std::ptr::eq(
+        services.external_packages(),
+        services.external_packages()
+    ));
 }
 
 #[test]

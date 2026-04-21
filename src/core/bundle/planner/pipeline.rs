@@ -2,9 +2,12 @@ use std::path::Path;
 
 use super::super::apply_model::prepared::{PreparedApplySource, PreparedBundleApply};
 use super::super::types::apply::{BundleApplyMappings, BundleApplyPlan};
-use super::logical::plan_apply_from_entries;
+use super::logical::plan_apply_from_entries as build_logical_apply_from_entries;
 use super::model::ResolvedPreviewApply;
-use super::preview::{build_pending_preview_apply, finalize_pending_preview_apply};
+use super::preview::{
+    build_pending_preview_apply, finalize_pending_preview_apply,
+    resolve_pending_preview_apply_logical,
+};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;
@@ -43,15 +46,12 @@ pub(in crate::core::bundle) fn plan_apply_from_source(
     source: &PreparedApplySource,
 ) -> AppResult<BundleApplyPlan> {
     let entry_names = source.logical_entry_names()?;
-    let mut reader = source.open_reader()?;
-
-    plan_apply_from_entry_reader(
+    build_public_plan_from_entries(
         plan_path,
         installation,
         manifest,
         &entry_names,
         apply_mappings,
-        |archive_name| source.read_logical_entry_bytes(&mut reader, archive_name),
     )
 }
 
@@ -101,29 +101,6 @@ where
     Ok(resolved_preview_apply.into_prepared_apply(apply_source))
 }
 
-fn plan_apply_from_entry_reader<TReadBytes>(
-    plan_path: &Path,
-    installation: &DetectedFlavorInstallation,
-    manifest: BundleManifest,
-    entry_names: &[String],
-    apply_mappings: &BundleApplyMappings,
-    mut read_entry_bytes: TReadBytes,
-) -> AppResult<BundleApplyPlan>
-where
-    TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
-{
-    let resolved_preview_apply = resolve_preview_apply_from_entries(
-        plan_path,
-        installation,
-        manifest,
-        entry_names,
-        apply_mappings,
-        &mut read_entry_bytes,
-    )?;
-
-    Ok(resolved_preview_apply.into_plan())
-}
-
 #[cfg(test)]
 pub(in crate::core::bundle) fn plan_apply_from_entries_with_reader<TReadBytes>(
     plan_path: &Path,
@@ -136,13 +113,13 @@ pub(in crate::core::bundle) fn plan_apply_from_entries_with_reader<TReadBytes>(
 where
     TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
 {
-    plan_apply_from_entry_reader(
+    let _ = read_entry_bytes;
+    build_public_plan_from_entries(
         plan_path,
         installation,
         manifest,
         entry_names,
         apply_mappings,
-        read_entry_bytes,
     )
 }
 
@@ -157,7 +134,7 @@ fn resolve_preview_apply_from_entries<TReadBytes>(
 where
     TReadBytes: FnMut(&str) -> AppResult<Vec<u8>>,
 {
-    let logical_apply = plan_apply_from_entries(
+    let logical_apply = build_logical_apply_from_entries(
         plan_path,
         installation,
         manifest,
@@ -167,4 +144,24 @@ where
     let pending_preview_apply = build_pending_preview_apply(logical_apply);
 
     finalize_pending_preview_apply(pending_preview_apply, read_entry_bytes)
+}
+
+fn build_public_plan_from_entries(
+    plan_path: &Path,
+    installation: &DetectedFlavorInstallation,
+    manifest: BundleManifest,
+    entry_names: &[String],
+    apply_mappings: &BundleApplyMappings,
+) -> AppResult<BundleApplyPlan> {
+    let logical_apply = build_logical_apply_from_entries(
+        plan_path,
+        installation,
+        manifest,
+        entry_names,
+        apply_mappings,
+    )?;
+    let pending_preview_apply = build_pending_preview_apply(logical_apply);
+    let resolved_preview_apply = resolve_pending_preview_apply_logical(pending_preview_apply);
+
+    Ok(resolved_preview_apply.into_plan())
 }

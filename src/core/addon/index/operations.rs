@@ -481,4 +481,8 @@ where
         event.task = self.task;
         self.inner.push(event);
     }
+
+    fn task_id(&self) -> Option<&str> {
+        self.inner.task_id()
+    }
 }

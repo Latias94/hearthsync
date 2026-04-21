@@ -10,7 +10,8 @@ use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;
 use crate::core::task::{
-    CancellationToken, TaskPhase, TaskProgressSink, emit_task_progress, ensure_task_not_cancelled,
+    CancellationToken, TaskPhase, TaskProgressCode, TaskProgressSink, emit_task_progress,
+    emit_task_step_progress, ensure_task_not_cancelled,
 };
 
 pub(super) struct BundleExecution {
@@ -84,10 +85,13 @@ impl<'a> BundleExecutor<'a> {
             execution_operations,
             &plan.manifest,
             |operation_index, operation_count, operation| {
-                emit_task_progress(
+                emit_task_step_progress(
                     progress,
                     self.task_context.task_kind(),
                     TaskPhase::Executing,
+                    TaskProgressCode::ApplyOperation,
+                    operation_index + 1,
+                    operation_count,
                     self.task_context.operation_message(
                         operation_index,
                         operation_count,

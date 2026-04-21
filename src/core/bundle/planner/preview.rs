@@ -107,6 +107,33 @@ where
     ))
 }
 
+pub(super) fn resolve_pending_preview_apply_logical(
+    pending_preview_apply: PendingPreviewApply,
+) -> ResolvedPreviewApply {
+    let PendingPreviewApply {
+        plan_path,
+        target_flavor_root,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        manifest,
+        settled_operations,
+        pending_existing_target_entries,
+    } = pending_preview_apply;
+    let preview_operations =
+        resolve_preview_operations_logical(settled_operations, pending_existing_target_entries);
+
+    ResolvedPreviewApply::new(
+        plan_path,
+        target_flavor_root,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        manifest,
+        preview_operations,
+    )
+}
+
 fn finalize_preview_operations<TReadBytes>(
     mut settled_operations: Vec<PreviewOperation>,
     pending_existing_target_entries: Vec<PendingExistingTargetPreviewEntry>,
@@ -122,15 +149,26 @@ where
         read_entry_bytes,
     )?);
 
-    settled_operations.sort_by(|left, right| {
-        apply_action_order(left.action())
-            .cmp(&apply_action_order(right.action()))
-            .then_with(|| apply_group_order(left.group()).cmp(&apply_group_order(right.group())))
-            .then_with(|| left.destination().cmp(right.destination()))
-            .then_with(|| left.archive_name().cmp(right.archive_name()))
-    });
+    sort_preview_operations(&mut settled_operations);
 
     Ok(settled_operations)
+}
+
+fn resolve_preview_operations_logical(
+    mut settled_operations: Vec<PreviewOperation>,
+    pending_existing_target_entries: Vec<PendingExistingTargetPreviewEntry>,
+) -> Vec<PreviewOperation> {
+    settled_operations.extend(
+        pending_existing_target_entries
+            .into_iter()
+            .map(|pending_entry| {
+                // Public dry-run plans stay logical and conservative: an existing target is planned
+                // as a replace candidate unless the logical planner already proved add/preserve.
+                PreviewOperation::from_entry(&pending_entry.entry, ApplyAction::Replace)
+            }),
+    );
+    sort_preview_operations(&mut settled_operations);
+    settled_operations
 }
 
 fn finalize_existing_target_preview_entries<TReadBytes>(
@@ -153,6 +191,16 @@ where
     }
 
     Ok(finalized_operations)
+}
+
+fn sort_preview_operations(operations: &mut [PreviewOperation]) {
+    operations.sort_by(|left, right| {
+        apply_action_order(left.action())
+            .cmp(&apply_action_order(right.action()))
+            .then_with(|| apply_group_order(left.group()).cmp(&apply_group_order(right.group())))
+            .then_with(|| left.destination().cmp(right.destination()))
+            .then_with(|| left.archive_name().cmp(right.archive_name()))
+    });
 }
 
 fn finalize_existing_target_action<TReadBytes>(

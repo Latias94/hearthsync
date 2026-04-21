@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use serde::Serialize;
 
 use crate::core::error::{AppError, AppResult};
@@ -60,15 +62,60 @@ impl TaskPhase {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskProgressCode {
+    Preparing,
+    Planning,
+    BackingUp,
+    Executing,
+    Verifying,
+    Completed,
+    RemoveAddonDirectory,
+    WriteAddonDirectory,
+    ApplyMetadata,
+    ClearRestoreGroup,
+    RestoreEntry,
+    ApplyOperation,
+}
+
+impl TaskProgressCode {
+    pub fn for_phase(phase: TaskPhase) -> Self {
+        match phase {
+            TaskPhase::Preparing => Self::Preparing,
+            TaskPhase::Planning => Self::Planning,
+            TaskPhase::BackingUp => Self::BackingUp,
+            TaskPhase::Executing => Self::Executing,
+            TaskPhase::Verifying => Self::Verifying,
+            TaskPhase::Completed => Self::Completed,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TaskProgressEvent {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<String>,
     pub task: TaskKind,
     pub phase: TaskPhase,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<TaskProgressCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_current: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_per_second: Option<u64>,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TaskRun<T> {
+    pub task_id: String,
     pub result: T,
     pub progress: Vec<TaskProgressEvent>,
 }
@@ -79,6 +126,10 @@ pub trait CancellationToken {
 
 pub trait TaskProgressSink {
     fn push(&mut self, event: TaskProgressEvent);
+
+    fn task_id(&self) -> Option<&str> {
+        None
+    }
 }
 
 #[derive(Debug, Default)]
@@ -99,10 +150,18 @@ impl TaskProgressSink for NoopProgressSink {
 
 #[derive(Debug, Default)]
 pub struct VecTaskProgressSink {
+    task_id: Option<String>,
     events: Vec<TaskProgressEvent>,
 }
 
 impl VecTaskProgressSink {
+    pub fn with_task_id(task_id: impl Into<String>) -> Self {
+        Self {
+            task_id: Some(task_id.into()),
+            events: Vec::new(),
+        }
+    }
+
     pub fn events(&self) -> &[TaskProgressEvent] {
         &self.events
     }
@@ -113,8 +172,13 @@ impl VecTaskProgressSink {
 }
 
 impl TaskProgressSink for VecTaskProgressSink {
-    fn push(&mut self, event: TaskProgressEvent) {
+    fn push(&mut self, mut event: TaskProgressEvent) {
+        attach_task_id_if_missing(&mut event, self.task_id());
         self.events.push(event);
+    }
+
+    fn task_id(&self) -> Option<&str> {
+        self.task_id.as_deref()
     }
 }
 
@@ -138,12 +202,23 @@ where
 }
 
 pub struct CallbackProgressSink<F> {
+    task_id: Option<String>,
     on_progress: F,
 }
 
 impl<F> CallbackProgressSink<F> {
     pub fn new(on_progress: F) -> Self {
-        Self { on_progress }
+        Self {
+            task_id: None,
+            on_progress,
+        }
+    }
+
+    pub fn with_task_id(task_id: impl Into<String>, on_progress: F) -> Self {
+        Self {
+            task_id: Some(task_id.into()),
+            on_progress,
+        }
     }
 }
 
@@ -151,8 +226,13 @@ impl<F> TaskProgressSink for CallbackProgressSink<F>
 where
     F: FnMut(TaskProgressEvent),
 {
-    fn push(&mut self, event: TaskProgressEvent) {
+    fn push(&mut self, mut event: TaskProgressEvent) {
+        attach_task_id_if_missing(&mut event, self.task_id());
         (self.on_progress)(event);
+    }
+
+    fn task_id(&self) -> Option<&str> {
+        self.task_id.as_deref()
     }
 }
 
@@ -160,11 +240,13 @@ pub fn run_task_with_collected_progress<TResult, FTask>(task: FTask) -> AppResul
 where
     FTask: FnOnce(&NeverCancel, &mut VecTaskProgressSink) -> AppResult<TResult>,
 {
+    let task_id = next_task_id();
     let cancellation = NeverCancel;
-    let mut progress = VecTaskProgressSink::default();
+    let mut progress = VecTaskProgressSink::with_task_id(task_id.clone());
     let result = task(&cancellation, &mut progress)?;
 
     Ok(TaskRun {
+        task_id,
         result,
         progress: progress.into_events(),
     })
@@ -183,8 +265,9 @@ where
     FCancel: Fn() -> bool,
     FProgress: FnMut(TaskProgressEvent),
 {
+    let task_id = next_task_id();
     let cancellation = CallbackCancellationToken::new(is_cancelled);
-    let mut progress = CallbackProgressSink::new(on_progress);
+    let mut progress = CallbackProgressSink::with_task_id(task_id, on_progress);
     task(&cancellation, &mut progress)
 }
 
@@ -194,11 +277,65 @@ pub fn emit_task_progress(
     phase: TaskPhase,
     message: impl Into<String>,
 ) {
-    sink.push(TaskProgressEvent {
+    push_task_progress_event(
+        sink,
         task,
         phase,
-        message: message.into(),
-    });
+        Some(TaskProgressCode::for_phase(phase)),
+        None,
+        None,
+        None,
+        None,
+        None,
+        message,
+    );
+}
+
+pub fn emit_task_step_progress(
+    sink: &mut impl TaskProgressSink,
+    task: TaskKind,
+    phase: TaskPhase,
+    code: TaskProgressCode,
+    current: usize,
+    total: usize,
+    message: impl Into<String>,
+) {
+    push_task_progress_event(
+        sink,
+        task,
+        phase,
+        Some(code),
+        Some(current),
+        Some(total),
+        None,
+        None,
+        None,
+        message,
+    );
+}
+
+pub fn emit_task_byte_progress(
+    sink: &mut impl TaskProgressSink,
+    task: TaskKind,
+    phase: TaskPhase,
+    code: TaskProgressCode,
+    bytes_current: u64,
+    bytes_total: Option<u64>,
+    bytes_per_second: Option<u64>,
+    message: impl Into<String>,
+) {
+    push_task_progress_event(
+        sink,
+        task,
+        phase,
+        Some(code),
+        None,
+        None,
+        Some(bytes_current),
+        bytes_total,
+        bytes_per_second,
+        message,
+    );
 }
 
 pub fn ensure_task_not_cancelled(
@@ -217,12 +354,51 @@ pub fn ensure_task_not_cancelled(
     }
 }
 
+static NEXT_TASK_ID: AtomicU64 = AtomicU64::new(1);
+
+fn next_task_id() -> String {
+    format!("task-{:016x}", NEXT_TASK_ID.fetch_add(1, Ordering::Relaxed))
+}
+
+fn attach_task_id_if_missing(event: &mut TaskProgressEvent, task_id: Option<&str>) {
+    if event.task_id.is_none() {
+        event.task_id = task_id.map(ToOwned::to_owned);
+    }
+}
+
+fn push_task_progress_event(
+    sink: &mut impl TaskProgressSink,
+    task: TaskKind,
+    phase: TaskPhase,
+    code: Option<TaskProgressCode>,
+    current: Option<usize>,
+    total: Option<usize>,
+    bytes_current: Option<u64>,
+    bytes_total: Option<u64>,
+    bytes_per_second: Option<u64>,
+    message: impl Into<String>,
+) {
+    sink.push(TaskProgressEvent {
+        task_id: None,
+        task,
+        phase,
+        code,
+        current,
+        total,
+        bytes_current,
+        bytes_total,
+        bytes_per_second,
+        message: message.into(),
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use std::cell::{Cell, RefCell};
 
     use super::{
-        AppError, TaskKind, TaskPhase, emit_task_progress, ensure_task_not_cancelled,
+        AppError, TaskKind, TaskPhase, TaskProgressCode, emit_task_byte_progress,
+        emit_task_progress, emit_task_step_progress, ensure_task_not_cancelled,
         run_task_with_callbacks, run_task_with_collected_progress,
     };
 
@@ -244,9 +420,15 @@ mod tests {
         })
         .expect("run task");
 
+        assert!(run.task_id.starts_with("task-"));
         assert_eq!(run.result, 42);
         assert_eq!(run.progress.len(), 1);
         assert_eq!(run.progress[0].task, TaskKind::ExternalPackageAnalyze);
+        assert_eq!(
+            run.progress[0].task_id.as_deref(),
+            Some(run.task_id.as_str())
+        );
+        assert_eq!(run.progress[0].code, Some(TaskProgressCode::Preparing));
     }
 
     #[test]
@@ -285,5 +467,63 @@ mod tests {
         assert!(matches!(error, AppError::Cancelled(_)));
         assert_eq!(seen.borrow().len(), 1);
         assert_eq!(seen.borrow()[0].phase, TaskPhase::Preparing);
+        assert!(
+            seen.borrow()[0]
+                .task_id
+                .as_deref()
+                .is_some_and(|task_id| task_id.starts_with("task-"))
+        );
+    }
+
+    #[test]
+    fn emit_task_step_progress_records_structured_step_fields() {
+        let run = run_task_with_collected_progress(|_cancellation, progress| {
+            emit_task_step_progress(
+                progress,
+                TaskKind::AddonInstall,
+                TaskPhase::Executing,
+                TaskProgressCode::WriteAddonDirectory,
+                2,
+                5,
+                "Writing addon directory 2/5 `WeakAuras`",
+            );
+            Ok::<_, AppError>(())
+        })
+        .expect("run task");
+
+        assert_eq!(run.progress.len(), 1);
+        assert_eq!(
+            run.progress[0].code,
+            Some(TaskProgressCode::WriteAddonDirectory)
+        );
+        assert_eq!(run.progress[0].current, Some(2));
+        assert_eq!(run.progress[0].total, Some(5));
+        assert_eq!(
+            run.progress[0].task_id.as_deref(),
+            Some(run.task_id.as_str())
+        );
+    }
+
+    #[test]
+    fn emit_task_byte_progress_records_structured_byte_fields() {
+        let run = run_task_with_collected_progress(|_cancellation, progress| {
+            emit_task_byte_progress(
+                progress,
+                TaskKind::AddonUpdate,
+                TaskPhase::Executing,
+                TaskProgressCode::Executing,
+                512,
+                Some(1024),
+                Some(256),
+                "Downloading addon archive",
+            );
+            Ok::<_, AppError>(())
+        })
+        .expect("run task");
+
+        assert_eq!(run.progress.len(), 1);
+        assert_eq!(run.progress[0].bytes_current, Some(512));
+        assert_eq!(run.progress[0].bytes_total, Some(1024));
+        assert_eq!(run.progress[0].bytes_per_second, Some(256));
     }
 }

@@ -660,6 +660,7 @@ trait bounds.
 The stable task contract is now published through `core::app`:
 
 - `CancellationToken`
+- `TaskProgressCode`
 - `TaskProgressSink`
 - `TaskRun`
 - `TaskProgressEvent`
@@ -674,6 +675,42 @@ The stable task contract is now published through `core::app`:
   path for stable app-service progress behavior
 - future task-behavior refactors can keep the same app-facing import surface even if internal task
   plumbing changes underneath
+
+## ADR-040: Stable Task Progress Must Stay Human-Readable And Machine-Readable
+
+### Status
+
+Accepted on 2026-04-21
+
+### Decision
+
+The stable task contract must keep the existing human-readable `message` field for CLI and logs,
+but it must also expose structured progress data that a future GUI can consume without parsing
+strings.
+
+`TaskRun` now carries one generated `task_id`, and `TaskProgressEvent` may carry:
+
+- `task_id`
+- `code`
+- `current`
+- `total`
+- `bytes_current`
+- `bytes_total`
+- `bytes_per_second`
+
+Task ids are generated inside the shared `core::task` wrapper layer rather than by each business
+operation.
+Task-specific execution loops should emit structured step progress through shared helpers instead
+of inventing ad hoc event payloads at each call site.
+
+### Consequences
+
+- CLI keeps its current readable progress messages instead of switching to raw machine codes
+- future `egui` work can group callback or collected-progress streams by `task_id`
+- step-oriented work such as addon directory mutation, backup restore, bundle apply execution, and
+  metadata-only lock actions can expose deterministic `current/total` counts without string parsing
+- byte-oriented download progress can be added incrementally later without changing the app-facing
+  event shape again
 
 ## ADR-031: Helper Strategy Is Runtime Capability State, Not Planner State
 
@@ -778,8 +815,6 @@ stable bridge instead of relying on `Deref`-style implicit forwarding.
   contract instead of picking up addon-index/addon-lock stability by accident
 - `ExtendedAppServices` remains available as the broader extension root when advanced reproducibility or
   curation workflows are explicitly needed
-- composition between the two boundaries is now visible in code review, which makes API stability
-  promises easier to reason about than implicit `Deref` forwarding
 
 ## ADR-035: App Inputs Own Installation Policy and Thin Domain Projection
 
@@ -890,3 +925,32 @@ Specifically:
 - portable bundle metadata no longer smuggles relative sidecar resolution through ambient `cwd`
 - the remaining portability hardening can focus on true archive metadata and case-folding edges
   instead of preserving process-global path assumptions in bundle export
+
+## ADR-039: Default Public Plans Are Logical and Conservative
+
+### Status
+
+Accepted on 2026-04-21
+
+### Decision
+
+Default public dry-run plans such as `bundle plan` and `external-package plan` should stay logical
+and conservative rather than reading archive bytes or previewing rewrites to compute exact
+`skip` versus `replace` outcomes for existing targets.
+
+When the logical planner reaches an entry whose destination already exists and no deterministic
+`add` or `preserve` rule already applies, the public plan should report that entry as a replace
+candidate.
+Exact identical-file detection remains part of prepare/apply paths, where deeper source reads,
+rewrite preview, and byte comparison are justified immediately before execution.
+
+### Consequences
+
+- public plan latency no longer scales with archive-byte reads or rewrite-aware content comparison
+  for existing targets
+- future GUI previews can use the default plan contract as a fast intent view without depending on
+  accidental deep-compare behavior
+- public plan counts become intentionally conservative for existing targets: some entries planned as
+  `replace` may later resolve to `skip` during prepare/apply
+- exact execution-time skipping still remains available where it matters operationally, so apply
+  behavior does not regress just because public plan became cheaper

@@ -91,6 +91,7 @@ pub(super) fn github_headers() -> Vec<HttpHeader> {
 
 #[derive(Debug, Deserialize)]
 pub(super) struct GitHubRelease {
+    pub(super) tag_name: String,
     pub(super) assets: Vec<GitHubReleaseAsset>,
 }
 

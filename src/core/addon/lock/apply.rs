@@ -126,8 +126,22 @@ where
         TaskPhase::Verifying,
         "Verifying addon lock state after apply",
     );
-    ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Verifying)?;
-    let verification = verify_addon_lock(&request.installation, Some(&plan.result.lock_path))?;
+    let verification = match ensure_task_not_cancelled(
+        cancellation,
+        TaskKind::AddonLockApply,
+        TaskPhase::Verifying,
+    )
+    .and_then(|()| verify_addon_lock(&request.installation, Some(&plan.result.lock_path)))
+    {
+        Ok(verification) => verification,
+        Err(error) => {
+            return rollback_or_report_addon_error(
+                error,
+                backup_path.as_deref(),
+                &request.installation,
+            );
+        }
+    };
     let result = AddonLockApplyResult {
         lock_path: plan.result.lock_path,
         installation_root: plan.result.installation_root,

@@ -767,7 +767,7 @@ fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
 }
 
 #[test]
-fn plan_bundle_apply_skips_identical_files() {
+fn plan_bundle_apply_reports_existing_files_as_replace_in_logical_plan() {
     let source = tempdir().expect("source temp dir");
     let target = tempdir().expect("target temp dir");
     let source_installation = create_fixture_installation(source.path(), true);
@@ -790,9 +790,9 @@ fn plan_bundle_apply_skips_identical_files() {
     .expect("plan bundle");
 
     assert_eq!(plan.summary.files_to_add, 0);
-    assert_eq!(plan.summary.files_to_replace, 0);
-    assert!(plan.summary.files_to_skip > 0);
-    assert_eq!(plan.summary.files_to_skip, plan.operations.len());
+    assert!(plan.summary.files_to_replace > 0);
+    assert_eq!(plan.summary.files_to_replace, plan.operations.len());
+    assert_eq!(plan.summary.files_to_skip, 0);
     assert_eq!(
         plan.group_policies.addons.policy,
         ResourceApplyPolicy::Merge
@@ -800,8 +800,41 @@ fn plan_bundle_apply_skips_identical_files() {
     assert!(
         plan.operations
             .iter()
-            .all(|operation| operation.action == ApplyAction::Skip)
+            .all(|operation| operation.action == ApplyAction::Replace)
     );
+}
+
+#[test]
+fn unpack_bundle_dry_run_still_skips_identical_files_after_prepare() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let source_installation = create_fixture_installation(source.path(), true);
+    let target_installation = create_fixture_installation(target.path(), true);
+    let bundle_path = source.path().join("bundle.zip");
+
+    pack_bundle(PackBundleRequest {
+        installation: source_installation,
+        manifest: sample_manifest(),
+        output_path: Some(bundle_path.clone()),
+        manifest_base_dir: None,
+    })
+    .expect("pack bundle");
+
+    let result = unpack_bundle(UnpackBundleRequest {
+        bundle_path,
+        installation: target_installation,
+        dry_run: true,
+        backup_output_path: None,
+        apply_mappings: BundleApplyMappings::default(),
+    })
+    .expect("dry-run identical bundle");
+
+    assert!(result.dry_run);
+    assert_eq!(result.plan_summary.files_to_add, 0);
+    assert_eq!(result.plan_summary.files_to_replace, 0);
+    assert!(result.plan_summary.files_to_skip > 0);
+    assert_eq!(result.plan_summary.files_to_skip, result.planned_files);
+    assert_eq!(result.written_files, 0);
 }
 
 #[test]
@@ -832,7 +865,7 @@ fn plan_apply_from_entries_with_reader_skips_byte_reads_for_deterministic_add_op
 }
 
 #[test]
-fn plan_apply_from_entries_with_reader_reads_bytes_when_existing_target_needs_preview_finalize() {
+fn plan_apply_from_entries_with_reader_keeps_existing_targets_logical_without_byte_reads() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path(), true);
     let read_calls = Cell::new(0usize);
@@ -850,12 +883,12 @@ fn plan_apply_from_entries_with_reader_reads_bytes_when_existing_target_needs_pr
     )
     .expect("plan apply from entries");
 
-    assert_eq!(read_calls.get(), 1);
+    assert_eq!(read_calls.get(), 0);
     assert_eq!(plan.summary.files_to_add, 0);
-    assert_eq!(plan.summary.files_to_replace, 0);
-    assert_eq!(plan.summary.files_to_skip, 1);
+    assert_eq!(plan.summary.files_to_replace, 1);
+    assert_eq!(plan.summary.files_to_skip, 0);
     assert_eq!(plan.operations.len(), 1);
-    assert_eq!(plan.operations[0].action, ApplyAction::Skip);
+    assert_eq!(plan.operations[0].action, ApplyAction::Replace);
 }
 
 #[test]

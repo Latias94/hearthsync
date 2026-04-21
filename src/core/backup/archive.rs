@@ -24,8 +24,8 @@ use crate::core::archive_path::{
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
-    CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
-    ensure_task_not_cancelled,
+    CancellationToken, TaskKind, TaskPhase, TaskProgressCode, TaskProgressSink,
+    emit_task_step_progress, ensure_task_not_cancelled,
 };
 
 #[derive(Debug, Clone)]
@@ -54,6 +54,7 @@ enum RestoreExecutionMode {
     Rollback,
 }
 
+#[derive(Clone, Copy)]
 enum RestoreExecutionStep<'a> {
     ClearGroup {
         group: BackupGroup,
@@ -103,11 +104,14 @@ where
             TaskKind::BackupRestore,
             TaskPhase::Executing,
         )?;
-        if let Some(message) = restore_execution_step_message(step) {
-            emit_task_progress(
+        if let Some((code, current, total, message)) = restore_execution_progress(step) {
+            emit_task_step_progress(
                 self.progress,
                 TaskKind::BackupRestore,
                 TaskPhase::Executing,
+                code,
+                current,
+                total,
                 message,
             );
         }
@@ -674,22 +678,32 @@ pub(super) fn reject_unsupported_backup_source_symlink(
     )
 }
 
-fn restore_execution_step_message(step: RestoreExecutionStep<'_>) -> Option<String> {
+fn restore_execution_progress(
+    step: RestoreExecutionStep<'_>,
+) -> Option<(TaskProgressCode, usize, usize, String)> {
     match step {
         RestoreExecutionStep::ClearGroup {
             group,
             current,
             total,
-        } => Some(format!(
-            "Clearing restore target group {current}/{total} `{}`",
-            group.as_str()
+        } => Some((
+            TaskProgressCode::ClearRestoreGroup,
+            current,
+            total,
+            format!(
+                "Clearing restore target group {current}/{total} `{}`",
+                group.as_str()
+            ),
         )),
         RestoreExecutionStep::RestoreEntry {
             entry_name,
             current,
             total,
-        } if should_emit_restore_entry_progress(current, total) => Some(format!(
-            "Restoring backup entry {current}/{total} `{entry_name}`"
+        } if should_emit_restore_entry_progress(current, total) => Some((
+            TaskProgressCode::RestoreEntry,
+            current,
+            total,
+            format!("Restoring backup entry {current}/{total} `{entry_name}`"),
         )),
         RestoreExecutionStep::RestoreEntry { .. } => None,
     }

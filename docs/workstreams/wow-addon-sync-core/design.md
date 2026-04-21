@@ -290,6 +290,13 @@ They may expose logical preview data that frontends or automation need to explai
 - plan summaries and helper strategy
 - external-package analysis data that explains how an author package was normalized
 
+Default public planning is intentionally logical and conservative.
+If a target path already exists and the planner has not already proven a deterministic `add` or
+`preserve`, public plan treats that entry as a replace candidate without opening archive readers,
+previewing Lua rewrites, or byte-comparing the current target file.
+Exact `skip` versus `replace` resolution for existing targets belongs to prepare/apply paths, where
+the system may spend the additional I/O and rewrite-preview cost immediately before execution.
+
 They must not expose execution-only payloads or staging details such as:
 
 - per-operation rewrite vectors or rewrite-applied flags
@@ -311,7 +318,8 @@ The stable entry shapes are:
 
 - direct calls that return only `AppResult<TResult>` and run with no cancellation plus a no-op
   progress sink
-- collecting-progress calls that return `TaskRun<TResult>` with an ordered `Vec<TaskProgressEvent>`
+- collecting-progress calls that return `TaskRun<TResult>` with one generated `task_id` plus an
+  ordered `Vec<TaskProgressEvent>`
 - callback-based calls that stream the same `TaskProgressEvent` payloads while polling a caller-
   supplied cancellation closure
 
@@ -320,9 +328,20 @@ to depend on the lower-level `core::task` module directly just to drive stable a
 
 Stable progress event fields are:
 
+- `task_id`
 - `task`
 - `phase`
+- optional `code`
+- optional `current`
+- optional `total`
+- optional `bytes_current`
+- optional `bytes_total`
+- optional `bytes_per_second`
 - `message`
+
+`message` remains the human-readable CLI/display string.
+The optional structured fields exist so future GUI code can group progress by task, render
+step-level counts, and later consume byte-level transfer updates without string parsing.
 
 For successful long-running tasks, the frontend-facing expectation is:
 

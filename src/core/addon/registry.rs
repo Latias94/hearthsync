@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -29,7 +30,7 @@ pub(crate) fn save_registry(
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(path, toml::to_string_pretty(registry)?)?;
+    write_bytes_atomically(&path, toml::to_string_pretty(registry)?.as_bytes())?;
     lock::sync_addon_lock_from_registry(installation, registry)?;
     Ok(())
 }

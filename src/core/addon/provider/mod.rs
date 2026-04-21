@@ -83,6 +83,21 @@ pub struct MaterializedAddonSource {
     pub archive_path: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DownloadCachePolicy {
+    ReuseIfPresent,
+    RefreshIfPresent,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedDownloadArtifact {
+    cache_source_ref: AddonSourceRef,
+    download_url: String,
+    archive_name: String,
+    headers: Vec<HttpHeader>,
+    cache_policy: DownloadCachePolicy,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct MaterializeSourceInputRequest<'a> {
     pub source: &'a str,
@@ -341,13 +356,17 @@ fn materialize_source_ref_impl(
             archive_path: path.clone(),
         }),
         AddonSourceRef::HttpArchive { url } => {
-            let file_name = guess_archive_name_from_url(url).unwrap_or("downloaded-addon.zip");
+            let artifact = ResolvedDownloadArtifact {
+                cache_source_ref: source.clone(),
+                download_url: url.clone(),
+                archive_name: guess_archive_name_from_url(url)
+                    .unwrap_or_else(|| "downloaded-addon.zip".to_string()),
+                headers: Vec::new(),
+                cache_policy: DownloadCachePolicy::RefreshIfPresent,
+            };
             let archive_path = materialize_downloaded_archive(
                 http_client,
-                source,
-                url,
-                file_name,
-                Vec::new(),
+                artifact,
                 stage_root,
                 context.cancellation,
                 options,
@@ -370,12 +389,19 @@ fn materialize_source_ref_impl(
                     file.id
                 ))
             })?;
+            let artifact = ResolvedDownloadArtifact {
+                cache_source_ref: AddonSourceRef::CurseForgeMod {
+                    mod_id: *mod_id,
+                    file_id: Some(file.id),
+                },
+                download_url,
+                archive_name: file.file_name.clone(),
+                headers: Vec::new(),
+                cache_policy: DownloadCachePolicy::ReuseIfPresent,
+            };
             let archive_path = materialize_downloaded_archive(
                 http_client,
-                source,
-                &download_url,
-                &file.file_name,
-                Vec::new(),
+                artifact,
                 stage_root,
                 context.cancellation,
                 options,
@@ -394,12 +420,21 @@ fn materialize_source_ref_impl(
             let release =
                 fetch_github_release_with_client(http_client, owner, repo, tag.as_deref())?;
             let asset = select_github_release_asset(&release, asset_name.as_deref())?;
+            let artifact = ResolvedDownloadArtifact {
+                cache_source_ref: AddonSourceRef::GitHubRelease {
+                    owner: owner.clone(),
+                    repo: repo.clone(),
+                    tag: Some(release.tag_name.clone()),
+                    asset_name: Some(asset.name.clone()),
+                },
+                download_url: asset.browser_download_url.clone(),
+                archive_name: asset.name.clone(),
+                headers: Vec::new(),
+                cache_policy: DownloadCachePolicy::ReuseIfPresent,
+            };
             let archive_path = materialize_downloaded_archive(
                 http_client,
-                source,
-                &asset.browser_download_url,
-                &asset.name,
-                Vec::new(),
+                artifact,
                 stage_root,
                 context.cancellation,
                 options,
@@ -423,21 +458,39 @@ fn search_addons_impl(
 
 fn materialize_downloaded_archive(
     http_client: &impl HttpClient,
-    source: &AddonSourceRef,
-    url: &str,
-    archive_name: &str,
-    headers: Vec<HttpHeader>,
+    artifact: ResolvedDownloadArtifact,
     stage_root: &Path,
     cancellation: Option<&dyn CancellationToken>,
     options: &AddonProviderOptions,
 ) -> AppResult<PathBuf> {
-    let archive_path = resolve_archive_path(source, archive_name, stage_root, options);
-    if options.download_cache_dir.is_some() && archive_path.is_file() {
+    let archive_path = resolve_archive_path(
+        &artifact.cache_source_ref,
+        &artifact.archive_name,
+        stage_root,
+        options,
+    );
+    if should_reuse_cached_archive(artifact.cache_policy, &archive_path, options) {
         return Ok(archive_path);
     }
 
-    download_to_path_with_headers(http_client, url, headers, &archive_path, cancellation)?;
+    download_to_path_with_headers(
+        http_client,
+        &artifact.download_url,
+        artifact.headers,
+        &archive_path,
+        cancellation,
+    )?;
     Ok(archive_path)
+}
+
+fn should_reuse_cached_archive(
+    cache_policy: DownloadCachePolicy,
+    archive_path: &Path,
+    options: &AddonProviderOptions,
+) -> bool {
+    options.download_cache_dir.is_some()
+        && archive_path.is_file()
+        && cache_policy == DownloadCachePolicy::ReuseIfPresent
 }
 
 fn resolve_archive_path(
@@ -490,13 +543,25 @@ fn download_to_path_with_headers(
     Ok(())
 }
 
-fn guess_archive_name_from_url(url: &str) -> Option<&str> {
-    let file_name = Path::new(url).file_name()?.to_str()?;
-    if file_name.is_empty() {
-        None
-    } else {
-        Some(file_name)
+fn guess_archive_name_from_url(url: &str) -> Option<String> {
+    if let Ok(parsed_url) = reqwest::Url::parse(url) {
+        if let Some(file_name) = parsed_url
+            .path_segments()
+            .and_then(|segments| segments.filter(|segment| !segment.is_empty()).next_back())
+            .filter(|segment| !segment.is_empty())
+        {
+            return Some(file_name.to_string());
+        }
     }
+
+    let stripped = url
+        .split_once('#')
+        .map_or(url, |(before_fragment, _)| before_fragment);
+    let stripped = stripped
+        .split_once('?')
+        .map_or(stripped, |(before_query, _)| before_query);
+    let file_name = Path::new(stripped).file_name()?.to_str()?;
+    (!file_name.is_empty()).then(|| file_name.to_string())
 }
 
 fn normalize_archive_name(archive_name: &str) -> String {

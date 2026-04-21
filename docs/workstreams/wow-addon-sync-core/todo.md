@@ -16,6 +16,10 @@ The active refactor sequence is:
 3. finish the planner and execution-preparation split so public plans stay logical
 4. turn `core::app` into stable service contracts instead of thin forwarding facades
 5. close the remaining portability and optional-helper capability gaps on top of the cleaner core
+6. close remote-source freshness, transaction-complete mutation semantics, and the remaining
+   high-cost preview behavior before frontend reuse depends on them
+7. finish structured task progress so future frontend work can consume machine-readable task
+   streams without parsing CLI text
 
 ## Refactor Rules
 
@@ -120,9 +124,9 @@ ways that a future frontend can depend on without learning internal domain seams
   addon-index, addon-lock, and bundle-addon-lock app responses use crate-internal `from_domain`
   factories instead of public `From<domain>` impls, so stable result types no longer advertise
   those domain conversions as part of the frontend-facing trait surface.
-- [ ] remove remaining thin-forwarder service behavior by moving real normalization and policy
+- [x] remove remaining thin-forwarder service behavior by moving real normalization and policy
   ownership into the app boundary
-  Current progress: runtime-backed default injection for backup directories, bundle output
+  Completed: runtime-backed default injection for backup directories, bundle output
   directories, and author-package source platform now lives on app request contracts via
   `apply_runtime_defaults` instead of being split across private service-local `normalize_*`
   helpers. This closes a real behavior gap too: addon, addon-index, and addon-lock mutation
@@ -236,6 +240,10 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: runtime path/default projection helpers are crate-internal again, and
     `ExtendedAppServices` now exposes an explicit `stable()` bridge instead of implicit `Deref`
     compatibility with the stable app boundary.
+    Current cleanup: stable and extended app roots now also own constructed service instances
+    directly instead of rebuilding fresh service wrappers from cloned runtime state on every
+    internal accessor call, so the app boundary behaves more like a long-lived service contract
+    and less like a service factory façade.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of
@@ -295,6 +303,10 @@ enough that these rules live in one place.
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two
   archive entries differ only by case while Linux targets may still plan distinct paths.
+  Current progress: addon-root discovery and prefix matching now also follow the same
+  platform-aware contract. Windows/default-macOS author-package normalization and addon-archive
+  install/update flows no longer silently drop files when one addon subtree uses mixed path casing,
+  while Linux keeps case-sensitive distinct-root behavior.
 - [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and
   caller-working-directory assumptions
   Current progress: bundle export no longer defaults output paths or relative output references
@@ -368,6 +380,9 @@ enough that these rules live in one place.
   file target collisions using the selected target platform's case-sensitivity rules, so
   Windows/default-macOS installs fail fast on case-only archive conflicts instead of depending on
   host filesystem behavior during extraction.
+  Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
+  case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
+  into the intended addon root instead of being skipped as if they belonged to no addon.
   Current progress: cross-platform target-path collision detection now also shares one canonical
   helper under `core::archive_path`, and backup restore reuses the same case-folding rules as
   addon prep, bundle planning, and external-package normalization instead of carrying a separate
@@ -408,3 +423,82 @@ Exit criteria:
 
 - Windows and macOS callers share one deterministic import contract
 - helper-assisted paths, if added later, remain optional accelerators rather than architecture owners
+
+## R5 - Operational Correctness and Update Freshness
+
+Goal: the next fearless-refactor pass should fix the correctness gaps that would otherwise make
+addon update, addon-lock sync, and frontend-facing dry-run behavior feel trustworthy only in happy-path tests.
+
+- [x] define source freshness semantics for mutable remote references versus immutable pinned artifacts
+  Completed: provider download caching now distinguishes mutable versus resolved immutable remote
+  artifacts. Floating GitHub releases and floating CurseForge mod references resolve to a concrete
+  tag or file id before cache reuse, while raw `http(s)` archives refresh even when a cache
+  directory is configured.
+- [x] make addon update capable of refetching newer remote artifacts when the recorded source
+  reference is mutable
+  Completed: repeated `addon update` runs no longer freeze floating remote references behind a
+  stale cache hit, so a newly resolved GitHub release tag or CurseForge file can be observed.
+- [x] make addon-lock apply transaction-complete, including post-apply verification and
+  cancellation semantics
+  Completed: addon-lock apply now treats “execution succeeded but verification could not complete”
+  as a rollback path when a backup exists. Verification cancellation or verification-time errors no
+  longer leave filesystem mutations in place while still returning failure to the caller.
+- [x] decide whether default public planning stays rewrite-aware and compare-heavy or whether the
+  product should split logical planning from deeper content-compare preview
+  Completed: default public plan is now logical and conservative. `bundle plan` and
+  `external-package plan` no longer open source readers or byte-compare existing targets just to
+  decide `skip` versus `replace`; existing-target entries are planned as replace candidates, while
+  exact identical-file skipping remains part of prepare/apply execution paths.
+- [x] harden URL-derived archive naming and remote download fallback naming rules for cross-platform inputs
+  Completed: URL-derived file-name guessing now ignores query strings and fragments instead of
+  treating the whole URL as a filesystem path.
+- [x] make addon registry and addon-lock state-file writes atomic
+  Completed: `addons.toml` and `lock.toml` now write through same-directory temporary files with
+  flush/sync before atomic replacement, so normal state persistence no longer truncates the active
+  registry or lock file on mid-write interruption.
+- [x] record these issues as part of the current core stream instead of opening a parallel
+  workstream
+  Completed: `review-2026-04-21.md` is the bounded review note for this slice.
+
+Exit criteria:
+
+- mutable remote addon sources have explicit refresh rules and reliable update behavior
+- addon-lock apply reports one coherent success/rollback/failure outcome across execute and verify phases
+- the public plan contract is explicit that default public planning is logical and conservative,
+  while exact identical-file skipping belongs to prepare/apply
+- remote download naming stays portable across Windows and macOS
+
+## R6 - Structured Task Progress Contract
+
+Goal: keep the stable task contract human-readable for CLI while making progress streams structured
+enough for future `egui` work to consume directly.
+
+- [x] add stable task identity to collected-progress and callback task streams
+  Completed: `TaskRun` now carries one generated `task_id`, and wrapper-generated
+  `TaskProgressEvent` payloads reuse that same id for collecting-progress and callback flows.
+- [x] extend `TaskProgressEvent` with optional machine-readable fields instead of replacing the
+  existing message string
+  Completed: task progress events now keep `message` while also exposing optional `code`,
+  `current`, `total`, `bytes_current`, `bytes_total`, and `bytes_per_second` fields.
+- [x] keep task id generation and common progress shaping inside shared task infrastructure rather
+  than pushing it into each business operation
+  Completed: `core::task` now owns task id generation plus shared progress emit helpers, so
+  frontend-visible identity and payload shape do not depend on ad hoc service logic.
+- [x] convert key execution loops to structured step progress instead of text-only updates
+  Completed: addon directory mutation, metadata-only addon-lock actions, backup restore execution,
+  and bundle apply operation loops now emit typed codes plus `current/total` counts.
+- [x] add regression coverage at both the task layer and app boundary
+  Completed: `core::task` now validates generated task ids plus structured step/byte fields, and
+  app-layer addon, backup, and external-package tests verify that stable services forward the same
+  structured task contract.
+- [x] keep this work inside `wow-addon-sync-core` instead of opening a parallel frontend workstream
+  Completed: the task-contract slice extends the same reusable core boundary that CLI and future
+  `egui` code both depend on.
+
+Exit criteria:
+
+- frontend callers can correlate one logical task across ordered collected-progress or callback
+  events without inferring identity from message text
+- step-oriented execution loops can expose deterministic counts through shared task helpers
+- future byte-level download progress can fit into the same app-facing event shape without another
+  contract break

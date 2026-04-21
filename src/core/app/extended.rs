@@ -1,9 +1,17 @@
 use super::{AddonIndexService, AddonLockService, AppRuntime, StableAppServices};
 use crate::core::error::AppResult;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExtendedAppServices {
     stable: StableAppServices,
+    addon_indexes: AddonIndexService,
+    addon_locks: AddonLockService,
+}
+
+impl Default for ExtendedAppServices {
+    fn default() -> Self {
+        Self::with_runtime(AppRuntime::default())
+    }
 }
 
 impl ExtendedAppServices {
@@ -13,7 +21,9 @@ impl ExtendedAppServices {
 
     pub fn with_runtime(runtime: AppRuntime) -> Self {
         Self {
-            stable: StableAppServices::with_runtime(runtime),
+            stable: StableAppServices::with_runtime(runtime.clone()),
+            addon_indexes: AddonIndexService::with_runtime(runtime.clone()),
+            addon_locks: AddonLockService::with_runtime(runtime),
         }
     }
 
@@ -161,12 +171,12 @@ impl ExtendedAppServices {
         self.stable.bundles().apply_addon_lock(request)
     }
 
-    pub(super) fn addon_indexes(&self) -> AddonIndexService {
-        AddonIndexService::with_runtime(self.stable.runtime.clone())
+    pub(super) fn addon_indexes(&self) -> &AddonIndexService {
+        &self.addon_indexes
     }
 
-    pub(super) fn addon_locks(&self) -> AddonLockService {
-        AddonLockService::with_runtime(self.stable.runtime.clone())
+    pub(super) fn addon_locks(&self) -> &AddonLockService {
+        &self.addon_locks
     }
 }
 #[cfg(test)]

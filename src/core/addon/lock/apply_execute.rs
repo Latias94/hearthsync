@@ -9,8 +9,8 @@ use crate::core::addon::{
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
-    CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
-    ensure_task_not_cancelled,
+    CancellationToken, TaskKind, TaskPhase, TaskProgressCode, TaskProgressSink,
+    emit_task_step_progress, ensure_task_not_cancelled,
 };
 
 pub(super) fn execute_prepared_addon_lock_apply<TCancel, TProgress>(
@@ -86,10 +86,13 @@ where
 
     for (index, action) in actions.into_iter().enumerate() {
         ensure_task_not_cancelled(cancellation, TaskKind::AddonLockApply, TaskPhase::Executing)?;
-        emit_task_progress(
+        emit_task_step_progress(
             progress,
             TaskKind::AddonLockApply,
             TaskPhase::Executing,
+            TaskProgressCode::ApplyMetadata,
+            index + 1,
+            total_actions,
             format!(
                 "Applying metadata-only lock action {}/{} `{}`",
                 index + 1,

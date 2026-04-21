@@ -78,6 +78,49 @@ fn install_addon_from_local_archive_writes_files_and_registry() {
 }
 
 #[test]
+fn install_addon_persists_registry_and_lock_without_temp_sidecars() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let archive_path = temp.path().join("details-pack.zip");
+
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Title: Details!\n",
+        )],
+    );
+
+    install_addon(InstallAddonRequest {
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install addon");
+
+    let hearthsync_dir = installation.addon_dir.join(".hearthsync");
+    let mut entries = fs::read_dir(&hearthsync_dir)
+        .expect("hearthsync dir")
+        .map(|entry| {
+            entry
+                .expect("dir entry")
+                .file_name()
+                .to_string_lossy()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+
+    assert_eq!(
+        entries,
+        vec!["addons.toml".to_string(), "lock.toml".to_string()]
+    );
+}
+
+#[test]
 fn install_addon_from_archive_accepts_variant_toc_names() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());
@@ -116,6 +159,54 @@ fn install_addon_from_archive_accepts_variant_toc_names() {
             .join("DBM-Core")
             .join("Core.lua")
             .exists()
+    );
+}
+
+#[test]
+fn install_addon_from_local_archive_keeps_case_mixed_subtree_files_on_windows() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation_for_platform(temp.path(), HostPlatform::Windows);
+    let archive_path = temp.path().join("mixed-case-pack.zip");
+
+    create_addon_archive(
+        &archive_path,
+        &[
+            (
+                "WeakAuras/WeakAuras.toc",
+                "## Interface: 110000\n## Title: WeakAuras\n",
+            ),
+            ("weakauras/Core.lua", "print('wa core')"),
+            ("weakauras/Modules/Module.lua", "print('wa module')"),
+        ],
+    );
+
+    let result = install_addon(InstallAddonRequest {
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install addon with case-mixed subtree");
+
+    assert_eq!(result.addons.len(), 1);
+    assert_eq!(result.addons[0].directory_name, "WeakAuras");
+    assert_eq!(
+        fs::read_to_string(installation.addon_dir.join("WeakAuras").join("Core.lua"))
+            .expect("core file"),
+        "print('wa core')"
+    );
+    assert_eq!(
+        fs::read_to_string(
+            installation
+                .addon_dir
+                .join("WeakAuras")
+                .join("Modules")
+                .join("Module.lua")
+        )
+        .expect("module file"),
+        "print('wa module')"
     );
 }
 

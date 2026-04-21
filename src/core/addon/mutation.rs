@@ -9,8 +9,8 @@ use crate::core::backup::restore_backup;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::task::{
-    CancellationToken, TaskKind, TaskPhase, TaskProgressSink, emit_task_progress,
-    ensure_task_not_cancelled,
+    CancellationToken, TaskKind, TaskPhase, TaskProgressCode, TaskProgressSink,
+    emit_task_step_progress, ensure_task_not_cancelled,
 };
 
 use super::{
@@ -24,6 +24,7 @@ enum MutationProgressMode {
     Remove,
 }
 
+#[derive(Clone, Copy)]
 enum AddonMutationStep<'a> {
     RemoveAddonDirectory {
         addon_name: &'a str,
@@ -73,10 +74,14 @@ where
 {
     fn before_step(&mut self, step: AddonMutationStep<'_>) -> AppResult<()> {
         ensure_task_not_cancelled(self.cancellation, self.task, TaskPhase::Executing)?;
-        emit_task_progress(
+        let (code, current, total) = addon_mutation_step_progress(self.mode, step);
+        emit_task_step_progress(
             self.progress,
             self.task,
             TaskPhase::Executing,
+            code,
+            current,
+            total,
             addon_mutation_step_message(self.mode, step),
         );
         Ok(())
@@ -414,6 +419,34 @@ fn addon_mutation_step_message(mode: MutationProgressMode, step: AddonMutationSt
         (MutationProgressMode::Install, AddonMutationStep::RemoveAddonDirectory { .. })
         | (MutationProgressMode::Remove, AddonMutationStep::WriteAddonDirectory { .. }) => {
             "Applying addon mutation".to_string()
+        }
+    }
+}
+
+fn addon_mutation_step_progress(
+    mode: MutationProgressMode,
+    step: AddonMutationStep<'_>,
+) -> (TaskProgressCode, usize, usize) {
+    match (mode, step) {
+        (
+            MutationProgressMode::Install,
+            AddonMutationStep::WriteAddonDirectory { current, total, .. },
+        )
+        | (
+            MutationProgressMode::Update,
+            AddonMutationStep::WriteAddonDirectory { current, total, .. },
+        ) => (TaskProgressCode::WriteAddonDirectory, current, total),
+        (
+            MutationProgressMode::Update,
+            AddonMutationStep::RemoveAddonDirectory { current, total, .. },
+        )
+        | (
+            MutationProgressMode::Remove,
+            AddonMutationStep::RemoveAddonDirectory { current, total, .. },
+        ) => (TaskProgressCode::RemoveAddonDirectory, current, total),
+        (MutationProgressMode::Install, AddonMutationStep::RemoveAddonDirectory { .. })
+        | (MutationProgressMode::Remove, AddonMutationStep::WriteAddonDirectory { .. }) => {
+            (TaskProgressCode::Executing, 1, 1)
         }
     }
 }

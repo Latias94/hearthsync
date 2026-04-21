@@ -3,7 +3,10 @@ use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
 
-use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
+use crate::core::addon_layout::{
+    AddonRootPrefixMatchKind, addon_root_prefix_match_kind,
+    discover_addon_roots_from_entry_segments,
+};
 use crate::core::archive_io::{copy_reader_to_path, validated_zip_file_entry_segments};
 use crate::core::archive_path::{
     PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
@@ -109,6 +112,7 @@ fn discover_archive_addon_layout(
 
     let addon_roots = discover_addon_roots_from_entry_segments(
         archive_files.iter().map(|entry| entry.segments.as_slice()),
+        target_platform,
     )
     .into_iter()
     .map(|archive_root| {
@@ -118,7 +122,7 @@ fn discover_archive_addon_layout(
         })
     })
     .collect::<AppResult<Vec<_>>>()?;
-    let planned_entries = plan_archive_entries(&archive_files, &addon_roots)?;
+    let planned_entries = plan_archive_entries(&archive_files, &addon_roots, target_platform)?;
     validate_planned_destination_collisions(&addon_roots, &planned_entries, target_platform)?;
 
     Ok(DiscoveredArchiveLayout {
@@ -130,11 +134,13 @@ fn discover_archive_addon_layout(
 fn plan_archive_entries(
     archive_files: &[DiscoveredArchiveFile],
     addon_roots: &[PlannedAddonRoot],
+    target_platform: HostPlatform,
 ) -> AppResult<Vec<PlannedArchiveEntry>> {
     let mut planned_entries = Vec::new();
 
     for entry in archive_files {
-        let Some(root_index) = match_addon_root(&entry.segments, addon_roots) else {
+        let Some(root_index) = match_addon_root(&entry.segments, addon_roots, target_platform)
+        else {
             continue;
         };
         let root = &addon_roots[root_index];
@@ -285,15 +291,26 @@ fn find_addon_root_file_conflict<'a>(
     })
 }
 
-fn match_addon_root(segments: &[String], roots: &[PlannedAddonRoot]) -> Option<usize> {
-    roots.iter().position(|root| {
-        root.archive_root.len() <= segments.len()
-            && root
-                .archive_root
-                .iter()
-                .zip(segments.iter())
-                .all(|(left, right)| left == right)
-    })
+fn match_addon_root(
+    segments: &[String],
+    roots: &[PlannedAddonRoot],
+    target_platform: HostPlatform,
+) -> Option<usize> {
+    let mut case_insensitive_match = None;
+
+    for (index, root) in roots.iter().enumerate() {
+        match addon_root_prefix_match_kind(segments, &root.archive_root, target_platform) {
+            Some(AddonRootPrefixMatchKind::Exact) => return Some(index),
+            Some(AddonRootPrefixMatchKind::CaseInsensitive) => {
+                if case_insensitive_match.is_none() {
+                    case_insensitive_match = Some(index);
+                }
+            }
+            None => {}
+        }
+    }
+
+    case_insensitive_match
 }
 
 fn addon_name_for_archive_root(root: &[String]) -> AppResult<&str> {

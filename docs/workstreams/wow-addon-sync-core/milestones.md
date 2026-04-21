@@ -107,7 +107,7 @@ and preview-friendly.
 
 ### Status
 
-Active
+Completed on 2026-04-21
 
 ### Goal
 
@@ -239,8 +239,9 @@ desktop work.
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
   treat `ExtendedAppServices` / `StableAppServices` as the intended stable boundary instead of depending
   on internal planning helpers
-- the remaining `M3` work is now primarily behavioral: thin-forwarder normalization or policy logic
-  that still lives in app service wrappers
+- stable and extended app roots now also own constructed service instances directly instead of
+  rebuilding new service wrappers from cloned runtime state on every accessor call, so the public
+  app boundary behaves like a long-lived service contract rather than a service-factory façade
 
 ## M4 - Portability and Optional-Helper Hardening
 
@@ -372,5 +373,103 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle apply planning now rejects target-path collisions using the selected target platform's
   case-sensitivity rules, with regression coverage for macOS rejection and Linux case-distinct
   planning
+- addon-root discovery and prefix matching now also follow platform-aware case rules, so
+  Windows/default-macOS author-package normalization and addon-archive install/update flows no
+  longer silently drop mixed-case addon subtree files while Linux still preserves case-sensitive
+  distinct-root behavior
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening
+
+## M5 - Update Correctness and Transaction Completion
+
+### Status
+
+Completed on 2026-04-21
+
+### Goal
+
+Fix the remaining correctness gaps that would otherwise make addon update, addon-lock sync, and
+frontend-facing preview semantics unreliable in real-world repeated use.
+
+### Deliverables
+
+- explicit freshness rules for mutable remote addon sources versus immutable pinned artifacts
+- provider caching behavior that does not silently freeze mutable remote references
+- addon-lock apply semantics that remain coherent across execute, verify, and cancellation phases
+- a documented decision on whether default public plan is purely logical or intentionally includes
+  expensive compare/rewrite-aware preview behavior
+- hardened remote archive naming rules for portable Windows/macOS inputs
+
+### Exit Criteria
+
+- repeated `addon update` runs can fetch newer artifacts for mutable sources instead of always
+  reusing a stale cached download
+- addon-lock apply either succeeds as one verified operation or fails with a deterministic
+  rollback/outcome contract
+- bundle and external-package plan behavior is explicit enough that future GUI dry-run work does
+  not depend on accidental planner cost
+- remote download naming rules remain portable across supported host platforms
+
+### Current Notes
+
+- this milestone intentionally stays inside `wow-addon-sync-core`; it should not become a parallel
+  workstream because the findings cut across existing provider, planning, mutation, and app
+  boundaries
+- the review that motivates this milestone is recorded in `review-2026-04-21.md`
+- the current codebase already has strong regression coverage and a cleaner planner/app boundary
+  than earlier revisions, so this milestone is about closing high-impact correctness gaps rather
+  than reopening the entire architecture
+- first progress is now in place at the provider layer: mutable remote references no longer reuse
+  cached archives blindly, floating GitHub/CurseForge sources resolve to concrete artifacts before
+  cache reuse, and URL-derived archive naming no longer treats query strings or fragments as part
+  of the file name
+- addon-lock apply now also rolls back when verification cannot complete after execution because of
+  cancellation or verification-time errors, so callers no longer receive a failure while the local
+  AddOns state has already been left mutated
+- successful addon-lock apply still returns the verification report itself, which preserves the
+  distinction between “verification completed and found drift/untracked addons” versus
+  “verification could not complete and the operation was rolled back”
+- default public planning is now explicitly logical and conservative: `bundle plan` and
+  `external-package plan` no longer read source bytes or run rewrite-aware target comparison just
+  to refine existing-target actions into exact skip/replace results, while prepare/apply still
+  keeps that exact identical-file detection before execution
+- addon registry and addon-lock writes now also use same-directory temporary files plus atomic
+  replacement, so `addons.toml` and `lock.toml` no longer rely on direct in-place overwrite during
+  normal state persistence
+
+## M6 - Structured Task Progress for Frontends
+
+### Status
+
+Completed on 2026-04-21
+
+### Goal
+
+Upgrade the stable task contract from phase-plus-message progress into a task identity plus
+structured progress model that future `egui` work can consume directly.
+
+### Deliverables
+
+- generated `task_id` on `TaskRun` plus matching task ids on collected-progress and callback events
+- optional machine-readable progress fields on `TaskProgressEvent`
+- shared task helpers for phase, step, and future byte-oriented progress emission
+- structured step progress coverage for key execution loops
+- regression tests at the task layer and app boundary
+
+### Exit Criteria
+
+- frontend callers can correlate one logical task without deriving identity from text messages
+- step-oriented work can report deterministic `current/total` counts through one shared event shape
+- the stable task contract keeps CLI-readable messages while becoming GUI-friendly enough for reuse
+
+### Current Notes
+
+- this milestone stays inside `wow-addon-sync-core`; it is a reusable core-contract correction, not
+  a separate frontend workstream
+- `TaskProgressEvent` now keeps `message` for humans while also exposing optional `code`,
+  `current`, `total`, `bytes_current`, `bytes_total`, and `bytes_per_second`
+- `core::task` now generates task ids inside the shared wrapper layer, so business operations do
+  not each invent their own identity scheme
+- addon directory mutation, backup restore execution, metadata-only addon-lock actions, and bundle
+  apply operations now emit typed step progress instead of only text
+- validation for this slice passed with `cargo fmt` plus `cargo nextest run` (`383/383` passing)

@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -15,8 +16,12 @@ use crate::core::addon::{
     AddonPackageMetadata, InstallAddonRequest, RemoveAddonRequest, install_addon, list_addons,
     remove_addons,
 };
+use crate::core::error::AppError;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
-use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
+use crate::core::task::{
+    CancellationToken, NeverCancel, TaskKind, TaskPhase, TaskProgressEvent, TaskProgressSink,
+    VecTaskProgressSink,
+};
 
 #[test]
 fn install_addon_writes_lock_with_metadata_and_content_hash() {
@@ -458,6 +463,94 @@ fn apply_addon_lock_sync_task_reports_progress() {
 }
 
 #[test]
+fn apply_addon_lock_sync_task_rolls_back_when_verification_is_cancelled() {
+    let temp = tempdir().expect("temp dir");
+    let source_root = temp.path().join("sources");
+    fs::create_dir_all(&source_root).expect("source root");
+
+    let details_v1 = source_root.join("details-v1.zip");
+    let details_v2 = source_root.join("details-v2.zip");
+    create_addon_archive(
+        &details_v1,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+    create_addon_archive(
+        &details_v2,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 2.0.0\n",
+        )],
+    );
+
+    let desired_installation = create_fixture_installation(&temp.path().join("desired"));
+    install_addon(InstallAddonRequest {
+        installation: desired_installation.clone(),
+        source: details_v2.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("desired-backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install desired details");
+    let desired_lock = write_addon_lock(&desired_installation)
+        .expect("write desired lock")
+        .lock_path;
+
+    let current_installation = create_fixture_installation(&temp.path().join("current"));
+    install_addon(InstallAddonRequest {
+        installation: current_installation.clone(),
+        source: details_v1.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("current-backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install current details");
+
+    let apply_backup_dir = temp.path().join("apply-backups");
+    let cancellation = CancelDuringVerifying::default();
+    let mut progress = CancelDuringVerifyingProgressSink::new(&cancellation.cancel_requested);
+    let error = apply_addon_lock_sync_task(
+        AddonLockApplyRequest {
+            installation: current_installation.clone(),
+            lock_path: Some(desired_lock),
+            backup_output_path: Some(apply_backup_dir.clone()),
+            replace_existing: false,
+            source_overrides: Vec::new(),
+        },
+        &cancellation,
+        &mut progress,
+    )
+    .expect_err("verification cancellation should roll back addon lock apply");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("rollback restored"));
+    assert!(error.to_string().contains("cancelled during verifying"));
+    assert!(
+        fs::read_to_string(
+            current_installation
+                .addon_dir
+                .join("Details")
+                .join("Details.toc")
+        )
+        .expect("details toc after rollback")
+        .contains("1.0.0")
+    );
+    assert_eq!(count_backup_archives(&apply_backup_dir), 1);
+
+    let phases = progress
+        .events()
+        .iter()
+        .map(|event| (event.task, event.phase))
+        .collect::<Vec<_>>();
+    assert!(phases.contains(&(TaskKind::AddonLockApply, TaskPhase::Verifying)));
+    assert!(!phases.contains(&(TaskKind::AddonLockApply, TaskPhase::Completed)));
+}
+
+#[test]
 fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
     let temp = tempdir().expect("temp dir");
     let archive_path = temp.path().join("details-pack.zip");
@@ -531,6 +624,48 @@ fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
         metadata.source_url.as_deref(),
         Some("https://example.invalid/details")
     );
+}
+
+#[derive(Default)]
+struct CancelDuringVerifying {
+    cancel_requested: Cell<bool>,
+}
+
+impl CancellationToken for CancelDuringVerifying {
+    fn is_cancelled(&self) -> bool {
+        self.cancel_requested.get()
+    }
+}
+
+struct CancelDuringVerifyingProgressSink<'a> {
+    cancel_requested: &'a Cell<bool>,
+    inner: VecTaskProgressSink,
+}
+
+impl<'a> CancelDuringVerifyingProgressSink<'a> {
+    fn new(cancel_requested: &'a Cell<bool>) -> Self {
+        Self {
+            cancel_requested,
+            inner: VecTaskProgressSink::default(),
+        }
+    }
+
+    fn events(&self) -> &[TaskProgressEvent] {
+        self.inner.events()
+    }
+}
+
+impl TaskProgressSink for CancelDuringVerifyingProgressSink<'_> {
+    fn push(&mut self, event: TaskProgressEvent) {
+        if event.task == TaskKind::AddonLockApply && event.phase == TaskPhase::Verifying {
+            self.cancel_requested.set(true);
+        }
+        self.inner.push(event);
+    }
+
+    fn task_id(&self) -> Option<&str> {
+        self.inner.task_id()
+    }
 }
 
 fn count_backup_archives(path: &Path) -> usize {

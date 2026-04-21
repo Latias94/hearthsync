@@ -12,7 +12,7 @@ use crate::core::app::{
     WowFlavorValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
-use crate::core::task::{NeverCancel, TaskKind, TaskPhase, VecTaskProgressSink};
+use crate::core::task::{NeverCancel, TaskKind, TaskPhase, TaskProgressCode, VecTaskProgressSink};
 
 #[test]
 fn external_package_service_analyzes_minimal_source_package() {
@@ -43,6 +43,12 @@ fn external_package_service_analyze_collecting_progress_returns_events() {
         .expect("analyze with collected progress");
 
     assert_eq!(run.result.resources.addons, vec!["WeakAuras".to_string()]);
+    assert!(run.task_id.starts_with("task-"));
+    assert!(
+        run.progress
+            .iter()
+            .all(|event| event.task_id.as_deref() == Some(run.task_id.as_str()))
+    );
     assert_eq!(
         run.progress
             .iter()
@@ -52,6 +58,17 @@ fn external_package_service_analyze_collecting_progress_returns_events() {
             (TaskKind::ExternalPackageAnalyze, TaskPhase::Preparing),
             (TaskKind::ExternalPackageAnalyze, TaskPhase::Planning),
             (TaskKind::ExternalPackageAnalyze, TaskPhase::Completed),
+        ]
+    );
+    assert_eq!(
+        run.progress
+            .iter()
+            .map(|event| event.code)
+            .collect::<Vec<_>>(),
+        vec![
+            Some(TaskProgressCode::Preparing),
+            Some(TaskProgressCode::Planning),
+            Some(TaskProgressCode::Completed),
         ]
     );
 }
@@ -80,6 +97,17 @@ fn external_package_service_analyze_with_callbacks_uses_plain_closures() {
 
     assert_eq!(analysis.summary.warning_count, 0);
     assert_eq!(seen.borrow().len(), 3);
+    let callback_task_id = seen.borrow()[0].task_id.clone();
+    assert!(
+        callback_task_id
+            .as_deref()
+            .is_some_and(|task_id| task_id.starts_with("task-"))
+    );
+    assert!(
+        seen.borrow()
+            .iter()
+            .all(|event| event.task_id == callback_task_id)
+    );
     assert!(cancellation_checks.get() >= 2);
 }
 
