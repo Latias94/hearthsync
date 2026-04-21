@@ -6,6 +6,7 @@ use zip::ZipArchive;
 
 use super::source_entry::SourceEntry;
 use super::types::ExternalPackageSourceKind;
+use crate::core::archive_io::reject_unsupported_symlink_metadata;
 use crate::core::archive_path::safe_relative_segments;
 use crate::core::bundle::shared::path::{safe_zip_segments, should_skip_path, to_zip_path};
 use crate::core::error::{AppError, AppResult};
@@ -121,13 +122,11 @@ fn reject_unsupported_symlink_entry(
     entry_path: &str,
     is_symlink: bool,
 ) -> AppResult<()> {
-    if is_symlink {
-        return Err(AppError::Validation(format!(
-            "external package {source_kind} entry uses unsupported symlink metadata: {entry_path}"
-        )));
-    }
-
-    Ok(())
+    reject_unsupported_symlink_metadata(
+        &format!("external package {source_kind} entry"),
+        entry_path,
+        is_symlink,
+    )
 }
 
 #[cfg(test)]

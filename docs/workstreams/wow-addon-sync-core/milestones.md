@@ -306,6 +306,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - first-party backup/bundle export flows now also maintain one shared archive output path set
   while writing, so case-only duplicate names and file/directory hierarchy conflicts fail before
   any non-portable first-party zip layout is emitted
+- unsupported-symlink rejection now also shares one canonical helper in `core::archive_io`, so
+  addon archive prep, backup restore/source scanning, bundle archive ingest, and
+  external-package ingest no longer keep separate identical error branches
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
 - external-package normalized-path collision rules now also have pure logical regression coverage

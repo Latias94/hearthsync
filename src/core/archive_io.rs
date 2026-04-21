@@ -7,7 +7,7 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 use crate::core::archive_path::{platform_path_collision_key, safe_zip_segments};
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,6 +168,20 @@ where
     Ok(())
 }
 
+pub(crate) fn reject_unsupported_symlink_metadata(
+    entry_kind: &str,
+    entry_path: &str,
+    is_symlink: bool,
+) -> AppResult<()> {
+    if is_symlink {
+        return Err(AppError::Validation(format!(
+            "{entry_kind} uses unsupported symlink metadata: {entry_path}"
+        )));
+    }
+
+    Ok(())
+}
+
 fn validate_zip_archive_path(archive_path: &str) -> AppResult<()> {
     safe_zip_segments(archive_path)?;
     Ok(())
@@ -188,7 +202,7 @@ mod tests {
 
     use super::{
         PortableArchivePathIssueKind, PortableArchivePathSet, add_directory_to_zip,
-        start_file_to_zip,
+        reject_unsupported_symlink_metadata, start_file_to_zip,
     };
 
     #[test]
@@ -264,5 +278,23 @@ mod tests {
         paths
             .register("addons/.hearthsync/addons.toml", false)
             .expect("file below directory should be allowed");
+    }
+
+    #[test]
+    fn reject_unsupported_symlink_metadata_reports_context_and_path() {
+        let error =
+            reject_unsupported_symlink_metadata("bundle archive entry", "addons/WeakAuras", true)
+                .expect_err("symlink metadata should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("bundle archive entry"));
+        assert!(message.contains("unsupported symlink metadata"));
+        assert!(message.contains("addons/WeakAuras"));
+    }
+
+    #[test]
+    fn reject_unsupported_symlink_metadata_allows_regular_entries() {
+        reject_unsupported_symlink_metadata("backup archive entry", "addons/WeakAuras", false)
+            .expect("regular entry should pass");
     }
 }

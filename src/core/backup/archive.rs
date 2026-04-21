@@ -14,7 +14,8 @@ use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, Re
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{
     PortableArchivePathIssue, PortableArchivePathIssueKind, PortableArchivePathSet,
-    add_directory_to_zip, copy_reader_to_path, start_file_to_zip, stream_file_to_zip,
+    add_directory_to_zip, copy_reader_to_path, reject_unsupported_symlink_metadata,
+    start_file_to_zip, stream_file_to_zip,
 };
 use crate::core::archive_path::{
     PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
@@ -704,24 +705,15 @@ pub(super) fn reject_unsupported_backup_source_symlink(
     entry_path: &Path,
     is_symlink: bool,
 ) -> AppResult<()> {
-    if is_symlink {
-        return Err(AppError::Validation(format!(
-            "backup {source_kind} entry uses unsupported symlink metadata: {}",
-            entry_path.display()
-        )));
-    }
-
-    Ok(())
+    reject_unsupported_symlink_metadata(
+        &format!("backup {source_kind} entry"),
+        &entry_path.display().to_string(),
+        is_symlink,
+    )
 }
 
 fn reject_unsupported_restore_symlink_entry(entry_name: &str, is_symlink: bool) -> AppResult<()> {
-    if is_symlink {
-        return Err(AppError::Validation(format!(
-            "backup archive entry uses unsupported symlink metadata: {entry_name}"
-        )));
-    }
-
-    Ok(())
+    reject_unsupported_symlink_metadata("backup archive entry", entry_name, is_symlink)
 }
 
 fn restore_execution_step_message(step: RestoreExecutionStep<'_>) -> Option<String> {

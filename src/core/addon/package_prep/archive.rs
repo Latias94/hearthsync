@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 use crate::core::addon_layout::discover_addon_roots_from_entry_segments;
-use crate::core::archive_io::copy_reader_to_path;
+use crate::core::archive_io::{copy_reader_to_path, reject_unsupported_symlink_metadata};
 use crate::core::archive_path::{
     PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
     find_platform_path_prefix_conflict, platform_path_collision_key, safe_zip_segments,
@@ -87,7 +87,11 @@ fn discover_archive_addon_layout(
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
         let entry_name = entry.name().to_string();
-        reject_unsupported_archive_symlink_entry(&entry_name, entry.is_symlink())?;
+        reject_unsupported_symlink_metadata(
+            "addon archive entry",
+            &entry_name,
+            entry.is_symlink(),
+        )?;
         if entry.is_dir() {
             continue;
         }
@@ -304,16 +308,6 @@ fn addon_name_for_archive_root(root: &[String]) -> AppResult<&str> {
 
 fn format_archive_root(root: &[String]) -> String {
     root.join("/")
-}
-
-fn reject_unsupported_archive_symlink_entry(entry_name: &str, is_symlink: bool) -> AppResult<()> {
-    if is_symlink {
-        return Err(AppError::Validation(format!(
-            "addon archive entry uses unsupported symlink metadata: {entry_name}"
-        )));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

@@ -340,6 +340,9 @@ enough that these rules live in one place.
   Current progress: first-party backup/bundle export flows now also maintain one shared archive
   output path set while writing, so case-only duplicate names and file/directory hierarchy
   conflicts fail before any non-portable first-party zip layout is emitted.
+  Current progress: unsupported-symlink rejection now also shares one canonical helper in
+  `core::archive_io`, so addon archive prep, backup restore/source scanning, bundle archive
+  ingest, and external-package ingest no longer keep separate identical error branches.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.

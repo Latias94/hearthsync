@@ -1,16 +1,13 @@
 use super::super::shared::path::safe_zip_segments;
-use crate::core::error::{AppError, AppResult};
+use crate::core::archive_io::reject_unsupported_symlink_metadata;
+use crate::core::error::AppResult;
 
 pub(in crate::core::bundle) fn reject_unsupported_bundle_symlink_entry(
     entry_name: &str,
     is_symlink: bool,
     is_dir: bool,
 ) -> AppResult<()> {
-    if is_symlink {
-        return Err(AppError::Validation(format!(
-            "bundle archive entry uses unsupported symlink metadata: {entry_name}"
-        )));
-    }
+    reject_unsupported_symlink_metadata("bundle archive entry", entry_name, is_symlink)?;
 
     if is_dir {
         return Ok(());
