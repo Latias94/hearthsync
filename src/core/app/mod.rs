@@ -3,6 +3,7 @@ mod addon_index;
 mod addon_lock;
 mod backup;
 mod bundle;
+mod config;
 mod extended;
 mod external_package;
 mod install;
@@ -29,6 +30,7 @@ pub(in crate::core::app) use addon_index::AddonIndexService;
 pub(in crate::core::app) use addon_lock::AddonLockService;
 pub(in crate::core::app) use backup::BackupService;
 pub(in crate::core::app) use bundle::BundleService;
+pub(in crate::core::app) use config::ConfigService;
 pub use extended::ExtendedAppServices;
 pub(in crate::core::app) use external_package::ExternalPackageService;
 pub(in crate::core::app) use install::InstallationService;
@@ -48,6 +50,10 @@ pub use request::backup::{CreateBackupAppRequest, ListBackupsRequest, RestoreBac
 pub use request::bundle::{
     ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, InspectBundleRequest,
     PackBundleAppRequest, PlanBundleAddonLockRequest, PlanBundleApplyRequest,
+};
+pub use request::config::{
+    ApplyConfigAppRequest, ConfigPackageAppRequest, InspectConfigAppRequest,
+    PlanConfigApplyAppRequest,
 };
 pub use request::external_package::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
@@ -81,6 +87,7 @@ pub use response::bundle::{
     BundleResourcesResult, BundleSourceResult, CharacterMappingResult, CreatedBundleResult,
     GroupPolicyResult, LocalWowAccountResult, LocalWowCharacterResult,
 };
+pub use response::config::{ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult};
 pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,

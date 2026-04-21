@@ -1,6 +1,6 @@
 use super::{
     AddonService, AppRuntime, AppRuntimeCapabilitiesValue, BackupService, BundleService,
-    ExternalPackageService, InstallationService,
+    ConfigService, ExternalPackageService, InstallationService,
 };
 use crate::core::error::AppResult;
 
@@ -11,6 +11,7 @@ pub struct StableAppServices {
     addons: AddonService,
     backups: BackupService,
     bundles: BundleService,
+    configs: ConfigService,
     external_packages: ExternalPackageService,
 }
 
@@ -32,6 +33,9 @@ impl StableAppServices {
             backups: BackupService::with_runtime(runtime.clone()),
             bundles: BundleService::with_runtime(runtime.clone()),
             external_packages: ExternalPackageService::with_runtime(runtime.clone()),
+            configs: ConfigService::with_external_packages(ExternalPackageService::with_runtime(
+                runtime.clone(),
+            )),
             runtime,
         }
     }
@@ -252,6 +256,90 @@ impl StableAppServices {
             .apply_with_callbacks(request, is_cancelled, on_progress)
     }
 
+    pub fn inspect_config(
+        &self,
+        request: super::InspectConfigAppRequest,
+    ) -> AppResult<super::ConfigInspectionResult> {
+        self.configs().inspect(request)
+    }
+
+    pub fn inspect_config_collecting_progress(
+        &self,
+        request: super::InspectConfigAppRequest,
+    ) -> AppResult<super::TaskRun<super::ConfigInspectionResult>> {
+        self.configs().inspect_collecting_progress(request)
+    }
+
+    pub fn inspect_config_with_callbacks<FCancel, FProgress>(
+        &self,
+        request: super::InspectConfigAppRequest,
+        is_cancelled: FCancel,
+        on_progress: FProgress,
+    ) -> AppResult<super::ConfigInspectionResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        self.configs()
+            .inspect_with_callbacks(request, is_cancelled, on_progress)
+    }
+
+    pub fn plan_config_apply(
+        &self,
+        request: super::PlanConfigApplyAppRequest,
+    ) -> AppResult<super::ConfigApplyPlanResult> {
+        self.configs().plan_apply(request)
+    }
+
+    pub fn plan_config_apply_collecting_progress(
+        &self,
+        request: super::PlanConfigApplyAppRequest,
+    ) -> AppResult<super::TaskRun<super::ConfigApplyPlanResult>> {
+        self.configs().plan_apply_collecting_progress(request)
+    }
+
+    pub fn plan_config_apply_with_callbacks<FCancel, FProgress>(
+        &self,
+        request: super::PlanConfigApplyAppRequest,
+        is_cancelled: FCancel,
+        on_progress: FProgress,
+    ) -> AppResult<super::ConfigApplyPlanResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        self.configs()
+            .plan_apply_with_callbacks(request, is_cancelled, on_progress)
+    }
+
+    pub fn apply_config(
+        &self,
+        request: super::ApplyConfigAppRequest,
+    ) -> AppResult<super::ConfigApplyResult> {
+        self.configs().apply(request)
+    }
+
+    pub fn apply_config_collecting_progress(
+        &self,
+        request: super::ApplyConfigAppRequest,
+    ) -> AppResult<super::TaskRun<super::ConfigApplyResult>> {
+        self.configs().apply_collecting_progress(request)
+    }
+
+    pub fn apply_config_with_callbacks<FCancel, FProgress>(
+        &self,
+        request: super::ApplyConfigAppRequest,
+        is_cancelled: FCancel,
+        on_progress: FProgress,
+    ) -> AppResult<super::ConfigApplyResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        self.configs()
+            .apply_with_callbacks(request, is_cancelled, on_progress)
+    }
+
     pub fn analyze_external_package(
         &self,
         request: super::AnalyzeExternalPackageAppRequest,
@@ -359,6 +447,10 @@ impl StableAppServices {
 
     pub(super) fn bundles(&self) -> &BundleService {
         &self.bundles
+    }
+
+    pub(super) fn configs(&self) -> &ConfigService {
+        &self.configs
     }
 
     pub(super) fn external_packages(&self) -> &ExternalPackageService {

@@ -519,12 +519,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Completed: `src/core/lua_patch/text.rs` now uses unique placeholder generation instead of fixed
   `__HEARTHSYNC_REWRITE_<n>__` literals, and regression coverage now verifies that pre-existing
   placeholder text in SavedVariables content is preserved instead of being rewritten accidentally.
-- [ ] add a first-class config-oriented command and app surface without creating a second planning engine
-  Current progress: the CLI now exposes explicit `config inspect`, `config plan`, and
-  `config apply` commands as a thin wrapper over the existing external-package planning and apply
-  engine, with config-oriented output wording instead of only `external-package` framing.
-  Remaining gap: the stable app boundary still does not expose a first-class config-oriented
-  request surface, so GUI-facing config semantics still depend on external-package-shaped app calls.
+- [x] add a first-class config-oriented command and app surface without creating a second planning engine
+  Completed: the CLI now exposes explicit `config inspect`, `config plan`, and `config apply`
+  commands, and `core::app::StableAppServices` now also exposes config-oriented request and task
+  entrypoints on top of the same external-package planning/apply engine instead of requiring
+  frontend callers to stay on external-package-shaped app contracts.
 - [ ] introduce a separate addon policy/preferences layer instead of overloading `lock.toml`
   Current gap: the addon lock is strong for reproducibility, but there is still no persisted home
   for mutable user choices such as ignore/pin/channel/pre-release/dependency policy.

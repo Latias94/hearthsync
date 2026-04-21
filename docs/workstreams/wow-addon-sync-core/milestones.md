@@ -524,5 +524,8 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - second progress inside this milestone is now in place: the CLI now exposes `config inspect`,
   `config plan`, and `config apply` as a first-class product entrypoint while still reusing the
   existing external-package planning/apply engine underneath
+- the stable app boundary now also exposes first-class config-oriented request and task entrypoints
+  on top of the same engine, so future GUI work no longer has to enter config sync only through
+  external-package-shaped app contracts
 - the bounded review that motivates this milestone is recorded in
   `review-2026-04-21-config-sync-gap.md`

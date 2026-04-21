@@ -4,16 +4,17 @@ use super::RuntimeDefaultableRequest;
 use crate::core::addon::InstallAddonRequest as DomainInstallAddonRequest;
 use crate::core::app::{
     AddonPackageMetadataValue, AppRuntime, ApplyAddonLockAppRequest,
-    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyExternalPackageAppRequest,
-    BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
-    BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
-    BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-    CharacterMappingModeValue, CreateBackupAppRequest, CreateExternalPackageBundleAppRequest,
-    HostPlatformValue, InstallAddonAppRequest, InstallAddonIndexAppRequest, ListAddonsRequest,
-    ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest, PlanBundleApplyRequest,
-    PlanExternalPackageApplyAppRequest, RemoveAddonAppRequest, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, RestoreBackupAppRequest, UpdateAddonAppRequest,
-    UpdateAddonIndexAppRequest, WowFlavorValue,
+    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyConfigAppRequest,
+    ApplyExternalPackageAppRequest, BackupGroupValue, BundleApplyDefaultsValue,
+    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
+    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
+    BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest, CreateBackupAppRequest,
+    CreateExternalPackageBundleAppRequest, HostPlatformValue, InspectConfigAppRequest,
+    InstallAddonAppRequest, InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest,
+    PackBundleAppRequest, PlanAddonLockSyncRequest, PlanBundleApplyRequest,
+    PlanConfigApplyAppRequest, PlanExternalPackageApplyAppRequest, RemoveAddonAppRequest,
+    ResolvedInstallationValue, ResourceApplyPolicyValue, RestoreBackupAppRequest,
+    UpdateAddonAppRequest, UpdateAddonIndexAppRequest, WowFlavorValue,
 };
 use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
@@ -202,6 +203,55 @@ fn external_package_requests_apply_runtime_defaults() {
     );
     assert_eq!(
         apply_request.external_package.output_path,
+        Some(PathBuf::from("runtime-bundles"))
+    );
+    assert_eq!(
+        apply_request.backup_output_path,
+        Some(PathBuf::from("runtime-backups"))
+    );
+}
+
+#[test]
+fn config_requests_apply_runtime_defaults() {
+    let runtime = AppRuntime::new()
+        .with_host_platform(HostPlatformValue::MacOs)
+        .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
+        .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+
+    let inspect = InspectConfigAppRequest {
+        source_path: PathBuf::from("author-ui.zip"),
+    };
+    let config_package = sample_config_package_request().apply_runtime_defaults(&runtime);
+    let plan_request = PlanConfigApplyAppRequest {
+        config_package: sample_config_package_request(),
+        installation: sample_installation(),
+        apply_mappings: BundleApplyMappingsValue::default(),
+    }
+    .apply_runtime_defaults(&runtime);
+    let apply_request = ApplyConfigAppRequest {
+        config_package: sample_config_package_request(),
+        installation: sample_installation(),
+        dry_run: false,
+        backup_output_path: None,
+        apply_mappings: BundleApplyMappingsValue::default(),
+    }
+    .apply_runtime_defaults(&runtime);
+
+    assert_eq!(inspect.source_path, PathBuf::from("author-ui.zip"));
+    assert_eq!(
+        config_package.source_platform,
+        Some(HostPlatformValue::MacOs)
+    );
+    assert_eq!(
+        config_package.output_path,
+        Some(PathBuf::from("runtime-bundles"))
+    );
+    assert_eq!(
+        plan_request.config_package.source_platform,
+        Some(HostPlatformValue::MacOs)
+    );
+    assert_eq!(
+        apply_request.config_package.output_path,
         Some(PathBuf::from("runtime-bundles"))
     );
     assert_eq!(
@@ -501,6 +551,21 @@ fn sample_manifest() -> BundleManifestValue {
 
 fn sample_external_package_bundle_request() -> CreateExternalPackageBundleAppRequest {
     CreateExternalPackageBundleAppRequest {
+        source_path: PathBuf::from("author-ui.zip"),
+        source_flavor: WowFlavorValue::Retail,
+        source_platform: None,
+        supported_targets: vec![WowFlavorValue::Retail],
+        output_path: None,
+        package_id: Some("author-ui".to_string()),
+        package_name: Some("Author UI".to_string()),
+        created_by: Some("tester".to_string()),
+        description: Some("fixture".to_string()),
+        apply_defaults: None,
+    }
+}
+
+fn sample_config_package_request() -> ConfigPackageAppRequest {
+    ConfigPackageAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
         source_flavor: WowFlavorValue::Retail,
         source_platform: None,
