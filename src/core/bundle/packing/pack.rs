@@ -9,6 +9,7 @@ use super::resources::{
     add_optional_addon_lock_to_zip, add_wtf_characters_to_zip, add_wtf_common_to_zip_if_enabled,
     write_manifest_to_zip,
 };
+use crate::core::archive_io::PortableArchivePathSet;
 use crate::core::error::{AppError, AppResult};
 
 pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
@@ -17,7 +18,8 @@ pub fn pack_bundle(mut request: PackBundleRequest) -> AppResult<CreatedBundle> {
 
     let archive_path = prepare_archive_path(&request)?;
     let mut zip = ZipWriter::new(File::create(&archive_path)?);
-    let archived_files = archive_bundle_contents(&mut zip, &mut request)?;
+    let mut archive_outputs = PortableArchivePathSet::new();
+    let archived_files = archive_bundle_contents(&mut zip, &mut request, &mut archive_outputs)?;
     zip.finish()?;
 
     Ok(CreatedBundle {
@@ -74,6 +76,7 @@ fn prepare_archive_path(request: &PackBundleRequest) -> AppResult<std::path::Pat
 fn archive_bundle_contents(
     zip: &mut ZipWriter<File>,
     request: &mut PackBundleRequest,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let mut archived_files = 0usize;
 
@@ -81,38 +84,45 @@ fn archive_bundle_contents(
         zip,
         &request.installation.addon_dir,
         &request.manifest.resources.addons,
+        archive_outputs,
     )?;
 
     if request.manifest.resources.addon_lock {
-        archived_files += add_optional_addon_lock_to_zip(zip, &request.installation)?;
+        archived_files +=
+            add_optional_addon_lock_to_zip(zip, &request.installation, archive_outputs)?;
     }
 
     archived_files += add_addon_indexes_to_zip(
         zip,
         &request.manifest.resources.addon_indexes,
         request.manifest_base_dir.as_deref(),
+        archive_outputs,
     )?;
 
     archived_files += add_wtf_common_to_zip_if_enabled(
         zip,
         &request.installation.wtf_dir,
         request.manifest.resources.wtf_common,
+        archive_outputs,
     )?;
     archived_files += add_wtf_characters_to_zip(
         zip,
         &request.installation.wtf_dir,
         &mut request.manifest.resources.wtf_characters,
+        archive_outputs,
     )?;
-    archived_files += write_manifest_to_zip(zip, &request.manifest)?;
+    archived_files += write_manifest_to_zip(zip, &request.manifest, archive_outputs)?;
     archived_files += add_fonts_to_zip(
         zip,
         &request.installation.fonts_dir,
         request.manifest.resources.fonts,
+        archive_outputs,
     )?;
     archived_files += add_interface_assets_to_zip(
         zip,
         &request.installation.interface_dir,
         &request.manifest.resources.interface_assets,
+        archive_outputs,
     )?;
 
     Ok(archived_files)

@@ -5,6 +5,7 @@ use zip::ZipWriter;
 
 use super::super::shared::path::validate_plain_name;
 use super::super::zip_write::add_path_to_zip;
+use crate::core::archive_io::PortableArchivePathSet;
 use crate::core::error::{AppError, AppResult};
 use crate::core::manifest::CharacterResource;
 
@@ -13,6 +14,7 @@ pub(in crate::core::bundle) fn add_character_wtf_to_zip(
     wtf_dir: &Path,
     character: &CharacterResource,
     account: &str,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     validate_plain_name("server", &character.source_server)?;
     validate_plain_name("character", &character.source_character)?;
@@ -37,5 +39,6 @@ pub(in crate::core::bundle) fn add_character_wtf_to_zip(
             .join(account)
             .join(&character.source_server)
             .join(&character.source_character),
+        archive_outputs,
     )
 }

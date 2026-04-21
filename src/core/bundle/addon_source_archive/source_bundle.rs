@@ -8,6 +8,7 @@ use super::super::shared::addon_source_index::{BundleAddonSourceEntry, BundleAdd
 use super::super::shared::path::{safe_file_part, validate_plain_name};
 use super::super::zip_write::add_path_to_zip;
 use crate::core::addon::lock::{AddonLockPackage, addon_lock_package_comparison_key};
+use crate::core::archive_io::PortableArchivePathSet;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -15,6 +16,7 @@ pub(in crate::core::bundle) fn add_bundle_addon_sources_to_zip(
     zip: &mut ZipWriter<std::fs::File>,
     installation: &DetectedFlavorInstallation,
     packages: &[AddonLockPackage],
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<BundleAddonSourceIndex> {
     let source_stage = tempdir()?;
     let mut entries = Vec::new();
@@ -36,7 +38,12 @@ pub(in crate::core::bundle) fn add_bundle_addon_sources_to_zip(
         write_addon_package_source_archive(&source_archive_path, installation, package)?;
         let relative_source_path = format!("sources/{file_name}");
         let bundle_entry_path = Path::new(ADDON_SOURCE_ENTRY_ROOT).join(&file_name);
-        add_path_to_zip(zip, &source_archive_path, &bundle_entry_path)?;
+        add_path_to_zip(
+            zip,
+            &source_archive_path,
+            &bundle_entry_path,
+            archive_outputs,
+        )?;
 
         entries.push(BundleAddonSourceEntry {
             comparison_key,
@@ -84,6 +91,7 @@ fn write_addon_package_source_archive(
 ) -> AppResult<()> {
     let file = std::fs::File::create(archive_path)?;
     let mut zip = ZipWriter::new(file);
+    let mut archive_outputs = PortableArchivePathSet::new();
     let mut archived_files = 0usize;
 
     for addon_directory in &package.addon_directories {
@@ -95,7 +103,12 @@ fn write_addon_package_source_archive(
                 source.display()
             )));
         }
-        archived_files += add_path_to_zip(&mut zip, &source, Path::new(addon_directory))?;
+        archived_files += add_path_to_zip(
+            &mut zip,
+            &source,
+            Path::new(addon_directory),
+            &mut archive_outputs,
+        )?;
     }
 
     zip.finish()?;

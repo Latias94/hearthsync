@@ -13,6 +13,7 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{
+    PortableArchivePathIssue, PortableArchivePathIssueKind, PortableArchivePathSet,
     add_directory_to_zip, copy_reader_to_path, start_file_to_zip, stream_file_to_zip,
 };
 use crate::core::archive_path::{
@@ -129,6 +130,7 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
     let archive_path = output_dir.join(file_name);
     let file = File::create(&archive_path)?;
     let mut zip = ZipWriter::new(file);
+    let mut archive_outputs = PortableArchivePathSet::new();
     let mut archived_files = 0usize;
 
     for group in &request.groups {
@@ -138,22 +140,31 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
                     &mut zip,
                     &request.installation.addon_dir,
                     Path::new("addons"),
+                    &mut archive_outputs,
                 )?;
             }
             BackupGroup::Wtf => {
-                archived_files +=
-                    add_directory_group(&mut zip, &request.installation.wtf_dir, Path::new("wtf"))?;
+                archived_files += add_directory_group(
+                    &mut zip,
+                    &request.installation.wtf_dir,
+                    Path::new("wtf"),
+                    &mut archive_outputs,
+                )?;
             }
             BackupGroup::Fonts => {
                 archived_files += add_directory_group(
                     &mut zip,
                     &request.installation.fonts_dir,
                     Path::new("fonts"),
+                    &mut archive_outputs,
                 )?;
             }
             BackupGroup::InterfaceAssets => {
-                archived_files +=
-                    add_interface_assets_group(&mut zip, &request.installation.interface_dir)?;
+                archived_files += add_interface_assets_group(
+                    &mut zip,
+                    &request.installation.interface_dir,
+                    &mut archive_outputs,
+                )?;
             }
         }
     }
@@ -172,6 +183,7 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
         groups: request.groups,
     };
 
+    register_backup_archive_output(&mut archive_outputs, "backup.toml", false)?;
     start_file_to_zip(&mut zip, "backup.toml", zip_file_options())?;
     zip.write_all(toml::to_string_pretty(&metadata)?.as_bytes())?;
     zip.finish()?;
@@ -355,6 +367,7 @@ fn add_directory_group(
     zip: &mut ZipWriter<File>,
     source_dir: &Path,
     archive_root: &Path,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     if !source_dir.exists() {
         return Ok(0);
@@ -378,18 +391,24 @@ fn add_directory_group(
         let archive_path = archive_root.join(relative);
 
         if file_type.is_dir() {
-            add_directory_to_zip(zip, &to_zip_path(&archive_path), zip_dir_options())?;
+            let archive_name = to_zip_path(&archive_path);
+            register_backup_archive_output(archive_outputs, &archive_name, true)?;
+            add_directory_to_zip(zip, &archive_name, zip_dir_options())?;
             continue;
         }
 
-        write_file_to_zip(zip, path, &archive_path)?;
+        write_file_to_zip(zip, path, &archive_path, archive_outputs)?;
         archived_files += 1;
     }
 
     Ok(archived_files)
 }
 
-fn add_interface_assets_group(zip: &mut ZipWriter<File>, interface_dir: &Path) -> AppResult<usize> {
+fn add_interface_assets_group(
+    zip: &mut ZipWriter<File>,
+    interface_dir: &Path,
+    archive_outputs: &mut PortableArchivePathSet,
+) -> AppResult<usize> {
     if !interface_dir.exists() {
         return Ok(0);
     }
@@ -408,9 +427,9 @@ fn add_interface_assets_group(zip: &mut ZipWriter<File>, interface_dir: &Path) -
 
         let archive_root = Path::new("interface").join(name);
         if file_type.is_dir() {
-            archived_files += add_directory_group(zip, &path, &archive_root)?;
+            archived_files += add_directory_group(zip, &path, &archive_root, archive_outputs)?;
         } else if file_type.is_file() {
-            write_file_to_zip(zip, &path, &archive_root)?;
+            write_file_to_zip(zip, &path, &archive_root, archive_outputs)?;
             archived_files += 1;
         }
     }
@@ -422,13 +441,46 @@ fn write_file_to_zip(
     zip: &mut ZipWriter<File>,
     source_path: &Path,
     archive_path: &Path,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<()> {
-    stream_file_to_zip(
-        zip,
-        source_path,
-        &to_zip_path(archive_path),
-        zip_file_options(),
-    )
+    let archive_name = to_zip_path(archive_path);
+    register_backup_archive_output(archive_outputs, &archive_name, false)?;
+    stream_file_to_zip(zip, source_path, &archive_name, zip_file_options())
+}
+
+fn register_backup_archive_output(
+    archive_outputs: &mut PortableArchivePathSet,
+    archive_path: &str,
+    is_directory: bool,
+) -> AppResult<()> {
+    archive_outputs
+        .register(archive_path, is_directory)
+        .map_err(map_backup_archive_output_issue)
+}
+
+fn map_backup_archive_output_issue(
+    issue: PortableArchivePathIssue,
+) -> crate::core::error::AppError {
+    match issue.kind {
+        PortableArchivePathIssueKind::ExactCollision => AppError::Validation(format!(
+            "backup creation would emit multiple archive entries onto the same path: `{}` and `{}`",
+            issue.previous, issue.current
+        )),
+        PortableArchivePathIssueKind::CaseInsensitiveCollision => AppError::Validation(format!(
+            "backup creation would emit case-insensitive archive path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
+            issue.previous, issue.current
+        )),
+        PortableArchivePathIssueKind::ExactPrefixConflict => AppError::Validation(format!(
+            "backup creation would emit conflicting file and directory archive paths: `{}` and `{}`",
+            issue.previous, issue.current
+        )),
+        PortableArchivePathIssueKind::CaseInsensitivePrefixConflict => {
+            AppError::Validation(format!(
+                "backup creation would emit case-insensitive file and directory archive path conflicts: `{}` and `{}` would create file/directory collisions on Windows/default macOS targets",
+                issue.previous, issue.current
+            ))
+        }
+    }
 }
 
 fn read_backup_metadata(archive: &mut ZipArchive<File>) -> AppResult<BackupMetadata> {

@@ -15,9 +15,9 @@ use super::super::shared::zip_options::zip_file_options;
 use super::super::wtf_archive::character::add_character_wtf_to_zip;
 use super::super::wtf_archive::common::add_common_wtf_to_zip;
 use super::super::wtf_archive::resolve::resolve_character_account;
-use super::super::zip_write::{add_path_to_zip, write_toml_to_zip};
+use super::super::zip_write::{add_path_to_zip, register_bundle_archive_output, write_toml_to_zip};
 use crate::core::addon::lock::write_addon_lock;
-use crate::core::archive_io::start_file_to_zip;
+use crate::core::archive_io::{PortableArchivePathSet, start_file_to_zip};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::{BundleManifest, CharacterResource};
@@ -26,6 +26,7 @@ pub(in crate::core::bundle::packing) fn add_addons_to_zip(
     zip: &mut ZipWriter<File>,
     addon_dir: &Path,
     addons: &[String],
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let mut archived_files = 0usize;
 
@@ -39,7 +40,12 @@ pub(in crate::core::bundle::packing) fn add_addons_to_zip(
             )));
         }
 
-        archived_files += add_path_to_zip(zip, &source, &Path::new("addons").join(addon))?;
+        archived_files += add_path_to_zip(
+            zip,
+            &source,
+            &Path::new("addons").join(addon),
+            archive_outputs,
+        )?;
     }
 
     Ok(archived_files)
@@ -48,6 +54,7 @@ pub(in crate::core::bundle::packing) fn add_addons_to_zip(
 pub(in crate::core::bundle::packing) fn add_optional_addon_lock_to_zip(
     zip: &mut ZipWriter<File>,
     installation: &DetectedFlavorInstallation,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let lock_result = write_addon_lock(installation)?;
     if lock_result.removed {
@@ -57,10 +64,16 @@ pub(in crate::core::bundle::packing) fn add_optional_addon_lock_to_zip(
     }
 
     let lock = read_generated_addon_lock(&lock_result.lock_path)?;
-    let source_index = add_bundle_addon_sources_to_zip(zip, installation, &lock.packages)?;
+    let source_index =
+        add_bundle_addon_sources_to_zip(zip, installation, &lock.packages, archive_outputs)?;
     let mut archived_files = source_index.sources.len();
-    archived_files += write_toml_to_zip(zip, ADDON_SOURCE_INDEX_ENTRY, &source_index)?;
-    archived_files += write_toml_to_zip(zip, ADDON_LOCK_ENTRY, &lock)?;
+    archived_files += write_toml_to_zip(
+        zip,
+        ADDON_SOURCE_INDEX_ENTRY,
+        &source_index,
+        archive_outputs,
+    )?;
+    archived_files += write_toml_to_zip(zip, ADDON_LOCK_ENTRY, &lock, archive_outputs)?;
     Ok(archived_files)
 }
 
@@ -68,6 +81,7 @@ pub(in crate::core::bundle::packing) fn add_addon_indexes_to_zip(
     zip: &mut ZipWriter<File>,
     addon_indexes: &[String],
     manifest_base_dir: Option<&Path>,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let addon_index_paths = resolve_addon_index_paths(addon_indexes, manifest_base_dir)?;
     let mut archived_files = 0usize;
@@ -77,6 +91,7 @@ pub(in crate::core::bundle::packing) fn add_addon_indexes_to_zip(
             zip,
             &source_path,
             &Path::new(ADDON_INDEX_ENTRY_ROOT).join(file_name),
+            archive_outputs,
         )?;
     }
 
@@ -87,9 +102,10 @@ pub(in crate::core::bundle::packing) fn add_wtf_common_to_zip_if_enabled(
     zip: &mut ZipWriter<File>,
     wtf_dir: &Path,
     enabled: bool,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     if enabled {
-        add_common_wtf_to_zip(zip, wtf_dir)
+        add_common_wtf_to_zip(zip, wtf_dir, archive_outputs)
     } else {
         Ok(0)
     }
@@ -99,13 +115,15 @@ pub(in crate::core::bundle::packing) fn add_wtf_characters_to_zip(
     zip: &mut ZipWriter<File>,
     wtf_dir: &Path,
     characters: &mut [CharacterResource],
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let mut archived_files = 0usize;
 
     for character in characters {
         let resolved_account = resolve_character_account(wtf_dir, character)?;
         character.source_account = Some(resolved_account.clone());
-        archived_files += add_character_wtf_to_zip(zip, wtf_dir, character, &resolved_account)?;
+        archived_files +=
+            add_character_wtf_to_zip(zip, wtf_dir, character, &resolved_account, archive_outputs)?;
     }
 
     Ok(archived_files)
@@ -115,9 +133,10 @@ pub(in crate::core::bundle::packing) fn add_fonts_to_zip(
     zip: &mut ZipWriter<File>,
     fonts_dir: &Path,
     enabled: bool,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     if enabled {
-        add_path_to_zip(zip, fonts_dir, Path::new("fonts"))
+        add_path_to_zip(zip, fonts_dir, Path::new("fonts"), archive_outputs)
     } else {
         Ok(0)
     }
@@ -127,6 +146,7 @@ pub(in crate::core::bundle::packing) fn add_interface_assets_to_zip(
     zip: &mut ZipWriter<File>,
     interface_dir: &Path,
     interface_assets: &[String],
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let mut archived_files = 0usize;
 
@@ -140,7 +160,12 @@ pub(in crate::core::bundle::packing) fn add_interface_assets_to_zip(
             )));
         }
 
-        archived_files += add_path_to_zip(zip, &source, &Path::new("interface").join(asset))?;
+        archived_files += add_path_to_zip(
+            zip,
+            &source,
+            &Path::new("interface").join(asset),
+            archive_outputs,
+        )?;
     }
 
     Ok(archived_files)
@@ -149,7 +174,9 @@ pub(in crate::core::bundle::packing) fn add_interface_assets_to_zip(
 pub(in crate::core::bundle::packing) fn write_manifest_to_zip(
     zip: &mut ZipWriter<File>,
     manifest: &BundleManifest,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
+    register_bundle_archive_output(archive_outputs, MANIFEST_ENTRY, false)?;
     start_file_to_zip(zip, MANIFEST_ENTRY, zip_file_options())?;
     zip.write_all(toml::to_string_pretty(manifest)?.as_bytes())?;
     Ok(1)

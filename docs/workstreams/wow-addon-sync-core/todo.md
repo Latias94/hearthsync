@@ -337,6 +337,9 @@ enough that these rules live in one place.
   Current progress: zip-writing entry creation now also reuses shared portable-path validation in
   `core::archive_io`, so backup creation and bundle packing reject non-portable archive names
   before emitting first-party zip payloads.
+  Current progress: first-party backup/bundle export flows now also maintain one shared archive
+  output path set while writing, so case-only duplicate names and file/directory hierarchy
+  conflicts fail before any non-portable first-party zip layout is emitted.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.

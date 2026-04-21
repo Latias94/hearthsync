@@ -303,6 +303,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - zip-writing entry creation now also reuses shared portable-path validation in
   `core::archive_io`, so backup creation and bundle packing reject non-portable archive names
   before emitting first-party zip payloads
+- first-party backup/bundle export flows now also maintain one shared archive output path set
+  while writing, so case-only duplicate names and file/directory hierarchy conflicts fail before
+  any non-portable first-party zip layout is emitted
 - external-package directory sources now reuse the same portable segment validation as zip
   sources, so non-portable relative names fail consistently before normalization
 - external-package normalized-path collision rules now also have pure logical regression coverage

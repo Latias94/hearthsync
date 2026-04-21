@@ -6,16 +6,23 @@ use zip::ZipWriter;
 
 use super::super::shared::path::validate_plain_name;
 use super::super::zip_write::add_path_to_zip;
+use crate::core::archive_io::PortableArchivePathSet;
 use crate::core::error::AppResult;
 
 pub(in crate::core::bundle) fn add_common_wtf_to_zip(
     zip: &mut ZipWriter<File>,
     wtf_dir: &Path,
+    archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
     let mut archived_files = 0usize;
     let config_wtf = wtf_dir.join("Config.wtf");
     if config_wtf.exists() {
-        archived_files += add_path_to_zip(zip, &config_wtf, Path::new("wtf/common/Config.wtf"))?;
+        archived_files += add_path_to_zip(
+            zip,
+            &config_wtf,
+            Path::new("wtf/common/Config.wtf"),
+            archive_outputs,
+        )?;
     }
 
     let account_root = wtf_dir.join("Account");
@@ -29,6 +36,7 @@ pub(in crate::core::bundle) fn add_common_wtf_to_zip(
             zip,
             &root_saved_variables,
             &Path::new("wtf/common/root").join("SavedVariables"),
+            archive_outputs,
         )?;
     }
 
@@ -59,6 +67,7 @@ pub(in crate::core::bundle) fn add_common_wtf_to_zip(
                 &Path::new("wtf/common/accounts")
                     .join(&account_name)
                     .join(file_name),
+                archive_outputs,
             )?;
         }
 
@@ -70,6 +79,7 @@ pub(in crate::core::bundle) fn add_common_wtf_to_zip(
                 &Path::new("wtf/common/accounts")
                     .join(account_name)
                     .join("SavedVariables"),
+                archive_outputs,
             )?;
         }
     }
