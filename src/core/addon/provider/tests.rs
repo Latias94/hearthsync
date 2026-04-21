@@ -389,8 +389,133 @@ fn default_addon_provider_reuses_download_cache_for_resolved_latest_github_relea
 
     assert_eq!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
+    assert!(super::cached_archive_metadata_path(&first.archive_path).is_file());
     assert_eq!(provider.http_client().requests.borrow().len(), 2);
     assert_eq!(provider.http_client().downloads.borrow().len(), 1);
+}
+
+#[test]
+fn default_addon_provider_redownloads_cached_release_when_cache_metadata_is_missing() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        requests: RefCell<Vec<HttpRequest>>,
+        downloads: RefCell<Vec<HttpDownloadRequest>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            self.requests.borrow_mut().push(request);
+            Ok(HttpResponse {
+                status_code: 200,
+                body: r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.2.3/addon.zip"}]}"#.to_string(),
+            })
+        }
+
+        fn download_to_path(
+            &self,
+            request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<()> {
+            self.downloads.borrow_mut().push(request.clone());
+            std::fs::write(&request.destination, b"archive-v1.2.3").expect("archive file");
+            Ok(())
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+        .with_download_cache_dir(Some(temp.path().join("cache")));
+    let source = AddonSourceRef::GitHubRelease {
+        owner: "owner".to_string(),
+        repo: "repo".to_string(),
+        tag: None,
+        asset_name: None,
+    };
+
+    let first = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: &temp.path().join("stage-a"),
+            context: AddonProviderContext::default(),
+        })
+        .expect("first materialize");
+    std::fs::remove_file(super::cached_archive_metadata_path(&first.archive_path))
+        .expect("remove cache sidecar");
+    let second = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: &temp.path().join("stage-b"),
+            context: AddonProviderContext::default(),
+        })
+        .expect("second materialize");
+
+    assert_eq!(first.archive_path, second.archive_path);
+    assert_eq!(provider.http_client().downloads.borrow().len(), 2);
+}
+
+#[test]
+fn default_addon_provider_redownloads_cached_release_when_cached_archive_is_modified() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        requests: RefCell<Vec<HttpRequest>>,
+        downloads: RefCell<Vec<HttpDownloadRequest>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            self.requests.borrow_mut().push(request);
+            Ok(HttpResponse {
+                status_code: 200,
+                body: r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.2.3/addon.zip"}]}"#.to_string(),
+            })
+        }
+
+        fn download_to_path(
+            &self,
+            request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<()> {
+            self.downloads.borrow_mut().push(request.clone());
+            let payload = format!("archive-download-{}", self.downloads.borrow().len());
+            std::fs::write(&request.destination, payload).expect("archive file");
+            Ok(())
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+        .with_download_cache_dir(Some(temp.path().join("cache")));
+    let source = AddonSourceRef::GitHubRelease {
+        owner: "owner".to_string(),
+        repo: "repo".to_string(),
+        tag: None,
+        asset_name: None,
+    };
+
+    let first = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: &temp.path().join("stage-a"),
+            context: AddonProviderContext::default(),
+        })
+        .expect("first materialize");
+    std::fs::write(&first.archive_path, b"corrupted-cache").expect("corrupt cache file");
+    let second = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: &temp.path().join("stage-b"),
+            context: AddonProviderContext::default(),
+        })
+        .expect("second materialize");
+
+    assert_eq!(first.archive_path, second.archive_path);
+    assert_eq!(provider.http_client().downloads.borrow().len(), 2);
+    assert_eq!(
+        std::fs::read_to_string(&second.archive_path).expect("refreshed archive"),
+        "archive-download-2"
+    );
 }
 
 #[test]

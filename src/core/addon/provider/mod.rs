@@ -7,6 +7,7 @@ mod tests;
 
 use std::fmt;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ use self::http::{
     HttpHeader, HttpRequest, ReqwestHttpClient,
 };
 use self::parse::{parse_curseforge_source, parse_github_source};
+use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 use crate::core::task::{CancellationToken, NeverCancel};
@@ -99,6 +101,14 @@ struct ResolvedDownloadArtifact {
     archive_name: String,
     headers: Vec<HttpHeader>,
     cache_policy: DownloadCachePolicy,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct CachedArchiveMetadata {
+    source_display_name: String,
+    archive_name: String,
+    file_size: u64,
+    file_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -531,7 +541,13 @@ fn materialize_downloaded_archive(
         stage_root,
         options,
     );
-    if should_reuse_cached_archive(artifact.cache_policy, &archive_path, options) {
+    if should_reuse_cached_archive(
+        &artifact.cache_source_ref,
+        &artifact.archive_name,
+        artifact.cache_policy,
+        &archive_path,
+        options,
+    ) {
         return Ok(archive_path);
     }
 
@@ -551,10 +567,18 @@ fn materialize_downloaded_archive(
             .as_ref()
             .map(|observer| observer as &dyn HttpDownloadProgressObserver),
     )?;
+    write_cached_archive_metadata(
+        &archive_path,
+        &artifact.cache_source_ref,
+        &artifact.archive_name,
+        options,
+    )?;
     Ok(archive_path)
 }
 
 fn should_reuse_cached_archive(
+    source: &AddonSourceRef,
+    archive_name: &str,
     cache_policy: DownloadCachePolicy,
     archive_path: &Path,
     options: &AddonProviderOptions,
@@ -562,6 +586,7 @@ fn should_reuse_cached_archive(
     options.download_cache_dir.is_some()
         && archive_path.is_file()
         && cache_policy == DownloadCachePolicy::ReuseIfPresent
+        && cached_archive_matches_metadata(archive_path, source, archive_name)
 }
 
 fn resolve_archive_path(
@@ -653,6 +678,83 @@ fn temporary_download_path(destination: &Path) -> PathBuf {
         .filter(|name| !name.is_empty())
         .unwrap_or("downloaded-addon.zip");
     destination.with_file_name(format!("{file_name}.hearthsync-part"))
+}
+
+fn cached_archive_metadata_path(archive_path: &Path) -> PathBuf {
+    let file_name = archive_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("downloaded-addon.zip");
+    archive_path.with_file_name(format!("{file_name}.hearthsync-cache.json"))
+}
+
+fn write_cached_archive_metadata(
+    archive_path: &Path,
+    source: &AddonSourceRef,
+    archive_name: &str,
+    options: &AddonProviderOptions,
+) -> AppResult<()> {
+    if options.download_cache_dir.is_none() {
+        return Ok(());
+    }
+
+    let metadata = CachedArchiveMetadata {
+        source_display_name: source.display_name(),
+        archive_name: normalize_archive_name(archive_name),
+        file_size: fs::metadata(archive_path)?.len(),
+        file_sha256: file_sha256(archive_path)?,
+    };
+    let metadata_bytes = serde_json::to_vec_pretty(&metadata)?;
+    write_bytes_atomically(&cached_archive_metadata_path(archive_path), &metadata_bytes)
+}
+
+fn cached_archive_matches_metadata(
+    archive_path: &Path,
+    source: &AddonSourceRef,
+    archive_name: &str,
+) -> bool {
+    let metadata_path = cached_archive_metadata_path(archive_path);
+    let Ok(metadata_bytes) = fs::read(&metadata_path) else {
+        return false;
+    };
+    let Ok(metadata) = serde_json::from_slice::<CachedArchiveMetadata>(&metadata_bytes) else {
+        return false;
+    };
+    if metadata.source_display_name != source.display_name() {
+        return false;
+    }
+    if metadata.archive_name != normalize_archive_name(archive_name) {
+        return false;
+    }
+
+    let Ok(file_metadata) = fs::metadata(archive_path) else {
+        return false;
+    };
+    if metadata.file_size != file_metadata.len() {
+        return false;
+    }
+
+    let Ok(file_sha256) = file_sha256(archive_path) else {
+        return false;
+    };
+    metadata.file_sha256 == file_sha256
+}
+
+fn file_sha256(path: &Path) -> AppResult<String> {
+    let mut file = fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn source_cache_namespace(source: &AddonSourceRef) -> &'static str {

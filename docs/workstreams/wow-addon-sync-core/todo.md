@@ -528,9 +528,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current gap: the addon lock is strong for reproducibility, but there is still no persisted home
   for mutable user choices such as ignore/pin/channel/pre-release/dependency policy.
 - [ ] make provider cache reuse integrity-aware rather than file-presence-aware
-  Current gap: immutable-source cache reuse now has good freshness semantics, but existing cached
-  archives are still trusted when the file exists, without sidecar metadata or source-integrity
-  validation.
+  Current progress: immutable-source cache reuse now requires a local cache-integrity sidecar, and
+  existing cached archives are re-hashed before reuse so missing sidecars or locally modified cache
+  files trigger a re-download instead of blind reuse.
+  Remaining gap: cache validity still does not use remote validators such as source-provided hash,
+  content length, ETag, or last-modified when those signals are available.
 - [ ] add sanitized real-world SavedVariables fixture coverage before broad desktop-facing config claims
   Current gap: rewrite support is better than before, but encoding confidence and file-specific
   rewrite safety are still under-validated for real-world localized payloads.

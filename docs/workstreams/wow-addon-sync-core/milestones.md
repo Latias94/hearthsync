@@ -527,5 +527,8 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - the stable app boundary now also exposes first-class config-oriented request and task entrypoints
   on top of the same engine, so future GUI work no longer has to enter config sync only through
   external-package-shaped app contracts
+- cache integrity now also has a first concrete floor: immutable-source cache reuse writes a local
+  integrity sidecar and re-hashes cached archives before reuse, so missing metadata or locally
+  modified cached files trigger a refresh instead of being trusted because the file merely exists
 - the bounded review that motivates this milestone is recorded in
   `review-2026-04-21-config-sync-gap.md`
