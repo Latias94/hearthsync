@@ -5,6 +5,7 @@ use zip::ZipArchive;
 
 use super::types::{ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageSourceKind};
 use crate::core::archive_io::copy_reader_to_path;
+use crate::core::bundle::entry_layout::{BundleArchiveEntry, classify_bundle_archive_entry};
 use crate::core::bundle::shared::path::{join_segments, safe_zip_segments};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
@@ -67,42 +68,67 @@ fn destination_path_for_normalized_entry(
     entry: &ExternalPackageEntry,
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<PathBuf> {
-    let segments = safe_zip_segments(&entry.normalized_path)?;
-    let destination = match segments.as_slice() {
-        ["addons", rest @ ..] if !rest.is_empty() => join_segments(&installation.addon_dir, rest),
-        ["wtf", "common", "Config.wtf"] => installation.wtf_dir.join("Config.wtf"),
-        ["wtf", "common", "root", "SavedVariables", rest @ ..] if !rest.is_empty() => installation
-            .wtf_dir
-            .join("Account")
-            .join("SavedVariables")
-            .join(join_segments(Path::new(""), rest)),
-        ["wtf", "common", "accounts", account, rest @ ..] if !rest.is_empty() => installation
-            .wtf_dir
-            .join("Account")
-            .join(account)
-            .join(join_segments(Path::new(""), rest)),
-        ["wtf", "characters", account, server, character, rest @ ..] if !rest.is_empty() => {
-            installation
+    let Some(classified_entry) = classify_bundle_archive_entry(&entry.normalized_path)? else {
+        return Err(unsupported_normalized_external_package_path(
+            &entry.normalized_path,
+        ));
+    };
+
+    let destination = match classified_entry {
+        BundleArchiveEntry::Metadata { .. } => {
+            return Err(unsupported_normalized_external_package_path(
+                &entry.normalized_path,
+            ));
+        }
+        BundleArchiveEntry::Addon { rest } => join_segments(&installation.addon_dir, &rest),
+        BundleArchiveEntry::CommonConfig => installation.wtf_dir.join("Config.wtf"),
+        BundleArchiveEntry::CommonRootSavedVariables { rest } => join_segments(
+            &installation.wtf_dir.join("Account").join("SavedVariables"),
+            &rest,
+        ),
+        BundleArchiveEntry::CommonAccountSavedVariables {
+            source_account,
+            rest,
+        } => join_segments(
+            &installation
                 .wtf_dir
                 .join("Account")
-                .join(account)
+                .join(source_account)
+                .join("SavedVariables"),
+            &rest,
+        ),
+        BundleArchiveEntry::CommonAccountFile {
+            source_account,
+            rest,
+        } => join_segments(
+            &installation.wtf_dir.join("Account").join(source_account),
+            &rest,
+        ),
+        BundleArchiveEntry::CharacterFile {
+            source_account,
+            server,
+            character,
+            rest,
+        } => join_segments(
+            &installation
+                .wtf_dir
+                .join("Account")
+                .join(source_account)
                 .join(server)
-                .join(character)
-                .join(join_segments(Path::new(""), rest))
-        }
-        ["fonts", rest @ ..] if !rest.is_empty() => join_segments(&installation.fonts_dir, rest),
-        ["interface", rest @ ..] if !rest.is_empty() => {
-            join_segments(&installation.interface_dir, rest)
-        }
-        _ => {
-            return Err(AppError::Validation(format!(
-                "unsupported normalized external package path: {}",
-                entry.normalized_path
-            )));
-        }
+                .join(character),
+            &rest,
+        ),
+        BundleArchiveEntry::Fonts { rest } => join_segments(&installation.fonts_dir, &rest),
+        BundleArchiveEntry::Interface { rest } => join_segments(&installation.interface_dir, &rest),
     };
 
     Ok(destination)
+}
+
+fn unsupported_normalized_external_package_path(path: &str) -> AppError {
+    AppError::Validation(format!(
+        "unsupported normalized external package path: {path}"
+    ))
 }
 
 fn copy_file_to_destination(source_path: &Path, destination: &Path) -> AppResult<()> {
@@ -132,4 +158,102 @@ fn resolve_directory_source_entry_path(
 ) -> AppResult<PathBuf> {
     let segments = safe_zip_segments(&entry.source_path)?;
     Ok(join_segments(root, &segments))
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::{
+        create_staging_installation, destination_path_for_normalized_entry,
+        unsupported_normalized_external_package_path,
+    };
+    use crate::core::bundle::ExternalPackageEntry;
+    use crate::core::bundle::types::apply::{ApplyGroup, WtfScope};
+    use crate::core::install::{HostPlatform, WowFlavor};
+
+    #[test]
+    fn destination_path_for_normalized_entry_maps_account_saved_variables_with_shared_layout() {
+        let temp = tempdir().expect("temp dir");
+        let installation =
+            create_staging_installation(temp.path(), WowFlavor::Retail, HostPlatform::Windows)
+                .expect("staging installation");
+        let entry = sample_entry(
+            "wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua",
+            ApplyGroup::WtfCommon,
+            Some(WtfScope::AccountSavedVariables),
+        );
+
+        let destination = destination_path_for_normalized_entry(&entry, &installation)
+            .expect("account saved variables destination");
+
+        assert_eq!(
+            destination,
+            installation
+                .wtf_dir
+                .join("Account")
+                .join("ACCOUNT")
+                .join("SavedVariables")
+                .join("Details.lua")
+        );
+    }
+
+    #[test]
+    fn destination_path_for_normalized_entry_maps_account_files_without_saved_variables_prefix() {
+        let temp = tempdir().expect("temp dir");
+        let installation =
+            create_staging_installation(temp.path(), WowFlavor::Retail, HostPlatform::Windows)
+                .expect("staging installation");
+        let entry = sample_entry(
+            "wtf/common/accounts/ACCOUNT/bindings-cache.wtf",
+            ApplyGroup::WtfCommon,
+            Some(WtfScope::CacheLike),
+        );
+
+        let destination = destination_path_for_normalized_entry(&entry, &installation)
+            .expect("account cache file destination");
+
+        assert_eq!(
+            destination,
+            installation
+                .wtf_dir
+                .join("Account")
+                .join("ACCOUNT")
+                .join("bindings-cache.wtf")
+        );
+    }
+
+    #[test]
+    fn destination_path_for_normalized_entry_rejects_metadata_layout() {
+        let temp = tempdir().expect("temp dir");
+        let installation =
+            create_staging_installation(temp.path(), WowFlavor::Retail, HostPlatform::Windows)
+                .expect("staging installation");
+        let entry = sample_entry("metadata/source/sources.toml", ApplyGroup::Metadata, None);
+
+        let error = destination_path_for_normalized_entry(&entry, &installation)
+            .expect_err("metadata layout should be rejected");
+
+        assert_eq!(
+            error.to_string(),
+            unsupported_normalized_external_package_path("metadata/source/sources.toml")
+                .to_string()
+        );
+    }
+
+    fn sample_entry(
+        normalized_path: &str,
+        group: ApplyGroup,
+        wtf_scope: Option<WtfScope>,
+    ) -> ExternalPackageEntry {
+        ExternalPackageEntry {
+            source_path: normalized_path.to_string(),
+            normalized_path: normalized_path.to_string(),
+            group,
+            wtf_scope,
+            source_account: None,
+            source_server: None,
+            source_character: None,
+        }
+    }
 }

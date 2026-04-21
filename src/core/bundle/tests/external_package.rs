@@ -1262,7 +1262,6 @@ fn external_package_warning_code_serialization_matches_display_codes() {
     let codes = [
         ExternalPackageWarningCode::AddonRootNotDetected,
         ExternalPackageWarningCode::UnsupportedWtfLayout,
-        ExternalPackageWarningCode::UnsupportedWtfRootSavedVariables,
         ExternalPackageWarningCode::WtfAccountPathWithoutFile,
         ExternalPackageWarningCode::WtfSavedVariablesPathWithoutFile,
         ExternalPackageWarningCode::UnsupportedWtfNestedAccountLayout,

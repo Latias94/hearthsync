@@ -5,6 +5,19 @@ use std::path::{Path, PathBuf};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
 
+pub(in crate::core) fn validate_portable_path_segment(
+    segment: &str,
+    segment_kind: &str,
+) -> AppResult<()> {
+    if !is_safe_archive_segment(segment) {
+        return Err(AppError::Validation(format!(
+            "invalid {segment_kind} name: `{segment}`"
+        )));
+    }
+
+    Ok(())
+}
+
 pub(in crate::core) fn safe_zip_segments(archive_name: &str) -> AppResult<Vec<&str>> {
     let mut segments = Vec::new();
     for segment in archive_name.split('/') {
@@ -15,6 +28,23 @@ pub(in crate::core) fn safe_zip_segments(archive_name: &str) -> AppResult<Vec<&s
         }
 
         segments.push(segment);
+    }
+
+    Ok(segments)
+}
+
+pub(in crate::core) fn safe_zip_segments_under<'a>(
+    path: &'a str,
+    root_segment: &str,
+    path_kind: &str,
+) -> AppResult<Vec<&'a str>> {
+    let segments = safe_zip_segments(path)
+        .map_err(|_| AppError::Validation(format!("unsafe {path_kind}: `{path}`")))?;
+
+    if segments.first().copied() != Some(root_segment) || segments.len() < 2 {
+        return Err(AppError::Validation(format!(
+            "{path_kind} must be under `{root_segment}/`: {path}"
+        )));
     }
 
     Ok(segments)
@@ -229,9 +259,32 @@ mod tests {
     use super::{
         PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
         find_platform_path_prefix_conflict, platform_path_collision_key, safe_relative_segments,
-        safe_zip_segments, to_zip_path,
+        safe_zip_segments, safe_zip_segments_under, to_zip_path, validate_portable_path_segment,
     };
     use crate::core::install::HostPlatform;
+
+    #[test]
+    fn validate_portable_path_segment_rejects_reserved_device_names() {
+        let error = validate_portable_path_segment("CON", "account")
+            .expect_err("reserved device name should fail");
+
+        assert!(error.to_string().contains("invalid account name"));
+    }
+
+    #[test]
+    fn validate_portable_path_segment_rejects_trailing_space_or_dot() {
+        for segment in ["WeakAuras ", "WeakAuras."] {
+            let error = validate_portable_path_segment(segment, "addon")
+                .expect_err("trailing space or dot should fail");
+
+            assert!(error.to_string().contains("invalid addon name"));
+        }
+    }
+
+    #[test]
+    fn validate_portable_path_segment_accepts_portable_names() {
+        validate_portable_path_segment("ACC#1", "account").expect("portable plain segment");
+    }
 
     #[test]
     fn safe_zip_segments_rejects_empty_segments() {
@@ -284,6 +337,43 @@ mod tests {
                 "SavedVariables",
                 "Details.lua"
             ]
+        );
+    }
+
+    #[test]
+    fn safe_zip_segments_under_rejects_non_portable_paths_with_context() {
+        let error = safe_zip_segments_under("sources/CON.zip", "sources", "addon lock source path")
+            .expect_err("non-portable path should fail");
+
+        assert!(error.to_string().contains("unsafe addon lock source path"));
+    }
+
+    #[test]
+    fn safe_zip_segments_under_requires_root_prefix() {
+        let error = safe_zip_segments_under(
+            "archives/providers/WeakAuras.zip",
+            "sources",
+            "bundle addon source path",
+        )
+        .expect_err("wrong root should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("bundle addon source path must be under `sources/`")
+        );
+    }
+
+    #[test]
+    fn safe_zip_segments_under_accepts_portable_rooted_paths() {
+        assert_eq!(
+            safe_zip_segments_under(
+                "sources/providers/curseforge/WeakAuras.zip",
+                "sources",
+                "bundle addon source path",
+            )
+            .expect("portable rooted path"),
+            vec!["sources", "providers", "curseforge", "WeakAuras.zip"]
         );
     }
 

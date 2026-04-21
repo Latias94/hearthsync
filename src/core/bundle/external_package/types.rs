@@ -74,8 +74,6 @@ impl ExternalPackageWarningCategory {
 pub enum ExternalPackageWarningCode {
     AddonRootNotDetected,
     UnsupportedWtfLayout,
-    #[serde(rename = "unsupported_wtf_root_savedvariables")]
-    UnsupportedWtfRootSavedVariables,
     WtfAccountPathWithoutFile,
     #[serde(rename = "wtf_savedvariables_path_without_file")]
     WtfSavedVariablesPathWithoutFile,
@@ -87,7 +85,6 @@ impl ExternalPackageWarningCode {
         match self {
             Self::AddonRootNotDetected => "addon_root_not_detected",
             Self::UnsupportedWtfLayout => "unsupported_wtf_layout",
-            Self::UnsupportedWtfRootSavedVariables => "unsupported_wtf_root_savedvariables",
             Self::WtfAccountPathWithoutFile => "wtf_account_path_without_file",
             Self::WtfSavedVariablesPathWithoutFile => "wtf_savedvariables_path_without_file",
             Self::UnsupportedWtfNestedAccountLayout => "unsupported_wtf_nested_account_layout",

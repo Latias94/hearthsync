@@ -26,7 +26,6 @@ impl ExternalPackageWarningCategoryValue {
 pub enum ExternalPackageWarningCodeValue {
     AddonRootNotDetected,
     UnsupportedWtfLayout,
-    UnsupportedWtfRootSavedVariables,
     WtfAccountPathWithoutFile,
     WtfSavedVariablesPathWithoutFile,
     UnsupportedWtfNestedAccountLayout,
@@ -37,9 +36,6 @@ impl ExternalPackageWarningCodeValue {
         match value {
             DomainExternalPackageWarningCode::AddonRootNotDetected => Self::AddonRootNotDetected,
             DomainExternalPackageWarningCode::UnsupportedWtfLayout => Self::UnsupportedWtfLayout,
-            DomainExternalPackageWarningCode::UnsupportedWtfRootSavedVariables => {
-                Self::UnsupportedWtfRootSavedVariables
-            }
             DomainExternalPackageWarningCode::WtfAccountPathWithoutFile => {
                 Self::WtfAccountPathWithoutFile
             }

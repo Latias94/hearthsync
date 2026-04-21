@@ -1,10 +1,9 @@
 use super::super::character_mapping_match::find_character_mapping;
-use super::super::wtf_scope::classify_character_wtf_scope;
 use std::path::Path;
 
 use super::super::apply_model::planned::PlannedEntry;
 use super::super::shared::path::join_segments;
-use super::super::types::apply::ApplyGroup;
+use super::super::types::apply::{ApplyGroup, WtfScope};
 use super::EntryPlanningContext;
 use crate::core::lua_patch::CharacterMapping;
 
@@ -16,6 +15,7 @@ impl<'a> EntryPlanningContext<'a> {
         server: &str,
         character: &str,
         rest: &[&str],
+        wtf_scope: WtfScope,
     ) -> PlannedEntry {
         let mapping = self
             .resolve_character_mapping(source_account, server, character)
@@ -33,7 +33,7 @@ impl<'a> EntryPlanningContext<'a> {
                 .join(join_segments(Path::new(""), rest)),
             rewrites: vec![mapping.clone()],
             group: ApplyGroup::WtfCharacters,
-            wtf_scope: Some(classify_character_wtf_scope(rest)),
+            wtf_scope: Some(wtf_scope),
             target_account: Some(mapping.target_account),
             target_server: Some(mapping.target_server),
             target_character: Some(mapping.target_character),

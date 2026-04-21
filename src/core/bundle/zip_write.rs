@@ -9,8 +9,8 @@ use zip::ZipWriter;
 use super::shared::path::{should_skip_path, to_zip_path};
 use super::shared::zip_options::{zip_dir_options, zip_file_options};
 use crate::core::archive_io::{
-    PortableArchivePathIssue, PortableArchivePathIssueKind, PortableArchivePathSet,
-    add_directory_to_zip, start_file_to_zip, stream_file_to_zip,
+    PortableArchivePathSet, add_directory_to_zip, portable_archive_path_issue_error,
+    start_file_to_zip, stream_file_to_zip,
 };
 use crate::core::error::{AppError, AppResult};
 
@@ -86,28 +86,67 @@ pub(super) fn register_bundle_archive_output(
 ) -> AppResult<()> {
     archive_outputs
         .register(archive_path, is_directory)
-        .map_err(map_bundle_archive_output_issue)
+        .map_err(|issue| portable_archive_path_issue_error("bundle creation", issue))
 }
 
-fn map_bundle_archive_output_issue(issue: PortableArchivePathIssue) -> AppError {
-    match issue.kind {
-        PortableArchivePathIssueKind::ExactCollision => AppError::Validation(format!(
-            "bundle creation would emit multiple archive entries onto the same path: `{}` and `{}`",
-            issue.previous, issue.current
-        )),
-        PortableArchivePathIssueKind::CaseInsensitiveCollision => AppError::Validation(format!(
-            "bundle creation would emit case-insensitive archive path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
-            issue.previous, issue.current
-        )),
-        PortableArchivePathIssueKind::ExactPrefixConflict => AppError::Validation(format!(
-            "bundle creation would emit conflicting file and directory archive paths: `{}` and `{}`",
-            issue.previous, issue.current
-        )),
-        PortableArchivePathIssueKind::CaseInsensitivePrefixConflict => {
-            AppError::Validation(format!(
-                "bundle creation would emit case-insensitive file and directory archive path conflicts: `{}` and `{}` would create file/directory collisions on Windows/default macOS targets",
-                issue.previous, issue.current
-            ))
-        }
+#[cfg(test)]
+mod tests {
+    use crate::core::archive_io::PortableArchivePathSet;
+
+    use super::register_bundle_archive_output;
+
+    #[test]
+    fn register_bundle_archive_output_rejects_case_insensitive_metadata_collisions() {
+        let mut archive_outputs = PortableArchivePathSet::new();
+        register_bundle_archive_output(
+            &mut archive_outputs,
+            "metadata/addons/indexes/addon-index.toml",
+            false,
+        )
+        .expect("first metadata entry should register");
+
+        let error = register_bundle_archive_output(
+            &mut archive_outputs,
+            "metadata/addons/indexes/ADDON-INDEX.toml",
+            false,
+        )
+        .expect_err("case-only metadata collision should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("case-insensitive archive path collisions"));
+        assert!(message.contains("metadata/addons/indexes/addon-index.toml"));
+        assert!(message.contains("metadata/addons/indexes/ADDON-INDEX.toml"));
+    }
+
+    #[test]
+    fn register_bundle_archive_output_rejects_file_as_ancestor_sidecar_conflicts() {
+        let mut archive_outputs = PortableArchivePathSet::new();
+        register_bundle_archive_output(&mut archive_outputs, "metadata/addons/sources", false)
+            .expect("source root file should register");
+
+        let error = register_bundle_archive_output(
+            &mut archive_outputs,
+            "metadata/addons/sources/addons-weakauras.zip",
+            false,
+        )
+        .expect_err("file ancestor conflict should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("conflicting file and directory archive paths"));
+        assert!(message.contains("metadata/addons/sources"));
+        assert!(message.contains("metadata/addons/sources/addons-weakauras.zip"));
+    }
+
+    #[test]
+    fn register_bundle_archive_output_allows_directory_as_sidecar_ancestor() {
+        let mut archive_outputs = PortableArchivePathSet::new();
+        register_bundle_archive_output(&mut archive_outputs, "metadata/addons/sources", true)
+            .expect("sidecar directory should register");
+        register_bundle_archive_output(
+            &mut archive_outputs,
+            "metadata/addons/sources/addons-weakauras.zip",
+            false,
+        )
+        .expect("directory ancestors should stay legal");
     }
 }

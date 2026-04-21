@@ -2,8 +2,7 @@ use super::super::apply_model::planned::PlannedEntry;
 use super::super::entry_layout::{BundleArchiveEntry, classify_bundle_archive_entry};
 use super::super::shared::path::{join_segments, safe_file_part};
 use super::super::target_accounts::common::resolve_common_account_targets;
-use super::super::types::apply::{ApplyGroup, BundleApplyMappings, WtfScope};
-use super::super::wtf_scope::classify_account_wtf_scope;
+use super::super::types::apply::BundleApplyMappings;
 use super::EntryPlanningContext;
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
@@ -55,6 +54,8 @@ impl<'a> EntryPlanningContext<'a> {
         archive_name: &str,
         entry: BundleArchiveEntry<'_>,
     ) -> AppResult<Vec<PlannedEntry>> {
+        let metadata = entry.metadata();
+
         match entry {
             BundleArchiveEntry::Metadata { rest } => Ok(vec![
                 self.simple_entry(
@@ -68,21 +69,21 @@ impl<'a> EntryPlanningContext<'a> {
                             .join(safe_file_part(&self.manifest.package.id)),
                         &rest,
                     ),
-                    ApplyGroup::Metadata,
-                    None,
+                    metadata.group,
+                    metadata.wtf_scope,
                 ),
             ]),
             BundleArchiveEntry::Addon { rest } => Ok(vec![self.simple_entry(
                 archive_name,
                 join_segments(&self.installation.addon_dir, &rest),
-                ApplyGroup::Addons,
-                None,
+                metadata.group,
+                metadata.wtf_scope,
             )]),
             BundleArchiveEntry::CommonConfig => Ok(vec![self.simple_entry(
                 archive_name,
                 self.installation.wtf_dir.join("Config.wtf"),
-                ApplyGroup::WtfCommon,
-                Some(WtfScope::GlobalConfig),
+                metadata.group,
+                metadata.wtf_scope,
             )]),
             BundleArchiveEntry::CommonRootSavedVariables { rest } => Ok(vec![
                 self.plan_root_saved_variables_entry(archive_name, &rest),
@@ -95,7 +96,9 @@ impl<'a> EntryPlanningContext<'a> {
                 source_account,
                 &["SavedVariables"],
                 &rest,
-                WtfScope::AccountSavedVariables,
+                metadata
+                    .wtf_scope
+                    .expect("common account saved variables entries always carry a WTF scope"),
             )),
             BundleArchiveEntry::CommonAccountFile {
                 source_account,
@@ -105,31 +108,38 @@ impl<'a> EntryPlanningContext<'a> {
                 source_account,
                 &[],
                 &rest,
-                classify_account_wtf_scope(&rest),
+                metadata
+                    .wtf_scope
+                    .expect("common account file entries always carry a WTF scope"),
             )),
             BundleArchiveEntry::CharacterFile {
                 source_account,
                 server,
                 character,
                 rest,
-            } => Ok(vec![self.plan_character_entry(
-                archive_name,
-                source_account,
-                server,
-                character,
-                &rest,
-            )]),
+            } => Ok(vec![
+                self.plan_character_entry(
+                    archive_name,
+                    source_account,
+                    server,
+                    character,
+                    &rest,
+                    metadata
+                        .wtf_scope
+                        .expect("character file entries always carry a WTF scope"),
+                ),
+            ]),
             BundleArchiveEntry::Fonts { rest } => Ok(vec![self.simple_entry(
                 archive_name,
                 join_segments(&self.installation.fonts_dir, &rest),
-                ApplyGroup::Fonts,
-                None,
+                metadata.group,
+                metadata.wtf_scope,
             )]),
             BundleArchiveEntry::Interface { rest } => Ok(vec![self.simple_entry(
                 archive_name,
                 join_segments(&self.installation.interface_dir, &rest),
-                ApplyGroup::InterfaceAssets,
-                None,
+                metadata.group,
+                metadata.wtf_scope,
             )]),
         }
     }

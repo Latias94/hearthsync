@@ -8,10 +8,11 @@ use zip::ZipArchive;
 use super::super::addon_lock::ExtractedAddonLock;
 use super::super::constants::{ADDON_LOCK_ENTRY, ADDON_SOURCE_INDEX_ENTRY};
 use super::super::shared::addon_source_index::BundleAddonSourceIndex;
-use super::super::shared::path::{join_segments, safe_zip_segments};
+use super::super::shared::path::join_segments;
 use super::safety::reject_unsupported_bundle_symlink_entry;
 use crate::core::addon::lock::AddonLockSourceOverride;
 use crate::core::archive_io::copy_reader_to_path;
+use crate::core::archive_path::safe_zip_segments_under;
 use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle) fn extract_embedded_addon_lock(
@@ -72,13 +73,7 @@ fn extract_bundle_addon_source_overrides(
 
     let mut source_overrides = Vec::new();
     for source in source_index.sources {
-        let segments = safe_zip_segments(&source.path)?;
-        if segments.first().copied() != Some("sources") || segments.len() < 2 {
-            return Err(AppError::Validation(format!(
-                "bundle addon source path must be under `sources/`: {}",
-                source.path
-            )));
-        }
+        let segments = safe_bundle_addon_source_segments(&source.path)?;
 
         let archive_entry_name = format!("metadata/addons/{}", segments.join("/"));
         let mut source_entry = archive.by_name(&archive_entry_name).map_err(|_| {
@@ -101,4 +96,46 @@ fn extract_bundle_addon_source_overrides(
     }
 
     Ok(source_overrides)
+}
+
+fn safe_bundle_addon_source_segments(path: &str) -> AppResult<Vec<&str>> {
+    safe_zip_segments_under(path, "sources", "bundle addon source path")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_bundle_addon_source_segments;
+
+    #[test]
+    fn safe_bundle_addon_source_segments_rejects_non_portable_paths() {
+        let error = safe_bundle_addon_source_segments("sources/CON.zip")
+            .expect_err("non-portable bundle addon source path should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("unsafe bundle addon source path")
+        );
+    }
+
+    #[test]
+    fn safe_bundle_addon_source_segments_requires_sources_root() {
+        let error = safe_bundle_addon_source_segments("archives/WeakAuras.zip")
+            .expect_err("wrong root should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("bundle addon source path must be under `sources/`")
+        );
+    }
+
+    #[test]
+    fn safe_bundle_addon_source_segments_accepts_portable_paths() {
+        assert_eq!(
+            safe_bundle_addon_source_segments("sources/providers/WeakAuras.zip")
+                .expect("portable bundle addon source path"),
+            vec!["sources", "providers", "WeakAuras.zip"]
+        );
+    }
 }

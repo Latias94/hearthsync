@@ -306,6 +306,12 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - first-party backup/bundle export flows now also maintain one shared archive output path set
   while writing, so case-only duplicate names and file/directory hierarchy conflicts fail before
   any non-portable first-party zip layout is emitted
+- first-party backup and bundle export output tracking now also has focused pure-logic regression
+  coverage for case-only metadata collisions, file-as-ancestor conflicts, and legal directory
+  ancestors, including bundle addon sidecar metadata/source paths
+- first-party backup and bundle export now also share one archive-output issue-to-error mapping
+  helper in `core::archive_io`, so duplicate collision/prefix-conflict wording no longer lives in
+  parallel wrapper functions
 - unsupported-symlink rejection now also shares one canonical helper in `core::archive_io`, so
   addon archive prep, backup restore/source scanning, bundle archive ingest, and
   external-package ingest no longer keep separate identical error branches
@@ -318,6 +324,51 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   first-party bundle ingestion no longer trails addon/external-package/backup archive safety
 - bundle archive entry validation now also rejects non-portable path segments during inspect/apply,
   aligning first-party bundle archives with the same portable-name floor as other archive inputs
+- bundle plain-name validation now also reuses the shared portable single-segment rules, so addon
+  names, account/server/character mapping names, interface asset names, and addon-index file names
+  reject Windows-reserved names and trailing-dot / trailing-space segments before bundle
+  planning/export depends on host filesystem quirks
+- addon lock sidecar source-index paths now also reuse the shared zip-segment validation floor, so
+  malformed `sources.toml` entries fail consistently before sidecar-relative source resolution
+- addon lock sidecar source-index resolution and bundle embedded addon-source index extraction now
+  also share one rooted `sources/` path helper under `core::archive_path`, while preserving
+  caller-specific error context instead of keeping parallel root checks
+- zip archive entry validation now also shares one helper in `core::archive_io` for symlink
+  rejection plus non-directory portable-path validation, and addon archive prep /
+  external-package zip ingest now also reuse the same helper to return owned file segments instead
+  of validating and reparsing the same entry name separately
+- external-package staging materialization now also reuses the shared
+  `core::bundle::entry_layout` classifier for normalized bundle-style paths, so addon/WTF/fonts/
+  interface root dispatch no longer lives in a second parallel match tree when building a
+  first-party bundle from an author package
+- normalized external-package entries now also derive `group`, `wtf_scope`, and source
+  account/server/character identity from the shared `core::bundle::entry_layout` classifier, so
+  author-package analysis no longer maintains a second semantic mapping from normalized bundle
+  paths to apply-group and WTF-scope meaning
+- external-package warning taxonomy no longer carries the unreachable
+  `unsupported_wtf_root_savedvariables` code; supported root saved-variable entries now normalize
+  into bundle layout directly, and the remaining warning codes map only to still-reachable
+  unsupported WTF layouts
+- external-package WTF source classification now also splits pure suffix-to-layout recognition
+  from warning rendering and entry assembly, so future author-package WTF layout changes can be
+  tested and evolved at the semantic layer without coupling every branch to source-path-specific
+  warning text generation
+- external-package non-WTF rooted path handling now also splits pure
+  fonts/interface/AddOns subtree recognition from entry assembly, so future author-package
+  resource-root changes can be tested as path semantics without coupling every branch to
+  `ExternalPackageEntry` creation or warning-object construction
+- external-package addon classification now also splits pure addon-root / missing-root semantics
+  from entry assembly and warning creation, so `.toc`-driven root discovery, addon path
+  normalization, and addon-subtree warning behavior can evolve independently within one
+  source-to-normalized-path pipeline
+- backup restore archive preparation now also parses each entry name into one shared
+  `group + destination` result instead of reparsing the same zip path separately for group
+  membership and target-path resolution, while preserving the distinction between unsupported root
+  entries and root-only unsupported entry paths
+- backup archive root naming now also lives with `BackupGroup`, so backup group metadata labels
+  (`interface_assets`) stay distinct from archive root names (`interface`) while creation-time
+  root emission and restore-time root parsing both reuse the same group-owned contract instead of
+  keeping parallel hardcoded root strings
 - bundle apply planning now rejects target-path collisions using the selected target platform's
   case-sensitivity rules, with regression coverage for macOS rejection and Linux case-distinct
   planning

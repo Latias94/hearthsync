@@ -17,7 +17,7 @@ pub fn analyze_external_package(
 
     let source_kind = detect_source_kind(&source_path)?;
     let source_entries = collect_source_entries(&source_path, source_kind)?;
-    let (entries, warnings) = classify_source_entries(&source_entries);
+    let (entries, warnings) = classify_source_entries(&source_entries)?;
 
     Ok(build_analysis(
         source_path,

@@ -13,9 +13,9 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter};
 use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{
-    PortableArchivePathIssue, PortableArchivePathIssueKind, PortableArchivePathSet,
-    add_directory_to_zip, copy_reader_to_path, reject_unsupported_symlink_metadata,
-    start_file_to_zip, stream_file_to_zip,
+    PortableArchivePathSet, add_directory_to_zip, copy_reader_to_path,
+    portable_archive_path_issue_error, reject_unsupported_symlink_metadata, start_file_to_zip,
+    stream_file_to_zip, validate_zip_archive_entry,
 };
 use crate::core::archive_path::{
     PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
@@ -39,6 +39,12 @@ struct PreparedRestoreArchive {
 struct PreparedRestoreEntry {
     archive_index: usize,
     entry_name: String,
+    destination: PathBuf,
+}
+
+#[derive(Debug)]
+struct ParsedBackupEntryTarget {
+    group: BackupGroup,
     destination: PathBuf,
 }
 
@@ -135,39 +141,12 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
     let mut archived_files = 0usize;
 
     for group in &request.groups {
-        match group {
-            BackupGroup::Addons => {
-                archived_files += add_directory_group(
-                    &mut zip,
-                    &request.installation.addon_dir,
-                    Path::new("addons"),
-                    &mut archive_outputs,
-                )?;
-            }
-            BackupGroup::Wtf => {
-                archived_files += add_directory_group(
-                    &mut zip,
-                    &request.installation.wtf_dir,
-                    Path::new("wtf"),
-                    &mut archive_outputs,
-                )?;
-            }
-            BackupGroup::Fonts => {
-                archived_files += add_directory_group(
-                    &mut zip,
-                    &request.installation.fonts_dir,
-                    Path::new("fonts"),
-                    &mut archive_outputs,
-                )?;
-            }
-            BackupGroup::InterfaceAssets => {
-                archived_files += add_interface_assets_group(
-                    &mut zip,
-                    &request.installation.interface_dir,
-                    &mut archive_outputs,
-                )?;
-            }
-        }
+        archived_files += add_backup_group_to_zip(
+            &mut zip,
+            &request.installation,
+            *group,
+            &mut archive_outputs,
+        )?;
     }
 
     let metadata = BackupMetadata {
@@ -274,7 +253,12 @@ fn prepare_restore_archive(
     for archive_index in 0..archive.len() {
         let entry = archive.by_index(archive_index)?;
         let entry_name = entry.name().to_string();
-        reject_unsupported_restore_symlink_entry(&entry_name, entry.is_symlink())?;
+        validate_zip_archive_entry(
+            "backup archive entry",
+            &entry_name,
+            entry.is_symlink(),
+            entry.is_dir(),
+        )?;
         if entry.is_dir() {
             continue;
         }
@@ -282,23 +266,16 @@ fn prepare_restore_archive(
             continue;
         }
 
-        let entry_group = backup_group_for_entry_path(&entry_name)?;
-        if !metadata.groups.contains(&entry_group) {
+        let target = parse_backup_entry_target(&entry_name, installation)?;
+        if !metadata.groups.contains(&target.group) {
             return Err(AppError::Validation(format!(
                 "backup archive entry `{entry_name}` is not declared in backup metadata groups"
             )));
         }
-
-        let destination =
-            map_backup_entry_to_destination(&entry_name, installation)?.ok_or_else(|| {
-                AppError::Validation(format!(
-                    "backup archive contains unsupported entry path: `{entry_name}`"
-                ))
-            })?;
         entries.push(PreparedRestoreEntry {
             archive_index,
             entry_name,
-            destination,
+            destination: target.destination,
         });
     }
 
@@ -361,6 +338,25 @@ fn build_backup_file_name(flavor: &str, label: Option<&str>, timestamp: &str) ->
             format!("backup-{flavor}-{value}-{compact_timestamp}.zip")
         }
         _ => format!("backup-{flavor}-{compact_timestamp}.zip"),
+    }
+}
+
+fn add_backup_group_to_zip(
+    zip: &mut ZipWriter<File>,
+    installation: &DetectedFlavorInstallation,
+    group: BackupGroup,
+    archive_outputs: &mut PortableArchivePathSet,
+) -> AppResult<usize> {
+    match group {
+        BackupGroup::InterfaceAssets => {
+            add_interface_assets_group(zip, group.installation_root(installation), archive_outputs)
+        }
+        _ => add_directory_group(
+            zip,
+            group.installation_root(installation),
+            Path::new(group.archive_root_name()),
+            archive_outputs,
+        ),
     }
 }
 
@@ -456,32 +452,7 @@ fn register_backup_archive_output(
 ) -> AppResult<()> {
     archive_outputs
         .register(archive_path, is_directory)
-        .map_err(map_backup_archive_output_issue)
-}
-
-fn map_backup_archive_output_issue(
-    issue: PortableArchivePathIssue,
-) -> crate::core::error::AppError {
-    match issue.kind {
-        PortableArchivePathIssueKind::ExactCollision => AppError::Validation(format!(
-            "backup creation would emit multiple archive entries onto the same path: `{}` and `{}`",
-            issue.previous, issue.current
-        )),
-        PortableArchivePathIssueKind::CaseInsensitiveCollision => AppError::Validation(format!(
-            "backup creation would emit case-insensitive archive path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
-            issue.previous, issue.current
-        )),
-        PortableArchivePathIssueKind::ExactPrefixConflict => AppError::Validation(format!(
-            "backup creation would emit conflicting file and directory archive paths: `{}` and `{}`",
-            issue.previous, issue.current
-        )),
-        PortableArchivePathIssueKind::CaseInsensitivePrefixConflict => {
-            AppError::Validation(format!(
-                "backup creation would emit case-insensitive file and directory archive path conflicts: `{}` and `{}` would create file/directory collisions on Windows/default macOS targets",
-                issue.previous, issue.current
-            ))
-        }
-    }
+        .map_err(|issue| portable_archive_path_issue_error("backup creation", issue))
 }
 
 fn read_backup_metadata(archive: &mut ZipArchive<File>) -> AppResult<BackupMetadata> {
@@ -576,43 +547,34 @@ fn clear_interface_assets(interface_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
-fn map_backup_entry_to_destination(
+fn parse_backup_entry_target(
     entry_name: &str,
     installation: &DetectedFlavorInstallation,
-) -> AppResult<Option<PathBuf>> {
+) -> AppResult<ParsedBackupEntryTarget> {
     let segments = safe_zip_segments(entry_name)?;
-    if segments.is_empty() {
-        return Ok(None);
-    }
 
-    match segments.as_slice() {
-        ["addons", rest @ ..] if !rest.is_empty() => {
-            Ok(Some(join_segments(&installation.addon_dir, rest)))
-        }
-        ["wtf", rest @ ..] if !rest.is_empty() => {
-            Ok(Some(join_segments(&installation.wtf_dir, rest)))
-        }
-        ["fonts", rest @ ..] if !rest.is_empty() => {
-            Ok(Some(join_segments(&installation.fonts_dir, rest)))
-        }
-        ["interface", rest @ ..] if !rest.is_empty() => {
-            Ok(Some(join_segments(&installation.interface_dir, rest)))
-        }
-        _ => Ok(None),
-    }
-}
+    let Some((root, rest)) = segments.split_first() else {
+        return Err(AppError::Validation(format!(
+            "backup archive contains unsupported entry path: `{entry_name}`"
+        )));
+    };
 
-fn backup_group_for_entry_path(entry_name: &str) -> AppResult<BackupGroup> {
-    let segments = safe_zip_segments(entry_name)?;
-    match segments.as_slice() {
-        ["addons", ..] => Ok(BackupGroup::Addons),
-        ["wtf", ..] => Ok(BackupGroup::Wtf),
-        ["fonts", ..] => Ok(BackupGroup::Fonts),
-        ["interface", ..] => Ok(BackupGroup::InterfaceAssets),
-        _ => Err(AppError::Validation(format!(
+    let Some(group) = BackupGroup::from_archive_root_name(root) else {
+        return Err(AppError::Validation(format!(
             "backup archive contains unsupported root entry: `{entry_name}`"
-        ))),
+        )));
+    };
+
+    if rest.is_empty() {
+        return Err(AppError::Validation(format!(
+            "backup archive contains unsupported entry path: `{entry_name}`"
+        )));
     }
+
+    Ok(ParsedBackupEntryTarget {
+        group,
+        destination: join_segments(group.installation_root(installation), rest),
+    })
 }
 
 fn create_restore_checkpoint(
@@ -712,10 +674,6 @@ pub(super) fn reject_unsupported_backup_source_symlink(
     )
 }
 
-fn reject_unsupported_restore_symlink_entry(entry_name: &str, is_symlink: bool) -> AppResult<()> {
-    reject_unsupported_symlink_metadata("backup archive entry", entry_name, is_symlink)
-}
-
 fn restore_execution_step_message(step: RestoreExecutionStep<'_>) -> Option<String> {
     match step {
         RestoreExecutionStep::ClearGroup {
@@ -747,6 +705,123 @@ fn zip_file_options() -> SimpleFileOptions {
 
 fn zip_dir_options() -> SimpleFileOptions {
     SimpleFileOptions::default().compression_method(CompressionMethod::Stored)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::core::archive_io::PortableArchivePathSet;
+    use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
+
+    use super::{BackupGroup, parse_backup_entry_target, register_backup_archive_output};
+
+    #[test]
+    fn register_backup_archive_output_rejects_case_insensitive_metadata_collisions() {
+        let mut archive_outputs = PortableArchivePathSet::new();
+        register_backup_archive_output(&mut archive_outputs, "backup.toml", false)
+            .expect("backup metadata should register");
+
+        let error = register_backup_archive_output(&mut archive_outputs, "BACKUP.toml", false)
+            .expect_err("case-only metadata collision should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("case-insensitive archive path collisions"));
+        assert!(message.contains("backup.toml"));
+        assert!(message.contains("BACKUP.toml"));
+    }
+
+    #[test]
+    fn register_backup_archive_output_rejects_file_as_ancestor_conflicts() {
+        let mut archive_outputs = PortableArchivePathSet::new();
+        register_backup_archive_output(&mut archive_outputs, "addons/WeakAuras", false)
+            .expect("file output should register");
+
+        let error = register_backup_archive_output(
+            &mut archive_outputs,
+            "addons/WeakAuras/Config.lua",
+            false,
+        )
+        .expect_err("file ancestor conflict should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("conflicting file and directory archive paths"));
+        assert!(message.contains("addons/WeakAuras"));
+        assert!(message.contains("addons/WeakAuras/Config.lua"));
+    }
+
+    #[test]
+    fn register_backup_archive_output_allows_directory_ancestors() {
+        let mut archive_outputs = PortableArchivePathSet::new();
+        register_backup_archive_output(&mut archive_outputs, "addons/WeakAuras", true)
+            .expect("directory output should register");
+        register_backup_archive_output(&mut archive_outputs, "addons/WeakAuras/Config.lua", false)
+            .expect("directory ancestors should stay legal");
+    }
+
+    #[test]
+    fn parse_backup_entry_target_maps_group_and_destination() {
+        let installation = fixture_installation();
+
+        let target = parse_backup_entry_target(
+            "wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua",
+            &installation,
+        )
+        .expect("portable backup entry should parse");
+
+        assert_eq!(target.group, BackupGroup::Wtf);
+        assert_eq!(
+            target.destination,
+            installation
+                .wtf_dir
+                .join("common")
+                .join("accounts")
+                .join("ACCOUNT")
+                .join("SavedVariables")
+                .join("Details.lua")
+        );
+    }
+
+    #[test]
+    fn parse_backup_entry_target_preserves_root_vs_path_errors() {
+        let installation = fixture_installation();
+
+        let missing_rest = parse_backup_entry_target("addons", &installation)
+            .expect_err("root-only entry path should fail");
+        assert!(
+            missing_rest
+                .to_string()
+                .contains("backup archive contains unsupported entry path")
+        );
+
+        let unsupported_root = parse_backup_entry_target("metadata/backup.toml", &installation)
+            .expect_err("unsupported root should fail");
+        assert!(
+            unsupported_root
+                .to_string()
+                .contains("backup archive contains unsupported root entry")
+        );
+    }
+
+    fn fixture_installation() -> DetectedFlavorInstallation {
+        let product_root = PathBuf::from("C:/Games/World of Warcraft");
+        let flavor_root = product_root.join("_retail_");
+        let interface_dir = flavor_root.join("Interface");
+        let addon_dir = interface_dir.join("AddOns");
+        let wtf_dir = flavor_root.join("WTF");
+        let fonts_dir = flavor_root.join("Fonts");
+
+        DetectedFlavorInstallation {
+            platform: HostPlatform::Windows,
+            product_root,
+            flavor_root,
+            flavor: WowFlavor::Retail,
+            interface_dir,
+            addon_dir,
+            wtf_dir,
+            fonts_dir,
+        }
+    }
 }
 
 #[cfg(test)]

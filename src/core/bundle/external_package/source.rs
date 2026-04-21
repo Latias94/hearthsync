@@ -6,9 +6,11 @@ use zip::ZipArchive;
 
 use super::source_entry::SourceEntry;
 use super::types::ExternalPackageSourceKind;
-use crate::core::archive_io::reject_unsupported_symlink_metadata;
+use crate::core::archive_io::{
+    reject_unsupported_symlink_metadata, validated_zip_file_entry_segments,
+};
 use crate::core::archive_path::safe_relative_segments;
-use crate::core::bundle::shared::path::{safe_zip_segments, should_skip_path, to_zip_path};
+use crate::core::bundle::shared::path::{should_skip_path, to_zip_path};
 use crate::core::error::{AppError, AppResult};
 
 pub(super) fn detect_source_kind(path: &Path) -> AppResult<ExternalPackageSourceKind> {
@@ -82,16 +84,15 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
         let entry_name = entry.name().to_string();
-        reject_unsupported_symlink_entry("zip", &entry_name, entry.is_symlink())?;
-
-        if entry.is_dir() {
+        let Some(segments) = validated_zip_file_entry_segments(
+            "external package zip entry",
+            &entry_name,
+            entry.is_symlink(),
+            entry.is_dir(),
+        )?
+        else {
             continue;
-        }
-
-        let segments = safe_zip_segments(&entry_name)?
-            .into_iter()
-            .map(|segment| segment.to_string())
-            .collect::<Vec<_>>();
+        };
         if should_ignore_source_segments(&segments) {
             continue;
         }

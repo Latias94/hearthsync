@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::core::addon::{
     prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_provider,
 };
+use crate::core::archive_path::{join_segments, safe_zip_segments_under};
 use crate::core::error::{AppError, AppResult};
 
 use super::{AddonLockPackage, AddonLockSourceOverride};
@@ -76,7 +77,7 @@ fn load_sidecar_source_overrides(lock_path: &Path) -> AppResult<BTreeMap<String,
             )));
         }
         let segments = safe_sidecar_source_segments(&source.path)?;
-        let archive_path = join_sidecar_source_segments(lock_dir, &segments);
+        let archive_path = join_segments(lock_dir, &segments);
         if map
             .insert(source.comparison_key.clone(), archive_path)
             .is_some()
@@ -92,32 +93,7 @@ fn load_sidecar_source_overrides(lock_path: &Path) -> AppResult<BTreeMap<String,
 }
 
 fn safe_sidecar_source_segments(path: &str) -> AppResult<Vec<&str>> {
-    let mut segments = Vec::new();
-    for segment in path.split('/') {
-        if segment.is_empty() {
-            continue;
-        }
-        if segment == "." || segment == ".." || segment.contains('\\') {
-            return Err(AppError::Validation(format!(
-                "unsafe addon lock source path: `{path}`"
-            )));
-        }
-        segments.push(segment);
-    }
-    if segments.first().copied() != Some("sources") || segments.len() < 2 {
-        return Err(AppError::Validation(format!(
-            "addon lock source path must be under `sources/`: {path}"
-        )));
-    }
-    Ok(segments)
-}
-
-fn join_sidecar_source_segments(root: &Path, segments: &[&str]) -> PathBuf {
-    let mut path = root.to_path_buf();
-    for segment in segments {
-        path.push(segment);
-    }
-    path
+    safe_zip_segments_under(path, "sources", "addon lock source path")
 }
 
 pub(super) fn prepare_expected_lock_package_with_provider<P>(
@@ -142,5 +118,45 @@ where
             target_platform,
             cancellation,
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_sidecar_source_segments;
+
+    #[test]
+    fn safe_sidecar_source_segments_rejects_non_portable_paths() {
+        for path in [
+            "sources//provider.zip",
+            "sources/CON.zip",
+            "sources/addon. ",
+        ] {
+            let error = safe_sidecar_source_segments(path)
+                .expect_err("non-portable sidecar path should fail");
+
+            assert!(error.to_string().contains("unsafe addon lock source path"));
+        }
+    }
+
+    #[test]
+    fn safe_sidecar_source_segments_requires_sources_root() {
+        let error = safe_sidecar_source_segments("archives/provider.zip")
+            .expect_err("non-sources root should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("addon lock source path must be under `sources/`")
+        );
+    }
+
+    #[test]
+    fn safe_sidecar_source_segments_accepts_portable_sources_paths() {
+        assert_eq!(
+            safe_sidecar_source_segments("sources/providers/curseforge/WeakAuras.zip")
+                .expect("portable sidecar path"),
+            vec!["sources", "providers", "curseforge", "WeakAuras.zip"]
+        );
     }
 }

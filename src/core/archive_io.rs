@@ -115,6 +115,32 @@ impl PortableArchivePathSet {
     }
 }
 
+pub(crate) fn portable_archive_path_issue_error(
+    operation: &str,
+    issue: PortableArchivePathIssue,
+) -> AppError {
+    match issue.kind {
+        PortableArchivePathIssueKind::ExactCollision => AppError::Validation(format!(
+            "{operation} would emit multiple archive entries onto the same path: `{}` and `{}`",
+            issue.previous, issue.current
+        )),
+        PortableArchivePathIssueKind::CaseInsensitiveCollision => AppError::Validation(format!(
+            "{operation} would emit case-insensitive archive path collisions: `{}` and `{}` would map to the same path on Windows/default macOS targets",
+            issue.previous, issue.current
+        )),
+        PortableArchivePathIssueKind::ExactPrefixConflict => AppError::Validation(format!(
+            "{operation} would emit conflicting file and directory archive paths: `{}` and `{}`",
+            issue.previous, issue.current
+        )),
+        PortableArchivePathIssueKind::CaseInsensitivePrefixConflict => {
+            AppError::Validation(format!(
+                "{operation} would emit case-insensitive file and directory archive path conflicts: `{}` and `{}` would create file/directory collisions on Windows/default macOS targets",
+                issue.previous, issue.current
+            ))
+        }
+    }
+}
+
 pub(crate) fn start_file_to_zip<W>(
     zip: &mut ZipWriter<W>,
     archive_path: &str,
@@ -182,6 +208,36 @@ pub(crate) fn reject_unsupported_symlink_metadata(
     Ok(())
 }
 
+pub(crate) fn validate_zip_archive_entry(
+    entry_kind: &str,
+    entry_path: &str,
+    is_symlink: bool,
+    is_dir: bool,
+) -> AppResult<()> {
+    validated_zip_file_entry_segments(entry_kind, entry_path, is_symlink, is_dir)?;
+    Ok(())
+}
+
+pub(crate) fn validated_zip_file_entry_segments(
+    entry_kind: &str,
+    entry_path: &str,
+    is_symlink: bool,
+    is_dir: bool,
+) -> AppResult<Option<Vec<String>>> {
+    reject_unsupported_symlink_metadata(entry_kind, entry_path, is_symlink)?;
+
+    if is_dir {
+        return Ok(None);
+    }
+
+    Ok(Some(
+        safe_zip_segments(entry_path)?
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+    ))
+}
+
 fn validate_zip_archive_path(archive_path: &str) -> AppResult<()> {
     safe_zip_segments(archive_path)?;
     Ok(())
@@ -201,8 +257,10 @@ mod tests {
     use zip::write::SimpleFileOptions;
 
     use super::{
-        PortableArchivePathIssueKind, PortableArchivePathSet, add_directory_to_zip,
-        reject_unsupported_symlink_metadata, start_file_to_zip,
+        PortableArchivePathIssue, PortableArchivePathIssueKind, PortableArchivePathSet,
+        add_directory_to_zip, portable_archive_path_issue_error,
+        reject_unsupported_symlink_metadata, start_file_to_zip, validate_zip_archive_entry,
+        validated_zip_file_entry_segments,
     };
 
     #[test]
@@ -281,6 +339,24 @@ mod tests {
     }
 
     #[test]
+    fn portable_archive_path_issue_error_formats_operation_context() {
+        let error = portable_archive_path_issue_error(
+            "bundle creation",
+            PortableArchivePathIssue {
+                previous: "metadata/addons/indexes/addon-index.toml".to_string(),
+                current: "metadata/addons/indexes/ADDON-INDEX.toml".to_string(),
+                kind: PortableArchivePathIssueKind::CaseInsensitiveCollision,
+            },
+        );
+
+        let message = error.to_string();
+        assert!(message.contains("bundle creation"));
+        assert!(message.contains("case-insensitive archive path collisions"));
+        assert!(message.contains("metadata/addons/indexes/addon-index.toml"));
+        assert!(message.contains("metadata/addons/indexes/ADDON-INDEX.toml"));
+    }
+
+    #[test]
     fn reject_unsupported_symlink_metadata_reports_context_and_path() {
         let error =
             reject_unsupported_symlink_metadata("bundle archive entry", "addons/WeakAuras", true)
@@ -296,5 +372,69 @@ mod tests {
     fn reject_unsupported_symlink_metadata_allows_regular_entries() {
         reject_unsupported_symlink_metadata("backup archive entry", "addons/WeakAuras", false)
             .expect("regular entry should pass");
+    }
+
+    #[test]
+    fn validate_zip_archive_entry_reports_symlink_context() {
+        let error = validate_zip_archive_entry(
+            "bundle archive entry",
+            "addons/WeakAuras/WeakAuras.lua",
+            true,
+            false,
+        )
+        .expect_err("symlink metadata should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("bundle archive entry"));
+        assert!(message.contains("unsupported symlink metadata"));
+        assert!(message.contains("addons/WeakAuras/WeakAuras.lua"));
+    }
+
+    #[test]
+    fn validate_zip_archive_entry_rejects_non_portable_file_paths() {
+        let error = validate_zip_archive_entry(
+            "external package zip entry",
+            "addons/Weak:Auras/WeakAuras.toc",
+            false,
+            false,
+        )
+        .expect_err("non-portable archive path should fail");
+
+        assert!(error.to_string().contains("unsafe archive path"));
+    }
+
+    #[test]
+    fn validate_zip_archive_entry_allows_directory_entries() {
+        validate_zip_archive_entry("backup archive entry", "addons/WeakAuras/", false, true)
+            .expect("directory entry should skip file-segment validation");
+    }
+
+    #[test]
+    fn validated_zip_file_entry_segments_returns_owned_file_segments() {
+        assert_eq!(
+            validated_zip_file_entry_segments(
+                "addon archive entry",
+                "WeakAuras/WeakAuras.toc",
+                false,
+                false,
+            )
+            .expect("valid file entry")
+            .expect("file entry segments"),
+            vec!["WeakAuras".to_string(), "WeakAuras.toc".to_string()]
+        );
+    }
+
+    #[test]
+    fn validated_zip_file_entry_segments_skips_directory_entries() {
+        assert_eq!(
+            validated_zip_file_entry_segments(
+                "bundle archive entry",
+                "addons/WeakAuras/",
+                false,
+                true,
+            )
+            .expect("directory entry should pass"),
+            None
+        );
     }
 }

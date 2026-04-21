@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,37 @@ impl BackupGroup {
             Self::Wtf => "wtf",
             Self::Fonts => "fonts",
             Self::InterfaceAssets => "interface_assets",
+        }
+    }
+
+    pub(crate) fn archive_root_name(&self) -> &'static str {
+        match self {
+            Self::Addons => "addons",
+            Self::Wtf => "wtf",
+            Self::Fonts => "fonts",
+            Self::InterfaceAssets => "interface",
+        }
+    }
+
+    pub(crate) fn from_archive_root_name(value: &str) -> Option<Self> {
+        match value {
+            "addons" => Some(Self::Addons),
+            "wtf" => Some(Self::Wtf),
+            "fonts" => Some(Self::Fonts),
+            "interface" => Some(Self::InterfaceAssets),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn installation_root<'a>(
+        &self,
+        installation: &'a DetectedFlavorInstallation,
+    ) -> &'a Path {
+        match self {
+            Self::Addons => &installation.addon_dir,
+            Self::Wtf => &installation.wtf_dir,
+            Self::Fonts => &installation.fonts_dir,
+            Self::InterfaceAssets => &installation.interface_dir,
         }
     }
 }
@@ -77,4 +108,35 @@ pub struct RestoreBackupRequest {
     pub archive_path: Option<PathBuf>,
     pub backup_id: Option<String>,
     pub backup_dir: Option<PathBuf>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BackupGroup;
+
+    #[test]
+    fn backup_group_archive_root_name_distinguishes_metadata_label() {
+        assert_eq!(BackupGroup::InterfaceAssets.as_str(), "interface_assets");
+        assert_eq!(
+            BackupGroup::InterfaceAssets.archive_root_name(),
+            "interface"
+        );
+    }
+
+    #[test]
+    fn backup_group_archive_root_name_roundtrips() {
+        for group in [
+            BackupGroup::Addons,
+            BackupGroup::Wtf,
+            BackupGroup::Fonts,
+            BackupGroup::InterfaceAssets,
+        ] {
+            assert_eq!(
+                BackupGroup::from_archive_root_name(group.archive_root_name()),
+                Some(group)
+            );
+        }
+
+        assert_eq!(BackupGroup::from_archive_root_name("metadata"), None);
+    }
 }

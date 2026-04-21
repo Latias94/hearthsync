@@ -149,9 +149,6 @@ fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
     match code {
         ExternalPackageWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
         ExternalPackageWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
-        ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables => {
-            "unsupported_wtf_root_savedvariables"
-        }
         ExternalPackageWarningCodeValue::WtfAccountPathWithoutFile => {
             "wtf_account_path_without_file"
         }
@@ -184,8 +181,8 @@ mod tests {
             },
             ExternalPackageWarningResult {
                 category: ExternalPackageWarningCategoryValue::Wtf,
-                code: ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables,
-                source_path: "AuthorUI/WTF/Account/SavedVariables/Broken.lua".to_string(),
+                code: ExternalPackageWarningCodeValue::WtfSavedVariablesPathWithoutFile,
+                source_path: "AuthorUI/WTF/Account/ACCOUNT/SavedVariables".to_string(),
                 message: "unsupported wtf entry".to_string(),
             },
         ];
@@ -201,7 +198,7 @@ mod tests {
                 },
                 ExternalPackageWarningGroupResult {
                     category: ExternalPackageWarningCategoryValue::Wtf,
-                    code: ExternalPackageWarningCodeValue::UnsupportedWtfRootSavedVariables,
+                    code: ExternalPackageWarningCodeValue::WtfSavedVariablesPathWithoutFile,
                     count: 1,
                 },
             ],
@@ -219,12 +216,12 @@ mod tests {
 
         assert!(rendered.contains("2 (addon: 1, wtf: 1; groups: ["));
         assert!(rendered.contains("addon/addon_root_not_detected=1"));
-        assert!(rendered.contains("wtf/unsupported_wtf_root_savedvariables=1"));
+        assert!(rendered.contains("wtf/wtf_savedvariables_path_without_file=1"));
         assert!(rendered.contains(
             "addon/addon_root_not_detected: AuthorUI/Interface/AddOns/BrokenAddon/README.txt"
         ));
         assert!(rendered.contains(
-            "wtf/unsupported_wtf_root_savedvariables: AuthorUI/WTF/Account/SavedVariables/Broken.lua"
+            "wtf/wtf_savedvariables_path_without_file: AuthorUI/WTF/Account/ACCOUNT/SavedVariables"
         ));
     }
 
