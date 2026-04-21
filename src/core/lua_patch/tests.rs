@@ -43,6 +43,38 @@ TestDB = {
     assert!(output.contains(r#"["realm"] = "Stormrage""#));
 }
 
+#[test]
+fn rewrite_lua_text_preserves_preexisting_placeholder_literals() {
+    let input = r#"
+TestDB = {
+  ["notes"] = "__HEARTHSYNC_REWRITE_0__",
+  ["profileKeys"] = {
+    ["Examplemage - Illidan"] = "Default",
+  },
+}
+"#;
+
+    let output = rewrite_lua_text(
+        input,
+        &[CharacterMapping {
+            source_account: Some("ACCOUNT".to_string()),
+            source_server: "Illidan".to_string(),
+            source_character: "Examplemage".to_string(),
+            target_account: "TARGET".to_string(),
+            target_server: "Stormrage".to_string(),
+            target_character: "Targetmage".to_string(),
+        }],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: true,
+        },
+    );
+
+    assert!(output.contains(r#"["notes"] = "__HEARTHSYNC_REWRITE_0__""#));
+    assert!(output.contains(r#"["Targetmage - Stormrage"] = "Default""#));
+    assert!(!output.contains(r#"["notes"] = "Targetmage - Stormrage""#));
+}
+
 fn sample_mapping() -> CharacterMapping {
     CharacterMapping {
         source_account: Some("ACCOUNT".to_string()),

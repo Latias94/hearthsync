@@ -9,6 +9,7 @@ mod bundle;
 mod bundle_addon;
 mod bundle_apply;
 mod bundle_archive;
+mod config;
 mod external_package;
 mod mapping;
 mod output;
@@ -23,6 +24,7 @@ use crate::core::error::AppResult;
 pub(crate) use args::addon::{AddonCommands, AddonIndexCommands, AddonLockCommands};
 pub(crate) use args::backup::BackupCommands;
 pub(crate) use args::bundle::BundleCommands;
+pub(crate) use args::config::ConfigCommands;
 pub(crate) use args::external_package::{ExternalPackageBundleOptions, ExternalPackageCommands};
 pub(crate) use args::shared::{ApplyMappingArgs, InstallTargetArgs};
 #[cfg(test)]
@@ -38,6 +40,7 @@ pub fn run() -> AppResult<()> {
         Commands::Doctor { install_target } => system::handle_doctor(cli.json, install_target)?,
         Commands::Backup { command } => backup::handle_backup_command(cli.json, command)?,
         Commands::Bundle { command } => bundle::handle_bundle_command(cli.json, command)?,
+        Commands::Config { command } => config::handle_config_command(cli.json, command)?,
         Commands::ExternalPackage { command } => {
             external_package::handle_external_package_command(cli.json, command)?
         }

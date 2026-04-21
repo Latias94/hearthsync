@@ -88,7 +88,7 @@ fn apply_replacements(content: &str, mut replacements: Vec<(String, String)>) ->
             continue;
         }
 
-        let placeholder = format!("__HEARTHSYNC_REWRITE_{index}__");
+        let placeholder = unique_text_placeholder(&staged, index);
         staged = staged.replace(&from, &placeholder);
         placeholders.push((placeholder, to));
     }
@@ -98,4 +98,12 @@ fn apply_replacements(content: &str, mut replacements: Vec<(String, String)>) ->
     }
 
     staged
+}
+
+fn unique_text_placeholder(content: &str, index: usize) -> String {
+    let mut placeholder = format!("__HEARTHSYNC_REWRITE_{index}__");
+    while content.contains(&placeholder) {
+        placeholder.push('_');
+    }
+    placeholder
 }

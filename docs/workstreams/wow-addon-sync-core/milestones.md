@@ -477,3 +477,52 @@ structured progress model that future `egui` work can consume directly.
   install/update, addon-index install/update, and addon-lock source resolution
 - validation for the current follow-up slice passed with `cargo fmt` plus `cargo nextest run`
   (`386/386` passing)
+
+## M7 - Config Sync Ergonomics Before Desktop UI
+
+### Status
+
+Active
+
+### Goal
+
+Keep the current reusable core and planning model, but remove the remaining product and safety gaps
+that would otherwise force `egui` to invent its own config-sync semantics or addon policy state.
+
+### Deliverables
+
+- placeholder-safe text Lua rewriting aligned with the byte rewrite path
+- a first-class config-oriented command/app surface layered on the existing planning engine
+- a separate addon policy/preferences model distinct from the reproducible addon lock
+- integrity-aware cached download reuse with operator-facing cache semantics
+- sanitized real-world SavedVariables regression coverage
+
+### Exit Criteria
+
+- configuration sync is a first-class product surface without introducing a second config engine
+- addon policy and addon reproducibility are modeled as separate concerns
+- cached immutable downloads have explicit integrity behavior instead of only presence-based reuse
+- rewrite confidence for localized SavedVariables is backed by real regression fixtures
+
+### Current Notes
+
+- this milestone still belongs to `wow-addon-sync-core`; it should not become a separate workstream
+  because the remaining issues cut across provider acquisition, Lua rewrite safety, addon policy,
+  and frontend-facing product vocabulary at the same time
+- the current codebase is already much stronger than the older NewBeeBox gap notes: root WTF cache
+  files, `AddOns.txt`, mutable-source freshness, and byte-level task progress are now part of the
+  implemented core instead of remaining open design wishes
+- the remaining work is now concentrated in five places:
+  - task surface width at the stable app boundary
+  - text-path rewrite safety
+  - cache integrity semantics
+  - first-class config product ergonomics
+  - addon policy/preference persistence
+- first progress inside this milestone is now in place: the text Lua rewrite path no longer uses
+  collision-prone fixed placeholders, and dedicated regression coverage now verifies that existing
+  `__HEARTHSYNC_REWRITE_<n>__` literals in user content survive rewriting unchanged
+- second progress inside this milestone is now in place: the CLI now exposes `config inspect`,
+  `config plan`, and `config apply` as a first-class product entrypoint while still reusing the
+  existing external-package planning/apply engine underneath
+- the bounded review that motivates this milestone is recorded in
+  `review-2026-04-21-config-sync-gap.md`

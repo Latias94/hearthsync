@@ -1,31 +1,23 @@
-use super::ExternalPackageCommands;
+use super::ConfigCommands;
 use super::app_support::{render_with_apply_target, render_with_value, stable_services};
-use super::output::external_package::{
-    render_external_package_analysis, render_external_package_apply, render_external_package_plan,
-};
-use crate::core::error::AppResult;
-
-mod request;
-
-pub(in crate::cli) use request::{
+use super::external_package::{
     build_analyze_external_package_request, build_apply_external_package_request,
     build_external_package_bundle_request, build_plan_external_package_request,
 };
+use super::output::config::{render_config_analysis, render_config_apply, render_config_plan};
+use crate::core::error::AppResult;
 
-pub(super) fn handle_external_package_command(
-    json: bool,
-    command: ExternalPackageCommands,
-) -> AppResult<()> {
+pub(super) fn handle_config_command(json: bool, command: ConfigCommands) -> AppResult<()> {
     let app = stable_services();
 
     match command {
-        ExternalPackageCommands::Inspect { source } => render_with_value(
+        ConfigCommands::Inspect { source } => render_with_value(
             json,
             || app.analyze_external_package(build_analyze_external_package_request(source)),
-            render_external_package_analysis,
+            render_config_analysis,
         )?,
-        ExternalPackageCommands::Plan {
-            bundle_options,
+        ConfigCommands::Plan {
+            config_options,
             install_target,
             apply_mapping,
         } => render_with_apply_target(
@@ -35,16 +27,16 @@ pub(super) fn handle_external_package_command(
             apply_mapping,
             |target| {
                 build_plan_external_package_request(
-                    build_external_package_bundle_request(bundle_options),
+                    build_external_package_bundle_request(config_options.into()),
                     target.installation,
                     target.apply_mappings,
                 )
             },
             |request| app.plan_external_package_apply(request),
-            render_external_package_plan,
+            render_config_plan,
         )?,
-        ExternalPackageCommands::Apply {
-            bundle_options,
+        ConfigCommands::Apply {
+            config_options,
             install_target,
             dry_run,
             backup_output,
@@ -56,7 +48,7 @@ pub(super) fn handle_external_package_command(
             apply_mapping,
             |target| {
                 build_apply_external_package_request(
-                    build_external_package_bundle_request(bundle_options),
+                    build_external_package_bundle_request(config_options.into()),
                     target.installation,
                     dry_run,
                     backup_output,
@@ -64,7 +56,7 @@ pub(super) fn handle_external_package_command(
                 )
             },
             |request| app.apply_external_package(request),
-            render_external_package_apply,
+            render_config_apply,
         )?,
     }
 

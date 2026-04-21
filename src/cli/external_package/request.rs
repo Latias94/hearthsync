@@ -7,13 +7,13 @@ use crate::core::app::{
     PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
 };
 
-pub(super) fn build_analyze_external_package_request(
+pub(in crate::cli) fn build_analyze_external_package_request(
     source_path: PathBuf,
 ) -> AnalyzeExternalPackageAppRequest {
     AnalyzeExternalPackageAppRequest { source_path }
 }
 
-pub(super) fn build_external_package_bundle_request(
+pub(in crate::cli) fn build_external_package_bundle_request(
     options: ExternalPackageBundleOptions,
 ) -> CreateExternalPackageBundleAppRequest {
     let apply_defaults = build_external_package_apply_defaults(&options);
@@ -85,7 +85,7 @@ fn build_external_package_apply_defaults(
     Some(defaults)
 }
 
-pub(super) fn build_plan_external_package_request(
+pub(in crate::cli) fn build_plan_external_package_request(
     external_package: CreateExternalPackageBundleAppRequest,
     installation: ResolvedInstallationValue,
     apply_mappings: BundleApplyMappingsValue,
@@ -97,7 +97,7 @@ pub(super) fn build_plan_external_package_request(
     }
 }
 
-pub(super) fn build_apply_external_package_request(
+pub(in crate::cli) fn build_apply_external_package_request(
     external_package: CreateExternalPackageBundleAppRequest,
     installation: ResolvedInstallationValue,
     dry_run: bool,

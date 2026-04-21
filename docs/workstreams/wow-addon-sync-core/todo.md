@@ -509,3 +509,37 @@ Exit criteria:
 - step-oriented execution loops can expose deterministic counts through shared task helpers
 - provider-backed download phases can expose byte-level transfer progress through the same
   app-facing event shape without another contract break
+
+## R7 - Config Sync Ergonomics and Policy Separation
+
+Goal: keep the current reusable core model, but close the remaining product-shaping gaps before
+`egui` turns them into public UI debt.
+
+- [x] harden `lua_patch` text rewriting so the text path matches the byte path's placeholder-safety floor
+  Completed: `src/core/lua_patch/text.rs` now uses unique placeholder generation instead of fixed
+  `__HEARTHSYNC_REWRITE_<n>__` literals, and regression coverage now verifies that pre-existing
+  placeholder text in SavedVariables content is preserved instead of being rewritten accidentally.
+- [ ] add a first-class config-oriented command and app surface without creating a second planning engine
+  Current progress: the CLI now exposes explicit `config inspect`, `config plan`, and
+  `config apply` commands as a thin wrapper over the existing external-package planning and apply
+  engine, with config-oriented output wording instead of only `external-package` framing.
+  Remaining gap: the stable app boundary still does not expose a first-class config-oriented
+  request surface, so GUI-facing config semantics still depend on external-package-shaped app calls.
+- [ ] introduce a separate addon policy/preferences layer instead of overloading `lock.toml`
+  Current gap: the addon lock is strong for reproducibility, but there is still no persisted home
+  for mutable user choices such as ignore/pin/channel/pre-release/dependency policy.
+- [ ] make provider cache reuse integrity-aware rather than file-presence-aware
+  Current gap: immutable-source cache reuse now has good freshness semantics, but existing cached
+  archives are still trusted when the file exists, without sidecar metadata or source-integrity
+  validation.
+- [ ] add sanitized real-world SavedVariables fixture coverage before broad desktop-facing config claims
+  Current gap: rewrite support is better than before, but encoding confidence and file-specific
+  rewrite safety are still under-validated for real-world localized payloads.
+
+Exit criteria:
+
+- configuration sync can be presented to users as a first-class product flow without creating a
+  parallel config engine
+- addon reproducibility state and mutable policy state are clearly separated
+- cached source archives have explicit integrity behavior
+- Lua rewrite safety is backed by stronger regression coverage on realistic inputs
