@@ -10,8 +10,9 @@ use crate::core::addon::{
     AddonPackageMetadata, AddonProvider, AddonRegistry, DefaultAddonProvider,
     InstallAddonExecutionPlan, InstallPreparedAddonRequest, PreparedAddonPackage,
     TrackedAddonPackage, UpdatedAddonPackageResult, execute_install_plan_task, list_addons,
-    load_registry, prepare_install_prepared_addon, prepare_package_from_source_ref_with_provider,
-    rollback_or_report_addon_error, update_prepared_packages_task,
+    load_registry, prepare_install_prepared_addon,
+    prepare_package_from_source_ref_task_with_provider, rollback_or_report_addon_error,
+    update_prepared_packages_task,
 };
 use crate::core::backup::{BackupGroup, BackupRequest, create_backup};
 use crate::core::error::{AppError, AppResult};
@@ -93,7 +94,7 @@ where
         TaskPhase::Preparing,
     )?;
 
-    let plan = prepare_index_install_with_provider(provider, request, cancellation)?;
+    let plan = prepare_index_install_with_provider(provider, request, cancellation, progress)?;
     let mut remapped_progress = RemappedTaskProgressSink {
         inner: progress,
         task: TaskKind::AddonIndexInstall,
@@ -163,7 +164,7 @@ where
         TaskPhase::Preparing,
     )?;
 
-    let plan = prepare_index_update_with_provider(provider, request, cancellation)?;
+    let plan = prepare_index_update_with_provider(provider, request, cancellation, progress)?;
     if plan.dry_run {
         let result = dry_run_index_update_result(plan);
         emit_task_progress(
@@ -266,6 +267,7 @@ fn prepare_index_install_with_provider<P>(
     provider: &P,
     request: AddonIndexInstallRequest,
     cancellation: &dyn CancellationToken,
+    progress: &mut impl TaskProgressSink,
 ) -> AppResult<IndexInstallPlan>
 where
     P: AddonProvider + ?Sized,
@@ -274,12 +276,15 @@ where
     let package = find_index_package(&index, &request.name)?.clone();
     ensure_package_supports_flavor(&package, request.installation.flavor.as_str())?;
     let resolved_source = resolve_index_package_source(&request.index_path, &package.source)?;
-    let prepared = prepare_package_from_source_ref_with_provider(
+    let prepared = prepare_package_from_source_ref_task_with_provider(
         provider,
         &resolved_source,
         Some(request.installation.flavor),
         request.installation.platform,
         cancellation,
+        TaskKind::AddonIndexInstall,
+        TaskPhase::Preparing,
+        progress,
     )?;
     let install_plan = prepare_install_prepared_addon(InstallPreparedAddonRequest {
         installation: request.installation,
@@ -301,6 +306,7 @@ fn prepare_index_update_with_provider<P>(
     provider: &P,
     request: AddonIndexUpdateRequest,
     cancellation: &dyn CancellationToken,
+    progress: &mut impl TaskProgressSink,
 ) -> AppResult<IndexUpdatePlan>
 where
     P: AddonProvider + ?Sized,
@@ -328,12 +334,15 @@ where
     let mut used_package_ids = BTreeSet::new();
     for package in &selected_packages {
         let resolved_source = resolve_index_package_source(&request.index_path, &package.source)?;
-        let mut prepared = prepare_package_from_source_ref_with_provider(
+        let mut prepared = prepare_package_from_source_ref_task_with_provider(
             provider,
             &resolved_source,
             Some(request.installation.flavor),
             request.installation.platform,
             cancellation,
+            TaskKind::AddonIndexUpdate,
+            TaskPhase::Preparing,
+            progress,
         )?;
         prepared.metadata = Some(metadata_from_index_package(&index, package));
         let matched = match_index_package_to_tracked_package(

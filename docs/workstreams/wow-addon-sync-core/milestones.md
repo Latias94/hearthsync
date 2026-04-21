@@ -472,4 +472,8 @@ structured progress model that future `egui` work can consume directly.
   not each invent their own identity scheme
 - addon directory mutation, backup restore execution, metadata-only addon-lock actions, and bundle
   apply operations now emit typed step progress instead of only text
-- validation for this slice passed with `cargo fmt` plus `cargo nextest run` (`383/383` passing)
+- provider-backed addon archive downloads now also emit `TaskProgressCode::DownloadArchive` with
+  `bytes_current`, `bytes_total`, and `bytes_per_second` during package preparation for addon
+  install/update, addon-index install/update, and addon-lock source resolution
+- validation for the current follow-up slice passed with `cargo fmt` plus `cargo nextest run`
+  (`386/386` passing)

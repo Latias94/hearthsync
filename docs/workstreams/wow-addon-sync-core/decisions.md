@@ -954,3 +954,31 @@ rewrite preview, and byte comparison are justified immediately before execution.
   `replace` may later resolve to `skip` during prepare/apply
 - exact execution-time skipping still remains available where it matters operationally, so apply
   behavior does not regress just because public plan became cheaper
+
+## ADR-041: Provider Download Byte Progress Reuses the Stable Task Event Shape
+
+### Status
+
+Accepted on 2026-04-21
+
+### Decision
+
+Provider-backed archive downloads should not introduce a second frontend-facing progress channel or
+a provider-specific task payload.
+Low-level HTTP downloads may use internal observers, but app-facing progress must continue to flow
+through `TaskProgressEvent` using `TaskProgressCode::DownloadArchive` plus the existing
+`bytes_current`, `bytes_total`, and `bytes_per_second` fields.
+
+This applies at least to:
+
+- addon install and update
+- addon-index install and update
+- addon-lock source preparation during apply
+
+### Consequences
+
+- CLI and future `egui` callers keep one task-stream contract for both step progress and transfer
+  progress
+- provider and HTTP observer details stay internal and can evolve without breaking the app boundary
+- future download-capable flows extend the same event shape instead of adding a parallel callback
+  or DTO surface

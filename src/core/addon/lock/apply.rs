@@ -85,6 +85,7 @@ where
         &source_overrides,
         &request.installation,
         cancellation,
+        progress,
     )?;
     if !prepared.is_empty() {
         emit_task_progress(

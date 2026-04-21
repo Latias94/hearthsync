@@ -22,9 +22,10 @@ pub use self::execution::{
 use self::package_prep::find_primary_toc;
 use self::provider::AddonSearchRequest as ProviderAddonSearchRequest;
 pub use self::provider::{
-    AddonProvider, AddonProviderContext, AddonProviderOptions, AddonProviderRetryPolicy,
-    AddonSearchRequest, AddonSearchResult, AddonSourceRef, DefaultAddonProvider,
-    MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
+    AddonDownloadProgressObserver, AddonProvider, AddonProviderContext, AddonProviderOptions,
+    AddonProviderRetryPolicy, AddonSearchRequest, AddonSearchResult, AddonSourceRef,
+    DefaultAddonProvider, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
+    MaterializedAddonSource,
 };
 use self::registry::registry_path;
 use crate::core::error::AppResult;
@@ -40,8 +41,8 @@ pub(crate) use self::mutation::{
     update_prepared_packages_task,
 };
 pub(crate) use self::package_prep::{
-    prepare_package_from_archive_with_source, prepare_package_from_source_input_with_provider,
-    prepare_package_from_source_ref_with_provider,
+    prepare_package_from_archive_with_source, prepare_package_from_source_input_task_with_provider,
+    prepare_package_from_source_ref_task_with_provider,
 };
 pub(crate) use self::provider::canonicalize_local_archive_path;
 pub(crate) use self::registry::{load_registry, save_registry};

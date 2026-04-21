@@ -8,18 +8,21 @@ use std::path::PathBuf;
 
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
+use crate::core::task::{CancellationToken, TaskKind, TaskPhase, TaskProgressSink};
 
 use super::AddonLockSyncActionKind;
 
-pub(super) fn prepare_addon_lock_apply_with_provider<P>(
+pub(super) fn prepare_addon_lock_apply_with_provider<P, TProgress>(
     provider: &P,
     plan: &AddonLockPlanContext,
     source_overrides: &BTreeMap<String, PathBuf>,
     installation: &DetectedFlavorInstallation,
-    cancellation: &dyn crate::core::task::CancellationToken,
+    cancellation: &dyn CancellationToken,
+    progress: &mut TProgress,
 ) -> AppResult<PreparedAddonLockApply>
 where
     P: crate::core::addon::AddonProvider + ?Sized,
+    TProgress: TaskProgressSink,
 {
     let mut remove_packages = Vec::new();
     let mut update_current_packages = Vec::new();
@@ -57,6 +60,9 @@ where
                     installation.flavor,
                     installation.platform,
                     cancellation,
+                    TaskKind::AddonLockApply,
+                    TaskPhase::Planning,
+                    progress,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);
                 update_current_packages.push(current.clone());
@@ -77,6 +83,9 @@ where
                     installation.flavor,
                     installation.platform,
                     cancellation,
+                    TaskKind::AddonLockApply,
+                    TaskPhase::Planning,
+                    progress,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);
                 install_prepared_packages.push(prepared);

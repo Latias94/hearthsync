@@ -71,6 +71,7 @@ pub enum TaskProgressCode {
     Executing,
     Verifying,
     Completed,
+    DownloadArchive,
     RemoveAddonDirectory,
     WriteAddonDirectory,
     ApplyMetadata,

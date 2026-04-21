@@ -7,6 +7,10 @@ Active on 2026-04-19.
 This workstream is the architecture source of truth for the reusable product core.
 The CLI workstream remains active, but it should focus on command surface, UX wording, and output
 behavior on top of this core.
+Author-package-style configuration sync also stays in this workstream.
+Portable sync of `WTF`, fonts, interface assets, curated addon payloads, and transfer-progress
+contracts depends on the same planner, backup, rollback, and app-task boundaries, so it does not
+justify a separate top-level workstream before a real desktop delivery stream exists.
 
 ## Problem Statement
 
@@ -342,6 +346,10 @@ Stable progress event fields are:
 `message` remains the human-readable CLI/display string.
 The optional structured fields exist so future GUI code can group progress by task, render
 step-level counts, and later consume byte-level transfer updates without string parsing.
+Provider-backed addon acquisition now uses this same event shape for real transfer updates too.
+Download phases emit `code = DownloadArchive` plus `bytes_current`, `bytes_total`, and
+`bytes_per_second` while keeping a CLI-readable `message`, so future GUI work does not need a
+second download-specific progress channel.
 
 For successful long-running tasks, the frontend-facing expectation is:
 

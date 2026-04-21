@@ -20,6 +20,8 @@ The active refactor sequence is:
    high-cost preview behavior before frontend reuse depends on them
 7. finish structured task progress so future frontend work can consume machine-readable task
    streams without parsing CLI text
+8. keep expanding transfer-heavy progress coverage by reusing the stable task event shape instead
+   of adding frontend-only progress channels
 
 ## Refactor Rules
 
@@ -491,6 +493,11 @@ enough for future `egui` work to consume directly.
   Completed: `core::task` now validates generated task ids plus structured step/byte fields, and
   app-layer addon, backup, and external-package tests verify that stable services forward the same
   structured task contract.
+- [x] wire provider-backed archive downloads into real byte progress without introducing a second
+  task contract
+  Completed: provider HTTP downloads now emit throttled byte progress through
+  `TaskProgressCode::DownloadArchive`, and addon install/update, addon-index install/update, and
+  addon-lock source preparation now forward those bytes through the stable app task stream.
 - [x] keep this work inside `wow-addon-sync-core` instead of opening a parallel frontend workstream
   Completed: the task-contract slice extends the same reusable core boundary that CLI and future
   `egui` code both depend on.
@@ -500,5 +507,5 @@ Exit criteria:
 - frontend callers can correlate one logical task across ordered collected-progress or callback
   events without inferring identity from message text
 - step-oriented execution loops can expose deterministic counts through shared task helpers
-- future byte-level download progress can fit into the same app-facing event shape without another
-  contract break
+- provider-backed download phases can expose byte-level transfer progress through the same
+  app-facing event shape without another contract break

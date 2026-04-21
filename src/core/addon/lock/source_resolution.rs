@@ -5,10 +5,11 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::core::addon::{
-    prepare_package_from_archive_with_source, prepare_package_from_source_ref_with_provider,
+    prepare_package_from_archive_with_source, prepare_package_from_source_ref_task_with_provider,
 };
 use crate::core::archive_path::{join_segments, safe_zip_segments_under};
 use crate::core::error::{AppError, AppResult};
+use crate::core::task::{TaskKind, TaskPhase, TaskProgressSink};
 
 use super::{AddonLockPackage, AddonLockSourceOverride};
 
@@ -103,6 +104,9 @@ pub(super) fn prepare_expected_lock_package_with_provider<P>(
     target_flavor: crate::core::install::WowFlavor,
     target_platform: crate::core::install::HostPlatform,
     cancellation: &dyn crate::core::task::CancellationToken,
+    task: TaskKind,
+    phase: TaskPhase,
+    progress: &mut impl TaskProgressSink,
 ) -> AppResult<crate::core::addon::PreparedAddonPackage>
 where
     P: crate::core::addon::AddonProvider + ?Sized,
@@ -111,12 +115,15 @@ where
         Some(path) => {
             prepare_package_from_archive_with_source(expected.source.clone(), path, target_platform)
         }
-        None => prepare_package_from_source_ref_with_provider(
+        None => prepare_package_from_source_ref_task_with_provider(
             provider,
             &expected.source,
             Some(target_flavor),
             target_platform,
             cancellation,
+            task,
+            phase,
+            progress,
         ),
     }
 }

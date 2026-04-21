@@ -13,9 +13,15 @@ use super::curseforge::{
 };
 use super::github::fetch_github_release_with_client;
 use super::github::{GitHubRelease, GitHubReleaseAsset, select_github_release_asset};
-use super::http::{HttpClient, HttpDownloadRequest, HttpRequest, HttpResponse, ReqwestHttpClient};
+use super::http::{
+    HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpDownloadRequest,
+    HttpRequest, HttpResponse, ReqwestHttpClient,
+};
 use super::parse::{parse_curseforge_source, parse_github_source};
-use super::{AddonProvider, AddonProviderContext, AddonSourceRef, DefaultAddonProvider};
+use super::{
+    AddonDownloadProgressObserver, AddonProvider, AddonProviderContext, AddonSourceRef,
+    DefaultAddonProvider,
+};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 use crate::core::task::CancellationToken;
@@ -171,6 +177,7 @@ fn fetch_github_release_with_client_uses_http_port() {
             &self,
             _request: HttpDownloadRequest,
             _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             panic!("download_to_path should not be called in this test")
         }
@@ -228,6 +235,7 @@ fn default_addon_provider_accepts_injected_http_client() {
             &self,
             request: HttpDownloadRequest,
             _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             self.downloads.borrow_mut().push(request.clone());
             let file = std::fs::File::create(&request.destination).expect("archive file");
@@ -288,6 +296,7 @@ fn default_addon_provider_refreshes_download_cache_for_http_archives() {
             &self,
             request: HttpDownloadRequest,
             _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             self.downloads.borrow_mut().push(request.clone());
             std::fs::write(&request.destination, b"archive").expect("archive file");
@@ -344,6 +353,7 @@ fn default_addon_provider_reuses_download_cache_for_resolved_latest_github_relea
             &self,
             request: HttpDownloadRequest,
             _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             self.downloads.borrow_mut().push(request.clone());
             std::fs::write(&request.destination, b"archive-v1.2.3").expect("archive file");
@@ -421,6 +431,7 @@ fn default_addon_provider_refreshes_latest_github_release_when_resolved_tag_chan
             &self,
             request: HttpDownloadRequest,
             _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             self.downloads.borrow_mut().push(request.clone());
             std::fs::write(&request.destination, request.url.as_bytes()).expect("archive file");
@@ -488,6 +499,7 @@ fn default_addon_provider_retries_failed_http_archive_downloads() {
             &self,
             request: HttpDownloadRequest,
             _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             let mut attempts = self.attempts.borrow_mut();
             *attempts += 1;
@@ -522,6 +534,99 @@ fn default_addon_provider_retries_failed_http_archive_downloads() {
 }
 
 #[test]
+fn default_addon_provider_forwards_download_progress_to_observer() {
+    #[derive(Default)]
+    struct FakeHttpClient;
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(
+            &self,
+            request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<()> {
+            let observer = observer.expect("download observer");
+            observer.on_progress(HttpDownloadProgress {
+                bytes_current: 0,
+                bytes_total: Some(1024),
+                bytes_per_second: None,
+            });
+            observer.on_progress(HttpDownloadProgress {
+                bytes_current: 1024,
+                bytes_total: Some(1024),
+                bytes_per_second: Some(512),
+            });
+            std::fs::write(&request.destination, b"archive").expect("archive file");
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct FakeObserver {
+        seen: RefCell<Vec<(String, String, u64, Option<u64>, Option<u64>)>>,
+    }
+
+    impl AddonDownloadProgressObserver for FakeObserver {
+        fn on_download_progress(
+            &self,
+            source: &AddonSourceRef,
+            archive_name: &str,
+            bytes_current: u64,
+            bytes_total: Option<u64>,
+            bytes_per_second: Option<u64>,
+        ) {
+            self.seen.borrow_mut().push((
+                source.display_name(),
+                archive_name.to_string(),
+                bytes_current,
+                bytes_total,
+                bytes_per_second,
+            ));
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient);
+    let source = AddonSourceRef::HttpArchive {
+        url: "https://example.com/addon.zip".to_string(),
+    };
+    let observer = FakeObserver::default();
+
+    let materialized = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &source,
+            stage_root: temp.path(),
+            context: AddonProviderContext::new(None, None).with_download_progress(Some(&observer)),
+        })
+        .expect("materialize source");
+
+    assert!(materialized.archive_path.exists());
+    assert_eq!(
+        observer.seen.borrow().as_slice(),
+        &[
+            (
+                "https://example.com/addon.zip".to_string(),
+                "addon.zip".to_string(),
+                0,
+                Some(1024),
+                None,
+            ),
+            (
+                "https://example.com/addon.zip".to_string(),
+                "addon.zip".to_string(),
+                1024,
+                Some(1024),
+                Some(512),
+            ),
+        ]
+    );
+}
+
+#[test]
 fn reqwest_http_client_default_uses_bounded_timeouts() {
     let client = ReqwestHttpClient::default();
 
@@ -546,6 +651,7 @@ fn default_addon_provider_forwards_cancellation_without_retrying() {
             &self,
             _request: HttpDownloadRequest,
             cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
         ) -> AppResult<()> {
             self.attempts.set(self.attempts.get() + 1);
             self.saw_cancelled.set(cancellation.is_cancelled());
@@ -575,10 +681,7 @@ fn default_addon_provider_forwards_cancellation_without_retrying() {
         .materialize_source_ref(super::MaterializeSourceRefRequest {
             source: &source,
             stage_root: temp.path(),
-            context: AddonProviderContext {
-                target_flavor: None,
-                cancellation: Some(&cancellation),
-            },
+            context: AddonProviderContext::new(None, Some(&cancellation)),
         })
         .expect_err("cancelled download");
 

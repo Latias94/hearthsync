@@ -14,8 +14,9 @@ use super::{
     AddonPackageMetadata, AddonProvider, AddonRegistry, DefaultAddonProvider, InstallAddonRequest,
     InstalledAddonPackageResult, PreparedAddonPackage, RemoveAddonRequest,
     RemovedAddonPackageResult, TrackedAddonPackage, UpdateAddonRequest, UpdatedAddonPackageResult,
-    install_prepared_package_task, load_registry, prepare_package_from_source_input_with_provider,
-    prepare_package_from_source_ref_with_provider, remove_selected_packages_task,
+    install_prepared_package_task, load_registry,
+    prepare_package_from_source_input_task_with_provider,
+    prepare_package_from_source_ref_task_with_provider, remove_selected_packages_task,
     rollback_or_report_addon_error, update_prepared_packages_task,
 };
 
@@ -102,7 +103,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonInstall, TaskPhase::Preparing)?;
 
-    let plan = prepare_install_addon_with_provider(provider, request, cancellation)?;
+    let plan = prepare_install_addon_with_provider(provider, request, cancellation, progress)?;
     execute_install_plan_task(plan, cancellation, progress)
 }
 
@@ -208,7 +209,7 @@ where
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonUpdate, TaskPhase::Preparing)?;
 
-    let plan = prepare_update_addons_with_provider(provider, request, cancellation)?;
+    let plan = prepare_update_addons_with_provider(provider, request, cancellation, progress)?;
     if plan.dry_run {
         let result = dry_run_update_result(plan);
         emit_task_progress(
@@ -343,16 +344,20 @@ fn prepare_install_addon_with_provider<P>(
     provider: &P,
     request: InstallAddonRequest,
     cancellation: &dyn CancellationToken,
+    progress: &mut impl TaskProgressSink,
 ) -> AppResult<InstallAddonExecutionPlan>
 where
     P: AddonProvider + ?Sized,
 {
-    let prepared = prepare_package_from_source_input_with_provider(
+    let prepared = prepare_package_from_source_input_task_with_provider(
         provider,
         &request.source,
         Some(request.installation.flavor),
         request.installation.platform,
         cancellation,
+        TaskKind::AddonInstall,
+        TaskPhase::Preparing,
+        progress,
     )?;
     prepare_install_prepared_addon(InstallPreparedAddonRequest {
         installation: request.installation,
@@ -484,6 +489,7 @@ fn prepare_update_addons_with_provider<P>(
     provider: &P,
     request: UpdateAddonRequest,
     cancellation: &dyn CancellationToken,
+    progress: &mut impl TaskProgressSink,
 ) -> AppResult<UpdateAddonsExecutionPlan>
 where
     P: AddonProvider + ?Sized,
@@ -499,12 +505,15 @@ where
     let selected_packages = select_packages_for_update(&registry, request.name.as_deref())?;
     let mut prepared_packages = Vec::new();
     for package in &selected_packages {
-        prepared_packages.push(prepare_package_from_source_ref_with_provider(
+        prepared_packages.push(prepare_package_from_source_ref_task_with_provider(
             provider,
             &package.source,
             Some(request.installation.flavor),
             request.installation.platform,
             cancellation,
+            TaskKind::AddonUpdate,
+            TaskPhase::Preparing,
+            progress,
         )?);
     }
 

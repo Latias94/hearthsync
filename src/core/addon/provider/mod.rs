@@ -14,7 +14,10 @@ use sha2::{Digest, Sha256};
 
 use self::curseforge::{resolve_curseforge_file_with_client, search_curseforge_mods_with_client};
 use self::github::{fetch_github_release_with_client, select_github_release_asset};
-use self::http::{HttpClient, HttpDownloadRequest, HttpHeader, HttpRequest, ReqwestHttpClient};
+use self::http::{
+    HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpDownloadRequest,
+    HttpHeader, HttpRequest, ReqwestHttpClient,
+};
 use self::parse::{parse_curseforge_source, parse_github_source};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
@@ -112,10 +115,22 @@ pub struct MaterializeSourceRefRequest<'a> {
     pub context: AddonProviderContext<'a>,
 }
 
+pub trait AddonDownloadProgressObserver {
+    fn on_download_progress(
+        &self,
+        source: &AddonSourceRef,
+        archive_name: &str,
+        bytes_current: u64,
+        bytes_total: Option<u64>,
+        bytes_per_second: Option<u64>,
+    );
+}
+
 #[derive(Clone, Copy, Default)]
 pub struct AddonProviderContext<'a> {
     pub target_flavor: Option<WowFlavor>,
     pub cancellation: Option<&'a dyn CancellationToken>,
+    download_progress: Option<&'a dyn AddonDownloadProgressObserver>,
 }
 
 impl fmt::Debug for AddonProviderContext<'_> {
@@ -123,7 +138,48 @@ impl fmt::Debug for AddonProviderContext<'_> {
         f.debug_struct("AddonProviderContext")
             .field("target_flavor", &self.target_flavor)
             .field("has_cancellation", &self.cancellation.is_some())
+            .field("has_download_progress", &self.download_progress.is_some())
             .finish()
+    }
+}
+
+impl<'a> AddonProviderContext<'a> {
+    pub fn new(
+        target_flavor: Option<WowFlavor>,
+        cancellation: Option<&'a dyn CancellationToken>,
+    ) -> Self {
+        Self {
+            target_flavor,
+            cancellation,
+            download_progress: None,
+        }
+    }
+
+    pub(crate) fn with_download_progress(
+        mut self,
+        download_progress: Option<&'a dyn AddonDownloadProgressObserver>,
+    ) -> Self {
+        self.download_progress = download_progress;
+        self
+    }
+
+    pub fn report_download_progress(
+        &self,
+        source: &AddonSourceRef,
+        archive_name: &str,
+        bytes_current: u64,
+        bytes_total: Option<u64>,
+        bytes_per_second: Option<u64>,
+    ) {
+        if let Some(observer) = self.download_progress {
+            observer.on_download_progress(
+                source,
+                archive_name,
+                bytes_current,
+                bytes_total,
+                bytes_per_second,
+            );
+        }
     }
 }
 
@@ -268,9 +324,11 @@ where
         &self,
         request: HttpDownloadRequest,
         cancellation: &dyn CancellationToken,
+        observer: Option<&dyn HttpDownloadProgressObserver>,
     ) -> AppResult<()> {
         retry_http(self.max_attempts, || {
-            self.inner.download_to_path(request.clone(), cancellation)
+            self.inner
+                .download_to_path(request.clone(), cancellation, observer)
         })
     }
 }
@@ -369,6 +427,7 @@ fn materialize_source_ref_impl(
                 artifact,
                 stage_root,
                 context.cancellation,
+                context.download_progress,
                 options,
             )?;
             Ok(MaterializedAddonSource {
@@ -404,6 +463,7 @@ fn materialize_source_ref_impl(
                 artifact,
                 stage_root,
                 context.cancellation,
+                context.download_progress,
                 options,
             )?;
             Ok(MaterializedAddonSource {
@@ -437,6 +497,7 @@ fn materialize_source_ref_impl(
                 artifact,
                 stage_root,
                 context.cancellation,
+                context.download_progress,
                 options,
             )?;
             Ok(MaterializedAddonSource {
@@ -461,6 +522,7 @@ fn materialize_downloaded_archive(
     artifact: ResolvedDownloadArtifact,
     stage_root: &Path,
     cancellation: Option<&dyn CancellationToken>,
+    download_progress: Option<&dyn AddonDownloadProgressObserver>,
     options: &AddonProviderOptions,
 ) -> AppResult<PathBuf> {
     let archive_path = resolve_archive_path(
@@ -473,12 +535,21 @@ fn materialize_downloaded_archive(
         return Ok(archive_path);
     }
 
+    let provider_progress =
+        download_progress.map(|observer| ForwardAddonDownloadProgressObserver {
+            source: &artifact.cache_source_ref,
+            archive_name: &artifact.archive_name,
+            inner: observer,
+        });
     download_to_path_with_headers(
         http_client,
         &artifact.download_url,
         artifact.headers,
         &archive_path,
         cancellation,
+        provider_progress
+            .as_ref()
+            .map(|observer| observer as &dyn HttpDownloadProgressObserver),
     )?;
     Ok(archive_path)
 }
@@ -515,6 +586,7 @@ fn download_to_path_with_headers(
     headers: Vec<HttpHeader>,
     destination: &Path,
     cancellation: Option<&dyn CancellationToken>,
+    observer: Option<&dyn HttpDownloadProgressObserver>,
 ) -> AppResult<()> {
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
@@ -530,6 +602,7 @@ fn download_to_path_with_headers(
     let download_result = http_client.download_to_path(
         HttpDownloadRequest::new(url, temporary_destination.clone()).with_headers(headers),
         cancellation,
+        observer,
     );
     if let Err(error) = download_result {
         let _ = fs::remove_file(&temporary_destination);
@@ -617,6 +690,24 @@ fn retry_http<T>(max_attempts: u32, mut operation: impl FnMut() -> AppResult<T>)
             "addon provider retry policy must allow at least one attempt".to_string(),
         )
     }))
+}
+
+struct ForwardAddonDownloadProgressObserver<'a> {
+    source: &'a AddonSourceRef,
+    archive_name: &'a str,
+    inner: &'a dyn AddonDownloadProgressObserver,
+}
+
+impl HttpDownloadProgressObserver for ForwardAddonDownloadProgressObserver<'_> {
+    fn on_progress(&self, progress: HttpDownloadProgress) {
+        self.inner.on_download_progress(
+            self.source,
+            self.archive_name,
+            progress.bytes_current,
+            progress.bytes_total,
+            progress.bytes_per_second,
+        );
+    }
 }
 
 #[cfg(windows)]

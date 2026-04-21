@@ -223,6 +223,53 @@ fn addon_service_install_with_runtime_uses_injected_provider() {
 }
 
 #[test]
+fn addon_service_install_collecting_progress_includes_download_byte_events() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_empty_installation(temp.path());
+    let archive_path = temp.path().join("WeakAuras-progress.zip");
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "WeakAuras/WeakAuras.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+
+    let service = AddonService::with_runtime(AppRuntime::with_addon_provider(
+        FakeDownloadProgressAddonProvider {
+            archive_path: archive_path.clone(),
+        },
+    ));
+    let run = service
+        .install_collecting_progress(InstallAddonAppRequest {
+            installation,
+            source: "https://example.invalid/WeakAuras.zip".to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install addon with byte progress");
+
+    let download_events = run
+        .progress
+        .iter()
+        .filter(|event| event.code == Some(TaskProgressCode::DownloadArchive))
+        .collect::<Vec<_>>();
+    assert_eq!(download_events.len(), 2);
+    assert!(
+        download_events
+            .iter()
+            .all(|event| event.phase == TaskPhase::Preparing)
+    );
+    assert_eq!(download_events[0].bytes_current, Some(0));
+    assert_eq!(download_events[0].bytes_total, Some(1024));
+    assert_eq!(download_events[1].bytes_current, Some(1024));
+    assert_eq!(download_events[1].bytes_total, Some(1024));
+    assert_eq!(download_events[1].bytes_per_second, Some(512));
+}
+
+#[test]
 fn addon_service_update_with_callbacks_uses_plain_closures() {
     let temp = tempdir().expect("temp dir");
     let installation = create_empty_installation(temp.path());
@@ -420,6 +467,57 @@ impl AddonProvider for FakeAddonProvider {
             source_ref: request.source.clone(),
             archive_path: self.archive_path.clone(),
         })
+    }
+
+    fn search_addons(
+        &self,
+        _request: ProviderAddonSearchRequest<'_>,
+    ) -> AppResult<Vec<AddonSearchResult>> {
+        Ok(Vec::new())
+    }
+}
+
+#[derive(Clone)]
+struct FakeDownloadProgressAddonProvider {
+    archive_path: PathBuf,
+}
+
+impl AddonProvider for FakeDownloadProgressAddonProvider {
+    fn materialize_source_input(
+        &self,
+        request: MaterializeSourceInputRequest<'_>,
+    ) -> AppResult<MaterializedAddonSource> {
+        let source_ref = AddonSourceRef::HttpArchive {
+            url: request.source.to_string(),
+        };
+        request.context.report_download_progress(
+            &source_ref,
+            "WeakAuras-progress.zip",
+            0,
+            Some(1024),
+            None,
+        );
+        request.context.report_download_progress(
+            &source_ref,
+            "WeakAuras-progress.zip",
+            1024,
+            Some(1024),
+            Some(512),
+        );
+
+        Ok(MaterializedAddonSource {
+            source_ref,
+            archive_path: self.archive_path.clone(),
+        })
+    }
+
+    fn materialize_source_ref(
+        &self,
+        _request: MaterializeSourceRefRequest<'_>,
+    ) -> AppResult<MaterializedAddonSource> {
+        Err(AppError::Validation(
+            "byte-progress test provider expects source input".to_string(),
+        ))
     }
 
     fn search_addons(

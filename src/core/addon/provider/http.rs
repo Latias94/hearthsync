@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use reqwest::blocking::Client;
 
@@ -11,6 +11,8 @@ use crate::core::task::CancellationToken;
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const DOWNLOAD_BUFFER_SIZE: usize = 64 * 1024;
+const DOWNLOAD_PROGRESS_MIN_INTERVAL: Duration = Duration::from_millis(200);
+const DOWNLOAD_PROGRESS_MIN_BYTES_DELTA: u64 = 256 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpHeader {
@@ -79,6 +81,17 @@ impl HttpResponse {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HttpDownloadProgress {
+    pub bytes_current: u64,
+    pub bytes_total: Option<u64>,
+    pub bytes_per_second: Option<u64>,
+}
+
+pub trait HttpDownloadProgressObserver {
+    fn on_progress(&self, progress: HttpDownloadProgress);
+}
+
 pub trait HttpClient {
     fn get(&self, request: HttpRequest) -> AppResult<HttpResponse>;
 
@@ -86,6 +99,7 @@ pub trait HttpClient {
         &self,
         request: HttpDownloadRequest,
         cancellation: &dyn CancellationToken,
+        observer: Option<&dyn HttpDownloadProgressObserver>,
     ) -> AppResult<()>;
 }
 
@@ -144,6 +158,7 @@ impl HttpClient for ReqwestHttpClient {
         &self,
         request: HttpDownloadRequest,
         cancellation: &dyn CancellationToken,
+        observer: Option<&dyn HttpDownloadProgressObserver>,
     ) -> AppResult<()> {
         ensure_download_not_cancelled(cancellation)?;
         let mut builder = self.client.get(&request.url);
@@ -151,7 +166,7 @@ impl HttpClient for ReqwestHttpClient {
             builder = builder.header(&header.name, &header.value);
         }
         let mut response = builder.send()?.error_for_status()?;
-        write_response_to_path(&mut response, &request.destination, cancellation)
+        write_response_to_path(&mut response, &request.destination, cancellation, observer)
     }
 }
 
@@ -159,10 +174,19 @@ fn write_response_to_path(
     response: &mut reqwest::blocking::Response,
     destination: &Path,
     cancellation: &dyn CancellationToken,
+    observer: Option<&dyn HttpDownloadProgressObserver>,
 ) -> AppResult<()> {
     ensure_download_not_cancelled(cancellation)?;
     let mut file = File::create(destination)?;
     let mut buffer = [0u8; DOWNLOAD_BUFFER_SIZE];
+    let bytes_total = response.content_length();
+    let started_at = Instant::now();
+    let mut bytes_written = 0u64;
+    let mut last_reported_bytes = 0u64;
+    let mut last_report_at = started_at;
+
+    emit_download_progress(observer, bytes_written, bytes_total, started_at);
+
     loop {
         ensure_download_not_cancelled(cancellation)?;
 
@@ -171,8 +195,68 @@ fn write_response_to_path(
             break;
         }
         file.write_all(&buffer[..bytes_read])?;
+        bytes_written += bytes_read as u64;
+
+        let now = Instant::now();
+        if should_emit_download_progress(
+            bytes_written,
+            bytes_total,
+            last_reported_bytes,
+            last_report_at,
+            now,
+        ) {
+            emit_download_progress(observer, bytes_written, bytes_total, started_at);
+            last_reported_bytes = bytes_written;
+            last_report_at = now;
+        }
+    }
+
+    if bytes_written != last_reported_bytes {
+        emit_download_progress(observer, bytes_written, bytes_total, started_at);
     }
     Ok(())
+}
+
+fn should_emit_download_progress(
+    bytes_written: u64,
+    bytes_total: Option<u64>,
+    last_reported_bytes: u64,
+    last_report_at: Instant,
+    now: Instant,
+) -> bool {
+    bytes_total.is_some_and(|bytes_total| bytes_written >= bytes_total)
+        || bytes_written.saturating_sub(last_reported_bytes) >= DOWNLOAD_PROGRESS_MIN_BYTES_DELTA
+        || now.duration_since(last_report_at) >= DOWNLOAD_PROGRESS_MIN_INTERVAL
+}
+
+fn emit_download_progress(
+    observer: Option<&dyn HttpDownloadProgressObserver>,
+    bytes_current: u64,
+    bytes_total: Option<u64>,
+    started_at: Instant,
+) {
+    let Some(observer) = observer else {
+        return;
+    };
+
+    observer.on_progress(HttpDownloadProgress {
+        bytes_current,
+        bytes_total,
+        bytes_per_second: compute_bytes_per_second(bytes_current, started_at.elapsed()),
+    });
+}
+
+fn compute_bytes_per_second(bytes_current: u64, elapsed: Duration) -> Option<u64> {
+    if bytes_current == 0 || elapsed.is_zero() {
+        return None;
+    }
+
+    let nanos = elapsed.as_nanos();
+    if nanos == 0 {
+        return None;
+    }
+
+    Some(((bytes_current as u128 * 1_000_000_000u128) / nanos).min(u64::MAX as u128) as u64)
 }
 
 fn ensure_download_not_cancelled(cancellation: &dyn CancellationToken) -> AppResult<()> {
