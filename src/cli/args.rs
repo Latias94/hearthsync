@@ -528,6 +528,7 @@ mod tests {
             "--name",
             "WeakAuras",
             "--dry-run",
+            "--apply-ready-only",
         ]);
 
         match cli.command {
@@ -538,6 +539,7 @@ mod tests {
                         file,
                         name,
                         dry_run,
+                        apply_ready_only,
                     } => {
                         assert_eq!(
                             install_target.install,
@@ -549,6 +551,7 @@ mod tests {
                         );
                         assert_eq!(name.as_deref(), Some("WeakAuras"));
                         assert!(dry_run);
+                        assert!(apply_ready_only);
                     }
                     _ => panic!("expected addon index attach command"),
                 },

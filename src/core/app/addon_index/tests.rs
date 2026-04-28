@@ -305,6 +305,7 @@ supported_flavors = ["retail"]
             index_path,
             name: None,
             dry_run: false,
+            apply_ready_only: false,
         })
         .expect("attach addon index");
 
@@ -378,6 +379,7 @@ supported_flavors = ["retail"]
             index_path,
             name: Some("curated-details".to_string()),
             dry_run: false,
+            apply_ready_only: false,
         })
         .expect("attach from index with collected progress");
 

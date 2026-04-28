@@ -243,7 +243,9 @@ pub(in crate::cli) fn render_addon_index_suggestion(item: &AddonIndexSuggestionR
 }
 
 pub(in crate::cli) fn render_addon_index_attach(item: &AddonIndexAttachResult) -> String {
-    let status = if item.applied {
+    let status = if item.partial_apply {
+        "partially_attached"
+    } else if item.applied {
         "attached"
     } else if !item.ready {
         "blocked"
@@ -293,11 +295,12 @@ pub(in crate::cli) fn render_addon_index_attach(item: &AddonIndexAttachResult) -
     };
 
     format!(
-        "Status: {}\nDry run: {}\nReady: {}\nApplied: {}\nIndex: {}\nName: {}\nIndex packages: {}\nConsidered packages: {}\nPlanned changes: {}\nAttached packages: {}\nAlready attached packages: {}\nBlocked packages: {}\nSkipped unsupported flavor packages: {}\nRegistry: {}\n{}",
+        "Status: {}\nDry run: {}\nReady: {}\nApplied: {}\nPartial apply: {}\nIndex: {}\nName: {}\nIndex packages: {}\nConsidered packages: {}\nPlanned changes: {}\nAttached packages: {}\nAlready attached packages: {}\nBlocked packages: {}\nSkipped unsupported flavor packages: {}\nRegistry: {}\n{}",
         status,
         item.dry_run,
         item.ready,
         item.applied,
+        item.partial_apply,
         item.index_path.display(),
         item.index_name,
         item.index_package_count,
@@ -1034,6 +1037,7 @@ mod tests {
             dry_run: true,
             ready: false,
             applied: false,
+            partial_apply: false,
             registry_path: PathBuf::from("addon-registry.json"),
             index_package_count: 3,
             considered_package_count: 2,
@@ -1095,6 +1099,7 @@ mod tests {
         assert!(rendered.contains("Dry run: true"));
         assert!(rendered.contains("Ready: false"));
         assert!(rendered.contains("Applied: false"));
+        assert!(rendered.contains("Partial apply: false"));
         assert!(rendered.contains("Planned changes: 1"));
         assert!(rendered.contains("Blocked packages: 1"));
         assert!(rendered.contains("Skipped unsupported flavor packages: 1"));

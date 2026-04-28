@@ -45,12 +45,14 @@ pub(super) fn build_attach_addon_index_request(
     index_path: PathBuf,
     name: Option<String>,
     dry_run: bool,
+    apply_ready_only: bool,
 ) -> AttachAddonIndexAppRequest {
     AttachAddonIndexAppRequest {
         installation,
         index_path,
         name,
         dry_run,
+        apply_ready_only,
     }
 }
 
@@ -172,11 +174,13 @@ mod tests {
             PathBuf::from("addons.index.toml"),
             Some("WeakAuras".to_string()),
             true,
+            true,
         );
 
         assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
         assert_eq!(request.name.as_deref(), Some("WeakAuras"));
         assert!(request.dry_run);
+        assert!(request.apply_ready_only);
     }
 
     #[test]

@@ -85,6 +85,7 @@ pub(super) fn handle_addon_index_command(
             file,
             name,
             dry_run,
+            apply_ready_only,
         } => {
             let installation = resolve_cli_installation(app.stable(), install_target)?;
             let run = app.attach_addon_index(build_attach_addon_index_request(
@@ -92,10 +93,11 @@ pub(super) fn handle_addon_index_command(
                 file,
                 name,
                 dry_run,
+                apply_ready_only,
             ))?;
             let result = run.result;
             render(json, &result, render_addon_index_attach)?;
-            if !dry_run && !result.ready {
+            if !dry_run && !result.ready && !result.applied {
                 return Err(AppError::Validation(format!(
                     "addon index attach is blocked by {} package(s); no registry changes were written",
                     result.blocked_package_count

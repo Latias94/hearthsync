@@ -746,8 +746,8 @@ source identity or requiring operators to hand-build the registry first.
   keeping the live installation untouched, as long as addon-directory identity matches exactly
 - operators can also attach one tracked package to a curated index package, including metadata-only
   attach when the source already matches, without forcing reinstall
-- operators can preview and batch-attach multiple tracked packages against one curated index
-  without partial registry writes
+- operators can preview and batch-attach multiple tracked packages against one curated index, with
+  default all-or-nothing registry writes and an explicit reviewed ready-only partial apply option
 - `addon index scaffold` and `addon index suggest` become usable immediately after explicit adopt
 
 ### Current Notes
@@ -800,7 +800,10 @@ source identity or requiring operators to hand-build the registry first.
   curator-aware relink model across one index, reuses suggestion-style matching order, returns a
   structured review result for ready/blocked/skipped packages, and only writes the registry when
   every selected package is safe to attach
-  content untouched
+- the default bulk attach path remains all-or-nothing, while explicit ready-only partial apply is
+  now available for reviewed operator workflows. Partial apply writes only ready planned changes,
+  reports `partial_apply`, and leaves blocked packages visible in the result instead of pretending
+  the whole batch was safe.
 
 ## M9 - Pre-GUI Architecture Hardening
 

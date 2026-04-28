@@ -1018,6 +1018,7 @@ supported_flavors = ["classic"]
         index_path,
         name: None,
         dry_run: false,
+        apply_ready_only: false,
     })
     .expect("attach from index");
 
@@ -1068,6 +1069,104 @@ supported_flavors = ["classic"]
     assert!(
         inventory.tracked_packages[0].metadata.is_none(),
         "blocked bulk attach must not partially write curated metadata"
+    );
+}
+
+#[test]
+fn attach_addons_from_index_can_apply_ready_packages_when_partial_apply_is_explicit() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let archive_path = temp.path().join("Plater.zip");
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "Plater/Plater.toc",
+            "## Interface: 110000\n## Title: Plater\n## Version: 1.0.0\n",
+        )],
+    );
+
+    install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install tracked addon");
+
+    let index_path = temp.path().join("index.toml");
+    fs::write(
+        &index_path,
+        format!(
+            r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "curated-plater"
+name = "Curated Plater"
+version = "2.0.0"
+source = {{ kind = "local_archive", path = "{}" }}
+supported_flavors = ["retail"]
+
+[[packages]]
+id = "unknown-addon"
+name = "Unknown Addon"
+version = "1.0.0"
+source = {{ kind = "http_archive", url = "https://example.invalid/unknown.zip" }}
+supported_flavors = ["retail"]
+"#,
+            archive_path.display().to_string().replace('\\', "\\\\")
+        ),
+    )
+    .expect("write index");
+
+    let result = attach_addons_from_index(AddonIndexAttachRequest {
+        state_paths: addon_state_paths(&installation.clone()),
+        installation: installation.clone(),
+        index_path,
+        name: None,
+        dry_run: false,
+        apply_ready_only: true,
+    })
+    .expect("attach ready packages from index");
+
+    assert!(!result.ready);
+    assert!(result.applied);
+    assert!(result.partial_apply);
+    assert_eq!(result.change_package_count, 1);
+    assert_eq!(result.attached_package_count, 1);
+    assert_eq!(result.blocked_package_count, 1);
+
+    let curated = result
+        .packages
+        .iter()
+        .find(|package| package.package.id == "curated-plater")
+        .expect("curated package");
+    assert!(matches!(
+        curated.status,
+        AddonIndexAttachPackageStatus::Attached
+    ));
+    let unknown = result
+        .packages
+        .iter()
+        .find(|package| package.package.id == "unknown-addon")
+        .expect("unknown package");
+    assert!(matches!(
+        unknown.status,
+        AddonIndexAttachPackageStatus::NoLocalMatch
+    ));
+
+    let inventory =
+        list_addons(&installation, &addon_state_paths(&installation)).expect("inventory");
+    assert_eq!(
+        inventory.tracked_packages[0]
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.index_package_id.as_deref()),
+        Some("curated-plater")
     );
 }
 
@@ -1147,6 +1246,7 @@ supported_flavors = ["retail"]
         index_path,
         name: None,
         dry_run: false,
+        apply_ready_only: false,
     })
     .expect("attach from index");
 
@@ -1246,6 +1346,7 @@ supported_flavors = ["retail"]
             index_path,
             name: Some("curated-details".to_string()),
             dry_run: false,
+            apply_ready_only: false,
         },
         &cancellation,
         &mut progress,

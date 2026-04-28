@@ -23,6 +23,7 @@ pub struct AttachAddonIndexAppRequest {
     pub index_path: PathBuf,
     pub name: Option<String>,
     pub dry_run: bool,
+    pub apply_ready_only: bool,
 }
 
 impl AttachAddonIndexAppRequest {
@@ -39,6 +40,7 @@ impl AttachAddonIndexAppRequest {
             index_path: self.index_path,
             name: self.name,
             dry_run: self.dry_run,
+            apply_ready_only: self.apply_ready_only,
         })
     }
 }

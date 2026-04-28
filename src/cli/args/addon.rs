@@ -217,6 +217,11 @@ pub enum AddonIndexCommands {
             help = "Preview the bulk attach plan without writing the registry"
         )]
         dry_run: bool,
+        #[arg(
+            long,
+            help = "Apply ready packages even when other selected packages are blocked"
+        )]
+        apply_ready_only: bool,
     },
     #[command(about = "Install one package from a curated addon index")]
     Install {

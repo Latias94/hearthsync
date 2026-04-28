@@ -50,6 +50,7 @@ struct IndexAttachPlan {
     index_path: PathBuf,
     index_name: String,
     dry_run: bool,
+    apply_ready_only: bool,
     registry_path: PathBuf,
     index_package_count: usize,
     considered_package_count: usize,
@@ -165,7 +166,7 @@ where
         return Ok(result);
     }
 
-    if !result_ready_for_attach(&plan) {
+    if !result_ready_for_attach(&plan) && !plan.apply_ready_only {
         let result = index_attach_result(plan, false);
         emit_task_progress(
             progress,
@@ -181,11 +182,18 @@ where
 
     if plan.changes.is_empty() {
         let result = index_attach_result(plan, false);
+        let message = if result.blocked_package_count > 0 && result.dry_run {
+            "Addon index attach dry run found blocked packages and no ready registry changes"
+        } else if result.blocked_package_count > 0 {
+            "Addon index attach found blocked packages and no ready registry changes to apply"
+        } else {
+            "Addon index attach found no registry changes to apply"
+        };
         emit_task_progress(
             progress,
             TaskKind::AddonIndexAttach,
             TaskPhase::Completed,
-            "Addon index attach found no registry changes to apply",
+            message,
         );
         return Ok(result);
     }
@@ -194,10 +202,7 @@ where
         progress,
         TaskKind::AddonIndexAttach,
         TaskPhase::Executing,
-        format!(
-            "Attaching {} curated addon index package(s) without reinstalling live AddOns",
-            plan.changes.len()
-        ),
+        index_attach_execute_message(&plan),
     );
     ensure_task_not_cancelled(
         cancellation,
@@ -773,6 +778,7 @@ where
         index_path: request.index_path,
         index_name: index.name,
         dry_run: request.dry_run,
+        apply_ready_only: request.apply_ready_only,
         registry_path: inventory.registry_path,
         index_package_count: index.packages.len(),
         considered_package_count,
@@ -982,6 +988,22 @@ fn execute_index_attach_plan(plan: IndexAttachPlan) -> AppResult<AddonIndexAttac
     Ok(index_attach_result(plan, true))
 }
 
+fn index_attach_execute_message(plan: &IndexAttachPlan) -> String {
+    let blocked_count = attach_blocked_package_count(&plan.packages);
+    if blocked_count > 0 {
+        format!(
+            "Partially attaching {} ready curated addon index package(s) without reinstalling live AddOns; {} package(s) remain blocked",
+            plan.changes.len(),
+            blocked_count
+        )
+    } else {
+        format!(
+            "Attaching {} curated addon index package(s) without reinstalling live AddOns",
+            plan.changes.len()
+        )
+    }
+}
+
 fn index_attach_result(mut plan: IndexAttachPlan, applied: bool) -> AddonIndexAttachResult {
     if applied {
         for change in &plan.changes {
@@ -1012,6 +1034,7 @@ fn index_attach_result(mut plan: IndexAttachPlan, applied: bool) -> AddonIndexAt
         })
         .count();
     let blocked_package_count = attach_blocked_package_count(&plan.packages);
+    let partial_apply = applied && blocked_package_count > 0;
 
     AddonIndexAttachResult {
         index_path: plan.index_path,
@@ -1019,6 +1042,7 @@ fn index_attach_result(mut plan: IndexAttachPlan, applied: bool) -> AddonIndexAt
         dry_run: plan.dry_run,
         ready: blocked_package_count == 0,
         applied,
+        partial_apply,
         registry_path: plan.registry_path,
         index_package_count: plan.index_package_count,
         considered_package_count: plan.considered_package_count,

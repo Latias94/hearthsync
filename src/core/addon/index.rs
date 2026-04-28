@@ -130,6 +130,7 @@ pub struct AddonIndexAttachRequest {
     pub index_path: PathBuf,
     pub name: Option<String>,
     pub dry_run: bool,
+    pub apply_ready_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -139,6 +140,7 @@ pub struct AddonIndexAttachResult {
     pub dry_run: bool,
     pub ready: bool,
     pub applied: bool,
+    pub partial_apply: bool,
     pub registry_path: PathBuf,
     pub index_package_count: usize,
     pub considered_package_count: usize,

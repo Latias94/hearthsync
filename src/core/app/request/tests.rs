@@ -602,6 +602,7 @@ fn attach_addon_index_request_projects_domain_inputs() {
         index_path: PathBuf::from("addons.index.toml"),
         name: Some("details".to_string()),
         dry_run: true,
+        apply_ready_only: true,
     }
     .into_domain_request(&runtime)
     .expect("attach addon index request");
@@ -609,6 +610,7 @@ fn attach_addon_index_request_projects_domain_inputs() {
     assert_eq!(domain.index_path, PathBuf::from("addons.index.toml"));
     assert_eq!(domain.name.as_deref(), Some("details"));
     assert!(domain.dry_run);
+    assert!(domain.apply_ready_only);
 }
 
 #[test]

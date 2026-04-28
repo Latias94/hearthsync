@@ -807,13 +807,14 @@ silently sweeping the whole `Interface/AddOns` directory into fake packages.
   index without reinstalling live AddOns content. It reuses the same tracked-package matching
   order as `addon index suggest`, keeps exact addon-directory parity as the shared safety rule, and
   writes registry source plus curated metadata only when every selected package is ready.
-  Completed: bulk attach is deliberately fail-closed. Mixed runs can still be previewed, but
-  non-dry execution does not partially write the registry when any selected package remains
-  unmatched, ambiguous, or directory-incompatible.
-- [ ] decide whether bulk curator attach should later support operator-approved partial apply
-  Current gap: `addon index attach` is intentionally all-or-nothing for execution. That keeps the
-  registry truthful today, but future operator workflows may still want an explicit allowlist or
-  “apply only ready packages” mode once the review surface is strong enough.
+  Completed: bulk attach is deliberately fail-closed by default. Mixed runs can still be previewed,
+  and default non-dry execution does not partially write the registry when any selected package
+  remains unmatched, ambiguous, or directory-incompatible.
+- [x] decide whether bulk curator attach should later support operator-approved partial apply
+  Completed: default `addon index attach` execution remains all-or-nothing, but operators can now
+  opt into explicit ready-only partial apply. `apply_ready_only` writes only packages that planned
+  as ready, keeps blocked packages in the result, reports `partial_apply`, and leaves the default
+  path fail-closed for safer bulk curation.
 - [x] normalize the platform app-data root naming before managed-state layout becomes migration-stable
   Completed: the canonical app-data root now resolves through application-only
   `ProjectDirs::from("", "", "hearthsync")`, which removes the duplicated
