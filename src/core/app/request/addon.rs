@@ -6,6 +6,7 @@ use crate::core::addon::{
     InstallAddonRequest as DomainInstallAddonRequest,
     RelinkAddonRequest as DomainRelinkAddonRequest, RemoveAddonRequest as DomainRemoveAddonRequest,
     SearchAddonRequest as DomainSearchAddonRequest, UpdateAddonRequest as DomainUpdateAddonRequest,
+    addon_source_input_is_local_archive,
 };
 use crate::core::app::{AddonPackageMetadataValue, AppRuntime, ResolvedInstallationValue};
 use crate::core::error::AppResult;
@@ -87,7 +88,7 @@ impl RelinkAddonAppRequest {
             installation,
             state_paths,
             name: self.name,
-            source: self.source,
+            source: resolve_addon_source_input(runtime, self.source)?,
             dry_run: self.dry_run,
         })
     }
@@ -122,7 +123,7 @@ impl InstallAddonAppRequest {
             Ok(DomainInstallAddonRequest {
                 installation,
                 state_paths,
-                source: request.source,
+                source: resolve_addon_source_input(runtime, request.source)?,
                 dry_run: request.dry_run,
                 backup_output_path: request.backup_output_path,
                 replace_existing: request.replace_existing,
@@ -130,6 +131,22 @@ impl InstallAddonAppRequest {
             })
         })
     }
+}
+
+fn resolve_addon_source_input(runtime: &AppRuntime, source: String) -> AppResult<String> {
+    if !addon_source_input_is_local_archive(&source) {
+        return Ok(source);
+    }
+
+    let path = PathBuf::from(&source);
+    if path.is_absolute() {
+        return Ok(source);
+    }
+
+    Ok(runtime
+        .resolve_input_path(path, "addon local archive source")?
+        .display()
+        .to_string())
 }
 
 #[derive(Debug, Clone)]

@@ -186,6 +186,12 @@ pub(super) fn lock_action_sort_key(kind: &AddonLockSyncActionKind) -> u8 {
 
 fn preflight_source_ref(source: &AddonSourceRef) -> Vec<String> {
     match source {
+        AddonSourceRef::LocalArchive { path } if !path.is_absolute() => {
+            vec![format!(
+                "local archive path must be absolute before lock planning: {}",
+                path.display()
+            )]
+        }
         AddonSourceRef::LocalArchive { path } if !path.is_file() => {
             vec![format!(
                 "local archive is not available: {}",

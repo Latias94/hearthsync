@@ -1201,3 +1201,32 @@ Specifically:
 - `todo.md` and `milestones.md` carry the follow-up work as `R9` / `M9`
 - because HearthSync is still pre-release, this hardening phase may delete obsolete transition code
   and reshape app contracts instead of preserving compatibility for current internal call sites
+
+## ADR-049: Local Archive Paths Resolve At The App Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+Relative local addon archive paths are frontend input, not persisted core state.
+
+Specifically:
+
+- CLI runtime assembly records the invocation directory as `AppRuntime`'s absolute relative-path
+  base.
+- App addon install and relink requests resolve relative local zip sources against that runtime
+  base before projecting into domain requests.
+- Persisted tracked-registry `local_archive` sources, addon-lock `local_archive` source refs, and
+  explicit addon-lock source overrides must already be absolute before core planning or source
+  materialization uses them.
+- Sidecar addon-lock source-index entries remain lock-relative because they are portable bundle
+  metadata with an explicit lock-file base, not ambient caller input.
+
+### Consequences
+
+- CLI keeps the expected `--source ./addon.zip` behavior without making core logic depend on
+  process cwd.
+- Future `egui` callers can choose a file-dialog directory or another explicit base instead of
+  inheriting whatever directory launched the process.
+- Hand-edited registry or lock files with relative local archive sources fail closed before update
+  or lock apply work can read from the wrong directory.

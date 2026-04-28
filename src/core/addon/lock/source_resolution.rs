@@ -45,6 +45,13 @@ pub(super) fn resolved_source_override_map(
                 source_override.comparison_key
             )));
         }
+        if !source_override.archive_path.is_absolute() {
+            return Err(AppError::Validation(format!(
+                "addon lock source override path for `{}` must be absolute before it reaches the addon core: {}",
+                source_override.comparison_key,
+                source_override.archive_path.display()
+            )));
+        }
         map.insert(
             source_override.comparison_key.clone(),
             source_override.archive_path.clone(),
@@ -143,7 +150,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::safe_sidecar_source_segments;
+    use std::path::PathBuf;
+
+    use tempfile::tempdir;
+
+    use super::{resolved_source_override_map, safe_sidecar_source_segments};
+    use crate::core::addon::lock::AddonLockSourceOverride;
+    use crate::core::error::AppError;
 
     #[test]
     fn safe_sidecar_source_segments_rejects_non_portable_paths() {
@@ -178,5 +191,21 @@ mod tests {
                 .expect("portable sidecar path"),
             vec!["sources", "providers", "curseforge", "WeakAuras.zip"]
         );
+    }
+
+    #[test]
+    fn resolved_source_override_map_rejects_relative_explicit_paths() {
+        let temp = tempdir().expect("temp dir");
+        let error = resolved_source_override_map(
+            &temp.path().join("lock.toml"),
+            &[AddonLockSourceOverride {
+                comparison_key: "addons:weakauras".to_string(),
+                archive_path: PathBuf::from("sources/WeakAuras.zip"),
+            }],
+        )
+        .expect_err("relative explicit source override should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("must be absolute"));
     }
 }

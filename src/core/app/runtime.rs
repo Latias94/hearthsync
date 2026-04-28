@@ -27,6 +27,7 @@ pub struct AppRuntime {
     external_helper_policy: ExternalHelperPolicyValue,
     host_platform: HostPlatformValue,
     install_scan_roots: Option<Vec<PathBuf>>,
+    relative_path_base: Option<PathBuf>,
     default_backup_dir: Option<PathBuf>,
     default_bundle_output_dir: Option<PathBuf>,
 }
@@ -46,6 +47,7 @@ impl AppRuntime {
             external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
+            relative_path_base: None,
             default_backup_dir: None,
             default_bundle_output_dir: None,
         }
@@ -63,6 +65,7 @@ impl AppRuntime {
             external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
+            relative_path_base: None,
             default_backup_dir: None,
             default_bundle_output_dir: None,
         }
@@ -118,6 +121,7 @@ impl AppRuntime {
         AppRuntimeDiagnosticsValue {
             host_platform: self.host_platform,
             install_scan_roots: self.install_scan_roots.clone(),
+            relative_path_base: self.relative_path_base.clone(),
             default_backup_dir: self.default_backup_dir.clone(),
             default_bundle_output_dir: self.default_bundle_output_dir.clone(),
             selected_installation: None,
@@ -135,6 +139,7 @@ impl AppRuntime {
         Ok(AppRuntimeDiagnosticsValue {
             host_platform: self.host_platform,
             install_scan_roots: self.install_scan_roots.clone(),
+            relative_path_base: self.relative_path_base.clone(),
             default_backup_dir: self.default_backup_dir.clone(),
             default_bundle_output_dir: self.default_bundle_output_dir.clone(),
             selected_installation: Some(installation),
@@ -198,6 +203,40 @@ impl AppRuntime {
 
     pub fn install_scan_roots(&self) -> Option<&[PathBuf]> {
         self.install_scan_roots.as_deref()
+    }
+
+    pub fn with_relative_path_base(mut self, relative_path_base: Option<PathBuf>) -> Self {
+        self.relative_path_base = relative_path_base;
+        self
+    }
+
+    pub fn relative_path_base(&self) -> Option<&Path> {
+        self.relative_path_base.as_deref()
+    }
+
+    pub(crate) fn resolve_input_path(
+        &self,
+        path: PathBuf,
+        description: &str,
+    ) -> AppResult<PathBuf> {
+        if path.is_absolute() {
+            return Ok(path);
+        }
+
+        let Some(base) = &self.relative_path_base else {
+            return Err(crate::core::error::AppError::Validation(format!(
+                "{description} relative path requires an app runtime relative path base: {}",
+                path.display()
+            )));
+        };
+        if !base.is_absolute() {
+            return Err(crate::core::error::AppError::Validation(format!(
+                "app runtime relative path base must be absolute before resolving {description}: {}",
+                base.display()
+            )));
+        }
+
+        Ok(base.join(path))
     }
 
     pub(crate) fn scan_installations(&self) -> AppResult<Vec<DetectedFlavorInstallation>> {
@@ -265,6 +304,7 @@ impl fmt::Debug for AppRuntime {
             .field("external_helper_policy", &self.external_helper_policy)
             .field("host_platform", &self.host_platform)
             .field("install_scan_roots", &self.install_scan_roots)
+            .field("relative_path_base", &self.relative_path_base)
             .field("default_backup_dir", &self.default_backup_dir)
             .field("default_bundle_output_dir", &self.default_bundle_output_dir)
             .finish_non_exhaustive()

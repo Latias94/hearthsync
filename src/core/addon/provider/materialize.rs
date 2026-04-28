@@ -12,7 +12,7 @@ use super::github::{
 };
 use super::http::{HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpHeader};
 use super::parse::{parse_curseforge_source, parse_github_source};
-use super::source::canonicalize_local_archive_path;
+use super::source::{canonicalize_local_archive_path, validate_absolute_local_archive_source_path};
 use super::source_adapter::{curseforge_release_type_limit, github_allows_prerelease};
 use super::validation::{
     RemoteArchiveValidators, conditional_request_headers_for_transport_validators,
@@ -73,10 +73,13 @@ pub(super) fn materialize_source_ref_impl(
     options: &AddonProviderOptions,
 ) -> AppResult<MaterializedAddonSource> {
     match source {
-        AddonSourceRef::LocalArchive { path } => Ok(MaterializedAddonSource {
-            source_ref: source.clone(),
-            archive_path: path.clone(),
-        }),
+        AddonSourceRef::LocalArchive { path } => {
+            validate_absolute_local_archive_source_path(path)?;
+            Ok(MaterializedAddonSource {
+                source_ref: source.clone(),
+                archive_path: path.clone(),
+            })
+        }
         AddonSourceRef::HttpArchive { url } => {
             let archive_path = materialize_http_archive(
                 http_client,

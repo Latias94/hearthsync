@@ -23,7 +23,8 @@ pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
         ..AddonProviderOptionsValue::default()
     };
 
-    let mut runtime = AppRuntime::with_addon_provider_options(provider_options);
+    let mut runtime = AppRuntime::with_addon_provider_options(provider_options)
+        .with_relative_path_base(Some(std::env::current_dir()?));
 
     if let Some(storage) = persisted_settings.addon_state_storage {
         runtime = runtime.with_addon_state_storage_kind(storage.into_domain());

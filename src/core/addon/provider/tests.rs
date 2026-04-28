@@ -102,6 +102,25 @@ source = { kind = "curse_forge_mod", mod_id = 12345 }
 }
 
 #[test]
+fn default_addon_provider_rejects_relative_local_archive_source_refs() {
+    let temp = tempdir().expect("temp dir");
+    let provider = DefaultAddonProvider::default();
+
+    let error = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &AddonSourceRef::LocalArchive {
+                path: PathBuf::from("addons/WeakAuras.zip"),
+            },
+            stage_root: temp.path(),
+            context: AddonProviderContext::default(),
+        })
+        .expect_err("relative persisted local source should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("must be absolute"));
+}
+
+#[test]
 fn parse_curseforge_source_with_explicit_file() {
     let source = parse_curseforge_source("curseforge:12345@67890")
         .expect("parse")

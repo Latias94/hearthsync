@@ -41,6 +41,7 @@ pub struct ExternalHelperCapabilitiesValue {
 pub struct AppRuntimeDiagnosticsValue {
     pub host_platform: HostPlatformValue,
     pub install_scan_roots: Option<Vec<PathBuf>>,
+    pub relative_path_base: Option<PathBuf>,
     pub default_backup_dir: Option<PathBuf>,
     pub default_bundle_output_dir: Option<PathBuf>,
     pub selected_installation: Option<ResolvedInstallationValue>,

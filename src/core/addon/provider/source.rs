@@ -63,6 +63,24 @@ impl AddonSourceRef {
     }
 }
 
+pub(crate) fn addon_source_input_is_local_archive(source: &str) -> bool {
+    !(source.starts_with("https://")
+        || source.starts_with("http://")
+        || source.starts_with("curseforge:")
+        || source.starts_with("github:"))
+}
+
+pub(crate) fn validate_absolute_local_archive_source_path(path: &Path) -> AppResult<()> {
+    if path.is_absolute() {
+        return Ok(());
+    }
+
+    Err(AppError::Validation(format!(
+        "local archive source path must be absolute before it reaches the addon core: {}",
+        path.display()
+    )))
+}
+
 pub(crate) fn canonicalize_local_archive_path(path: &Path) -> AppResult<PathBuf> {
     let resolved =
         fs::canonicalize(path).map_err(|_| AppError::NotFound(path.display().to_string()))?;

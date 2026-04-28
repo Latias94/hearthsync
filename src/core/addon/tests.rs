@@ -1,7 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 use zip::CompressionMethod;
@@ -308,6 +308,30 @@ fn save_registry_rejects_case_insensitive_duplicate_addon_directory_owners() {
     assert!(message.contains("addon directory `details`"));
     assert!(message.contains("tracked package `details-alt`"));
     assert!(message.contains("tracked package `details`"));
+    assert!(!state_paths.registry_path.exists());
+}
+
+#[test]
+fn save_registry_rejects_relative_local_archive_sources() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let state_paths = sidecar_addon_state_paths(&installation);
+    let mut package = tracked_package("details", "Details");
+    package.source = AddonSourceRef::LocalArchive {
+        path: PathBuf::from("archives/details.zip"),
+    };
+    let registry = AddonRegistry {
+        schema_version: 1,
+        packages: vec![package],
+    };
+
+    let error = save_registry(&installation, &state_paths, &registry)
+        .expect_err("relative local archive source should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    let message = error.to_string();
+    assert!(message.contains("tracked addon package `details`"));
+    assert!(message.contains("must be absolute"));
     assert!(!state_paths.registry_path.exists());
 }
 

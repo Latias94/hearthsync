@@ -275,6 +275,11 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle export no longer depends on ambient `cwd` for default output paths, relative output
   references, or relative addon-index metadata resolution; those flows now use explicit base-dir
   rules instead of process-global state
+- addon local-archive inputs now follow the same app-boundary rule: CLI records its invocation
+  directory as the absolute runtime relative-path base, app addon install/relink requests resolve
+  relative local zip sources against that base, and persisted registry sources, addon-lock local
+  archive source refs, and explicit addon-lock source overrides must already be absolute before
+  core planning or materialization
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

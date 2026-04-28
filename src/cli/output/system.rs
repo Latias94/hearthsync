@@ -150,6 +150,14 @@ pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsVal
     }
 
     lines.push(format!(
+        "Relative path base: {}",
+        item.relative_path_base
+            .as_deref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "none".to_string())
+    ));
+
+    lines.push(format!(
         "Default backup dir: {}",
         item.default_backup_dir
             .as_deref()
@@ -344,6 +352,7 @@ mod tests {
         let rendered = render_runtime_diagnostics(&AppRuntimeDiagnosticsValue {
             host_platform: HostPlatformValue::Windows,
             install_scan_roots: Some(vec![PathBuf::from("E:\\Games")]),
+            relative_path_base: Some(PathBuf::from("E:\\Work")),
             default_backup_dir: Some(PathBuf::from("E:\\Backups")),
             default_bundle_output_dir: None,
             selected_installation: Some(sample_installation()),
@@ -398,6 +407,7 @@ mod tests {
         assert!(rendered.contains("Managed mode requires state: true"));
         assert!(rendered.contains("Install scan roots:"));
         assert!(rendered.contains("- E:\\Games"));
+        assert!(rendered.contains("Relative path base: E:\\Work"));
         assert!(rendered.contains("Default backup dir: E:\\Backups"));
         assert!(rendered.contains("Default bundle output dir: none"));
         assert!(rendered.contains("Addon provider mode: configured_default"));
@@ -414,6 +424,7 @@ mod tests {
         let rendered = render_runtime_diagnostics(&AppRuntimeDiagnosticsValue {
             host_platform: HostPlatformValue::Windows,
             install_scan_roots: None,
+            relative_path_base: None,
             default_backup_dir: None,
             default_bundle_output_dir: None,
             selected_installation: None,

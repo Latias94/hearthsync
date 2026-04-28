@@ -66,7 +66,9 @@ pub(crate) use self::package_prep::{
     prepare_package_from_source_input_task_with_provider,
     prepare_package_from_source_ref_task_with_provider,
 };
-pub(crate) use self::provider::canonicalize_local_archive_path;
+pub(crate) use self::provider::{
+    addon_source_input_is_local_archive, canonicalize_local_archive_path,
+};
 pub(crate) use self::registry::{load_registry, save_registry};
 pub(crate) use self::registry::{select_single_tracked_package, select_tracked_packages};
 pub use self::state::{AddonStatePaths, AddonStateStorageKind};

@@ -25,7 +25,10 @@ use self::http::{
 };
 use self::materialize::{materialize_source_input_impl, materialize_source_ref_impl};
 pub use self::source::AddonSourceRef;
-pub(crate) use self::source::canonicalize_local_archive_path;
+pub(crate) use self::source::{
+    addon_source_input_is_local_archive, canonicalize_local_archive_path,
+    validate_absolute_local_archive_source_path,
+};
 use self::source_adapter::{resolve_source_dependencies_impl, search_addons_impl};
 use super::policy::AddonReleaseChannel;
 use crate::core::error::{AppError, AppResult};

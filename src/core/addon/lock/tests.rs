@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 use zip::CompressionMethod;
@@ -13,8 +13,8 @@ use super::{
     inspect_addon_lock, lock_path, plan_addon_lock_sync, verify_addon_lock, write_addon_lock,
 };
 use crate::core::addon::{
-    AddonPackageMetadata, InstallAddonRequest, RemoveAddonRequest, install_addon, list_addons,
-    remove_addons,
+    AddonPackageMetadata, AddonSourceRef, InstallAddonRequest, RemoveAddonRequest, install_addon,
+    list_addons, remove_addons,
 };
 use crate::core::error::AppError;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
@@ -494,6 +494,38 @@ fn plan_addon_lock_sync_allows_case_distinct_untracked_addon_on_linux() {
 }
 
 #[test]
+fn plan_addon_lock_sync_blocks_relative_local_archive_sources() {
+    let temp = tempdir().expect("temp dir");
+    let desired_lock = desired_lock_with_single_addon(
+        temp.path(),
+        HostPlatform::Windows,
+        "Details",
+        "Details/Details.toc",
+    );
+    rewrite_first_lock_package_source_to_relative_local_archive(&desired_lock);
+    let current_installation = create_fixture_installation_for_platform(
+        &temp.path().join("current"),
+        HostPlatform::Windows,
+    );
+
+    let plan = plan_addon_lock_sync(
+        &current_installation,
+        &addon_state_paths(&current_installation),
+        Some(&desired_lock),
+    )
+    .expect("plan");
+
+    assert_eq!(plan.install_count, 1);
+    assert_eq!(plan.blocked_count, 1);
+    assert!(
+        plan.actions[0]
+            .blocked_reasons
+            .iter()
+            .any(|reason| reason.contains("must be absolute"))
+    );
+}
+
+#[test]
 fn apply_addon_lock_sync_task_reports_progress() {
     let temp = tempdir().expect("temp dir");
     let source_root = temp.path().join("sources");
@@ -867,6 +899,19 @@ fn desired_lock_with_single_addon(
     )
     .expect("write desired lock")
     .lock_path
+}
+
+fn rewrite_first_lock_package_source_to_relative_local_archive(lock_path: &Path) {
+    let content = fs::read_to_string(lock_path).expect("lock content");
+    let mut lock = toml::from_str::<super::AddonLock>(&content).expect("lock toml");
+    lock.packages[0].source = AddonSourceRef::LocalArchive {
+        path: PathBuf::from("sources/Details.zip"),
+    };
+    fs::write(
+        lock_path,
+        toml::to_string_pretty(&lock).expect("rewritten lock toml"),
+    )
+    .expect("rewrite lock");
 }
 
 fn create_untracked_addon(installation: &DetectedFlavorInstallation, addon_name: &str) {

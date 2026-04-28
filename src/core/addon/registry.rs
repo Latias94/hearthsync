@@ -6,7 +6,10 @@ use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
-use super::{AddonRegistry, AddonStatePaths, TrackedAddonPackage, lock};
+use super::{
+    AddonRegistry, AddonSourceRef, AddonStatePaths, TrackedAddonPackage, lock,
+    provider::validate_absolute_local_archive_source_path,
+};
 
 pub(crate) fn load_registry(
     _installation: &DetectedFlavorInstallation,
@@ -54,6 +57,8 @@ fn validate_registry(registry: &AddonRegistry) -> AppResult<()> {
     let mut package_ids = BTreeMap::new();
     let mut addon_owners = BTreeMap::new();
     for package in &registry.packages {
+        validate_registry_package_source(package)?;
+
         let package_id = package.package_id.trim();
         if package_id.is_empty() {
             return Err(AppError::Validation(
@@ -114,6 +119,19 @@ fn validate_registry(registry: &AddonRegistry) -> AppResult<()> {
     }
 
     Ok(())
+}
+
+fn validate_registry_package_source(package: &TrackedAddonPackage) -> AppResult<()> {
+    match &package.source {
+        AddonSourceRef::LocalArchive { path } => validate_absolute_local_archive_source_path(path)
+            .map_err(|error| {
+                AppError::Validation(format!(
+                    "tracked addon package `{}` has an invalid local archive source: {error}",
+                    package.package_id
+                ))
+            }),
+        _ => Ok(()),
+    }
 }
 
 fn cleanup_registry_storage(path: &Path) -> AppResult<()> {

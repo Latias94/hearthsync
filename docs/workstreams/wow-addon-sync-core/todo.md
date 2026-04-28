@@ -420,6 +420,12 @@ enough that these rules live in one place.
   Addon-lock verification also resolves tracked addon directories through the selected platform
   before reporting missing directories, so case-only live casing drift is not misclassified as a
   vanished addon on default macOS/Windows targets.
+  Current progress: addon local-archive source paths now have an explicit frontend/core boundary.
+  CLI runtime assembly records the invocation directory as the absolute app relative-path base, app
+  addon install/relink requests resolve relative local zip sources against that base, and persisted
+  registry sources, addon-lock local archive source refs, and explicit addon-lock source overrides
+  must already be absolute before they reach core planning or materialization. Future GUI callers
+  can set their own runtime base instead of inheriting process cwd accidentally.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.
