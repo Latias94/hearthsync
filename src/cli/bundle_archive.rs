@@ -15,13 +15,13 @@ pub(super) fn handle_bundle_pack(
     manifest: std::path::PathBuf,
     output: Option<std::path::PathBuf>,
 ) -> AppResult<()> {
-    let app = stable_services(runtime);
+    let app = stable_services(runtime.clone());
 
     render_with_fallible_installation(
         json,
         &app,
         install_target,
-        |installation| build_pack_bundle_request(installation, manifest, output),
+        |installation| build_pack_bundle_request(installation, manifest, output, &runtime),
         |request| app.pack_bundle(request),
         render_bundle_archive_created,
     )

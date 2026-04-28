@@ -50,6 +50,18 @@ pub(super) struct ResolvedCliApplyTarget {
     pub apply_mappings: BundleApplyMappingsValue,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct CliAppContext<'a> {
+    services: &'a StableAppServices,
+    runtime: &'a AppRuntime,
+}
+
+impl<'a> CliAppContext<'a> {
+    pub(super) fn new(services: &'a StableAppServices, runtime: &'a AppRuntime) -> Self {
+        Self { services, runtime }
+    }
+}
+
 pub(super) fn resolve_cli_installation(
     services: &StableAppServices,
     install_target: InstallTargetArgs,
@@ -77,13 +89,13 @@ pub(super) fn resolve_optional_cli_installation(
 }
 
 pub(super) fn resolve_cli_apply_target(
-    services: &StableAppServices,
+    context: CliAppContext<'_>,
     install_target: InstallTargetArgs,
     apply_mapping: ApplyMappingArgs,
 ) -> AppResult<ResolvedCliApplyTarget> {
     Ok(ResolvedCliApplyTarget {
-        installation: resolve_cli_installation(services, install_target)?,
-        apply_mappings: resolve_apply_mappings(apply_mapping)?,
+        installation: resolve_cli_installation(context.services, install_target)?,
+        apply_mappings: resolve_apply_mappings(apply_mapping, context.runtime)?,
     })
 }
 
@@ -175,7 +187,7 @@ where
 
 pub(super) fn render_with_apply_target<Req, Res, Build, Invoke, Format>(
     json: bool,
-    services: &StableAppServices,
+    context: CliAppContext<'_>,
     install_target: InstallTargetArgs,
     apply_mapping: ApplyMappingArgs,
     build_request: Build,
@@ -188,14 +200,14 @@ where
     Invoke: FnOnce(Req) -> AppResult<Res>,
     Format: FnOnce(&Res) -> String,
 {
-    let target = resolve_cli_apply_target(services, install_target, apply_mapping)?;
+    let target = resolve_cli_apply_target(context, install_target, apply_mapping)?;
     let result = invoke(build_request(target))?;
     render(json, &result, text_renderer)
 }
 
 pub(super) fn render_with_apply_target_task_result<Req, Res, Build, Invoke, Format>(
     json: bool,
-    services: &StableAppServices,
+    context: CliAppContext<'_>,
     install_target: InstallTargetArgs,
     apply_mapping: ApplyMappingArgs,
     build_request: Build,
@@ -208,7 +220,7 @@ where
     Invoke: FnOnce(Req) -> AppResult<TaskRun<Res>>,
     Format: FnOnce(&Res) -> String,
 {
-    let target = resolve_cli_apply_target(services, install_target, apply_mapping)?;
+    let target = resolve_cli_apply_target(context, install_target, apply_mapping)?;
     render_task_result(json, || invoke(build_request(target)), text_renderer)
 }
 

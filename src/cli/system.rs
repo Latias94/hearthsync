@@ -64,14 +64,18 @@ pub(super) fn handle_doctor(
     )
 }
 
-pub(super) fn handle_manifest_command(json: bool, command: ManifestCommands) -> AppResult<()> {
+pub(super) fn handle_manifest_command(
+    json: bool,
+    runtime: AppRuntime,
+    command: ManifestCommands,
+) -> AppResult<()> {
     match command {
         ManifestCommands::Example => {
             render_with_value(json, build_manifest_example_result, render_manifest_example)?
         }
         ManifestCommands::Validate { file } => render_with_value(
             json,
-            || build_manifest_validation_result(file),
+            || build_manifest_validation_result(file, &runtime),
             render_manifest_validation,
         )?,
     }

@@ -1,6 +1,6 @@
 use super::ConfigCommands;
 use super::app_support::{
-    render_task_result, render_with_apply_target_task_result, stable_services,
+    CliAppContext, render_task_result, render_with_apply_target_task_result, stable_services,
 };
 use super::output::config::{render_config_analysis, render_config_apply, render_config_plan};
 use crate::core::app::{
@@ -14,7 +14,7 @@ pub(super) fn handle_config_command(
     runtime: AppRuntime,
     command: ConfigCommands,
 ) -> AppResult<()> {
-    let app = stable_services(runtime);
+    let app = stable_services(runtime.clone());
 
     match command {
         ConfigCommands::Inspect { source } => {
@@ -35,7 +35,7 @@ pub(super) fn handle_config_command(
         } => {
             render_with_apply_target_task_result(
                 json,
-                &app,
+                CliAppContext::new(&app, &runtime),
                 install_target,
                 apply_mapping,
                 |target| PlanConfigApplyAppRequest {
@@ -56,7 +56,7 @@ pub(super) fn handle_config_command(
         } => {
             render_with_apply_target_task_result(
                 json,
-                &app,
+                CliAppContext::new(&app, &runtime),
                 install_target,
                 apply_mapping,
                 |target| ApplyConfigAppRequest {

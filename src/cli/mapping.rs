@@ -1,5 +1,5 @@
 use crate::cli::ApplyMappingArgs;
-use crate::core::app::BundleApplyMappingsValue;
+use crate::core::app::{AppRuntime, BundleApplyMappingsValue};
 use crate::core::bundle::load_apply_mappings;
 use crate::core::error::AppResult;
 
@@ -30,9 +30,11 @@ pub(super) fn merge_apply_mapping_overrides(
 
 pub(super) fn resolve_apply_mappings(
     apply_mapping: ApplyMappingArgs,
+    runtime: &AppRuntime,
 ) -> AppResult<BundleApplyMappingsValue> {
     let mut apply_mappings = if let Some(path) = apply_mapping.mapping_file.as_deref() {
-        BundleApplyMappingsValue::from_domain(load_apply_mappings(path)?)
+        let path = runtime.resolve_input_path(path.to_path_buf(), "apply mapping file")?;
+        BundleApplyMappingsValue::from_domain(load_apply_mappings(&path)?)
     } else {
         BundleApplyMappingsValue::default()
     };
@@ -50,9 +52,11 @@ pub(super) fn resolve_apply_mappings(
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
 
     use super::resolve_apply_mappings;
     use crate::cli::ApplyMappingArgs;
+    use crate::core::app::AppRuntime;
 
     #[test]
     fn resolve_apply_mappings_merges_file_and_cli_overrides() {
@@ -70,14 +74,17 @@ all_accounts = false
         )
         .expect("write mapping file");
 
-        let mappings = resolve_apply_mappings(ApplyMappingArgs {
-            mapping_file: Some(mapping_file),
-            target_account: Some("CliAccount".to_string()),
-            target_server: None,
-            target_character: Some("CliCharacter".to_string()),
-            selected_accounts: vec!["CliA".to_string(), "CliB".to_string()],
-            all_accounts: true,
-        })
+        let mappings = resolve_apply_mappings(
+            ApplyMappingArgs {
+                mapping_file: Some(mapping_file),
+                target_account: Some("CliAccount".to_string()),
+                target_server: None,
+                target_character: Some("CliCharacter".to_string()),
+                selected_accounts: vec!["CliA".to_string(), "CliB".to_string()],
+                all_accounts: true,
+            },
+            &AppRuntime::new(),
+        )
         .expect("resolve mappings");
 
         assert_eq!(mappings.target_account.as_deref(), Some("CliAccount"));
@@ -89,5 +96,56 @@ all_accounts = false
         );
         assert!(mappings.all_accounts);
         assert!(mappings.characters.is_empty());
+    }
+
+    #[test]
+    fn resolve_apply_mappings_resolves_relative_file_against_runtime_base() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        fs::write(
+            temp_dir.path().join("mapping.toml"),
+            r#"
+target_account = "FileAccount"
+"#,
+        )
+        .expect("write mapping file");
+        let runtime =
+            AppRuntime::new().with_relative_path_base(Some(temp_dir.path().to_path_buf()));
+
+        let mappings = resolve_apply_mappings(
+            ApplyMappingArgs {
+                mapping_file: Some(PathBuf::from("mapping.toml")),
+                target_account: None,
+                target_server: None,
+                target_character: None,
+                selected_accounts: Vec::new(),
+                all_accounts: false,
+            },
+            &runtime,
+        )
+        .expect("resolve mappings");
+
+        assert_eq!(mappings.target_account.as_deref(), Some("FileAccount"));
+    }
+
+    #[test]
+    fn resolve_apply_mappings_rejects_relative_file_without_runtime_base() {
+        let error = resolve_apply_mappings(
+            ApplyMappingArgs {
+                mapping_file: Some(PathBuf::from("mapping.toml")),
+                target_account: None,
+                target_server: None,
+                target_character: None,
+                selected_accounts: Vec::new(),
+                all_accounts: false,
+            },
+            &AppRuntime::new(),
+        )
+        .expect_err("relative mapping file should fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("apply mapping file relative path requires")
+        );
     }
 }

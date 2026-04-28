@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 
 use crate::cli::InstallTargetArgs;
-use crate::core::app::InspectInstallationRequest;
+use crate::core::app::{AppRuntime, InspectInstallationRequest};
 use crate::core::error::AppResult;
 use crate::core::manifest::{example_manifest, load_manifest};
 
@@ -35,7 +35,9 @@ pub(super) fn build_manifest_example_result() -> AppResult<ManifestExampleResult
 
 pub(super) fn build_manifest_validation_result(
     file: PathBuf,
+    runtime: &AppRuntime,
 ) -> AppResult<ManifestValidationResult> {
+    let file = runtime.resolve_input_path(file, "manifest file")?;
     let manifest = load_manifest(&file)?;
     manifest.validate()?;
 
@@ -54,7 +56,7 @@ mod tests {
         build_manifest_validation_result,
     };
     use crate::cli::{FlavorArg, InstallTargetArgs};
-    use crate::core::app::WowFlavorValue;
+    use crate::core::app::{AppRuntime, WowFlavorValue};
 
     #[test]
     fn build_inspect_installation_request_maps_flavor() {
@@ -87,10 +89,42 @@ mod tests {
         )
         .expect("write manifest");
 
-        let result =
-            build_manifest_validation_result(manifest_path.clone()).expect("valid manifest");
+        let result = build_manifest_validation_result(manifest_path.clone(), &AppRuntime::new())
+            .expect("valid manifest");
 
         assert_eq!(result.status, "ok");
         assert_eq!(result.path, manifest_path);
+    }
+
+    #[test]
+    fn build_manifest_validation_result_resolves_relative_file_against_runtime_base() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let manifest_path = temp_dir.path().join("manifest.toml");
+        fs::write(
+            &manifest_path,
+            crate::core::manifest::example_manifest().expect("example manifest"),
+        )
+        .expect("write manifest");
+        let runtime =
+            AppRuntime::new().with_relative_path_base(Some(temp_dir.path().to_path_buf()));
+
+        let result = build_manifest_validation_result(PathBuf::from("manifest.toml"), &runtime)
+            .expect("valid manifest");
+
+        assert_eq!(result.status, "ok");
+        assert_eq!(result.path, manifest_path);
+    }
+
+    #[test]
+    fn build_manifest_validation_result_rejects_relative_file_without_runtime_base() {
+        let error =
+            build_manifest_validation_result(PathBuf::from("manifest.toml"), &AppRuntime::new())
+                .expect_err("relative manifest should fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("manifest file relative path requires")
+        );
     }
 }

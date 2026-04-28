@@ -1,5 +1,5 @@
 use super::app_support::{
-    render_with_apply_target, render_with_apply_target_task_result, stable_services,
+    CliAppContext, render_with_apply_target, render_with_apply_target_task_result, stable_services,
 };
 use super::output::bundle::{render_bundle_apply, render_bundle_apply_plan};
 use super::{ApplyMappingArgs, InstallTargetArgs};
@@ -17,11 +17,11 @@ pub(super) fn handle_bundle_plan(
     install_target: InstallTargetArgs,
     apply_mapping: ApplyMappingArgs,
 ) -> AppResult<()> {
-    let app = stable_services(runtime);
+    let app = stable_services(runtime.clone());
 
     render_with_apply_target(
         json,
-        &app,
+        CliAppContext::new(&app, &runtime),
         install_target,
         apply_mapping,
         |target| {
@@ -41,11 +41,11 @@ pub(super) fn handle_bundle_unpack(
     backup_output: Option<std::path::PathBuf>,
     apply_mapping: ApplyMappingArgs,
 ) -> AppResult<()> {
-    let app = stable_services(runtime);
+    let app = stable_services(runtime.clone());
 
     render_with_apply_target_task_result(
         json,
-        &app,
+        CliAppContext::new(&app, &runtime),
         install_target,
         apply_mapping,
         |target| {

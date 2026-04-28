@@ -1369,3 +1369,28 @@ Specifically:
 - Future `egui` callers can resolve file-dialog selections against an explicit base.
 - Installation discovery now follows the same boundary rule as addon, bundle, backup, and output
   selections.
+
+## ADR-055: CLI Sidecar Files Resolve Through The Runtime Base
+
+Accepted on 2026-04-28
+
+### Decision
+
+CLI-only sidecar files that are read before app requests are invoked must still resolve through the
+same runtime relative-path base.
+
+Specifically:
+
+- Relative bundle manifest files used by `bundle pack` resolve before the CLI loads the manifest
+  and derives the manifest base directory.
+- Relative manifest validation files resolve before the CLI loads and validates them.
+- Relative apply mapping files resolve before the CLI loads mapping overrides for bundle,
+  external-package, or config apply/plan commands.
+
+### Consequences
+
+- CLI convenience file loading no longer reintroduces ambient process-cwd behavior after the app
+  boundary was hardened.
+- Bundle manifest base directories derived by CLI are absolute when they enter app requests.
+- Future GUI code remains free to load these sidecar documents through its own file-dialog model,
+  while CLI keeps one deterministic relative-path contract.

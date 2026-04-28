@@ -1,6 +1,6 @@
 use super::ExternalPackageCommands;
 use super::app_support::{
-    render_task_result, render_with_apply_target_task_result, stable_services,
+    CliAppContext, render_task_result, render_with_apply_target_task_result, stable_services,
 };
 use super::output::external_package::{
     render_external_package_analysis, render_external_package_apply, render_external_package_plan,
@@ -20,7 +20,7 @@ pub(super) fn handle_external_package_command(
     runtime: AppRuntime,
     command: ExternalPackageCommands,
 ) -> AppResult<()> {
-    let app = stable_services(runtime);
+    let app = stable_services(runtime.clone());
 
     match command {
         ExternalPackageCommands::Inspect { source } => {
@@ -37,7 +37,7 @@ pub(super) fn handle_external_package_command(
         } => {
             render_with_apply_target_task_result(
                 json,
-                &app,
+                CliAppContext::new(&app, &runtime),
                 install_target,
                 apply_mapping,
                 |target| {
@@ -60,7 +60,7 @@ pub(super) fn handle_external_package_command(
         } => {
             render_with_apply_target_task_result(
                 json,
-                &app,
+                CliAppContext::new(&app, &runtime),
                 install_target,
                 apply_mapping,
                 |target| {

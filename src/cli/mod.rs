@@ -66,7 +66,9 @@ pub fn run() -> AppResult<()> {
             settings::handle_settings_command(cli.json, runtime, command)?
         }
         Commands::Addon { command } => addon::handle_addon_command(cli.json, runtime, command)?,
-        Commands::Manifest { command } => system::handle_manifest_command(cli.json, command)?,
+        Commands::Manifest { command } => {
+            system::handle_manifest_command(cli.json, runtime, command)?
+        }
     }
 
     Ok(())

@@ -301,6 +301,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - installation path inputs now also resolve at the app boundary: relative inspect/resolve
   installation paths and configured installation scan roots are joined to the runtime
   relative-path base before install-discovery core code probes the filesystem.
+- CLI-only sidecar files now also resolve through the runtime base before CLI loaders read them:
+  bundle pack manifests, manifest validation files, and apply mapping files no longer reintroduce
+  process-cwd filesystem reads outside app services.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

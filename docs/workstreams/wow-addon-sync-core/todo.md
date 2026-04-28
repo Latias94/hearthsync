@@ -446,6 +446,9 @@ enough that these rules live in one place.
   Current progress: installation path inputs now also resolve at the app boundary. Relative
   inspect/resolve installation paths and configured installation scan roots are joined to the
   runtime relative-path base before install-discovery core code probes the filesystem.
+  Current progress: CLI-only sidecar files now also resolve through the runtime base before CLI
+  loaders read them. Bundle pack manifests, manifest validation files, and apply mapping files no
+  longer reintroduce process-cwd filesystem reads outside app services.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.
