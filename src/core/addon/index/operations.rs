@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use super::matching::{
     explain_preflight_match_index_package_to_tracked_package,
-    match_index_package_to_tracked_package, preflight_match_index_package_to_tracked_package,
+    match_index_package_to_tracked_package, package_id_usage_key,
+    preflight_match_index_package_to_tracked_package,
 };
 use super::storage::{
     ensure_package_supports_flavor, find_index_package, load_addon_index,
@@ -545,7 +546,7 @@ where
         else {
             continue;
         };
-        used_package_ids.insert(matched.package_id.clone());
+        used_package_ids.insert(package_id_usage_key(&matched.package_id));
 
         let package_policy = policies.index_update_policy(&matched);
         if name.is_none() && package_policy.ignored {
@@ -667,7 +668,7 @@ where
                 continue;
             }
         };
-        used_package_ids.insert(explained.package.package_id.clone());
+        used_package_ids.insert(package_id_usage_key(&explained.package.package_id));
         let tracked_package = explained.package;
         let match_strategy = explained.strategy;
 
@@ -1320,7 +1321,7 @@ where
         if let Some(matched) = preflight_matched.as_ref() {
             let package_policy = policies.index_update_policy(matched);
             if request.name.is_none() && package_policy.ignored {
-                used_package_ids.insert(matched.package_id.clone());
+                used_package_ids.insert(package_id_usage_key(&matched.package_id));
                 ignored_packages.push(matched.package_id.clone());
                 continue;
             }
@@ -1348,7 +1349,7 @@ where
             &inventory.tracked_packages,
             &used_package_ids,
         )?;
-        used_package_ids.insert(matched.package_id.clone());
+        used_package_ids.insert(package_id_usage_key(&matched.package_id));
         let package_policy = policies.index_update_policy(&matched);
         if request.name.is_none() && package_policy.ignored {
             ignored_packages.push(matched.package_id.clone());

@@ -350,6 +350,10 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon-index package IDs are now also validated with the same case-insensitive semantics used by
   index package lookup, so curated indexes cannot define ambiguous IDs such as `Details` and
   `details`
+- addon registry load/save now also validates schema version, non-empty package IDs and
+  addon-directory sets, case-insensitive package IDs, and case-insensitive addon-directory
+  ownership, while addon-index bulk matching records used tracked IDs with the same normalized key
+  so curator attach/update flows do not depend on case-sensitive registry assumptions
 - external-package staging materialization now also reuses the shared
   `core::bundle::entry_layout` classifier for normalized bundle-style paths, so addon/WTF/fonts/
   interface root dispatch no longer lives in a second parallel match tree when building a

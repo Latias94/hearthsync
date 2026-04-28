@@ -62,7 +62,7 @@ pub(super) fn match_index_package_to_tracked_package(
 
     let mut partial_matches = tracked_packages
         .iter()
-        .filter(|candidate| !used_package_ids.contains(&candidate.package_id))
+        .filter(|candidate| !package_id_is_used(used_package_ids, &candidate.package_id))
         .filter_map(|candidate| {
             let overlap = tracked_package_addon_overlap(candidate, &expected_addon_names);
             (overlap > 0).then_some((overlap, candidate.clone()))
@@ -168,7 +168,7 @@ fn match_by_index_package_metadata(
     let metadata_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && candidate
                     .metadata
                     .as_ref()
@@ -203,7 +203,7 @@ fn match_by_exact_package_id(
     let exact_id_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && candidate.package_id.eq_ignore_ascii_case(&package.id)
         })
         .cloned()
@@ -237,7 +237,7 @@ fn match_by_curated_package_id_hints(
     let hint_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && hinted_package_ids.contains(&candidate.package_id.trim().to_ascii_lowercase())
         })
         .cloned()
@@ -271,7 +271,7 @@ fn match_by_source_identity(
     let source_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && tracked_package_has_same_source_identity(candidate, source)
         })
         .cloned()
@@ -305,7 +305,7 @@ fn match_by_source_family_identity(
     let source_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && tracked_package_has_same_source_family_identity(candidate, source)
         })
         .cloned()
@@ -344,7 +344,7 @@ fn match_by_display_name(
     let display_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && tracked_package_matches_display_name(candidate, package_name)
         })
         .cloned()
@@ -380,7 +380,7 @@ fn match_by_full_addon_names(
     let full_matches = tracked_packages
         .iter()
         .filter(|candidate| {
-            !used_package_ids.contains(&candidate.package_id)
+            !package_id_is_used(used_package_ids, &candidate.package_id)
                 && tracked_package_contains_all_addons(candidate, expected_addon_names)
         })
         .cloned()
@@ -405,7 +405,7 @@ fn match_by_full_addon_names(
 
     let mut partial_matches = tracked_packages
         .iter()
-        .filter(|candidate| !used_package_ids.contains(&candidate.package_id))
+        .filter(|candidate| !package_id_is_used(used_package_ids, &candidate.package_id))
         .filter_map(|candidate| {
             let overlap = tracked_package_addon_overlap(candidate, expected_addon_names);
             (overlap > 0).then_some((overlap, candidate.clone()))
@@ -582,6 +582,17 @@ fn normalized_package_ids(package_ids: &[String]) -> BTreeSet<String> {
         .map(|package_id| package_id.trim().to_ascii_lowercase())
         .filter(|package_id| !package_id.is_empty())
         .collect()
+}
+
+pub(super) fn package_id_usage_key(package_id: &str) -> String {
+    package_id.trim().to_ascii_lowercase()
+}
+
+fn package_id_is_used(used_package_ids: &BTreeSet<String>, package_id: &str) -> bool {
+    used_package_ids.contains(&package_id_usage_key(package_id))
+        || used_package_ids
+            .iter()
+            .any(|used_package_id| used_package_id.eq_ignore_ascii_case(package_id))
 }
 
 fn normalize_addon_names(addon_names: Vec<String>) -> BTreeSet<String> {

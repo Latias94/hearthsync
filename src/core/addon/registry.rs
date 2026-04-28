@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -17,7 +18,9 @@ pub(crate) fn load_registry(
     }
 
     let content = fs::read_to_string(path)?;
-    Ok(toml::from_str(&content)?)
+    let registry = toml::from_str(&content)?;
+    validate_registry(&registry)?;
+    Ok(registry)
 }
 
 pub(crate) fn save_registry(
@@ -26,6 +29,7 @@ pub(crate) fn save_registry(
     registry: &AddonRegistry,
 ) -> AppResult<()> {
     let path = registry_path(state_paths);
+    validate_registry(registry)?;
     if registry.packages.is_empty() {
         cleanup_registry_storage(&path)?;
         return Ok(());
@@ -36,6 +40,79 @@ pub(crate) fn save_registry(
     }
     write_bytes_atomically(&path, toml::to_string_pretty(registry)?.as_bytes())?;
     lock::sync_addon_lock_from_registry(installation, state_paths, registry)?;
+    Ok(())
+}
+
+fn validate_registry(registry: &AddonRegistry) -> AppResult<()> {
+    if registry.schema_version != 1 {
+        return Err(AppError::Validation(format!(
+            "unsupported addon registry schema version: {}",
+            registry.schema_version
+        )));
+    }
+
+    let mut package_ids = BTreeMap::new();
+    let mut addon_owners = BTreeMap::new();
+    for package in &registry.packages {
+        let package_id = package.package_id.trim();
+        if package_id.is_empty() {
+            return Err(AppError::Validation(
+                "tracked addon package id cannot be empty".to_string(),
+            ));
+        }
+
+        let package_key = package_id.to_ascii_lowercase();
+        if let Some(existing_package_id) =
+            package_ids.insert(package_key, package.package_id.clone())
+        {
+            return Err(AppError::Validation(format!(
+                "duplicate tracked addon package id: {} conflicts with {}",
+                package.package_id, existing_package_id
+            )));
+        }
+
+        if package.addons.is_empty() {
+            return Err(AppError::Validation(format!(
+                "tracked addon package `{}` must contain at least one addon directory",
+                package.package_id
+            )));
+        }
+
+        let mut package_addons = BTreeMap::new();
+        for addon in &package.addons {
+            let addon_name = addon.directory_name.trim();
+            if addon_name.is_empty() {
+                return Err(AppError::Validation(format!(
+                    "tracked addon directory name cannot be empty for package `{}`",
+                    package.package_id
+                )));
+            }
+
+            let addon_key = addon_name.to_ascii_lowercase();
+            if let Some(existing_addon_name) =
+                package_addons.insert(addon_key.clone(), addon.directory_name.clone())
+            {
+                return Err(AppError::Validation(format!(
+                    "duplicate addon directory `{}` in tracked package `{}` conflicts with `{}`",
+                    addon.directory_name, package.package_id, existing_addon_name
+                )));
+            }
+
+            if let Some((existing_package_id, existing_addon_name)) = addon_owners.insert(
+                addon_key,
+                (package.package_id.clone(), addon.directory_name.clone()),
+            ) {
+                return Err(AppError::Validation(format!(
+                    "addon directory `{}` in tracked package `{}` conflicts with `{}` in tracked package `{}`",
+                    addon.directory_name,
+                    package.package_id,
+                    existing_addon_name,
+                    existing_package_id
+                )));
+            }
+        }
+    }
+
     Ok(())
 }
 

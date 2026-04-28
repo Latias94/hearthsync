@@ -17,10 +17,11 @@ use super::provider::{
     MaterializedAddonSource, ResolveAddonDependenciesRequest, ResolvedAddonDependencies,
 };
 use super::{
-    AdoptAddonsRequest, InstallAddonRequest, RelinkAddonRequest, RemoveAddonRequest,
-    SearchAddonRequest, UpdateAddonRequest, adopt_addons, canonicalize_local_archive_path,
-    install_addon, install_addon_task, install_addon_task_with_provider, list_addons, relink_addon,
-    remove_addons, remove_addons_task, search_addons_with_provider, update_addons,
+    AddonRegistry, AdoptAddonsRequest, InstallAddonRequest, RelinkAddonRequest, RemoveAddonRequest,
+    SearchAddonRequest, TrackedAddon, TrackedAddonPackage, UpdateAddonRequest, adopt_addons,
+    canonicalize_local_archive_path, install_addon, install_addon_task,
+    install_addon_task_with_provider, list_addons, load_registry, relink_addon, remove_addons,
+    remove_addons_task, save_registry, search_addons_with_provider, update_addons,
     update_addons_task, update_addons_task_with_provider,
 };
 use crate::core::error::{AppError, AppResult};
@@ -33,6 +34,11 @@ use crate::core::task::{
 fn addon_state_paths(installation: &DetectedFlavorInstallation) -> super::AddonStatePaths {
     super::AddonStatePaths::for_installation(super::AddonStateStorageKind::default(), installation)
         .expect("addon state paths")
+}
+
+fn sidecar_addon_state_paths(installation: &DetectedFlavorInstallation) -> super::AddonStatePaths {
+    super::AddonStatePaths::for_installation(super::AddonStateStorageKind::Sidecar, installation)
+        .expect("sidecar addon state paths")
 }
 
 #[test]
@@ -249,6 +255,60 @@ fn install_addon_from_local_archive_rejects_symlink_entries() {
     assert!(message.contains("WeakAuras/WeakAuras.toc"));
     assert!(!installation.addon_dir.join("WeakAuras").exists());
     assert!(!addon_state_paths(&installation).registry_path.exists());
+}
+
+#[test]
+fn load_registry_rejects_case_insensitive_duplicate_package_ids() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let state_paths = sidecar_addon_state_paths(&installation);
+    let registry = AddonRegistry {
+        schema_version: 1,
+        packages: vec![
+            tracked_package("Details", "Details"),
+            tracked_package("details", "Omen"),
+        ],
+    };
+    fs::create_dir_all(state_paths.registry_path.parent().expect("registry parent"))
+        .expect("registry parent dir");
+    fs::write(
+        &state_paths.registry_path,
+        toml::to_string_pretty(&registry).expect("registry toml"),
+    )
+    .expect("write invalid registry");
+
+    let error = load_registry(&installation, &state_paths)
+        .expect_err("case-insensitive duplicate package ids should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    let message = error.to_string();
+    assert!(message.contains("duplicate tracked addon package id"));
+    assert!(message.contains("Details"));
+    assert!(message.contains("details"));
+}
+
+#[test]
+fn save_registry_rejects_case_insensitive_duplicate_addon_directory_owners() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    let state_paths = sidecar_addon_state_paths(&installation);
+    let registry = AddonRegistry {
+        schema_version: 1,
+        packages: vec![
+            tracked_package("details", "Details"),
+            tracked_package("details-alt", "details"),
+        ],
+    };
+
+    let error = save_registry(&installation, &state_paths, &registry)
+        .expect_err("case-insensitive duplicate addon directory owners should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    let message = error.to_string();
+    assert!(message.contains("addon directory `details`"));
+    assert!(message.contains("tracked package `details-alt`"));
+    assert!(message.contains("tracked package `details`"));
+    assert!(!state_paths.registry_path.exists());
 }
 
 #[test]
@@ -2113,6 +2173,24 @@ fn remove_addons_without_tracked_registry_reports_generic_bootstrap_guidance_whe
     assert!(message.contains("addon install"));
     assert!(message.contains("addon index install"));
     assert!(message.contains("addon adopt"));
+}
+
+fn tracked_package(package_id: &str, addon_directory: &str) -> TrackedAddonPackage {
+    TrackedAddonPackage {
+        package_id: package_id.to_string(),
+        source: AddonSourceRef::HttpArchive {
+            url: format!("https://example.invalid/{package_id}.zip"),
+        },
+        installed_at: "2026-04-28T00:00:00Z".to_string(),
+        updated_at: "2026-04-28T00:00:00Z".to_string(),
+        addons: vec![TrackedAddon {
+            directory_name: addon_directory.to_string(),
+            toc_file: Some(format!("{addon_directory}.toc")),
+            title: Some(addon_directory.to_string()),
+            version: Some("1.0.0".to_string()),
+        }],
+        metadata: None,
+    }
 }
 
 fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {

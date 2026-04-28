@@ -404,6 +404,11 @@ enough that these rules live in one place.
   file target collisions using the selected target platform's case-sensitivity rules, so
   Windows/default-macOS installs fail fast on case-only archive conflicts instead of depending on
   host filesystem behavior during extraction.
+  Current progress: addon registry load/save now validates schema version, non-empty package IDs
+  and addon-directory sets, case-insensitive package IDs, and case-insensitive addon-directory
+  ownership before state is trusted or persisted. Addon-index bulk matching now also records used
+  tracked package IDs with the same normalized key, so case-folded registries cannot make one
+  package appear available twice during curator attach/update flows.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

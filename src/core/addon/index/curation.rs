@@ -6,7 +6,9 @@ use crate::core::addon::{
 };
 use crate::core::error::{AppError, AppResult};
 
-use super::matching::explain_preflight_match_index_package_to_tracked_package;
+use super::matching::{
+    explain_preflight_match_index_package_to_tracked_package, package_id_usage_key,
+};
 use super::storage::{
     ensure_package_supports_flavor, load_addon_index, resolve_index_package_source,
     write_addon_index,
@@ -39,7 +41,7 @@ pub fn suggest_addon_index_hints(
         ) {
             Ok(Some(matched)) => {
                 let matched_package_id = matched.package.package_id.clone();
-                used_package_ids.insert(matched_package_id);
+                used_package_ids.insert(package_id_usage_key(&matched_package_id));
                 matched_package_suggestion(package, matched.package, matched.strategy)
             }
             Ok(None) => no_local_match_suggestion(package),
