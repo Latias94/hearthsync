@@ -577,7 +577,8 @@ fn relink_addon_request_projects_domain_inputs() {
 
 #[test]
 fn relink_addon_index_request_projects_domain_inputs() {
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
     let domain: DomainAddonIndexRelinkRequest = RelinkAddonIndexAppRequest {
         installation: sample_installation(),
         index_path: PathBuf::from("addons.index.toml"),
@@ -588,7 +589,7 @@ fn relink_addon_index_request_projects_domain_inputs() {
     .into_domain_request(&runtime)
     .expect("relink addon index request");
 
-    assert_eq!(domain.index_path, PathBuf::from("addons.index.toml"));
+    assert_eq!(domain.index_path, base.join("addons.index.toml"));
     assert_eq!(domain.name, "details");
     assert_eq!(domain.target.as_deref(), Some("details-local"));
     assert!(domain.dry_run);
@@ -596,7 +597,8 @@ fn relink_addon_index_request_projects_domain_inputs() {
 
 #[test]
 fn attach_addon_index_request_projects_domain_inputs() {
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
     let domain: DomainAddonIndexAttachRequest = AttachAddonIndexAppRequest {
         installation: sample_installation(),
         index_path: PathBuf::from("addons.index.toml"),
@@ -607,7 +609,7 @@ fn attach_addon_index_request_projects_domain_inputs() {
     .into_domain_request(&runtime)
     .expect("attach addon index request");
 
-    assert_eq!(domain.index_path, PathBuf::from("addons.index.toml"));
+    assert_eq!(domain.index_path, base.join("addons.index.toml"));
     assert_eq!(domain.name.as_deref(), Some("details"));
     assert!(domain.dry_run);
     assert!(domain.apply_ready_only);

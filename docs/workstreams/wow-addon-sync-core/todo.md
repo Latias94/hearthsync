@@ -426,6 +426,10 @@ enough that these rules live in one place.
   registry sources, addon-lock local archive source refs, and explicit addon-lock source overrides
   must already be absolute before they reach core planning or materialization. Future GUI callers
   can set their own runtime base instead of inheriting process cwd accidentally.
+  Current progress: addon-index file paths now follow the same app-boundary rule. Relative
+  `addon index` app requests resolve against the runtime relative-path base before inspect,
+  validate, suggest, scaffold, attach, install, update, or relink touches the filesystem, while
+  index-internal local archive sources remain explicitly index-relative.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

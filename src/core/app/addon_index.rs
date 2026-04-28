@@ -38,7 +38,8 @@ impl AddonIndexService {
         &self,
         request: InspectAddonIndexRequest,
     ) -> AppResult<AddonIndexInspectionResult> {
-        let inspection = inspect_addon_index(&request.index_path)?;
+        let index_path = request.into_index_path(&self.runtime)?;
+        let inspection = inspect_addon_index(&index_path)?;
         Ok(AddonIndexInspectionResult::from_domain_with_provider(
             inspection,
             self.runtime.addon_provider(),
@@ -201,18 +202,17 @@ impl AddonIndexService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let installation = request.installation.clone().into_domain();
-        let state_paths = self.runtime.addon_state_paths(&installation)?;
+        let request = request.into_domain_request(&self.runtime)?;
         validate_addon_index_update_dependency_policy_support(
             self.runtime.addon_provider(),
-            &installation,
-            &state_paths,
+            &request.installation,
+            &request.state_paths,
             &request.index_path,
             request.name.as_deref(),
         )?;
         let updated = update_addons_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request.into_domain_request(&self.runtime)?,
+            request,
             cancellation,
             progress,
         )?;

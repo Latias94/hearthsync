@@ -1230,3 +1230,29 @@ Specifically:
   inheriting whatever directory launched the process.
 - Hand-edited registry or lock files with relative local archive sources fail closed before update
   or lock apply work can read from the wrong directory.
+
+## ADR-050: Addon Index File Paths Resolve At The App Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+Addon index file paths are frontend input and must resolve before addon-index core logic reads or
+writes them.
+
+Specifically:
+
+- Relative app-level addon-index file paths resolve against `AppRuntime`'s absolute relative-path
+  base.
+- This applies to inspect, validate, suggest, scaffold, attach, install, update, and relink
+  requests.
+- Local archive paths declared inside an addon index stay relative to the index file location.
+
+### Consequences
+
+- CLI keeps the expected `--file ./addons.toml` behavior through runtime assembly rather than
+  implicit core cwd.
+- Future GUI callers can choose a file-dialog base or pass absolute paths without depending on the
+  process launch directory.
+- Curated indexes retain portable sidecar archive references because the archive source base is the
+  resolved index file path, not the caller's cwd.

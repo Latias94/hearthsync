@@ -17,6 +17,12 @@ pub struct InspectAddonIndexRequest {
     pub index_path: PathBuf,
 }
 
+impl InspectAddonIndexRequest {
+    pub(crate) fn into_index_path(self, runtime: &AppRuntime) -> AppResult<PathBuf> {
+        resolve_addon_index_path(runtime, self.index_path)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AttachAddonIndexAppRequest {
     pub installation: ResolvedInstallationValue,
@@ -37,7 +43,7 @@ impl AttachAddonIndexAppRequest {
         Ok(DomainAddonIndexAttachRequest {
             installation,
             state_paths,
-            index_path: self.index_path,
+            index_path: resolve_addon_index_path(runtime, self.index_path)?,
             name: self.name,
             dry_run: self.dry_run,
             apply_ready_only: self.apply_ready_only,
@@ -63,7 +69,7 @@ impl SuggestAddonIndexRequest {
         Ok(DomainAddonIndexSuggestionRequest {
             installation,
             state_paths,
-            index_path: self.index_path,
+            index_path: resolve_addon_index_path(runtime, self.index_path)?,
             name: self.name,
         })
     }
@@ -90,7 +96,7 @@ impl ScaffoldAddonIndexRequest {
         Ok(DomainAddonIndexScaffoldRequest {
             installation,
             state_paths,
-            index_path: self.index_path,
+            index_path: resolve_addon_index_path(runtime, self.index_path)?,
             index_name: self.index_name,
             description: self.description,
             name: self.name,
@@ -128,7 +134,7 @@ impl InstallAddonIndexAppRequest {
             Ok(DomainAddonIndexInstallRequest {
                 installation,
                 state_paths,
-                index_path: request.index_path,
+                index_path: resolve_addon_index_path(runtime, request.index_path)?,
                 name: request.name,
                 dry_run: request.dry_run,
                 backup_output_path: request.backup_output_path,
@@ -166,7 +172,7 @@ impl UpdateAddonIndexAppRequest {
             Ok(DomainAddonIndexUpdateRequest {
                 installation,
                 state_paths,
-                index_path: request.index_path,
+                index_path: resolve_addon_index_path(runtime, request.index_path)?,
                 name: request.name,
                 dry_run: request.dry_run,
                 backup_output_path: request.backup_output_path,
@@ -195,10 +201,14 @@ impl RelinkAddonIndexAppRequest {
         Ok(DomainAddonIndexRelinkRequest {
             installation,
             state_paths,
-            index_path: self.index_path,
+            index_path: resolve_addon_index_path(runtime, self.index_path)?,
             name: self.name,
             target: self.target,
             dry_run: self.dry_run,
         })
     }
+}
+
+fn resolve_addon_index_path(runtime: &AppRuntime, path: PathBuf) -> AppResult<PathBuf> {
+    runtime.resolve_input_path(path, "addon index file")
 }

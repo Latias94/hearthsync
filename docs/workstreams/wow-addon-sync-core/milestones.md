@@ -280,6 +280,10 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   relative local zip sources against that base, and persisted registry sources, addon-lock local
   archive source refs, and explicit addon-lock source overrides must already be absolute before
   core planning or materialization
+- addon-index file inputs also resolve at the app boundary now: relative index file paths are
+  joined to the runtime relative-path base before inspect, validate, suggest, scaffold, attach,
+  install, update, or relink enters the addon-index core, while index-internal local archives stay
+  index-relative
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

@@ -132,6 +132,53 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
 }
 
 #[test]
+fn addon_index_service_inspects_relative_index_against_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let index_dir = temp.path().join("indexes");
+    fs::create_dir_all(&index_dir).expect("index dir");
+    fs::write(
+        index_dir.join("addon-index.toml"),
+        r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+version = "1.0.0"
+addon_directories = ["WeakAuras"]
+source = { kind = "local_archive", path = "WeakAuras.zip" }
+"#,
+    )
+    .expect("write index");
+
+    let service = AddonIndexService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(index_dir.clone())),
+    );
+    let inspection = service
+        .inspect(InspectAddonIndexRequest {
+            index_path: PathBuf::from("addon-index.toml"),
+        })
+        .expect("inspect relative addon index");
+
+    assert_eq!(inspection.index_path, index_dir.join("addon-index.toml"));
+    assert_eq!(inspection.package_count, 1);
+}
+
+#[test]
+fn addon_index_service_rejects_relative_index_without_runtime_base() {
+    let service = AddonIndexService::new();
+    let error = service
+        .inspect(InspectAddonIndexRequest {
+            index_path: PathBuf::from("addon-index.toml"),
+        })
+        .expect_err("relative addon index without base should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("relative path base"));
+}
+
+#[test]
 fn addon_index_service_install_collecting_progress_returns_index_task_events() {
     let temp = tempdir().expect("temp dir");
     let installation = create_empty_installation(temp.path());
