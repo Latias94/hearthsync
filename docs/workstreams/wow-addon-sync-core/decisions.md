@@ -1256,3 +1256,32 @@ Specifically:
   process launch directory.
 - Curated indexes retain portable sidecar archive references because the archive source base is the
   resolved index file path, not the caller's cwd.
+
+## ADR-051: Bundle And External Package Inputs Resolve At The App Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+Bundle archive inputs and external/config package source inputs are frontend file selections and
+must resolve before stable app services call bundle or external-package core code.
+
+Specifically:
+
+- Relative bundle archive paths resolve against `AppRuntime`'s absolute relative-path base before
+  inspect, plan, unpack, embedded addon-lock plan, or embedded addon-lock apply work reads them.
+- Relative external-package and config source paths resolve against the same runtime base before
+  analysis, temporary bundle creation, plan, or apply work scans the source.
+- Relative bundle manifest base directories resolve at the app boundary because they are the
+  explicit base for manifest sidecar inputs such as addon indexes.
+- Bundle output paths keep the existing bundle-domain rule: relative output references resolve
+  against the manifest/installation-derived output base, not the app relative-path base.
+
+### Consequences
+
+- CLI keeps the expected `--bundle ./ui.bundle.zip` and `--source ./AuthorPack` behavior via
+  runtime assembly instead of ambient process cwd inside core services.
+- Future GUI callers can pass relative file-dialog results with an explicit base, or absolute
+  paths with no runtime base dependency.
+- Export destination semantics stay separate from read-input semantics, avoiding accidental
+  changes to bundle output placement.

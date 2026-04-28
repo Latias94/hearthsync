@@ -277,8 +277,10 @@ fn config_requests_apply_runtime_defaults() {
 
 #[test]
 fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
+    let base = std::env::current_dir().expect("cwd");
     let runtime = AppRuntime::new()
         .with_host_platform(HostPlatformValue::MacOs)
+        .with_relative_path_base(Some(base.clone()))
         .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
         .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
 
@@ -293,7 +295,9 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
     .into_domain_request(&runtime)
     .expect("install domain request");
     let backup_dir = ListBackupsRequest { backup_dir: None }.into_backup_dir(&runtime);
-    let external_bundle = sample_external_package_bundle_request().into_domain_request(&runtime);
+    let external_bundle = sample_external_package_bundle_request()
+        .into_domain_request(&runtime)
+        .expect("external package domain request");
 
     assert_eq!(
         install.backup_output_path,
@@ -308,12 +312,14 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
         external_bundle.output_path,
         Some(PathBuf::from("runtime-bundles"))
     );
+    assert_eq!(external_bundle.source_path, base.join("author-ui.zip"));
 }
 
 #[test]
 fn thin_installation_requests_project_domain_inputs() {
     let installation = sample_installation();
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
     let domain_installation = ListAddonsRequest {
         installation: installation.clone(),
     }
@@ -336,7 +342,8 @@ fn thin_installation_requests_project_domain_inputs() {
             characters: Vec::new(),
         },
     }
-    .into_domain_inputs();
+    .into_domain_inputs(&runtime)
+    .expect("bundle request");
 
     assert_eq!(
         domain_installation.product_root,
@@ -347,7 +354,7 @@ fn thin_installation_requests_project_domain_inputs() {
         PathBuf::from("World of Warcraft/_retail_")
     );
     assert_eq!(lock_path, Some(PathBuf::from("lock.toml")));
-    assert_eq!(bundle_path, PathBuf::from("bundle.zip"));
+    assert_eq!(bundle_path, base.join("bundle.zip"));
     assert_eq!(
         bundle_installation.addon_dir,
         PathBuf::from("World of Warcraft/_retail_/Interface/AddOns")
@@ -404,7 +411,8 @@ fn addon_policy_requests_project_domain_inputs() {
 
 #[test]
 fn apply_bundle_request_converts_app_owned_apply_mappings() {
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
 
     let domain: DomainUnpackBundleRequest = ApplyBundleAppRequest {
         bundle_path: PathBuf::from("bundle.zip"),
@@ -427,9 +435,10 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
             }],
         },
     }
-    .into_domain_request(&runtime);
+    .into_domain_request(&runtime)
+    .expect("apply bundle request");
 
-    assert_eq!(domain.bundle_path, PathBuf::from("bundle.zip"));
+    assert_eq!(domain.bundle_path, base.join("bundle.zip"));
     assert!(domain.dry_run);
     assert_eq!(
         domain.apply_mappings.target_account.as_deref(),
@@ -456,7 +465,8 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
 
 #[test]
 fn create_external_package_request_converts_app_owned_apply_defaults() {
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
 
     let domain: DomainCreateExternalPackageBundleRequest = CreateExternalPackageBundleAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
@@ -477,8 +487,10 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
             interface_assets: ResourceApplyPolicyValue::Sync,
         }),
     }
-    .into_domain_request(&runtime);
+    .into_domain_request(&runtime)
+    .expect("external package request");
 
+    assert_eq!(domain.source_path, base.join("author-ui.zip"));
     let apply_defaults = domain.apply_defaults.expect("apply defaults");
     assert!(!apply_defaults.create_backup);
     assert_eq!(apply_defaults.addons, ResourceApplyPolicy::Mirror);
@@ -493,7 +505,8 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
 
 #[test]
 fn pack_bundle_request_converts_app_owned_manifest() {
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
 
     let domain: DomainPackBundleRequest = PackBundleAppRequest {
         installation: sample_installation(),
@@ -501,8 +514,10 @@ fn pack_bundle_request_converts_app_owned_manifest() {
         output_path: Some(PathBuf::from("bundle.zip")),
         manifest_base_dir: Some(PathBuf::from("manifest-dir")),
     }
-    .into_domain_request(&runtime);
+    .into_domain_request(&runtime)
+    .expect("pack bundle request");
 
+    assert_eq!(domain.manifest_base_dir, Some(base.join("manifest-dir")));
     assert_eq!(domain.manifest.schema_version, 1);
     assert_eq!(domain.manifest.package.id, "author-ui");
     assert_eq!(

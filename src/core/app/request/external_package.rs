@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use super::super::map_owned_vec;
 use super::{
     RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
-    apply_source_platform_default,
+    apply_source_platform_default, resolve_app_input_path,
 };
 use crate::core::app::{
     AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
@@ -15,6 +15,7 @@ use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
     PlanExternalPackageApplyRequest as DomainPlanExternalPackageApplyRequest,
 };
+use crate::core::error::AppResult;
 
 #[derive(Debug, Clone)]
 pub struct AnalyzeExternalPackageAppRequest {
@@ -22,10 +23,13 @@ pub struct AnalyzeExternalPackageAppRequest {
 }
 
 impl AnalyzeExternalPackageAppRequest {
-    pub(crate) fn into_domain_request(self) -> DomainAnalyzeExternalPackageRequest {
-        DomainAnalyzeExternalPackageRequest {
-            source_path: self.source_path,
-        }
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAnalyzeExternalPackageRequest> {
+        Ok(DomainAnalyzeExternalPackageRequest {
+            source_path: resolve_external_package_source_path(runtime, self.source_path)?,
+        })
     }
 }
 
@@ -55,13 +59,18 @@ impl CreateExternalPackageBundleAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
-    ) -> DomainCreateExternalPackageBundleRequest {
-        self.into_domain_with_runtime_defaults(runtime, Self::into_domain_request_after_defaults)
+    ) -> AppResult<DomainCreateExternalPackageBundleRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            request.into_domain_request_after_defaults(runtime)
+        })
     }
 
-    fn into_domain_request_after_defaults(self) -> DomainCreateExternalPackageBundleRequest {
-        DomainCreateExternalPackageBundleRequest {
-            source_path: self.source_path,
+    fn into_domain_request_after_defaults(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainCreateExternalPackageBundleRequest> {
+        Ok(DomainCreateExternalPackageBundleRequest {
+            source_path: resolve_external_package_source_path(runtime, self.source_path)?,
             source_flavor: self.source_flavor.into_domain(),
             source_platform: self.source_platform.map(HostPlatformValue::into_domain),
             supported_targets: map_owned_vec(self.supported_targets, WowFlavorValue::into_domain),
@@ -73,7 +82,7 @@ impl CreateExternalPackageBundleAppRequest {
             apply_defaults: self
                 .apply_defaults
                 .map(BundleApplyDefaultsValue::into_domain),
-        }
+        })
     }
 }
 
@@ -95,15 +104,15 @@ impl PlanExternalPackageApplyAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
-    ) -> DomainPlanExternalPackageApplyRequest {
+    ) -> AppResult<DomainPlanExternalPackageApplyRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            DomainPlanExternalPackageApplyRequest {
+            Ok(DomainPlanExternalPackageApplyRequest {
                 external_package: request
                     .external_package
-                    .into_domain_request_after_defaults(),
+                    .into_domain_request_after_defaults(runtime)?,
                 installation: request.installation.into_domain(),
                 apply_mappings: request.apply_mappings.into_domain(),
-            }
+            })
         })
     }
 }
@@ -129,17 +138,21 @@ impl ApplyExternalPackageAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
-    ) -> DomainApplyExternalPackageRequest {
+    ) -> AppResult<DomainApplyExternalPackageRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            DomainApplyExternalPackageRequest {
+            Ok(DomainApplyExternalPackageRequest {
                 external_package: request
                     .external_package
-                    .into_domain_request_after_defaults(),
+                    .into_domain_request_after_defaults(runtime)?,
                 installation: request.installation.into_domain(),
                 dry_run: request.dry_run,
                 backup_output_path: request.backup_output_path,
                 apply_mappings: request.apply_mappings.into_domain(),
-            }
+            })
         })
     }
+}
+
+fn resolve_external_package_source_path(runtime: &AppRuntime, path: PathBuf) -> AppResult<PathBuf> {
+    resolve_app_input_path(runtime, path, "external package source")
 }

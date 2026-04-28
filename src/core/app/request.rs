@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::core::app::{AppRuntime, HostPlatformValue};
+use crate::core::error::AppResult;
 
 pub(super) mod addon;
 pub(super) mod addon_index;
@@ -45,6 +46,23 @@ pub(super) fn apply_source_platform_default(
     source_platform: &mut Option<HostPlatformValue>,
 ) {
     *source_platform = Some(runtime.source_platform_or_host(source_platform.take()));
+}
+
+pub(super) fn resolve_app_input_path(
+    runtime: &AppRuntime,
+    path: PathBuf,
+    description: &str,
+) -> AppResult<PathBuf> {
+    runtime.resolve_input_path(path, description)
+}
+
+pub(super) fn resolve_optional_app_input_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+    description: &str,
+) -> AppResult<Option<PathBuf>> {
+    path.map(|path| resolve_app_input_path(runtime, path, description))
+        .transpose()
 }
 
 #[cfg(test)]

@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use super::{RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default};
+use super::{
+    RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
+    resolve_app_input_path, resolve_optional_app_input_path,
+};
 use crate::core::app::{
     AppRuntime, BundleApplyMappingsValue, BundleManifestValue, ResolvedInstallationValue,
 };
@@ -9,11 +12,18 @@ use crate::core::bundle::{
     BundleApplyMappings as DomainBundleApplyMappings, PackBundleRequest as DomainPackBundleRequest,
     UnpackBundleRequest as DomainUnpackBundleRequest,
 };
+use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
 #[derive(Debug, Clone)]
 pub struct InspectBundleRequest {
     pub bundle_path: PathBuf,
+}
+
+impl InspectBundleRequest {
+    pub(crate) fn into_bundle_path(self, runtime: &AppRuntime) -> AppResult<PathBuf> {
+        resolve_bundle_path(runtime, self.bundle_path)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -32,13 +42,22 @@ impl RuntimeDefaultableRequest for PackBundleAppRequest {
 }
 
 impl PackBundleAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainPackBundleRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainPackBundleRequest {
-            installation: request.installation.into_domain(),
-            addon_state_storage_kind: runtime.addon_state_storage_kind(),
-            manifest: request.manifest.into_domain(),
-            output_path: request.output_path,
-            manifest_base_dir: request.manifest_base_dir,
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainPackBundleRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            Ok(DomainPackBundleRequest {
+                installation: request.installation.into_domain(),
+                addon_state_storage_kind: runtime.addon_state_storage_kind(),
+                manifest: request.manifest.into_domain(),
+                output_path: request.output_path,
+                manifest_base_dir: resolve_optional_app_input_path(
+                    runtime,
+                    request.manifest_base_dir,
+                    "bundle manifest base directory",
+                )?,
+            })
         })
     }
 }
@@ -53,16 +72,17 @@ pub struct PlanBundleApplyRequest {
 impl PlanBundleApplyRequest {
     pub(crate) fn into_domain_inputs(
         self,
-    ) -> (
+        runtime: &AppRuntime,
+    ) -> AppResult<(
         PathBuf,
         DetectedFlavorInstallation,
         DomainBundleApplyMappings,
-    ) {
-        (
-            self.bundle_path,
+    )> {
+        Ok((
+            resolve_bundle_path(runtime, self.bundle_path)?,
             self.installation.into_domain(),
             self.apply_mappings.into_domain(),
-        )
+        ))
     }
 }
 
@@ -83,13 +103,18 @@ impl RuntimeDefaultableRequest for ApplyBundleAppRequest {
 }
 
 impl ApplyBundleAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUnpackBundleRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainUnpackBundleRequest {
-            bundle_path: request.bundle_path,
-            installation: request.installation.into_domain(),
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
-            apply_mappings: request.apply_mappings.into_domain(),
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainUnpackBundleRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            Ok(DomainUnpackBundleRequest {
+                bundle_path: resolve_bundle_path(runtime, request.bundle_path)?,
+                installation: request.installation.into_domain(),
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+                apply_mappings: request.apply_mappings.into_domain(),
+            })
         })
     }
 }
@@ -101,8 +126,14 @@ pub struct PlanBundleAddonLockRequest {
 }
 
 impl PlanBundleAddonLockRequest {
-    pub(crate) fn into_domain_inputs(self) -> (PathBuf, DetectedFlavorInstallation) {
-        (self.bundle_path, self.installation.into_domain())
+    pub(crate) fn into_domain_inputs(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<(PathBuf, DetectedFlavorInstallation)> {
+        Ok((
+            resolve_bundle_path(runtime, self.bundle_path)?,
+            self.installation.into_domain(),
+        ))
     }
 }
 
@@ -125,15 +156,19 @@ impl ApplyBundleAddonLockAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
-    ) -> DomainBundleAddonLockApplyRequest {
+    ) -> AppResult<DomainBundleAddonLockApplyRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            DomainBundleAddonLockApplyRequest {
-                bundle_path: request.bundle_path,
+            Ok(DomainBundleAddonLockApplyRequest {
+                bundle_path: resolve_bundle_path(runtime, request.bundle_path)?,
                 installation: request.installation.into_domain(),
                 addon_state_storage_kind: runtime.addon_state_storage_kind(),
                 backup_output_path: request.backup_output_path,
                 replace_existing: request.replace_existing,
-            }
+            })
         })
     }
+}
+
+fn resolve_bundle_path(runtime: &AppRuntime, path: PathBuf) -> AppResult<PathBuf> {
+    resolve_app_input_path(runtime, path, "bundle archive")
 }

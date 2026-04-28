@@ -284,6 +284,11 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   joined to the runtime relative-path base before inspect, validate, suggest, scaffold, attach,
   install, update, or relink enters the addon-index core, while index-internal local archives stay
   index-relative
+- bundle archive inputs and external/config package sources now use the same app-boundary rule:
+  relative bundle zip paths, external-package source paths, config source paths, and bundle
+  manifest base directories resolve against the runtime relative-path base before stable app
+  services enter bundle or external-package core code; bundle output paths keep their existing
+  manifest/installation-derived base semantics
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

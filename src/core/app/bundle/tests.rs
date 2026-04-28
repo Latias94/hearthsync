@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 use zip::write::SimpleFileOptions;
@@ -11,10 +11,11 @@ use crate::core::app::{
     AddonService, AppRuntime, ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest,
     BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleManifestValue,
     BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleService,
-    BundleSourceValue, CharacterMappingModeValue, HelperStrategyValue, InstallAddonAppRequest,
-    ListAddonsRequest, PackBundleAppRequest, PlanBundleApplyRequest, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, WowFlavorValue,
+    BundleSourceValue, CharacterMappingModeValue, HelperStrategyValue, InspectBundleRequest,
+    InstallAddonAppRequest, ListAddonsRequest, PackBundleAppRequest, PlanBundleApplyRequest,
+    ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue,
 };
+use crate::core::error::AppError;
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};
 
@@ -51,6 +52,45 @@ fn bundle_service_plan_apply_reads_bundle_plan() {
             .iter()
             .any(|item| item.group == crate::core::app::ApplyGroupValue::Addons)
     );
+}
+
+#[test]
+fn bundle_service_inspects_relative_bundle_against_runtime_base() {
+    let source = tempdir().expect("source temp dir");
+    let source_installation = create_bundle_fixture_installation(source.path(), true);
+    let bundle_path = source.path().join("fixture.bundle.zip");
+
+    BundleService::new()
+        .pack(PackBundleAppRequest {
+            installation: source_installation,
+            manifest: sample_bundle_manifest(),
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle");
+
+    let service = BundleService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(source.path().to_path_buf())),
+    );
+    let inspection = service
+        .inspect(InspectBundleRequest {
+            bundle_path: PathBuf::from("fixture.bundle.zip"),
+        })
+        .expect("inspect relative bundle");
+
+    assert_eq!(inspection.archive_path, bundle_path);
+}
+
+#[test]
+fn bundle_service_rejects_relative_bundle_without_runtime_base() {
+    let error = BundleService::new()
+        .inspect(InspectBundleRequest {
+            bundle_path: PathBuf::from("fixture.bundle.zip"),
+        })
+        .expect_err("relative bundle without base should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("relative path base"));
 }
 
 #[test]

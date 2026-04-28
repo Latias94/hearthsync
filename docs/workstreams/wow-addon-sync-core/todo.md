@@ -430,6 +430,10 @@ enough that these rules live in one place.
   `addon index` app requests resolve against the runtime relative-path base before inspect,
   validate, suggest, scaffold, attach, install, update, or relink touches the filesystem, while
   index-internal local archive sources remain explicitly index-relative.
+  Current progress: bundle archive inputs, external-package source paths, config source paths, and
+  bundle manifest base directories now also resolve at the app boundary. The bundle-domain output
+  placement rule remains separate, so relative bundle export destinations still resolve against
+  the manifest/installation output base instead of the app relative-path base.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

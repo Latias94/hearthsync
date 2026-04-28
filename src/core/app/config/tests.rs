@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 use crate::core::app::{
-    ApplyConfigAppRequest, BundleApplyMappingsValue, ConfigPackageAppRequest, ConfigService,
-    HostPlatformValue, InspectConfigAppRequest, ResolvedInstallationValue, WowFlavorValue,
+    AppRuntime, ApplyConfigAppRequest, BundleApplyMappingsValue, ConfigPackageAppRequest,
+    ConfigService, ExternalPackageService, HostPlatformValue, InspectConfigAppRequest,
+    ResolvedInstallationValue, WowFlavorValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};
@@ -35,6 +36,24 @@ fn config_service_inspect_collecting_progress_returns_config_task_events() {
             (TaskKind::ExternalPackageAnalyze, TaskPhase::Completed),
         ]
     );
+}
+
+#[test]
+fn config_service_inspects_relative_source_against_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let package_root = create_minimal_config_source(temp.path());
+
+    let service = ConfigService::with_external_packages(ExternalPackageService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+    ));
+    let result = service
+        .inspect(InspectConfigAppRequest {
+            source_path: PathBuf::from("AuthorPack"),
+        })
+        .expect("inspect relative config source");
+
+    assert_eq!(result.source_path, package_root);
+    assert_eq!(result.resources.addons, vec!["WeakAuras".to_string()]);
 }
 
 #[test]

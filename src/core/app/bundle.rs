@@ -35,12 +35,13 @@ impl BundleService {
         &self,
         request: InspectBundleRequest,
     ) -> AppResult<BundleInspectionResult> {
-        let inspection = inspect_bundle(&request.bundle_path)?;
+        let bundle_path = request.into_bundle_path(&self.runtime)?;
+        let inspection = inspect_bundle(&bundle_path)?;
         Ok(BundleInspectionResult::from_domain(inspection))
     }
 
     pub(super) fn pack(&self, request: PackBundleAppRequest) -> AppResult<CreatedBundleResult> {
-        let bundle = pack_bundle(request.into_domain_request(&self.runtime))?;
+        let bundle = pack_bundle(request.into_domain_request(&self.runtime)?)?;
         Ok(CreatedBundleResult::from_domain(bundle))
     }
 
@@ -48,7 +49,8 @@ impl BundleService {
         &self,
         request: PlanBundleApplyRequest,
     ) -> AppResult<BundleApplyPlanResult> {
-        let (bundle_path, installation, apply_mappings) = request.into_domain_inputs();
+        let (bundle_path, installation, apply_mappings) =
+            request.into_domain_inputs(&self.runtime)?;
         let plan = plan_bundle_apply(&bundle_path, &installation, &apply_mappings)?;
         Ok(BundleApplyPlanResult::from_domain_plan(
             plan,
@@ -65,7 +67,7 @@ impl BundleService {
         &self,
         request: PlanBundleAddonLockRequest,
     ) -> AppResult<BundleAddonLockPlanResult> {
-        let (bundle_path, installation) = request.into_domain_inputs();
+        let (bundle_path, installation) = request.into_domain_inputs(&self.runtime)?;
         let plan = plan_bundle_addon_lock(
             &bundle_path,
             &installation,
@@ -81,7 +83,7 @@ impl BundleService {
         &self,
         request: ApplyBundleAddonLockAppRequest,
     ) -> AppResult<BundleAddonLockApplyResult> {
-        let applied = apply_bundle_addon_lock(request.into_domain_request(&self.runtime))?;
+        let applied = apply_bundle_addon_lock(request.into_domain_request(&self.runtime)?)?;
         Ok(BundleAddonLockApplyResult::from_domain_with_provider(
             applied,
             self.runtime.addon_provider(),
@@ -99,7 +101,7 @@ impl BundleService {
         TProgress: TaskProgressSink,
     {
         let applied = unpack_bundle_task(
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;

@@ -48,8 +48,11 @@ impl ExternalPackageService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let analysis =
-            analyze_external_package_task(request.into_domain_request(), cancellation, progress)?;
+        let analysis = analyze_external_package_task(
+            request.into_domain_request(&self.runtime)?,
+            cancellation,
+            progress,
+        )?;
         Ok(ExternalPackageAnalysisResult::from_domain(analysis))
     }
 
@@ -84,7 +87,7 @@ impl ExternalPackageService {
         &self,
         request: CreateExternalPackageBundleAppRequest,
     ) -> AppResult<ExternalPackageBundleHandle> {
-        let bundle = create_external_package_bundle(request.into_domain_request(&self.runtime))?;
+        let bundle = create_external_package_bundle(request.into_domain_request(&self.runtime)?)?;
         Ok(ExternalPackageBundleHandle::from_domain(bundle))
     }
 
@@ -107,7 +110,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let plan = plan_external_package_apply_task(
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;
@@ -163,7 +166,7 @@ impl ExternalPackageService {
         TProgress: TaskProgressSink,
     {
         let applied = apply_external_package_task(
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;

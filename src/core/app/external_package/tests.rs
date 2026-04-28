@@ -31,6 +31,35 @@ fn external_package_service_analyzes_minimal_source_package() {
 }
 
 #[test]
+fn external_package_service_analyzes_relative_source_against_runtime_base() {
+    let source = tempdir().expect("source temp dir");
+    let package_root = create_minimal_external_package_source(source.path());
+
+    let service = ExternalPackageService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(source.path().to_path_buf())),
+    );
+    let analysis = service
+        .analyze(AnalyzeExternalPackageAppRequest {
+            source_path: PathBuf::from("AuthorPack"),
+        })
+        .expect("analyze relative package source");
+
+    assert_eq!(analysis.source_path, package_root);
+    assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
+}
+
+#[test]
+fn external_package_service_rejects_relative_source_without_runtime_base() {
+    let error = ExternalPackageService::new()
+        .analyze(AnalyzeExternalPackageAppRequest {
+            source_path: PathBuf::from("AuthorPack"),
+        })
+        .expect_err("relative package source without base should fail");
+
+    assert!(error.to_string().contains("relative path base"));
+}
+
+#[test]
 fn external_package_service_analyze_collecting_progress_returns_events() {
     let temp = tempdir().expect("temp dir");
     let package_root = create_minimal_external_package_source(temp.path());
