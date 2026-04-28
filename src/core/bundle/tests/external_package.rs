@@ -61,6 +61,50 @@ fn analyze_external_package_zip_normalizes_wrapped_ui_layout() {
 }
 
 #[test]
+fn analyze_external_package_zip_ignores_macos_metadata_and_desktop_noise() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("author-ui-pack-with-noise.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            (
+                "AuthorUI/Interface/AddOns/WeakAuras/WeakAuras.toc",
+                "## Interface: 110000\n## Title: WeakAuras\n",
+            ),
+            (
+                "__MACOSX/AuthorUI/Interface/AddOns/WeakAuras/._WeakAuras.toc",
+                "resource fork",
+            ),
+            ("AuthorUI/Interface/AddOns/WeakAuras/.DS_Store", "noise"),
+            ("AuthorUI/Interface/AddOns/WeakAuras/Thumbs.db", "noise"),
+            ("AuthorUI/desktop.ini", "noise"),
+        ],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
+        source_path: package_path,
+    })
+    .expect("analyze external package with archive noise");
+
+    assert_eq!(analysis.summary.total_files, 1);
+    assert_eq!(analysis.summary.normalized_files, 1);
+    assert_eq!(analysis.summary.ignored_files, 0);
+    assert_eq!(analysis.summary.warning_count, 0);
+    assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
+    assert_eq!(analysis.entries.len(), 1);
+    assert_eq!(
+        analysis.entries[0].normalized_path,
+        "addons/WeakAuras/WeakAuras.toc"
+    );
+    assert!(
+        analysis
+            .entries
+            .iter()
+            .all(|entry| !entry.source_path.contains("__MACOSX"))
+    );
+}
+
+#[test]
 fn analyze_external_package_directory_fixture_normalizes_wrapped_ui_layout() {
     let package_root = external_package_fixture_root();
 
