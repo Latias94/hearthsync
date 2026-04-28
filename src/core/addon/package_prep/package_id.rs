@@ -38,8 +38,12 @@ pub(super) fn derive_package_id(source: &AddonSourceRef, addon_names: &[&str]) -
     .or_else(|| addon_names.first().map(|name| (*name).to_string()))
     .unwrap_or_else(|| "addon-package".to_string());
 
+    slugify_package_id(&base)
+}
+
+pub(crate) fn slugify_package_id(value: &str) -> String {
     let mut slug = String::new();
-    for character in base.chars() {
+    for character in value.chars() {
         if character.is_ascii_alphanumeric() {
             slug.push(character.to_ascii_lowercase());
         } else if !slug.ends_with('-') {

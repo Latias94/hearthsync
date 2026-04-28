@@ -88,8 +88,12 @@ fn archive_bundle_contents(
     )?;
 
     if request.manifest.resources.addon_lock {
-        archived_files +=
-            add_optional_addon_lock_to_zip(zip, &request.installation, archive_outputs)?;
+        archived_files += add_optional_addon_lock_to_zip(
+            zip,
+            &request.installation,
+            request.addon_state_storage_kind,
+            archive_outputs,
+        )?;
     }
 
     archived_files += add_addon_indexes_to_zip(

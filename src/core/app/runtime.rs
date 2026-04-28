@@ -2,16 +2,19 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::core::addon::{AddonProvider, DefaultAddonProvider};
+use crate::core::addon::{
+    AddonProvider, AddonStatePaths, AddonStateStorageKind, DefaultAddonProvider,
+};
 use crate::core::error::AppResult;
 use crate::core::install::{
     DetectedFlavorInstallation, scan_installations_for_host, scan_installations_with_roots,
 };
 
 use super::{
-    AddonProviderModeValue, AddonProviderOptionsValue, AppRuntimeCapabilitiesValue,
-    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
-    HelperStrategyValue, HostPlatformValue,
+    AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
+    AddonStatePathsValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
+    AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    ExternalHelperPolicyValue, HelperStrategyValue, HostPlatformValue, ResolvedInstallationValue,
 };
 
 type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
@@ -20,6 +23,7 @@ type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
 pub struct AppRuntime {
     addon_provider: SharedAddonProvider,
     default_addon_provider_options: Option<AddonProviderOptionsValue>,
+    addon_state_storage_kind: AddonStateStorageKind,
     external_helper_policy: ExternalHelperPolicyValue,
     host_platform: HostPlatformValue,
     install_scan_roots: Option<Vec<PathBuf>>,
@@ -38,6 +42,7 @@ impl AppRuntime {
                 DefaultAddonProvider::default().with_options(options.clone().into_domain()),
             ),
             default_addon_provider_options: Some(options),
+            addon_state_storage_kind: AddonStateStorageKind::default(),
             external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
@@ -54,6 +59,7 @@ impl AppRuntime {
         Self {
             addon_provider: Arc::new(provider),
             default_addon_provider_options: None,
+            addon_state_storage_kind: AddonStateStorageKind::default(),
             external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
             install_scan_roots: None,
@@ -64,6 +70,25 @@ impl AppRuntime {
 
     pub(crate) fn addon_provider(&self) -> &(dyn AddonProvider + Send + Sync) {
         self.addon_provider.as_ref()
+    }
+
+    pub fn with_addon_state_storage_kind(
+        mut self,
+        addon_state_storage_kind: AddonStateStorageKind,
+    ) -> Self {
+        self.addon_state_storage_kind = addon_state_storage_kind;
+        self
+    }
+
+    pub fn addon_state_storage_kind(&self) -> AddonStateStorageKind {
+        self.addon_state_storage_kind
+    }
+
+    pub(crate) fn addon_state_paths(
+        &self,
+        installation: &DetectedFlavorInstallation,
+    ) -> AppResult<AddonStatePaths> {
+        AddonStatePaths::for_installation(self.addon_state_storage_kind, installation)
     }
 
     pub fn with_external_helper_policy(
@@ -84,8 +109,54 @@ impl AppRuntime {
 
         AppRuntimeCapabilitiesValue {
             addon_provider,
+            addon_management: self.addon_management_capabilities(),
             external_helper: self.external_helper_capabilities(),
         }
+    }
+
+    pub fn diagnostics(&self) -> AppRuntimeDiagnosticsValue {
+        AppRuntimeDiagnosticsValue {
+            host_platform: self.host_platform,
+            install_scan_roots: self.install_scan_roots.clone(),
+            default_backup_dir: self.default_backup_dir.clone(),
+            default_bundle_output_dir: self.default_bundle_output_dir.clone(),
+            selected_installation: None,
+            addon_state_paths: None,
+            capabilities: self.capabilities(),
+        }
+    }
+
+    pub fn diagnostics_for_installation(
+        &self,
+        installation: ResolvedInstallationValue,
+    ) -> AppResult<AppRuntimeDiagnosticsValue> {
+        let addon_state_paths = self.addon_state_paths_value(&installation)?;
+
+        Ok(AppRuntimeDiagnosticsValue {
+            host_platform: self.host_platform,
+            install_scan_roots: self.install_scan_roots.clone(),
+            default_backup_dir: self.default_backup_dir.clone(),
+            default_bundle_output_dir: self.default_bundle_output_dir.clone(),
+            selected_installation: Some(installation),
+            addon_state_paths: Some(addon_state_paths),
+            capabilities: self.capabilities(),
+        })
+    }
+
+    pub fn addon_management_capabilities(&self) -> AddonManagementCapabilitiesValue {
+        AddonManagementCapabilitiesValue {
+            state_storage: AddonStateStorageValue::from_domain(self.addon_state_storage_kind),
+            scan_only_without_managed_state: true,
+            managed_mode_requires_state: true,
+        }
+    }
+
+    fn addon_state_paths_value(
+        &self,
+        installation: &ResolvedInstallationValue,
+    ) -> AppResult<AddonStatePathsValue> {
+        self.addon_state_paths(&installation.clone().into_domain())
+            .map(AddonStatePathsValue::from_domain)
     }
 
     pub fn helper_strategy(&self) -> HelperStrategyValue {
@@ -190,6 +261,7 @@ impl fmt::Debug for AppRuntime {
                 "default_addon_provider_options",
                 &self.default_addon_provider_options,
             )
+            .field("addon_state_storage_kind", &self.addon_state_storage_kind)
             .field("external_helper_policy", &self.external_helper_policy)
             .field("host_platform", &self.host_platform)
             .field("install_scan_roots", &self.install_scan_roots)

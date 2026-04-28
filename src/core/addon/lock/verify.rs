@@ -4,6 +4,7 @@ use super::storage::{
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::core::addon::AddonStatePaths;
 use crate::core::addon::TrackedAddonPackage;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -27,13 +28,14 @@ pub fn diff_addon_locks(left_path: &Path, right_path: &Path) -> AppResult<AddonL
 
 pub fn verify_addon_lock(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     expected_lock_path: Option<&Path>,
 ) -> AppResult<AddonLockVerifyResult> {
     let lock_path = expected_lock_path
         .map(Path::to_path_buf)
-        .unwrap_or_else(|| lock_path(installation));
+        .unwrap_or_else(|| lock_path(state_paths));
     let expected = read_addon_lock(&lock_path)?;
-    let inventory = crate::core::addon::list_addons(installation)?;
+    let inventory = crate::core::addon::list_addons(installation, state_paths)?;
 
     let mut current_snapshots = Vec::new();
     let mut missing_addon_directories = Vec::new();

@@ -22,6 +22,7 @@ fn unpack_bundle_task_reports_progress_for_dry_run() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -81,6 +82,7 @@ fn unpack_bundle_task_honors_cancellation_before_execution() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -124,6 +126,7 @@ fn unpack_bundle_task_reports_operation_progress_during_execution() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -181,6 +184,7 @@ fn unpack_bundle_task_honors_cancellation_during_execution_loop() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -229,6 +233,7 @@ fn unpack_bundle_restores_files_and_creates_backup() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -320,6 +325,7 @@ fn plan_bundle_apply_discovers_local_accounts_and_selected_accounts() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -365,6 +371,7 @@ fn plan_bundle_apply_requires_explicit_common_account_selection_for_common_only_
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -397,6 +404,7 @@ fn keep_original_character_mode_ignores_target_identity_overrides() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -434,6 +442,7 @@ fn explicit_character_mode_requires_resolved_target_identity() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -468,6 +477,7 @@ fn prompt_character_mode_requires_resolved_target_identity() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -527,6 +537,7 @@ fn multi_character_explicit_mode_rejects_global_target_identity_overrides() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -558,6 +569,7 @@ fn bundle_apply_plan_does_not_expose_execution_only_fields() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest_with_rewrite(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -611,6 +623,7 @@ fn bundle_apply_plan_uses_explicit_resource_group_order() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -694,6 +707,7 @@ fn plan_bundle_apply_classifies_wtf_scopes_and_account_root_files() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -776,6 +790,7 @@ fn plan_bundle_apply_reports_existing_files_as_replace_in_logical_plan() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -814,6 +829,7 @@ fn unpack_bundle_dry_run_still_skips_identical_files_after_prepare() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -901,6 +917,7 @@ fn prepare_bundle_apply_projects_preview_operations_into_execution_operations() 
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest_with_rewrite(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -997,6 +1014,7 @@ DetailsDB = {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1117,6 +1135,7 @@ fn unpack_bundle_replicates_common_wtf_to_selected_accounts() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1191,6 +1210,7 @@ fn unpack_bundle_rolls_back_when_apply_fails() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1267,6 +1287,7 @@ fn unpack_bundle_dry_run_does_not_write_files() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1411,6 +1432,7 @@ fn preserve_policy_plans_without_writing_files() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1477,6 +1499,7 @@ fn share_policy_preserves_existing_target_files_and_adds_missing_files() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1545,6 +1568,7 @@ fn mirror_policy_removes_existing_addon_root_before_copy() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -1610,6 +1634,7 @@ fn sync_policy_alias_removes_existing_addon_root_before_copy() {
 
     pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,

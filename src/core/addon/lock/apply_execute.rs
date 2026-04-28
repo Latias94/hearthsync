@@ -3,8 +3,8 @@ use super::apply_model::{
 };
 use super::storage::now_rfc3339;
 use crate::core::addon::{
-    install_prepared_package_task, load_registry, remove_selected_packages_task, save_registry,
-    update_prepared_packages_task,
+    AddonStatePaths, install_prepared_package_task, load_registry, remove_selected_packages_task,
+    save_registry, update_prepared_packages_task,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -15,6 +15,7 @@ use crate::core::task::{
 
 pub(super) fn execute_prepared_addon_lock_apply<TCancel, TProgress>(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     prepared: PreparedAddonLockApply,
     replace_existing: bool,
     cancellation: &TCancel,
@@ -27,6 +28,7 @@ where
     if !prepared.remove_packages.is_empty() {
         remove_selected_packages_task(
             installation,
+            state_paths,
             prepared.remove_packages,
             TaskKind::AddonLockApply,
             cancellation,
@@ -35,9 +37,10 @@ where
     }
 
     if !prepared.update_current_packages.is_empty() {
-        let registry = load_registry(installation)?;
+        let registry = load_registry(installation, state_paths)?;
         update_prepared_packages_task(
             installation,
+            state_paths,
             registry,
             prepared.update_current_packages,
             prepared.update_prepared_packages,
@@ -50,6 +53,7 @@ where
     for prepared_package in prepared.install_prepared_packages {
         install_prepared_package_task(
             installation,
+            state_paths,
             prepared_package,
             replace_existing,
             TaskKind::AddonLockApply,
@@ -61,6 +65,7 @@ where
     if !prepared.metadata_actions.is_empty() {
         apply_metadata_only_actions(
             installation,
+            state_paths,
             prepared.metadata_actions,
             cancellation,
             progress,
@@ -72,6 +77,7 @@ where
 
 fn apply_metadata_only_actions<TCancel, TProgress>(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     actions: Vec<MetadataOnlyAddonLockAction>,
     cancellation: &TCancel,
     progress: &mut TProgress,
@@ -80,7 +86,7 @@ where
     TCancel: CancellationToken,
     TProgress: TaskProgressSink,
 {
-    let mut registry = load_registry(installation)?;
+    let mut registry = load_registry(installation, state_paths)?;
     let timestamp = now_rfc3339()?;
     let total_actions = actions.len();
 
@@ -115,5 +121,5 @@ where
         package.metadata = metadata_from_lock_package(&action.expected);
     }
 
-    save_registry(installation, &registry)
+    save_registry(installation, state_paths, &registry)
 }

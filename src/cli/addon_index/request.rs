@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use crate::core::app::{
-    InspectAddonIndexRequest, InstallAddonIndexAppRequest, ResolvedInstallationValue,
-    UpdateAddonIndexAppRequest,
+    AttachAddonIndexAppRequest, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
+    RelinkAddonIndexAppRequest, ResolvedInstallationValue, ScaffoldAddonIndexRequest,
+    SuggestAddonIndexRequest, UpdateAddonIndexAppRequest,
 };
 
 pub(super) fn build_inspect_addon_index_request(index_path: PathBuf) -> InspectAddonIndexRequest {
@@ -27,6 +28,50 @@ pub(super) fn build_install_addon_index_request(
     }
 }
 
+pub(super) fn build_suggest_addon_index_request(
+    installation: ResolvedInstallationValue,
+    index_path: PathBuf,
+    name: Option<String>,
+) -> SuggestAddonIndexRequest {
+    SuggestAddonIndexRequest {
+        installation,
+        index_path,
+        name,
+    }
+}
+
+pub(super) fn build_attach_addon_index_request(
+    installation: ResolvedInstallationValue,
+    index_path: PathBuf,
+    name: Option<String>,
+    dry_run: bool,
+) -> AttachAddonIndexAppRequest {
+    AttachAddonIndexAppRequest {
+        installation,
+        index_path,
+        name,
+        dry_run,
+    }
+}
+
+pub(super) fn build_scaffold_addon_index_request(
+    installation: ResolvedInstallationValue,
+    index_path: PathBuf,
+    index_name: String,
+    description: Option<String>,
+    name: Option<String>,
+    overwrite: bool,
+) -> ScaffoldAddonIndexRequest {
+    ScaffoldAddonIndexRequest {
+        installation,
+        index_path,
+        index_name,
+        description,
+        name,
+        overwrite,
+    }
+}
+
 pub(super) fn build_update_addon_index_request(
     installation: ResolvedInstallationValue,
     index_path: PathBuf,
@@ -43,12 +88,30 @@ pub(super) fn build_update_addon_index_request(
     }
 }
 
+pub(super) fn build_relink_addon_index_request(
+    installation: ResolvedInstallationValue,
+    index_path: PathBuf,
+    name: String,
+    target: Option<String>,
+    dry_run: bool,
+) -> RelinkAddonIndexAppRequest {
+    RelinkAddonIndexAppRequest {
+        installation,
+        index_path,
+        name,
+        target,
+        dry_run,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::{
-        build_inspect_addon_index_request, build_install_addon_index_request,
+        build_attach_addon_index_request, build_inspect_addon_index_request,
+        build_install_addon_index_request, build_relink_addon_index_request,
+        build_scaffold_addon_index_request, build_suggest_addon_index_request,
         build_update_addon_index_request,
     };
     use crate::cli::test_support::sample_installation;
@@ -88,5 +151,65 @@ mod tests {
         assert_eq!(update.name.as_deref(), Some("WeakAuras"));
         assert!(!update.dry_run);
         assert!(update.backup_output_path.is_none());
+    }
+
+    #[test]
+    fn build_suggest_addon_index_request_preserves_options() {
+        let request = build_suggest_addon_index_request(
+            sample_installation(),
+            PathBuf::from("addons.index.toml"),
+            Some("WeakAuras".to_string()),
+        );
+
+        assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(request.name.as_deref(), Some("WeakAuras"));
+    }
+
+    #[test]
+    fn build_attach_addon_index_request_preserves_options() {
+        let request = build_attach_addon_index_request(
+            sample_installation(),
+            PathBuf::from("addons.index.toml"),
+            Some("WeakAuras".to_string()),
+            true,
+        );
+
+        assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(request.name.as_deref(), Some("WeakAuras"));
+        assert!(request.dry_run);
+    }
+
+    #[test]
+    fn build_scaffold_addon_index_request_preserves_options() {
+        let request = build_scaffold_addon_index_request(
+            sample_installation(),
+            PathBuf::from("addons.index.toml"),
+            "Guild UI".to_string(),
+            Some("Initial scaffold".to_string()),
+            Some("WeakAuras".to_string()),
+            true,
+        );
+
+        assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(request.index_name, "Guild UI");
+        assert_eq!(request.description.as_deref(), Some("Initial scaffold"));
+        assert_eq!(request.name.as_deref(), Some("WeakAuras"));
+        assert!(request.overwrite);
+    }
+
+    #[test]
+    fn build_relink_addon_index_request_preserves_options() {
+        let request = build_relink_addon_index_request(
+            sample_installation(),
+            PathBuf::from("addons.index.toml"),
+            "curated-plater".to_string(),
+            Some("Plater".to_string()),
+            true,
+        );
+
+        assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(request.name, "curated-plater");
+        assert_eq!(request.target.as_deref(), Some("Plater"));
+        assert!(request.dry_run);
     }
 }

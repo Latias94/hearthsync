@@ -20,6 +20,22 @@ impl CharacterMapping {
     pub fn target_profile_key(&self) -> String {
         format!("{} - {}", self.target_character, self.target_server)
     }
+
+    pub fn source_compact_identity_key(&self) -> String {
+        format!("{}-{}", self.source_character, self.source_server)
+    }
+
+    pub fn target_compact_identity_key(&self) -> String {
+        format!("{}-{}", self.target_character, self.target_server)
+    }
+
+    pub fn source_reverse_compact_identity_key(&self) -> String {
+        format!("{}-{}", self.source_server, self.source_character)
+    }
+
+    pub fn target_reverse_compact_identity_key(&self) -> String {
+        format!("{}-{}", self.target_server, self.target_character)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

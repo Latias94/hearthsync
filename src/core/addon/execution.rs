@@ -11,18 +11,23 @@ use crate::core::task::{
 
 use super::registry::registry_path;
 use super::{
-    AddonPackageMetadata, AddonProvider, AddonRegistry, DefaultAddonProvider, InstallAddonRequest,
-    InstalledAddonPackageResult, PreparedAddonPackage, RemoveAddonRequest,
-    RemovedAddonPackageResult, TrackedAddonPackage, UpdateAddonRequest, UpdatedAddonPackageResult,
-    install_prepared_package_task, load_registry,
+    AddonPackageMetadata, AddonProvider, AddonRegistry, AddonStatePaths, DefaultAddonProvider,
+    InstallAddonRequest, InstalledAddonPackageResult, PreparedAddonPackage, RemoveAddonRequest,
+    RemovedAddonPackageResult, TrackedAddonPackage, UpdateAddonRequest,
+    UpdatePreparedPackagesWithDependenciesRequest, UpdatedAddonPackageResult,
+    collect_missing_dependency_prepared_packages, install_prepared_package_task, load_registry,
+    no_tracked_packages_error, policy::AddonUpdatePolicySnapshot,
     prepare_package_from_source_input_task_with_provider,
-    prepare_package_from_source_ref_task_with_provider, remove_selected_packages_task,
-    rollback_or_report_addon_error, update_prepared_packages_task,
+    prepare_package_from_source_ref_task_with_provider_and_policy,
+    preview_installed_dependency_packages, remove_selected_packages_task,
+    rollback_or_report_addon_error, select_tracked_packages,
+    update_prepared_packages_with_dependencies_task,
 };
 
 #[derive(Debug)]
 pub(crate) struct InstallPreparedAddonRequest {
     pub(crate) installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
     pub(crate) prepared: PreparedAddonPackage,
     pub(crate) dry_run: bool,
     pub(crate) backup_output_path: Option<PathBuf>,
@@ -32,6 +37,7 @@ pub(crate) struct InstallPreparedAddonRequest {
 
 pub(crate) struct InstallAddonExecutionPlan {
     installation: DetectedFlavorInstallation,
+    state_paths: AddonStatePaths,
     prepared: PreparedAddonPackage,
     dry_run: bool,
     backup_output_path: Option<PathBuf>,
@@ -43,9 +49,12 @@ pub(crate) struct InstallAddonExecutionPlan {
 
 struct UpdateAddonsExecutionPlan {
     installation: DetectedFlavorInstallation,
+    state_paths: AddonStatePaths,
     registry: AddonRegistry,
     selected_packages: Vec<TrackedAddonPackage>,
     prepared_packages: Vec<PreparedAddonPackage>,
+    dependency_prepared_packages: Vec<PreparedAddonPackage>,
+    ignored_packages: Vec<String>,
     dry_run: bool,
     backup_output_path: Option<PathBuf>,
     registry_path: PathBuf,
@@ -54,6 +63,7 @@ struct UpdateAddonsExecutionPlan {
 
 struct RemoveAddonsExecutionPlan {
     installation: DetectedFlavorInstallation,
+    state_paths: AddonStatePaths,
     removed_packages: Vec<TrackedAddonPackage>,
     removed_addons: Vec<String>,
     dry_run: bool,
@@ -210,6 +220,19 @@ where
     ensure_task_not_cancelled(cancellation, TaskKind::AddonUpdate, TaskPhase::Preparing)?;
 
     let plan = prepare_update_addons_with_provider(provider, request, cancellation, progress)?;
+    if plan.selected_packages.is_empty() {
+        let result = no_op_update_result(plan);
+        emit_task_progress(
+            progress,
+            TaskKind::AddonUpdate,
+            TaskPhase::Completed,
+            format!(
+                "Addon update completed without selected packages (ignored {} package(s))",
+                result.ignored_packages.len()
+            ),
+        );
+        return Ok(result);
+    }
     if plan.dry_run {
         let result = dry_run_update_result(plan);
         emit_task_progress(
@@ -242,9 +265,9 @@ where
         progress,
         TaskKind::AddonUpdate,
         TaskPhase::Executing,
-        format!(
-            "Updating {} tracked addon package(s)",
-            plan.selected_packages.len()
+        update_execution_message(
+            plan.selected_packages.len(),
+            plan.dependency_prepared_packages.len(),
         ),
     );
     ensure_task_not_cancelled(cancellation, TaskKind::AddonUpdate, TaskPhase::Executing)?;
@@ -361,6 +384,7 @@ where
     )?;
     prepare_install_prepared_addon(InstallPreparedAddonRequest {
         installation: request.installation,
+        state_paths: request.state_paths,
         prepared,
         dry_run: request.dry_run,
         backup_output_path: request.backup_output_path,
@@ -372,7 +396,7 @@ where
 pub(crate) fn prepare_install_prepared_addon(
     request: InstallPreparedAddonRequest,
 ) -> AppResult<InstallAddonExecutionPlan> {
-    let registry_path = registry_path(&request.installation);
+    let registry_path = registry_path(&request.state_paths);
     let mut prepared = request.prepared;
     prepared.metadata = request.metadata;
     let files_to_write = prepared
@@ -402,6 +426,7 @@ pub(crate) fn prepare_install_prepared_addon(
 
     Ok(InstallAddonExecutionPlan {
         installation: request.installation,
+        state_paths: request.state_paths,
         prepared,
         dry_run: request.dry_run,
         backup_output_path: request.backup_output_path,
@@ -452,6 +477,7 @@ where
 {
     let InstallAddonExecutionPlan {
         installation,
+        state_paths,
         prepared,
         replace_existing,
         registry_path,
@@ -462,6 +488,7 @@ where
 
     match install_prepared_package_task(
         &installation,
+        &state_paths,
         prepared,
         replace_existing,
         TaskKind::AddonInstall,
@@ -494,31 +521,71 @@ fn prepare_update_addons_with_provider<P>(
 where
     P: AddonProvider + ?Sized,
 {
-    let registry_path = registry_path(&request.installation);
-    let registry = load_registry(&request.installation)?;
+    let registry_path = registry_path(&request.state_paths);
+    let registry = load_registry(&request.installation, &request.state_paths)?;
     if registry.packages.is_empty() {
-        return Err(AppError::Validation(
-            "no tracked addon packages found. Use `addon install` first.".to_string(),
+        return Err(no_tracked_packages_error(
+            &request.installation,
+            &request.state_paths,
         ));
     }
 
-    let selected_packages = select_packages_for_update(&registry, request.name.as_deref())?;
+    let policies = AddonUpdatePolicySnapshot::load(&request.installation, &request.state_paths)?;
+    let mut selected_packages = select_tracked_packages(&registry, request.name.as_deref())?;
+    let ignored_packages = if request.name.is_some() {
+        Vec::new()
+    } else {
+        let mut ignored = Vec::new();
+        selected_packages.retain(|package| {
+            if policies.is_ignored(package) {
+                ignored.push(package.package_id.clone());
+                false
+            } else {
+                true
+            }
+        });
+        ignored.sort();
+        ignored
+    };
     let mut prepared_packages = Vec::new();
+    let mut dependency_prepared_packages = Vec::new();
+    let mut planned_dependency_keys = BTreeSet::new();
     for package in &selected_packages {
-        prepared_packages.push(prepare_package_from_source_ref_task_with_provider(
+        let package_policy = policies.provider_update_policy(package)?;
+        let mut prepared = prepare_package_from_source_ref_task_with_provider_and_policy(
             provider,
-            &package.source,
+            &package_policy.effective_source,
+            package_policy.resolution_policy,
             Some(request.installation.flavor),
             request.installation.platform,
             cancellation,
             TaskKind::AddonUpdate,
             TaskPhase::Preparing,
             progress,
-        )?);
+        )?;
+        prepared.package_id = package.package_id.clone();
+        prepared_packages.push(prepared);
+
+        if package_policy.install_dependencies {
+            collect_missing_dependency_prepared_packages(
+                provider,
+                &package_policy.effective_source,
+                package_policy.resolution_policy,
+                &request.installation,
+                &registry,
+                &selected_packages,
+                &mut dependency_prepared_packages,
+                &mut planned_dependency_keys,
+                TaskKind::AddonUpdate,
+                cancellation,
+                progress,
+            )?;
+        }
     }
 
     let files_to_write = prepared_packages
         .iter()
+        .chain(dependency_prepared_packages.iter())
         .map(|package| {
             package
                 .addons
@@ -530,9 +597,12 @@ where
 
     Ok(UpdateAddonsExecutionPlan {
         installation: request.installation,
+        state_paths: request.state_paths,
         registry,
         selected_packages,
         prepared_packages,
+        dependency_prepared_packages,
+        ignored_packages,
         dry_run: request.dry_run,
         backup_output_path: request.backup_output_path,
         registry_path,
@@ -540,10 +610,25 @@ where
     })
 }
 
+fn no_op_update_result(plan: UpdateAddonsExecutionPlan) -> UpdatedAddonPackageResult {
+    UpdatedAddonPackageResult {
+        dry_run: plan.dry_run,
+        registry_path: plan.registry_path,
+        files_to_write: 0,
+        written_files: 0,
+        updated_packages: Vec::new(),
+        installed_dependency_packages: Vec::new(),
+        ignored_packages: plan.ignored_packages,
+        backup_path: None,
+    }
+}
+
 fn dry_run_update_result(plan: UpdateAddonsExecutionPlan) -> UpdatedAddonPackageResult {
     let UpdateAddonsExecutionPlan {
         selected_packages,
         prepared_packages,
+        dependency_prepared_packages,
+        ignored_packages,
         registry_path,
         files_to_write,
         ..
@@ -576,6 +661,10 @@ fn dry_run_update_result(plan: UpdateAddonsExecutionPlan) -> UpdatedAddonPackage
                 }
             })
             .collect(),
+        installed_dependency_packages: preview_installed_dependency_packages(
+            &dependency_prepared_packages,
+        ),
+        ignored_packages,
         backup_path: None,
     }
 }
@@ -592,47 +681,68 @@ where
 {
     let UpdateAddonsExecutionPlan {
         installation,
+        state_paths,
         registry,
         selected_packages,
         prepared_packages,
+        dependency_prepared_packages,
+        ignored_packages,
         registry_path,
         files_to_write,
         ..
     } = plan;
 
-    match update_prepared_packages_task(
+    match update_prepared_packages_with_dependencies_task(
         &installation,
-        registry,
-        selected_packages,
-        prepared_packages,
-        TaskKind::AddonUpdate,
+        &state_paths,
+        UpdatePreparedPackagesWithDependenciesRequest {
+            registry,
+            selected_packages,
+            prepared_packages,
+            dependency_prepared_packages,
+            task: TaskKind::AddonUpdate,
+        },
         cancellation,
         progress,
     ) {
-        Ok((updated_packages, written_files)) => Ok(UpdatedAddonPackageResult {
-            dry_run: false,
-            registry_path,
-            files_to_write,
-            written_files,
-            updated_packages,
-            backup_path: Some(backup_path),
-        }),
+        Ok((updated_packages, installed_dependency_packages, written_files)) => {
+            Ok(UpdatedAddonPackageResult {
+                dry_run: false,
+                registry_path,
+                files_to_write,
+                written_files,
+                updated_packages,
+                installed_dependency_packages,
+                ignored_packages,
+                backup_path: Some(backup_path),
+            })
+        }
         Err(error) => {
             rollback_or_report_addon_error(error, Some(backup_path.as_path()), &installation)
         }
     }
 }
 
+fn update_execution_message(updated_count: usize, dependency_count: usize) -> String {
+    match dependency_count {
+        0 => format!("Updating {updated_count} tracked addon package(s)"),
+        _ => format!(
+            "Updating {updated_count} tracked addon package(s) and installing {dependency_count} dependency package(s)"
+        ),
+    }
+}
+
 fn prepare_remove_addons(request: RemoveAddonRequest) -> AppResult<RemoveAddonsExecutionPlan> {
-    let registry_path = registry_path(&request.installation);
-    let registry = load_registry(&request.installation)?;
+    let registry_path = registry_path(&request.state_paths);
+    let registry = load_registry(&request.installation, &request.state_paths)?;
     if registry.packages.is_empty() {
-        return Err(AppError::Validation(
-            "no tracked addon packages found. Use `addon install` first.".to_string(),
+        return Err(no_tracked_packages_error(
+            &request.installation,
+            &request.state_paths,
         ));
     }
 
-    let removed_packages = select_packages_for_update(&registry, Some(&request.name))?;
+    let removed_packages = select_tracked_packages(&registry, Some(&request.name))?;
     let removed_addons = removed_packages
         .iter()
         .flat_map(|package| {
@@ -647,6 +757,7 @@ fn prepare_remove_addons(request: RemoveAddonRequest) -> AppResult<RemoveAddonsE
 
     Ok(RemoveAddonsExecutionPlan {
         installation: request.installation,
+        state_paths: request.state_paths,
         removed_packages,
         removed_addons,
         dry_run: request.dry_run,
@@ -678,6 +789,7 @@ where
 {
     let RemoveAddonsExecutionPlan {
         installation,
+        state_paths,
         removed_packages,
         removed_addons,
         registry_path,
@@ -686,6 +798,7 @@ where
 
     match remove_selected_packages_task(
         &installation,
+        &state_paths,
         removed_packages.clone(),
         TaskKind::AddonRemove,
         cancellation,
@@ -717,34 +830,4 @@ fn create_addon_backup(
         label: Some(label.to_string()),
     })?
     .archive_path)
-}
-
-fn select_packages_for_update(
-    registry: &AddonRegistry,
-    name: Option<&str>,
-) -> AppResult<Vec<TrackedAddonPackage>> {
-    match name {
-        None => Ok(registry.packages.clone()),
-        Some(name) => {
-            let mut matches = registry
-                .packages
-                .iter()
-                .filter(|package| {
-                    package.package_id.eq_ignore_ascii_case(name)
-                        || package
-                            .addons
-                            .iter()
-                            .any(|addon| addon.directory_name.eq_ignore_ascii_case(name))
-                })
-                .cloned()
-                .collect::<Vec<_>>();
-            matches.sort_by(|left, right| left.package_id.cmp(&right.package_id));
-            if matches.is_empty() {
-                return Err(AppError::NotFound(format!(
-                    "no tracked addon package matched `{name}`"
-                )));
-            }
-            Ok(matches)
-        }
-    }
 }

@@ -1,13 +1,18 @@
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 
 use tempfile::tempdir;
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipWriter};
 
+use crate::core::addon::AddonStatePaths;
 use crate::core::app::{
-    AppRuntime, ApplyBundleAppRequest, BundleApplyDefaultsValue, BundleApplyMappingsValue,
-    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
-    BundleService, BundleSourceValue, CharacterMappingModeValue, HelperStrategyValue,
-    PackBundleAppRequest, PlanBundleApplyRequest, ResolvedInstallationValue,
+    AddonService, AppRuntime, ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest,
+    BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleManifestValue,
+    BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleService,
+    BundleSourceValue, CharacterMappingModeValue, HelperStrategyValue, InstallAddonAppRequest,
+    ListAddonsRequest, PackBundleAppRequest, PlanBundleApplyRequest, ResolvedInstallationValue,
     ResourceApplyPolicyValue, WowFlavorValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
@@ -149,6 +154,84 @@ fn bundle_service_apply_uses_runtime_default_backup_dir() {
     );
 }
 
+#[test]
+fn bundle_service_addon_lock_shortcuts_use_runtime_addon_state_storage() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let source_installation = create_bundle_fixture_installation(source.path(), false);
+    let target_installation = create_bundle_fixture_installation(target.path(), false);
+    let archive_path = source.path().join("WeakAuras.zip");
+    let bundle_path = source.path().join("tracked.bundle.zip");
+    let runtime = AppRuntime::new()
+        .with_addon_state_storage_kind(crate::core::addon::AddonStateStorageKind::Sidecar);
+
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "WeakAuras/WeakAuras.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+
+    AddonService::with_runtime(runtime.clone())
+        .install(InstallAddonAppRequest {
+            installation: source_installation.clone(),
+            source: archive_path.display().to_string(),
+            dry_run: false,
+            backup_output_path: Some(source.path().join("backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install tracked addon into sidecar state");
+
+    let mut manifest = sample_bundle_manifest();
+    manifest.resources.addon_lock = true;
+
+    BundleService::with_runtime(runtime.clone())
+        .pack(PackBundleAppRequest {
+            installation: source_installation,
+            manifest,
+            output_path: Some(bundle_path.clone()),
+            manifest_base_dir: None,
+        })
+        .expect("pack bundle with sidecar-backed addon lock");
+
+    let applied = BundleService::with_runtime(runtime.clone())
+        .apply_addon_lock(ApplyBundleAddonLockAppRequest {
+            bundle_path,
+            installation: target_installation.clone(),
+            backup_output_path: Some(target.path().join("addon-backups")),
+            replace_existing: false,
+        })
+        .expect("apply embedded addon lock into sidecar state");
+
+    assert!(applied.apply.verification.matches);
+
+    let inventory = AddonService::with_runtime(runtime.clone())
+        .list(ListAddonsRequest {
+            installation: target_installation.clone(),
+        })
+        .expect("list sidecar-tracked addons");
+    assert_eq!(inventory.tracked_package_count, 1);
+    assert!(inventory.untracked_addons.is_empty());
+
+    let target_domain_installation = target_installation.into_domain();
+    let sidecar_paths = AddonStatePaths::for_installation(
+        crate::core::addon::AddonStateStorageKind::Sidecar,
+        &target_domain_installation,
+    )
+    .expect("sidecar state paths");
+    let appdata_paths = AddonStatePaths::for_installation(
+        crate::core::addon::AddonStateStorageKind::AppData,
+        &target_domain_installation,
+    )
+    .expect("appdata state paths");
+
+    assert!(sidecar_paths.registry_path.exists());
+    assert!(sidecar_paths.lock_path.exists());
+    assert!(!appdata_paths.registry_path.exists());
+}
+
 fn create_bundle_fixture_installation(
     root: &Path,
     with_content: bool,
@@ -229,4 +312,17 @@ fn sample_bundle_manifest() -> BundleManifestValue {
             interface_assets: ResourceApplyPolicyValue::Merge,
         },
     }
+}
+
+fn create_addon_archive(path: &Path, entries: &[(&str, &str)]) {
+    let file = fs::File::create(path).expect("archive file");
+    let mut zip = ZipWriter::new(file);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+
+    for (name, contents) in entries {
+        zip.start_file(name, options).expect("zip entry");
+        zip.write_all(contents.as_bytes()).expect("zip write");
+    }
+
+    zip.finish().expect("finish archive");
 }

@@ -1,11 +1,16 @@
 use crate::core::addon::index::{
-    inspect_addon_index, install_addon_from_index_task_with_provider,
-    update_addons_from_index_task_with_provider,
+    attach_addons_from_index_task_with_provider, inspect_addon_index,
+    install_addon_from_index_task_with_provider, relink_addon_from_index_task_with_provider,
+    scaffold_addon_index, suggest_addon_index_hints, update_addons_from_index_task_with_provider,
+    validate_addon_index_update_dependency_policy_support,
 };
 use crate::core::app::{
-    AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexUpdateResult, AppRuntime,
-    CancellationToken, InspectAddonIndexRequest, InstallAddonIndexAppRequest, TaskProgressEvent,
-    TaskProgressSink, TaskRun, UpdateAddonIndexAppRequest, task_support,
+    AddonIndexAttachResult, AddonIndexInspectionResult, AddonIndexInstallResult,
+    AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSuggestionResult,
+    AddonIndexUpdateResult, AddonIndexValidationResult, AppRuntime, AttachAddonIndexAppRequest,
+    CancellationToken, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
+    RelinkAddonIndexAppRequest, ScaffoldAddonIndexRequest, SuggestAddonIndexRequest,
+    TaskProgressEvent, TaskProgressSink, TaskRun, UpdateAddonIndexAppRequest, task_support,
 };
 use crate::core::error::AppResult;
 
@@ -34,9 +39,94 @@ impl AddonIndexService {
         request: InspectAddonIndexRequest,
     ) -> AppResult<AddonIndexInspectionResult> {
         let inspection = inspect_addon_index(&request.index_path)?;
-        Ok(AddonIndexInspectionResult::from_domain(inspection))
+        Ok(AddonIndexInspectionResult::from_domain_with_provider(
+            inspection,
+            self.runtime.addon_provider(),
+        ))
     }
 
+    pub(super) fn validate(
+        &self,
+        request: InspectAddonIndexRequest,
+    ) -> AppResult<AddonIndexValidationResult> {
+        let inspection = self.inspect(request)?;
+        Ok(AddonIndexValidationResult::from_inspection(inspection))
+    }
+
+    pub(super) fn suggest(
+        &self,
+        request: SuggestAddonIndexRequest,
+    ) -> AppResult<AddonIndexSuggestionResult> {
+        let suggestion = suggest_addon_index_hints(request.into_domain(&self.runtime)?)?;
+        Ok(AddonIndexSuggestionResult::from_domain(suggestion))
+    }
+
+    pub(super) fn scaffold(
+        &self,
+        request: ScaffoldAddonIndexRequest,
+    ) -> AppResult<AddonIndexScaffoldResult> {
+        let result = scaffold_addon_index(request.into_domain(&self.runtime)?)?;
+        Ok(AddonIndexScaffoldResult::from_domain(result))
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(super) fn attach(
+        &self,
+        request: AttachAddonIndexAppRequest,
+    ) -> AppResult<AddonIndexAttachResult> {
+        task_support::run_service_task_direct(self, request, Self::attach_task)
+    }
+
+    pub(super) fn attach_task<TCancel, TProgress>(
+        &self,
+        request: AttachAddonIndexAppRequest,
+        cancellation: &TCancel,
+        progress: &mut TProgress,
+    ) -> AppResult<AddonIndexAttachResult>
+    where
+        TCancel: CancellationToken,
+        TProgress: TaskProgressSink,
+    {
+        let attached = attach_addons_from_index_task_with_provider(
+            self.runtime.addon_provider(),
+            request.into_domain_request(&self.runtime)?,
+            cancellation,
+            progress,
+        )?;
+        Ok(AddonIndexAttachResult::from_domain_with_provider(
+            attached,
+            self.runtime.addon_provider(),
+        ))
+    }
+
+    pub(super) fn attach_collecting_progress(
+        &self,
+        request: AttachAddonIndexAppRequest,
+    ) -> AppResult<TaskRun<AddonIndexAttachResult>> {
+        task_support::run_service_task_collecting(self, request, Self::attach_task)
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn attach_with_callbacks<FCancel, FProgress>(
+        &self,
+        request: AttachAddonIndexAppRequest,
+        is_cancelled: FCancel,
+        on_progress: FProgress,
+    ) -> AppResult<AddonIndexAttachResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(TaskProgressEvent),
+    {
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::attach_task,
+        )
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn install(
         &self,
         request: InstallAddonIndexAppRequest,
@@ -56,11 +146,14 @@ impl AddonIndexService {
     {
         let installed = install_addon_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;
-        Ok(AddonIndexInstallResult::from_domain(installed))
+        Ok(AddonIndexInstallResult::from_domain_with_provider(
+            installed,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn install_collecting_progress(
@@ -70,6 +163,7 @@ impl AddonIndexService {
         task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
+    #[allow(dead_code)]
     pub(super) fn install_with_callbacks<FCancel, FProgress>(
         &self,
         request: InstallAddonIndexAppRequest,
@@ -89,6 +183,7 @@ impl AddonIndexService {
         )
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn update(
         &self,
         request: UpdateAddonIndexAppRequest,
@@ -106,13 +201,25 @@ impl AddonIndexService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
+        let installation = request.installation.clone().into_domain();
+        let state_paths = self.runtime.addon_state_paths(&installation)?;
+        validate_addon_index_update_dependency_policy_support(
+            self.runtime.addon_provider(),
+            &installation,
+            &state_paths,
+            &request.index_path,
+            request.name.as_deref(),
+        )?;
         let updated = update_addons_from_index_task_with_provider(
             self.runtime.addon_provider(),
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;
-        Ok(AddonIndexUpdateResult::from_domain(updated))
+        Ok(AddonIndexUpdateResult::from_domain_with_provider(
+            updated,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn update_collecting_progress(
@@ -122,6 +229,7 @@ impl AddonIndexService {
         task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn update_with_callbacks<FCancel, FProgress>(
         &self,
         request: UpdateAddonIndexAppRequest,
@@ -138,6 +246,63 @@ impl AddonIndexService {
             is_cancelled,
             on_progress,
             Self::update_task,
+        )
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(super) fn relink(
+        &self,
+        request: RelinkAddonIndexAppRequest,
+    ) -> AppResult<AddonIndexRelinkResult> {
+        task_support::run_service_task_direct(self, request, Self::relink_task)
+    }
+
+    pub(super) fn relink_task<TCancel, TProgress>(
+        &self,
+        request: RelinkAddonIndexAppRequest,
+        cancellation: &TCancel,
+        progress: &mut TProgress,
+    ) -> AppResult<AddonIndexRelinkResult>
+    where
+        TCancel: CancellationToken,
+        TProgress: TaskProgressSink,
+    {
+        let relinked = relink_addon_from_index_task_with_provider(
+            self.runtime.addon_provider(),
+            request.into_domain_request(&self.runtime)?,
+            cancellation,
+            progress,
+        )?;
+        Ok(AddonIndexRelinkResult::from_domain_with_provider(
+            relinked,
+            self.runtime.addon_provider(),
+        ))
+    }
+
+    pub(super) fn relink_collecting_progress(
+        &self,
+        request: RelinkAddonIndexAppRequest,
+    ) -> AppResult<TaskRun<AddonIndexRelinkResult>> {
+        task_support::run_service_task_collecting(self, request, Self::relink_task)
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn relink_with_callbacks<FCancel, FProgress>(
+        &self,
+        request: RelinkAddonIndexAppRequest,
+        is_cancelled: FCancel,
+        on_progress: FProgress,
+    ) -> AppResult<AddonIndexRelinkResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(TaskProgressEvent),
+    {
+        task_support::run_service_task_with_callbacks(
+            self,
+            request,
+            is_cancelled,
+            on_progress,
+            Self::relink_task,
         )
     }
 }

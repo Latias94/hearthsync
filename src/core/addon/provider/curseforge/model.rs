@@ -41,8 +41,34 @@ pub(crate) struct CurseForgeFile {
     pub(crate) file_date: String,
     pub(crate) download_url: Option<String>,
     pub(crate) is_available: bool,
+    #[serde(default = "default_curseforge_release_type")]
+    pub(crate) release_type: u8,
+    #[serde(default)]
+    pub(crate) dependencies: Vec<CurseForgeFileDependency>,
+    #[serde(default)]
+    pub(crate) hashes: Vec<CurseForgeFileHash>,
+    #[serde(default)]
+    pub(crate) file_length: Option<u64>,
     #[serde(default)]
     pub(crate) sortable_game_versions: Vec<CurseForgeSortableGameVersion>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CurseForgeFileHash {
+    pub(crate) value: String,
+    pub(crate) algo: u8,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CurseForgeFileDependency {
+    pub(crate) mod_id: u32,
+    pub(crate) relation_type: u8,
+}
+
+const fn default_curseforge_release_type() -> u8 {
+    1
 }
 
 #[derive(Debug, Clone, Deserialize)]

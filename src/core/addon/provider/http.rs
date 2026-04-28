@@ -81,6 +81,22 @@ impl HttpResponse {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpDownloadResponse {
+    pub status_code: u16,
+    pub headers: Vec<HttpHeader>,
+}
+
+impl HttpDownloadResponse {
+    pub fn is_success(&self) -> bool {
+        (200..300).contains(&self.status_code)
+    }
+
+    pub fn is_not_modified(&self) -> bool {
+        self.status_code == 304
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HttpDownloadProgress {
     pub bytes_current: u64,
@@ -100,7 +116,7 @@ pub trait HttpClient {
         request: HttpDownloadRequest,
         cancellation: &dyn CancellationToken,
         observer: Option<&dyn HttpDownloadProgressObserver>,
-    ) -> AppResult<()>;
+    ) -> AppResult<HttpDownloadResponse>;
 }
 
 #[derive(Debug, Clone)]
@@ -159,14 +175,31 @@ impl HttpClient for ReqwestHttpClient {
         request: HttpDownloadRequest,
         cancellation: &dyn CancellationToken,
         observer: Option<&dyn HttpDownloadProgressObserver>,
-    ) -> AppResult<()> {
+    ) -> AppResult<HttpDownloadResponse> {
         ensure_download_not_cancelled(cancellation)?;
         let mut builder = self.client.get(&request.url);
         for header in &request.headers {
             builder = builder.header(&header.name, &header.value);
         }
-        let mut response = builder.send()?.error_for_status()?;
-        write_response_to_path(&mut response, &request.destination, cancellation, observer)
+        let mut response = builder.send()?;
+        let result = HttpDownloadResponse {
+            status_code: response.status().as_u16(),
+            headers: response
+                .headers()
+                .iter()
+                .map(|(name, value)| HttpHeader {
+                    name: name.as_str().to_string(),
+                    value: String::from_utf8_lossy(value.as_bytes()).into_owned(),
+                })
+                .collect(),
+        };
+        if result.is_not_modified() {
+            return Ok(result);
+        }
+
+        response.error_for_status_ref()?;
+        write_response_to_path(&mut response, &request.destination, cancellation, observer)?;
+        Ok(result)
     }
 }
 

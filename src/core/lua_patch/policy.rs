@@ -24,38 +24,31 @@ impl LuaRewriteCapabilities {
 #[derive(Debug)]
 pub(crate) struct LuaRewritePolicyRegistry {
     profile_key_markers: &'static [&'static [u8]],
-    identity_field_markers: &'static [&'static [u8]],
     rules: &'static [LuaRewriteRule],
 }
 
 impl LuaRewritePolicyRegistry {
     const fn new(
         profile_key_markers: &'static [&'static [u8]],
-        identity_field_markers: &'static [&'static [u8]],
         rules: &'static [LuaRewriteRule],
     ) -> Self {
         Self {
             profile_key_markers,
-            identity_field_markers,
             rules,
         }
     }
 
     pub(crate) fn analyze(&self, path: &Path, bytes: &[u8]) -> Option<LuaRewriteCapabilities> {
         let target = classify_lua_rewrite_target(path)?;
-        Some(
-            self.detect_signal_capabilities(bytes)
-                .merge(self.matched_rule_capabilities(&target.file_name)),
-        )
+        let signal_capabilities = self.detect_signal_capabilities(bytes);
+        let matched_rule_capabilities = self.matched_rule_capabilities(&target.file_name);
+        Some(signal_capabilities.merge(matched_rule_capabilities))
     }
 
     fn detect_signal_capabilities(&self, bytes: &[u8]) -> LuaRewriteCapabilities {
         LuaRewriteCapabilities {
             rewrite_profile_keys: bytes_contain_any_ascii_marker(bytes, self.profile_key_markers),
-            rewrite_identity_strings: bytes_contain_any_ascii_marker(
-                bytes,
-                self.identity_field_markers,
-            ),
+            rewrite_identity_strings: false,
         }
     }
 
@@ -71,16 +64,9 @@ impl LuaRewritePolicyRegistry {
 }
 
 pub(crate) static DEFAULT_LUA_REWRITE_POLICY_REGISTRY: LuaRewritePolicyRegistry =
-    LuaRewritePolicyRegistry::new(
-        PROFILE_KEY_MARKERS,
-        IDENTITY_FIELD_MARKERS,
-        LUA_REWRITE_RULES,
-    );
+    LuaRewritePolicyRegistry::new(PROFILE_KEY_MARKERS, LUA_REWRITE_RULES);
 
 const PROFILE_KEY_MARKERS: &[&[u8]] = &[b"profileKeys"];
-
-const IDENTITY_FIELD_MARKERS: &[&[u8]] =
-    &[b"playerName", b"realm", b"LastPlayerFullName", b"LastRealm"];
 
 #[derive(Debug, Clone, Copy)]
 struct LuaRewriteRule {
@@ -120,6 +106,7 @@ const fn identity_prefix_rule(prefix: &'static str) -> LuaRewriteRule {
 const LUA_REWRITE_RULES: &[LuaRewriteRule] = &[
     identity_exact_rule("auraupdater.lua"),
     identity_exact_rule("bagsync.lua"),
+    identity_exact_rule("clique.lua"),
     identity_exact_rule("details.lua"),
     identity_exact_rule("elvui.lua"),
     identity_exact_rule("eventstracker.lua"),
@@ -127,7 +114,6 @@ const LUA_REWRITE_RULES: &[LuaRewriteRule] = &[
     identity_exact_rule("meetingstone.lua"),
     identity_exact_rule("newbeebox.lua"),
     identity_exact_rule("pawn.lua"),
-    identity_exact_rule("rarity.lua"),
     identity_exact_rule("savedinstances.lua"),
     identity_exact_rule("tinytooltip-remake.lua"),
     identity_exact_rule("weakauras.lua"),

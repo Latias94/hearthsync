@@ -16,7 +16,7 @@ use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
 
 use super::PreparedAddonDirectory;
-use super::inspect::inspect_staged_addon;
+use super::inspect::inspect_addon_directory;
 
 pub(super) fn extract_archive_addons(
     archive_path: &Path,
@@ -42,7 +42,7 @@ pub(super) fn extract_archive_addons(
     let mut prepared = Vec::new();
     for (index, root) in layout.addon_roots.iter().enumerate() {
         let stage_path = stage_root.join(&root.addon_name);
-        let addon = inspect_staged_addon(&stage_path, &root.addon_name)?;
+        let addon = inspect_addon_directory(&stage_path, &root.addon_name)?;
         prepared.push(PreparedAddonDirectory {
             addon,
             stage_path,

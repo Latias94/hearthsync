@@ -38,60 +38,53 @@ impl ExtendedAppServices {
         self.addon_indexes().inspect(request)
     }
 
-    pub fn install_addon_index(
+    pub fn validate_addon_index(
         &self,
-        request: super::InstallAddonIndexAppRequest,
-    ) -> AppResult<super::AddonIndexInstallResult> {
-        self.addon_indexes().install(request)
+        request: super::InspectAddonIndexRequest,
+    ) -> AppResult<super::AddonIndexValidationResult> {
+        self.addon_indexes().validate(request)
     }
 
-    pub fn install_addon_index_collecting_progress(
+    pub fn suggest_addon_index(
+        &self,
+        request: super::SuggestAddonIndexRequest,
+    ) -> AppResult<super::AddonIndexSuggestionResult> {
+        self.addon_indexes().suggest(request)
+    }
+
+    pub fn scaffold_addon_index(
+        &self,
+        request: super::ScaffoldAddonIndexRequest,
+    ) -> AppResult<super::AddonIndexScaffoldResult> {
+        self.addon_indexes().scaffold(request)
+    }
+
+    pub fn attach_addon_index(
+        &self,
+        request: super::AttachAddonIndexAppRequest,
+    ) -> AppResult<super::TaskRun<super::AddonIndexAttachResult>> {
+        self.addon_indexes().attach_collecting_progress(request)
+    }
+
+    pub fn install_addon_index(
         &self,
         request: super::InstallAddonIndexAppRequest,
     ) -> AppResult<super::TaskRun<super::AddonIndexInstallResult>> {
         self.addon_indexes().install_collecting_progress(request)
     }
 
-    pub fn install_addon_index_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::InstallAddonIndexAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::AddonIndexInstallResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.addon_indexes()
-            .install_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn update_addon_index(
-        &self,
-        request: super::UpdateAddonIndexAppRequest,
-    ) -> AppResult<super::AddonIndexUpdateResult> {
-        self.addon_indexes().update(request)
-    }
-
-    pub fn update_addon_index_collecting_progress(
         &self,
         request: super::UpdateAddonIndexAppRequest,
     ) -> AppResult<super::TaskRun<super::AddonIndexUpdateResult>> {
         self.addon_indexes().update_collecting_progress(request)
     }
 
-    pub fn update_addon_index_with_callbacks<FCancel, FProgress>(
+    pub fn relink_addon_index(
         &self,
-        request: super::UpdateAddonIndexAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::AddonIndexUpdateResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.addon_indexes()
-            .update_with_callbacks(request, is_cancelled, on_progress)
+        request: super::RelinkAddonIndexAppRequest,
+    ) -> AppResult<super::TaskRun<super::AddonIndexRelinkResult>> {
+        self.addon_indexes().relink_collecting_progress(request)
     }
 
     pub fn inspect_addon_lock(
@@ -132,29 +125,8 @@ impl ExtendedAppServices {
     pub fn apply_addon_lock_sync(
         &self,
         request: super::ApplyAddonLockAppRequest,
-    ) -> AppResult<super::AddonLockApplyResult> {
-        self.addon_locks().apply_sync(request)
-    }
-
-    pub fn apply_addon_lock_sync_collecting_progress(
-        &self,
-        request: super::ApplyAddonLockAppRequest,
     ) -> AppResult<super::TaskRun<super::AddonLockApplyResult>> {
         self.addon_locks().apply_sync_collecting_progress(request)
-    }
-
-    pub fn apply_addon_lock_sync_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::ApplyAddonLockAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::AddonLockApplyResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.addon_locks()
-            .apply_sync_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn plan_bundle_addon_lock(

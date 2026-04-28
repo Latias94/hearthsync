@@ -1,0 +1,369 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+
+#[cfg(test)]
+use std::ffi::OsString;
+#[cfg(test)]
+use std::sync::{Mutex, MutexGuard};
+
+use crate::core::app::{
+    AppRuntime, RuntimeSettingsInspectionResult, RuntimeSettingsMutationResult,
+    RuntimeSettingsValue, SetRuntimeSettingsAppRequest,
+};
+use crate::core::atomic_write::write_bytes_atomically;
+use crate::core::error::{AppError, AppResult};
+use crate::core::platform_dirs::app_data_subdir;
+
+const RUNTIME_SETTINGS_RELATIVE_PATH: &str = "settings/runtime.toml";
+#[cfg(test)]
+const TEST_RUNTIME_SETTINGS_PATH_ENV: &str = "HEARTHSYNC_TEST_RUNTIME_SETTINGS_PATH";
+
+#[derive(Debug, Clone, Default)]
+pub(super) struct RuntimeSettingsService;
+
+impl RuntimeSettingsService {
+    pub(super) fn with_runtime(_runtime: AppRuntime) -> Self {
+        Self
+    }
+
+    pub(super) fn inspect(&self) -> AppResult<RuntimeSettingsInspectionResult> {
+        let settings_path = runtime_settings_path()?;
+        let settings = load_persisted_runtime_settings_value()?;
+
+        Ok(RuntimeSettingsInspectionResult {
+            settings_path,
+            settings_file_exists: settings.is_some(),
+            settings: settings.unwrap_or_default(),
+        })
+    }
+
+    pub(super) fn set(
+        &self,
+        request: SetRuntimeSettingsAppRequest,
+    ) -> AppResult<RuntimeSettingsMutationResult> {
+        validate_set_runtime_settings_request(&request)?;
+
+        let settings_path = runtime_settings_path()?;
+        let mut settings = load_persisted_runtime_settings_value()?.unwrap_or_default();
+        let file_existed = settings_path.is_file();
+
+        if request.clear_addon_state_storage {
+            settings.addon_state_storage = None;
+        }
+        if let Some(value) = request.addon_state_storage {
+            settings.addon_state_storage = Some(value);
+        }
+        if request.clear_addon_cache_dir {
+            settings.addon_cache_dir = None;
+        }
+        if let Some(value) = request.addon_cache_dir {
+            settings.addon_cache_dir = Some(value);
+        }
+        if request.clear_http_no_validator_cache_policy {
+            settings.http_no_validator_cache_policy = None;
+        }
+        if let Some(value) = request.http_no_validator_cache_policy {
+            settings.http_no_validator_cache_policy = Some(value);
+        }
+
+        let settings_file_exists = save_persisted_runtime_settings_value(&settings)?;
+
+        Ok(RuntimeSettingsMutationResult {
+            settings_path,
+            settings_file_exists,
+            file_removed: file_existed && !settings_file_exists,
+            settings: if settings_file_exists {
+                settings
+            } else {
+                RuntimeSettingsValue::default()
+            },
+        })
+    }
+
+    pub(super) fn reset(&self) -> AppResult<RuntimeSettingsMutationResult> {
+        let settings_path = runtime_settings_path()?;
+        let file_removed = remove_persisted_runtime_settings_file()?;
+
+        Ok(RuntimeSettingsMutationResult {
+            settings_path,
+            settings_file_exists: false,
+            file_removed,
+            settings: RuntimeSettingsValue::default(),
+        })
+    }
+}
+
+pub(crate) fn load_persisted_runtime_settings_value() -> AppResult<Option<RuntimeSettingsValue>> {
+    let settings_path = runtime_settings_path()?;
+    if !settings_path.is_file() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&settings_path)?;
+    let settings = toml::from_str::<RuntimeSettingsValue>(&content).map_err(|error| {
+        AppError::Validation(format!(
+            "invalid runtime settings file `{}`: {error}",
+            settings_path.display()
+        ))
+    })?;
+    Ok(Some(settings))
+}
+
+fn save_persisted_runtime_settings_value(settings: &RuntimeSettingsValue) -> AppResult<bool> {
+    let settings_path = runtime_settings_path()?;
+    if settings.is_empty() {
+        if settings_path.is_file() {
+            fs::remove_file(&settings_path)?;
+        }
+        remove_empty_runtime_settings_parent_dirs(&settings_path)?;
+        return Ok(false);
+    }
+
+    if let Some(parent) = settings_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let content = toml::to_string_pretty(settings)?;
+    write_bytes_atomically(&settings_path, content.as_bytes())?;
+    Ok(true)
+}
+
+fn remove_persisted_runtime_settings_file() -> AppResult<bool> {
+    let settings_path = runtime_settings_path()?;
+    if !settings_path.is_file() {
+        return Ok(false);
+    }
+
+    fs::remove_file(&settings_path)?;
+    remove_empty_runtime_settings_parent_dirs(&settings_path)?;
+    Ok(true)
+}
+
+fn validate_set_runtime_settings_request(request: &SetRuntimeSettingsAppRequest) -> AppResult<()> {
+    if request.clear_addon_state_storage && request.addon_state_storage.is_some() {
+        return Err(AppError::Validation(
+            "cannot set and clear addon_state_storage in the same settings mutation".to_string(),
+        ));
+    }
+    if request.clear_addon_cache_dir && request.addon_cache_dir.is_some() {
+        return Err(AppError::Validation(
+            "cannot set and clear addon_cache_dir in the same settings mutation".to_string(),
+        ));
+    }
+    if request.clear_http_no_validator_cache_policy
+        && request.http_no_validator_cache_policy.is_some()
+    {
+        return Err(AppError::Validation(
+            "cannot set and clear http_no_validator_cache_policy in the same settings mutation"
+                .to_string(),
+        ));
+    }
+    if request.addon_state_storage.is_none()
+        && !request.clear_addon_state_storage
+        && request.addon_cache_dir.is_none()
+        && !request.clear_addon_cache_dir
+        && request.http_no_validator_cache_policy.is_none()
+        && !request.clear_http_no_validator_cache_policy
+    {
+        return Err(AppError::Validation(
+            "settings mutation must change at least one field".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+fn runtime_settings_path() -> AppResult<PathBuf> {
+    #[cfg(test)]
+    if let Some(path) = std::env::var_os(TEST_RUNTIME_SETTINGS_PATH_ENV) {
+        return Ok(PathBuf::from(path));
+    }
+
+    app_data_subdir(Path::new(RUNTIME_SETTINGS_RELATIVE_PATH))
+}
+
+fn remove_empty_runtime_settings_parent_dirs(settings_path: &Path) -> AppResult<()> {
+    let Some(settings_dir) = settings_path.parent() else {
+        return Ok(());
+    };
+    if settings_dir.exists() && fs::read_dir(settings_dir)?.next().is_none() {
+        fs::remove_dir(settings_dir)?;
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn runtime_settings_path_guard(path: &Path) -> RuntimeSettingsPathGuard {
+    static RUNTIME_SETTINGS_PATH_ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+    let lock = RUNTIME_SETTINGS_PATH_ENV_MUTEX
+        .lock()
+        .expect("runtime settings env lock");
+    let previous = std::env::var_os(TEST_RUNTIME_SETTINGS_PATH_ENV);
+    unsafe {
+        std::env::set_var(TEST_RUNTIME_SETTINGS_PATH_ENV, path);
+    }
+
+    RuntimeSettingsPathGuard {
+        previous,
+        _lock: lock,
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct RuntimeSettingsPathGuard {
+    previous: Option<OsString>,
+    _lock: MutexGuard<'static, ()>,
+}
+
+#[cfg(test)]
+impl Drop for RuntimeSettingsPathGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => unsafe {
+                std::env::set_var(TEST_RUNTIME_SETTINGS_PATH_ENV, value);
+            },
+            None => unsafe {
+                std::env::remove_var(TEST_RUNTIME_SETTINGS_PATH_ENV);
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use tempfile::tempdir;
+
+    use super::{RuntimeSettingsService, runtime_settings_path_guard};
+    use crate::core::app::{
+        AddonStateStorageValue, HttpNoValidatorCachePolicyValue, SetRuntimeSettingsAppRequest,
+    };
+    use crate::core::error::AppError;
+
+    #[test]
+    fn runtime_settings_service_roundtrips_settings_file() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::default();
+
+        let mutation = service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: Some(AddonStateStorageValue::Sidecar),
+                clear_addon_state_storage: false,
+                addon_cache_dir: Some(PathBuf::from("E:/Cache")),
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: Some(
+                    HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 120 },
+                ),
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect("set settings");
+        let inspection = service.inspect().expect("inspect settings");
+
+        assert!(!mutation.file_removed);
+        assert!(mutation.settings_file_exists);
+        assert_eq!(
+            mutation.settings.addon_state_storage,
+            Some(AddonStateStorageValue::Sidecar)
+        );
+        assert!(settings_path.is_file());
+        assert!(inspection.settings_file_exists);
+        assert_eq!(inspection.settings, mutation.settings);
+    }
+
+    #[test]
+    fn runtime_settings_service_reset_removes_settings_file() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::default();
+
+        service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: None,
+                clear_addon_state_storage: false,
+                addon_cache_dir: Some(PathBuf::from("E:/Cache")),
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: None,
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect("seed settings");
+        let mutation = service.reset().expect("reset settings");
+
+        assert!(mutation.file_removed);
+        assert!(!mutation.settings_file_exists);
+        assert!(!settings_path.exists());
+        assert_eq!(
+            mutation.settings,
+            crate::core::app::RuntimeSettingsValue::default()
+        );
+    }
+
+    #[test]
+    fn runtime_settings_service_rejects_empty_mutation() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::default();
+
+        let error = service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: None,
+                clear_addon_state_storage: false,
+                addon_cache_dir: None,
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: None,
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect_err("empty mutation should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+    }
+
+    #[test]
+    fn runtime_settings_service_rejects_set_and_clear_same_field() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::default();
+
+        let error = service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: Some(AddonStateStorageValue::Sidecar),
+                clear_addon_state_storage: true,
+                addon_cache_dir: None,
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: None,
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect_err("conflicting mutation should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+    }
+
+    #[test]
+    fn runtime_settings_service_reports_path_for_invalid_settings_file() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::default();
+        std::fs::create_dir_all(settings_path.parent().expect("settings dir"))
+            .expect("create settings dir");
+        std::fs::write(&settings_path, "addon_cache_dir = [").expect("write invalid settings");
+
+        let error = service
+            .inspect()
+            .expect_err("invalid settings should fail inspection");
+
+        match error {
+            AppError::Validation(message) => {
+                assert!(message.contains("invalid runtime settings file"));
+                assert!(message.contains(&settings_path.display().to_string()));
+            }
+            other => panic!("expected validation error, got {other:?}"),
+        }
+    }
+}

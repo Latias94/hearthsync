@@ -14,6 +14,7 @@ impl ConfigService {
         Self { external_packages }
     }
 
+    #[allow(dead_code)]
     pub(super) fn inspect(
         &self,
         request: InspectConfigAppRequest,
@@ -30,6 +31,7 @@ impl ConfigService {
             .analyze_collecting_progress(request.into_external_request())
     }
 
+    #[allow(dead_code)]
     pub(super) fn inspect_with_callbacks<FCancel, FProgress>(
         &self,
         request: InspectConfigAppRequest,
@@ -47,6 +49,7 @@ impl ConfigService {
         )
     }
 
+    #[allow(dead_code)]
     pub(super) fn plan_apply(
         &self,
         request: PlanConfigApplyAppRequest,
@@ -63,6 +66,7 @@ impl ConfigService {
             .plan_apply_collecting_progress(request.into_external_request())
     }
 
+    #[allow(dead_code)]
     pub(super) fn plan_apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: PlanConfigApplyAppRequest,
@@ -80,6 +84,7 @@ impl ConfigService {
         )
     }
 
+    #[allow(dead_code)]
     pub(super) fn apply(
         &self,
         request: crate::core::app::ApplyConfigAppRequest,
@@ -96,6 +101,7 @@ impl ConfigService {
             .apply_collecting_progress(request.into_external_request())
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: crate::core::app::ApplyConfigAppRequest,

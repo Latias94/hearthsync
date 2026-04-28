@@ -1,63 +1,75 @@
 use super::ConfigCommands;
-use super::app_support::{render_with_apply_target, render_with_value, stable_services};
+use super::app_support::{
+    render_task_result, render_with_apply_target_task_result, stable_services,
+};
 use super::output::config::{render_config_analysis, render_config_apply, render_config_plan};
 use crate::core::app::{
-    ApplyConfigAppRequest, BundleApplyDefaultsValue, ConfigPackageAppRequest,
+    AppRuntime, ApplyConfigAppRequest, BundleApplyDefaultsValue, ConfigPackageAppRequest,
     InspectConfigAppRequest, PlanConfigApplyAppRequest, ResourceApplyPolicyValue,
 };
 use crate::core::error::AppResult;
 
-pub(super) fn handle_config_command(json: bool, command: ConfigCommands) -> AppResult<()> {
-    let app = stable_services();
+pub(super) fn handle_config_command(
+    json: bool,
+    runtime: AppRuntime,
+    command: ConfigCommands,
+) -> AppResult<()> {
+    let app = stable_services(runtime);
 
     match command {
-        ConfigCommands::Inspect { source } => render_with_value(
-            json,
-            || {
-                app.inspect_config(InspectConfigAppRequest {
-                    source_path: source,
-                })
-            },
-            render_config_analysis,
-        )?,
+        ConfigCommands::Inspect { source } => {
+            render_task_result(
+                json,
+                || {
+                    app.inspect_config(InspectConfigAppRequest {
+                        source_path: source,
+                    })
+                },
+                render_config_analysis,
+            )?;
+        }
         ConfigCommands::Plan {
             config_options,
             install_target,
             apply_mapping,
-        } => render_with_apply_target(
-            json,
-            &app,
-            install_target,
-            apply_mapping,
-            |target| PlanConfigApplyAppRequest {
-                config_package: build_config_package_request(config_options),
-                installation: target.installation,
-                apply_mappings: target.apply_mappings,
-            },
-            |request| app.plan_config_apply(request),
-            render_config_plan,
-        )?,
+        } => {
+            render_with_apply_target_task_result(
+                json,
+                &app,
+                install_target,
+                apply_mapping,
+                |target| PlanConfigApplyAppRequest {
+                    config_package: build_config_package_request(config_options),
+                    installation: target.installation,
+                    apply_mappings: target.apply_mappings,
+                },
+                |request| app.plan_config_apply(request),
+                render_config_plan,
+            )?;
+        }
         ConfigCommands::Apply {
             config_options,
             install_target,
             dry_run,
             backup_output,
             apply_mapping,
-        } => render_with_apply_target(
-            json,
-            &app,
-            install_target,
-            apply_mapping,
-            |target| ApplyConfigAppRequest {
-                config_package: build_config_package_request(config_options),
-                installation: target.installation,
-                dry_run,
-                backup_output_path: backup_output,
-                apply_mappings: target.apply_mappings,
-            },
-            |request| app.apply_config(request),
-            render_config_apply,
-        )?,
+        } => {
+            render_with_apply_target_task_result(
+                json,
+                &app,
+                install_target,
+                apply_mapping,
+                |target| ApplyConfigAppRequest {
+                    config_package: build_config_package_request(config_options),
+                    installation: target.installation,
+                    dry_run,
+                    backup_output_path: backup_output,
+                    apply_mappings: target.apply_mappings,
+                },
+                |request| app.apply_config(request),
+                render_config_apply,
+            )?;
+        }
     }
 
     Ok(())

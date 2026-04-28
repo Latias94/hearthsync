@@ -2,11 +2,13 @@ use std::path::PathBuf;
 
 use super::{RuntimeDefaultableRequest, apply_backup_output_default};
 use crate::core::addon::{
+    AdoptAddonsRequest as DomainAdoptAddonsRequest,
     InstallAddonRequest as DomainInstallAddonRequest,
-    RemoveAddonRequest as DomainRemoveAddonRequest, SearchAddonRequest as DomainSearchAddonRequest,
-    UpdateAddonRequest as DomainUpdateAddonRequest,
+    RelinkAddonRequest as DomainRelinkAddonRequest, RemoveAddonRequest as DomainRemoveAddonRequest,
+    SearchAddonRequest as DomainSearchAddonRequest, UpdateAddonRequest as DomainUpdateAddonRequest,
 };
 use crate::core::app::{AddonPackageMetadataValue, AppRuntime, ResolvedInstallationValue};
+use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
 #[derive(Debug, Clone)]
@@ -38,6 +40,60 @@ impl ListAddonsRequest {
 }
 
 #[derive(Debug, Clone)]
+pub struct AdoptAddonsAppRequest {
+    pub installation: ResolvedInstallationValue,
+    pub addon_directories: Vec<String>,
+    pub package_id: Option<String>,
+    pub archive_output_path: Option<PathBuf>,
+    pub dry_run: bool,
+}
+
+impl AdoptAddonsAppRequest {
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAdoptAddonsRequest> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+
+        Ok(DomainAdoptAddonsRequest {
+            installation,
+            state_paths,
+            addon_directories: self.addon_directories,
+            package_id: self.package_id,
+            archive_output_path: self.archive_output_path,
+            dry_run: self.dry_run,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RelinkAddonAppRequest {
+    pub installation: ResolvedInstallationValue,
+    pub name: String,
+    pub source: String,
+    pub dry_run: bool,
+}
+
+impl RelinkAddonAppRequest {
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainRelinkAddonRequest> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+
+        Ok(DomainRelinkAddonRequest {
+            installation,
+            state_paths,
+            name: self.name,
+            source: self.source,
+            dry_run: self.dry_run,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct InstallAddonAppRequest {
     pub installation: ResolvedInstallationValue,
     pub source: String,
@@ -55,14 +111,23 @@ impl RuntimeDefaultableRequest for InstallAddonAppRequest {
 }
 
 impl InstallAddonAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainInstallAddonRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainInstallAddonRequest {
-            installation: request.installation.into_domain(),
-            source: request.source,
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
-            replace_existing: request.replace_existing,
-            metadata: request.metadata.map(AddonPackageMetadataValue::into_domain),
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainInstallAddonRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain();
+            let state_paths = runtime.addon_state_paths(&installation)?;
+
+            Ok(DomainInstallAddonRequest {
+                installation,
+                state_paths,
+                source: request.source,
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+                replace_existing: request.replace_existing,
+                metadata: request.metadata.map(AddonPackageMetadataValue::into_domain),
+            })
         })
     }
 }
@@ -83,12 +148,21 @@ impl RuntimeDefaultableRequest for UpdateAddonAppRequest {
 }
 
 impl UpdateAddonAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainUpdateAddonRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainUpdateAddonRequest {
-            installation: request.installation.into_domain(),
-            name: request.name,
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainUpdateAddonRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain();
+            let state_paths = runtime.addon_state_paths(&installation)?;
+
+            Ok(DomainUpdateAddonRequest {
+                installation,
+                state_paths,
+                name: request.name,
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+            })
         })
     }
 }
@@ -109,12 +183,21 @@ impl RuntimeDefaultableRequest for RemoveAddonAppRequest {
 }
 
 impl RemoveAddonAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRemoveAddonRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainRemoveAddonRequest {
-            installation: request.installation.into_domain(),
-            name: request.name,
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainRemoveAddonRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain();
+            let state_paths = runtime.addon_state_paths(&installation)?;
+
+            Ok(DomainRemoveAddonRequest {
+                installation,
+                state_paths,
+                name: request.name,
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+            })
         })
     }
 }

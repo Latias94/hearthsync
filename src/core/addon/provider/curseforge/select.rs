@@ -2,6 +2,23 @@ use super::model::{CurseForgeFile, CurseForgeGame, CurseForgeGameVersionType};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CurseForgeFileReleaseType {
+    Stable,
+    Beta,
+    Alpha,
+}
+
+impl CurseForgeFileReleaseType {
+    fn rank(self) -> u8 {
+        match self {
+            Self::Stable => 1,
+            Self::Beta => 2,
+            Self::Alpha => 3,
+        }
+    }
+}
+
 pub(crate) fn select_curseforge_version_type(
     version_types: &[CurseForgeGameVersionType],
     flavor: WowFlavor,
@@ -45,6 +62,7 @@ pub(super) fn is_world_of_warcraft_game(game: &CurseForgeGame) -> bool {
 pub(crate) fn select_latest_curseforge_file(
     files: Vec<CurseForgeFile>,
     version_type_id: Option<u32>,
+    max_release_type: Option<CurseForgeFileReleaseType>,
 ) -> AppResult<CurseForgeFile> {
     let mut candidates = files
         .into_iter()
@@ -55,16 +73,19 @@ pub(crate) fn select_latest_curseforge_file(
                 file_matches_curseforge_version_type(file, version_type_id)
             })
         })
+        .filter(|file| {
+            max_release_type.is_none_or(|max_release_type| {
+                file_matches_curseforge_release_type(file, max_release_type)
+            })
+        })
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| right.file_date.cmp(&left.file_date));
 
     let Some(file) = candidates.into_iter().next() else {
-        return Err(AppError::Validation(match version_type_id {
-            Some(version_type_id) => format!(
-                "CurseForge mod does not expose an available `.zip` file for version type `{version_type_id}`"
-            ),
-            None => "CurseForge mod does not expose an available `.zip` file".to_string(),
-        }));
+        return Err(AppError::Validation(missing_curseforge_file_message(
+            version_type_id,
+            max_release_type,
+        )));
     };
 
     validate_curseforge_file(file)
@@ -122,4 +143,41 @@ fn file_matches_curseforge_version_type(file: &CurseForgeFile, version_type_id: 
     file.sortable_game_versions
         .iter()
         .any(|item| item.game_version_type_id == version_type_id)
+}
+
+fn file_matches_curseforge_release_type(
+    file: &CurseForgeFile,
+    max_release_type: CurseForgeFileReleaseType,
+) -> bool {
+    let Some(rank) = curseforge_file_release_rank(file.release_type) else {
+        return false;
+    };
+    rank <= max_release_type.rank()
+}
+
+fn curseforge_file_release_rank(release_type: u8) -> Option<u8> {
+    match release_type {
+        1 => Some(CurseForgeFileReleaseType::Stable.rank()),
+        2 => Some(CurseForgeFileReleaseType::Beta.rank()),
+        3 => Some(CurseForgeFileReleaseType::Alpha.rank()),
+        _ => None,
+    }
+}
+
+fn missing_curseforge_file_message(
+    version_type_id: Option<u32>,
+    max_release_type: Option<CurseForgeFileReleaseType>,
+) -> String {
+    let release_suffix = match max_release_type {
+        Some(CurseForgeFileReleaseType::Stable) => " for stable releases only",
+        Some(CurseForgeFileReleaseType::Beta) => " for stable/beta releases",
+        Some(CurseForgeFileReleaseType::Alpha) => " for stable/beta/alpha releases",
+        None => "",
+    };
+    match version_type_id {
+        Some(version_type_id) => format!(
+            "CurseForge mod does not expose an available `.zip` file for version type `{version_type_id}`{release_suffix}"
+        ),
+        None => format!("CurseForge mod does not expose an available `.zip` file{release_suffix}"),
+    }
 }

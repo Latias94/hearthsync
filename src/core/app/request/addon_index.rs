@@ -2,14 +2,99 @@ use std::path::PathBuf;
 
 use super::{RuntimeDefaultableRequest, apply_backup_output_default};
 use crate::core::addon::index::{
+    AddonIndexAttachRequest as DomainAddonIndexAttachRequest,
     AddonIndexInstallRequest as DomainAddonIndexInstallRequest,
+    AddonIndexRelinkRequest as DomainAddonIndexRelinkRequest,
+    AddonIndexScaffoldRequest as DomainAddonIndexScaffoldRequest,
+    AddonIndexSuggestionRequest as DomainAddonIndexSuggestionRequest,
     AddonIndexUpdateRequest as DomainAddonIndexUpdateRequest,
 };
 use crate::core::app::{AppRuntime, ResolvedInstallationValue};
+use crate::core::error::AppResult;
 
 #[derive(Debug, Clone)]
 pub struct InspectAddonIndexRequest {
     pub index_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct AttachAddonIndexAppRequest {
+    pub installation: ResolvedInstallationValue,
+    pub index_path: PathBuf,
+    pub name: Option<String>,
+    pub dry_run: bool,
+}
+
+impl AttachAddonIndexAppRequest {
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonIndexAttachRequest> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+
+        Ok(DomainAddonIndexAttachRequest {
+            installation,
+            state_paths,
+            index_path: self.index_path,
+            name: self.name,
+            dry_run: self.dry_run,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SuggestAddonIndexRequest {
+    pub installation: ResolvedInstallationValue,
+    pub index_path: PathBuf,
+    pub name: Option<String>,
+}
+
+impl SuggestAddonIndexRequest {
+    pub(crate) fn into_domain(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonIndexSuggestionRequest> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+
+        Ok(DomainAddonIndexSuggestionRequest {
+            installation,
+            state_paths,
+            index_path: self.index_path,
+            name: self.name,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ScaffoldAddonIndexRequest {
+    pub installation: ResolvedInstallationValue,
+    pub index_path: PathBuf,
+    pub index_name: String,
+    pub description: Option<String>,
+    pub name: Option<String>,
+    pub overwrite: bool,
+}
+
+impl ScaffoldAddonIndexRequest {
+    pub(crate) fn into_domain(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonIndexScaffoldRequest> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+
+        Ok(DomainAddonIndexScaffoldRequest {
+            installation,
+            state_paths,
+            index_path: self.index_path,
+            index_name: self.index_name,
+            description: self.description,
+            name: self.name,
+            overwrite: self.overwrite,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -33,14 +118,20 @@ impl InstallAddonIndexAppRequest {
     pub(crate) fn into_domain_request(
         self,
         runtime: &AppRuntime,
-    ) -> DomainAddonIndexInstallRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainAddonIndexInstallRequest {
-            installation: request.installation.into_domain(),
-            index_path: request.index_path,
-            name: request.name,
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
-            replace_existing: request.replace_existing,
+    ) -> AppResult<DomainAddonIndexInstallRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain();
+            let state_paths = runtime.addon_state_paths(&installation)?;
+
+            Ok(DomainAddonIndexInstallRequest {
+                installation,
+                state_paths,
+                index_path: request.index_path,
+                name: request.name,
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+                replace_existing: request.replace_existing,
+            })
         })
     }
 }
@@ -62,13 +153,50 @@ impl RuntimeDefaultableRequest for UpdateAddonIndexAppRequest {
 }
 
 impl UpdateAddonIndexAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonIndexUpdateRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainAddonIndexUpdateRequest {
-            installation: request.installation.into_domain(),
-            index_path: request.index_path,
-            name: request.name,
-            dry_run: request.dry_run,
-            backup_output_path: request.backup_output_path,
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonIndexUpdateRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain();
+            let state_paths = runtime.addon_state_paths(&installation)?;
+
+            Ok(DomainAddonIndexUpdateRequest {
+                installation,
+                state_paths,
+                index_path: request.index_path,
+                name: request.name,
+                dry_run: request.dry_run,
+                backup_output_path: request.backup_output_path,
+            })
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RelinkAddonIndexAppRequest {
+    pub installation: ResolvedInstallationValue,
+    pub index_path: PathBuf,
+    pub name: String,
+    pub target: Option<String>,
+    pub dry_run: bool,
+}
+
+impl RelinkAddonIndexAppRequest {
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonIndexRelinkRequest> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+
+        Ok(DomainAddonIndexRelinkRequest {
+            installation,
+            state_paths,
+            index_path: self.index_path,
+            name: self.name,
+            target: self.target,
+            dry_run: self.dry_run,
         })
     }
 }

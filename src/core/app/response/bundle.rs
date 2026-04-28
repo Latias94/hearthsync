@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::core::addon::AddonProvider;
 use crate::core::app::{
     ApplyActionValue, ApplyGroupValue, BundleCharacterResourceValue, BundleManifestValue,
     BundleMappingRulesValue, BundlePackageValue, BundleSourceValue, HelperStrategyValue,
@@ -360,11 +361,17 @@ pub struct BundleAddonLockPlanResult {
 }
 
 impl BundleAddonLockPlanResult {
-    pub(crate) fn from_domain(value: DomainBundleAddonLockPlan) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainBundleAddonLockPlan,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         Self {
             bundle_path: value.bundle_path,
             embedded_lock_entry: value.embedded_lock_entry,
-            plan: AddonLockPlanResult::from_domain(value.plan),
+            plan: AddonLockPlanResult::from_domain_with_provider(value.plan, provider),
         }
     }
 }
@@ -377,11 +384,17 @@ pub struct BundleAddonLockApplyResult {
 }
 
 impl BundleAddonLockApplyResult {
-    pub(crate) fn from_domain(value: DomainBundleAddonLockApply) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainBundleAddonLockApply,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         Self {
             bundle_path: value.bundle_path,
             embedded_lock_entry: value.embedded_lock_entry,
-            apply: AddonLockApplyResult::from_domain(value.apply),
+            apply: AddonLockApplyResult::from_domain_with_provider(value.apply, provider),
         }
     }
 }

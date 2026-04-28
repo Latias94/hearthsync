@@ -1,6 +1,7 @@
 use super::InstallTargetArgs;
 use super::app_support::{extended_services, render_with_installation};
 use super::output::addon_lock::{render_bundle_addon_lock_apply, render_bundle_addon_lock_plan};
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 
 mod request;
@@ -9,10 +10,11 @@ use request::{build_apply_bundle_addon_lock_request, build_plan_bundle_addon_loc
 
 pub(super) fn handle_bundle_addon_plan(
     json: bool,
+    runtime: AppRuntime,
     bundle: std::path::PathBuf,
     install_target: InstallTargetArgs,
 ) -> AppResult<()> {
-    let app = extended_services();
+    let app = extended_services(runtime);
 
     render_with_installation(
         json,
@@ -26,12 +28,13 @@ pub(super) fn handle_bundle_addon_plan(
 
 pub(super) fn handle_bundle_addon_apply(
     json: bool,
+    runtime: AppRuntime,
     bundle: std::path::PathBuf,
     install_target: InstallTargetArgs,
     backup_output: Option<std::path::PathBuf>,
     replace_existing: bool,
 ) -> AppResult<()> {
-    let app = extended_services();
+    let app = extended_services(runtime);
 
     render_with_installation(
         json,

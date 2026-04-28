@@ -11,7 +11,7 @@ use super::verify::{compare_lock_snapshots, lock_snapshots, snapshot_from_tracke
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::core::addon::list_addons;
+use crate::core::addon::{AddonStatePaths, list_addons};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -22,30 +22,39 @@ use super::{
 
 pub fn plan_addon_lock_sync(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     expected_lock_path: Option<&Path>,
 ) -> AppResult<AddonLockPlanResult> {
-    plan_addon_lock_sync_with_source_overrides(installation, expected_lock_path, &[])
+    plan_addon_lock_sync_with_source_overrides(installation, state_paths, expected_lock_path, &[])
 }
 
 pub fn plan_addon_lock_sync_with_source_overrides(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     expected_lock_path: Option<&Path>,
     source_overrides: &[AddonLockSourceOverride],
 ) -> AppResult<AddonLockPlanResult> {
-    Ok(build_addon_lock_plan(installation, expected_lock_path, source_overrides)?.result)
+    Ok(build_addon_lock_plan(
+        installation,
+        state_paths,
+        expected_lock_path,
+        source_overrides,
+    )?
+    .result)
 }
 
 pub(super) fn build_addon_lock_plan(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     expected_lock_path: Option<&Path>,
     source_overrides: &[AddonLockSourceOverride],
 ) -> AppResult<AddonLockPlanContext> {
     let lock_path = expected_lock_path
         .map(Path::to_path_buf)
-        .unwrap_or_else(|| lock_path(installation));
+        .unwrap_or_else(|| lock_path(state_paths));
     let source_overrides = resolved_source_override_map(&lock_path, source_overrides)?;
     let expected_lock = read_addon_lock(&lock_path)?;
-    let inventory = list_addons(installation)?;
+    let inventory = list_addons(installation, state_paths)?;
     let current_snapshots = inventory
         .tracked_packages
         .iter()

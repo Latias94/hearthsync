@@ -7,6 +7,7 @@ use crate::core::addon::lock::{
     AddonLockSourceOverride as DomainAddonLockSourceOverride,
 };
 use crate::core::app::{AppRuntime, ResolvedInstallationValue};
+use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
 #[derive(Debug, Clone)]
@@ -15,8 +16,16 @@ pub struct InspectAddonLockRequest {
 }
 
 impl InspectAddonLockRequest {
-    pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
-        self.installation.into_domain()
+    pub(crate) fn into_domain_inputs(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<(
+        DetectedFlavorInstallation,
+        crate::core::addon::AddonStatePaths,
+    )> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+        Ok((installation, state_paths))
     }
 }
 
@@ -26,8 +35,16 @@ pub struct WriteAddonLockRequest {
 }
 
 impl WriteAddonLockRequest {
-    pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
-        self.installation.into_domain()
+    pub(crate) fn into_domain_inputs(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<(
+        DetectedFlavorInstallation,
+        crate::core::addon::AddonStatePaths,
+    )> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+        Ok((installation, state_paths))
     }
 }
 
@@ -44,8 +61,17 @@ pub struct VerifyAddonLockRequest {
 }
 
 impl VerifyAddonLockRequest {
-    pub(crate) fn into_domain_inputs(self) -> (DetectedFlavorInstallation, Option<PathBuf>) {
-        (self.installation.into_domain(), self.lock_path)
+    pub(crate) fn into_domain_inputs(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<(
+        DetectedFlavorInstallation,
+        crate::core::addon::AddonStatePaths,
+        Option<PathBuf>,
+    )> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+        Ok((installation, state_paths, self.lock_path))
     }
 }
 
@@ -56,8 +82,17 @@ pub struct PlanAddonLockSyncRequest {
 }
 
 impl PlanAddonLockSyncRequest {
-    pub(crate) fn into_domain_inputs(self) -> (DetectedFlavorInstallation, Option<PathBuf>) {
-        (self.installation.into_domain(), self.lock_path)
+    pub(crate) fn into_domain_inputs(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<(
+        DetectedFlavorInstallation,
+        crate::core::addon::AddonStatePaths,
+        Option<PathBuf>,
+    )> {
+        let installation = self.installation.into_domain();
+        let state_paths = runtime.addon_state_paths(&installation)?;
+        Ok((installation, state_paths, self.lock_path))
     }
 }
 
@@ -93,16 +128,25 @@ impl RuntimeDefaultableRequest for ApplyAddonLockAppRequest {
 }
 
 impl ApplyAddonLockAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainAddonLockApplyRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainAddonLockApplyRequest {
-            installation: request.installation.into_domain(),
-            lock_path: request.lock_path,
-            backup_output_path: request.backup_output_path,
-            replace_existing: request.replace_existing,
-            source_overrides: map_owned_vec(
-                request.source_overrides,
-                AddonLockSourceOverrideRequest::into_domain_override,
-            ),
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonLockApplyRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain();
+            let state_paths = runtime.addon_state_paths(&installation)?;
+
+            Ok(DomainAddonLockApplyRequest {
+                installation,
+                state_paths,
+                lock_path: request.lock_path,
+                backup_output_path: request.backup_output_path,
+                replace_existing: request.replace_existing,
+                source_overrides: map_owned_vec(
+                    request.source_overrides,
+                    AddonLockSourceOverrideRequest::into_domain_override,
+                ),
+            })
         })
     }
 }

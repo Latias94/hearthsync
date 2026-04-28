@@ -1,10 +1,15 @@
+mod adopt;
+mod dependency;
 mod execution;
 pub mod index;
 pub mod lock;
 mod mutation;
 mod package_prep;
+pub mod policy;
 mod provider;
 mod registry;
+mod relink;
+mod state;
 #[cfg(test)]
 mod tests;
 
@@ -15,6 +20,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
+pub use self::adopt::adopt_addons;
 pub use self::execution::{
     install_addon, install_addon_task, remove_addons, remove_addons_task, update_addons,
     update_addons_task,
@@ -22,30 +28,45 @@ pub use self::execution::{
 use self::package_prep::find_primary_toc;
 use self::provider::AddonSearchRequest as ProviderAddonSearchRequest;
 pub use self::provider::{
-    AddonDownloadProgressObserver, AddonProvider, AddonProviderContext, AddonProviderOptions,
-    AddonProviderRetryPolicy, AddonSearchRequest, AddonSearchResult, AddonSourceRef,
-    DefaultAddonProvider, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
-    MaterializedAddonSource,
+    AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy,
+    AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult, AddonDownloadProgressObserver,
+    AddonProvider, AddonProviderContext, AddonProviderOptions, AddonProviderRetryPolicy,
+    AddonSearchRequest, AddonSearchResult, AddonSourceRef, AddonSourceResolutionPolicy,
+    DefaultAddonProvider, HttpNoValidatorCachePolicy, MaterializeSourceInputRequest,
+    MaterializeSourceRefRequest, MaterializedAddonSource, ResolvedAddonDependencies,
 };
 use self::registry::registry_path;
-use crate::core::error::AppResult;
+pub use self::relink::relink_addon;
+pub(crate) use self::relink::{
+    ensure_relink_addon_directories_match, relink_addon_with_provider, relink_source_changed,
+    relink_timestamp,
+};
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
+pub(crate) use self::dependency::{
+    collect_missing_dependency_prepared_packages, preview_installed_dependency_packages,
+    validate_addon_update_dependency_policy_support, validate_dependency_resolution_support,
+};
 pub(crate) use self::execution::{
     InstallAddonExecutionPlan, InstallPreparedAddonRequest, execute_install_plan_task,
     install_addon_task_with_provider, prepare_install_prepared_addon,
     update_addons_task_with_provider,
 };
 pub(crate) use self::mutation::{
-    install_prepared_package_task, remove_selected_packages_task, rollback_or_report_addon_error,
-    update_prepared_packages_task,
+    UpdatePreparedPackagesWithDependenciesRequest, install_prepared_package_task,
+    remove_selected_packages_task, rollback_or_report_addon_error, update_prepared_packages_task,
+    update_prepared_packages_with_dependencies_task,
 };
 pub(crate) use self::package_prep::{
     prepare_package_from_archive_with_source, prepare_package_from_source_input_task_with_provider,
     prepare_package_from_source_ref_task_with_provider,
+    prepare_package_from_source_ref_task_with_provider_and_policy,
 };
 pub(crate) use self::provider::canonicalize_local_archive_path;
 pub(crate) use self::registry::{load_registry, save_registry};
+pub(crate) use self::registry::{select_single_tracked_package, select_tracked_packages};
+pub use self::state::{AddonStatePaths, AddonStateStorageKind};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AddonInventory {
@@ -58,11 +79,51 @@ pub struct AddonInventory {
 #[derive(Debug, Clone, Serialize)]
 pub struct InstallAddonRequest {
     pub installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
     pub source: String,
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,
     pub metadata: Option<AddonPackageMetadata>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AdoptAddonsRequest {
+    pub installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
+    pub addon_directories: Vec<String>,
+    pub package_id: Option<String>,
+    pub archive_output_path: Option<PathBuf>,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AdoptedAddonPackageResult {
+    pub dry_run: bool,
+    pub source: AddonSourceRef,
+    pub package_id: String,
+    pub addons: Vec<TrackedAddon>,
+    pub registry_path: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RelinkAddonRequest {
+    pub installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
+    pub name: String,
+    pub source: String,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RelinkedAddonPackageResult {
+    pub dry_run: bool,
+    pub package_id: String,
+    pub previous_source: AddonSourceRef,
+    pub source: AddonSourceRef,
+    pub addons: Vec<TrackedAddon>,
+    pub registry_path: PathBuf,
+    pub cleared_metadata: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -81,6 +142,7 @@ pub struct InstalledAddonPackageResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct UpdateAddonRequest {
     pub installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
     pub name: Option<String>,
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
@@ -89,6 +151,7 @@ pub struct UpdateAddonRequest {
 #[derive(Debug, Clone, Serialize)]
 pub struct RemoveAddonRequest {
     pub installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
     pub name: String,
     pub dry_run: bool,
     pub backup_output_path: Option<PathBuf>,
@@ -114,6 +177,8 @@ pub struct UpdatedAddonPackageResult {
     pub files_to_write: usize,
     pub written_files: usize,
     pub updated_packages: Vec<TrackedAddonPackage>,
+    pub installed_dependency_packages: Vec<TrackedAddonPackage>,
+    pub ignored_packages: Vec<String>,
     pub backup_path: Option<PathBuf>,
 }
 
@@ -197,9 +262,12 @@ pub(crate) struct PreparedAddonDirectory {
     pub(crate) file_count: usize,
 }
 
-pub fn list_addons(installation: &DetectedFlavorInstallation) -> AppResult<AddonInventory> {
-    let registry_path = registry_path(installation);
-    let registry = load_registry(installation)?;
+pub fn list_addons(
+    installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
+) -> AppResult<AddonInventory> {
+    let registry_path = registry_path(state_paths);
+    let registry = load_registry(installation, state_paths)?;
     let tracked_addons = registry
         .packages
         .iter()
@@ -222,6 +290,27 @@ pub fn list_addons(installation: &DetectedFlavorInstallation) -> AppResult<Addon
         tracked_packages: registry.packages,
         untracked_addons,
     })
+}
+
+pub(crate) fn no_tracked_packages_error(
+    installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
+) -> AppError {
+    let has_untracked_addons = list_addons(installation, state_paths)
+        .map(|inventory| !inventory.untracked_addons.is_empty())
+        .unwrap_or(false);
+
+    if has_untracked_addons {
+        AppError::Validation(
+            "no tracked addon packages found. Use `addon adopt` for existing local addons, or `addon install` / `addon index install` to start tracking packages."
+                .to_string(),
+        )
+    } else {
+        AppError::Validation(
+            "no tracked addon packages found. Use `addon install`, `addon index install`, or `addon adopt` to start tracking packages."
+                .to_string(),
+        )
+    }
 }
 
 pub fn search_addons(request: SearchAddonRequest) -> AppResult<AddonSearchCatalog> {

@@ -35,6 +35,7 @@ impl PackBundleAppRequest {
     pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainPackBundleRequest {
         self.into_domain_with_runtime_defaults(runtime, |request| DomainPackBundleRequest {
             installation: request.installation.into_domain(),
+            addon_state_storage_kind: runtime.addon_state_storage_kind(),
             manifest: request.manifest.into_domain(),
             output_path: request.output_path,
             manifest_base_dir: request.manifest_base_dir,
@@ -129,6 +130,7 @@ impl ApplyBundleAddonLockAppRequest {
             DomainBundleAddonLockApplyRequest {
                 bundle_path: request.bundle_path,
                 installation: request.installation.into_domain(),
+                addon_state_storage_kind: runtime.addon_state_storage_kind(),
                 backup_output_path: request.backup_output_path,
                 replace_existing: request.replace_existing,
             }

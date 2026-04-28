@@ -10,6 +10,16 @@ use crate::core::addon::{InstallAddonRequest, install_addon};
 use crate::core::bundle::*;
 use crate::core::manifest::{CharacterMappingMode, ResourceApplyPolicy};
 
+fn addon_state_paths(
+    installation: &crate::core::install::DetectedFlavorInstallation,
+) -> crate::core::addon::AddonStatePaths {
+    crate::core::addon::AddonStatePaths::for_installation(
+        crate::core::addon::AddonStateStorageKind::default(),
+        installation,
+    )
+    .expect("addon state paths")
+}
+
 #[test]
 fn pack_bundle_writes_normalized_layout() {
     let temp = tempdir().expect("temp dir");
@@ -18,6 +28,7 @@ fn pack_bundle_writes_normalized_layout() {
 
     let bundle = pack_bundle(PackBundleRequest {
         installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: None,
@@ -56,6 +67,7 @@ fn pack_bundle_defaults_output_path_relative_to_manifest_base_dir() {
 
     let bundle = pack_bundle(PackBundleRequest {
         installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: None,
         manifest_base_dir: Some(manifest_dir.clone()),
@@ -83,6 +95,7 @@ fn pack_bundle_resolves_relative_output_path_against_manifest_base_dir() {
 
     let bundle = pack_bundle(PackBundleRequest {
         installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: Some(std::path::PathBuf::from("exports")),
         manifest_base_dir: Some(manifest_dir.clone()),
@@ -103,6 +116,7 @@ fn pack_bundle_defaults_output_path_next_to_installation_without_manifest_base_d
 
     let bundle = pack_bundle(PackBundleRequest {
         installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: sample_manifest(),
         output_path: None,
         manifest_base_dir: None,
@@ -122,6 +136,7 @@ fn pack_bundle_rejects_relative_addon_index_without_manifest_base_dir() {
 
     let error = pack_bundle(PackBundleRequest {
         installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(temp.path().join("bundle.zip")),
         manifest_base_dir: None,
@@ -153,6 +168,7 @@ fn pack_bundle_embeds_addon_lock_and_indexes_as_sidecar_metadata() {
         )],
     );
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&source_installation.clone()),
         installation: source_installation.clone(),
         source: archive_path.display().to_string(),
         dry_run: false,
@@ -189,6 +205,7 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
 
     let bundle = pack_bundle(PackBundleRequest {
         installation: source_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest,
         output_path: Some(bundle_path.clone()),
         manifest_base_dir: Some(source.path().to_path_buf()),
@@ -243,14 +260,19 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
 
     let sidecar_plan = plan_addon_lock_sync(
         &target_installation,
+        &addon_state_paths(&target_installation),
         Some(&sidecar_root.join("addons").join("lock.toml")),
     )
     .expect("sidecar addon plan");
     assert_eq!(sidecar_plan.install_count, 1);
     assert_eq!(sidecar_plan.blocked_count, 0);
 
-    let addon_plan =
-        plan_bundle_addon_lock(&bundle.archive_path, &target_installation).expect("addon plan");
+    let addon_plan = plan_bundle_addon_lock(
+        &bundle.archive_path,
+        &target_installation,
+        crate::core::addon::AddonStateStorageKind::default(),
+    )
+    .expect("addon plan");
     assert_eq!(addon_plan.plan.install_count, 1);
     assert_eq!(addon_plan.plan.update_count, 0);
     assert_eq!(addon_plan.plan.remove_count, 0);
@@ -259,6 +281,7 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
     let addon_apply = apply_bundle_addon_lock(BundleAddonLockApplyRequest {
         bundle_path: bundle.archive_path,
         installation: target_installation.clone(),
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         backup_output_path: Some(target.path().join("addon-backups")),
         replace_existing: false,
     })
@@ -317,8 +340,12 @@ fn plan_bundle_addon_lock_rejects_symlink_embedded_lock() {
         "../outside-lock.toml",
     );
 
-    let error =
-        plan_bundle_addon_lock(&bundle_path, &installation).expect_err("symlink lock should fail");
+    let error = plan_bundle_addon_lock(
+        &bundle_path,
+        &installation,
+        crate::core::addon::AddonStateStorageKind::default(),
+    )
+    .expect_err("symlink lock should fail");
 
     let message = error.to_string();
     assert!(message.contains("unsupported symlink metadata"));

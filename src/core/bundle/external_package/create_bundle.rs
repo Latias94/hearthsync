@@ -29,6 +29,7 @@ pub fn create_external_package_bundle(
         .or_else(|| Some(stage_dir.path().join("external-package.bundle.zip")));
     let bundle = pack_bundle(PackBundleRequest {
         installation: staged_installation,
+        addon_state_storage_kind: crate::core::addon::AddonStateStorageKind::default(),
         manifest: manifest.clone(),
         output_path,
         manifest_base_dir: None,

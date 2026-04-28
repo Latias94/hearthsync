@@ -11,7 +11,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::core::addon::{
-    AddonPackageMetadata, AddonRegistry, TrackedAddon, TrackedAddonPackage, load_registry,
+    AddonPackageMetadata, AddonRegistry, AddonStatePaths, TrackedAddon, TrackedAddonPackage,
+    load_registry,
 };
 use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
@@ -22,9 +23,10 @@ use super::{
 };
 
 pub fn inspect_addon_lock(
-    installation: &DetectedFlavorInstallation,
+    _installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
 ) -> AppResult<AddonLockInspection> {
-    let path = lock_path(installation);
+    let path = lock_path(state_paths);
     let lock = read_addon_lock(&path)?;
     let package_count = lock.packages.len();
 
@@ -37,9 +39,10 @@ pub fn inspect_addon_lock(
 
 pub fn write_addon_lock(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
 ) -> AppResult<AddonLockWriteResult> {
-    let registry = load_registry(installation)?;
-    let path = lock_path(installation);
+    let registry = load_registry(installation, state_paths)?;
+    let path = lock_path(state_paths);
     if registry.packages.is_empty() {
         cleanup_addon_lock(&path)?;
         return Ok(AddonLockWriteResult {
@@ -61,9 +64,10 @@ pub fn write_addon_lock(
 
 pub(crate) fn sync_addon_lock_from_registry(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     registry: &AddonRegistry,
 ) -> AppResult<()> {
-    let path = lock_path(installation);
+    let path = lock_path(state_paths);
     if registry.packages.is_empty() {
         cleanup_addon_lock(&path)?;
         return Ok(());
@@ -73,8 +77,8 @@ pub(crate) fn sync_addon_lock_from_registry(
     write_addon_lock_file(&path, &lock)
 }
 
-pub fn lock_path(installation: &DetectedFlavorInstallation) -> PathBuf {
-    installation.addon_dir.join(".hearthsync").join("lock.toml")
+pub fn lock_path(state_paths: &AddonStatePaths) -> PathBuf {
+    state_paths.lock_path.clone()
 }
 
 fn build_addon_lock(

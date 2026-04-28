@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::addon::{AddonSourceRef, TrackedAddon};
+use crate::core::addon::{AddonSourceRef, AddonStatePaths, TrackedAddon};
 use crate::core::install::DetectedFlavorInstallation;
 
 pub(crate) use self::apply::apply_addon_lock_sync_task_with_provider;
@@ -173,6 +173,7 @@ pub struct AddonLockPlanResult {
 #[derive(Debug, Clone)]
 pub struct AddonLockApplyRequest {
     pub installation: DetectedFlavorInstallation,
+    pub(crate) state_paths: AddonStatePaths,
     pub lock_path: Option<PathBuf>,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,

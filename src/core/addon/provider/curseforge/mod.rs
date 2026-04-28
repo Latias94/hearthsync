@@ -9,11 +9,15 @@ use api::{
 };
 use model::CurseForgeSearchMod;
 #[allow(unused_imports)]
-pub(crate) use model::{CurseForgeFile, CurseForgeGameVersionType, CurseForgeSortableGameVersion};
+pub(crate) use model::{
+    CurseForgeFile, CurseForgeFileDependency, CurseForgeGameVersionType,
+    CurseForgeSortableGameVersion,
+};
 use select::ensure_curseforge_file_matches_version_type;
 #[allow(unused_imports)]
 pub(crate) use select::{
-    select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
+    CurseForgeFileReleaseType, select_curseforge_version_type, select_latest_curseforge_file,
+    validate_curseforge_file,
 };
 
 use super::http::HttpClient;
@@ -26,6 +30,7 @@ pub(super) fn resolve_curseforge_file_with_client(
     mod_id: u32,
     file_id: Option<u32>,
     target_flavor: Option<WowFlavor>,
+    max_release_type: Option<CurseForgeFileReleaseType>,
 ) -> AppResult<CurseForgeFile> {
     let wow_context = target_flavor
         .map(|flavor| resolve_curseforge_wow_context_with_client(client, flavor))
@@ -39,7 +44,11 @@ pub(super) fn resolve_curseforge_file_with_client(
     }
 
     let files = fetch_curseforge_mod_files_with_client(client, mod_id)?;
-    select_latest_curseforge_file(files, wow_context.as_ref().map(|item| item.version_type_id))
+    select_latest_curseforge_file(
+        files,
+        wow_context.as_ref().map(|item| item.version_type_id),
+        max_release_type,
+    )
 }
 
 pub(super) fn search_curseforge_mods_with_client(

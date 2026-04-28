@@ -1,20 +1,56 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::core::addon::canonicalize_local_archive_path;
+use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 
-use super::{AddonIndex, AddonIndexInspection, AddonIndexPackage, AddonSourceRef};
+use super::{
+    AddonIndex, AddonIndexIdentityHintCoverage, AddonIndexInspection, AddonIndexInspectionWarning,
+    AddonIndexInspectionWarningCode, AddonIndexInspectionWarningSeverity, AddonIndexPackage,
+    AddonSourceRef,
+};
 
 pub fn inspect_addon_index(path: &Path) -> AppResult<AddonIndexInspection> {
     let index = load_addon_index(path)?;
     let package_count = index.packages.len();
+    let identity_hint_coverage = inspect_identity_hint_coverage(&index);
+    let warnings = build_inspection_warnings(&identity_hint_coverage);
+    let warning_count = warnings.len();
+    let blocking_warning_count = warnings
+        .iter()
+        .filter(|warning| {
+            matches!(
+                warning.severity,
+                AddonIndexInspectionWarningSeverity::Blocking
+            )
+        })
+        .count();
+    let advisory_warning_count = warning_count.saturating_sub(blocking_warning_count);
 
     Ok(AddonIndexInspection {
         index_path: path.to_path_buf(),
         index,
         package_count,
+        identity_hint_coverage,
+        warning_count,
+        blocking_warning_count,
+        advisory_warning_count,
+        warnings,
     })
+}
+
+pub(super) fn write_addon_index(path: &Path, index: &AddonIndex, overwrite: bool) -> AppResult<()> {
+    validate_addon_index(index)?;
+    if path.exists() && !overwrite {
+        return Err(AppError::Validation(format!(
+            "addon index file already exists: {}. Re-run with overwrite enabled to replace it.",
+            path.display()
+        )));
+    }
+
+    write_bytes_atomically(path, toml::to_string_pretty(index)?.as_bytes())
 }
 
 pub(super) fn load_addon_index(path: &Path) -> AppResult<AddonIndex> {
@@ -103,6 +139,23 @@ fn validate_index_package(package: &AddonIndexPackage) -> AppResult<()> {
         }
     }
 
+    let mut normalized_match_package_ids = BTreeSet::new();
+    for match_package_id in &package.match_package_ids {
+        let normalized = match_package_id.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            return Err(AppError::Validation(format!(
+                "match package id must not be empty for package `{}`",
+                package.id
+            )));
+        }
+        if !normalized_match_package_ids.insert(normalized) {
+            return Err(AppError::Validation(format!(
+                "duplicate match package id for package `{}`",
+                package.id
+            )));
+        }
+    }
+
     for flavor in &package.supported_flavors {
         if flavor.trim().is_empty() {
             return Err(AppError::Validation(format!(
@@ -147,4 +200,105 @@ pub(super) fn ensure_package_supports_flavor(
         flavor,
         package.supported_flavors.join(", ")
     )))
+}
+
+fn inspect_identity_hint_coverage(index: &AddonIndex) -> AddonIndexIdentityHintCoverage {
+    let mut package_count_with_both_exact_hints = 0;
+    let mut package_count_with_match_package_ids = 0;
+    let mut package_count_with_addon_directories = 0;
+    let mut package_count_with_any_exact_hints = 0;
+    let mut packages_without_match_package_ids = Vec::new();
+    let mut packages_without_addon_directories = Vec::new();
+    let mut packages_without_exact_hints = Vec::new();
+
+    for package in &index.packages {
+        let has_match_package_ids = !package.match_package_ids.is_empty();
+        let has_addon_directories = !package.addon_directories.is_empty();
+
+        if has_match_package_ids && has_addon_directories {
+            package_count_with_both_exact_hints += 1;
+        }
+        if has_match_package_ids {
+            package_count_with_match_package_ids += 1;
+        } else {
+            packages_without_match_package_ids.push(package.id.clone());
+        }
+        if has_addon_directories {
+            package_count_with_addon_directories += 1;
+        } else {
+            packages_without_addon_directories.push(package.id.clone());
+        }
+        if has_match_package_ids || has_addon_directories {
+            package_count_with_any_exact_hints += 1;
+        } else {
+            packages_without_exact_hints.push(package.id.clone());
+        }
+    }
+
+    AddonIndexIdentityHintCoverage {
+        package_count_with_both_exact_hints,
+        package_count_with_any_exact_hints,
+        package_count_with_match_package_ids,
+        package_count_with_addon_directories,
+        package_count_without_match_package_ids: packages_without_match_package_ids.len(),
+        package_count_without_addon_directories: packages_without_addon_directories.len(),
+        package_count_without_exact_hints: packages_without_exact_hints.len(),
+        packages_without_match_package_ids,
+        packages_without_addon_directories,
+        packages_without_exact_hints,
+    }
+}
+
+fn build_inspection_warnings(
+    coverage: &AddonIndexIdentityHintCoverage,
+) -> Vec<AddonIndexInspectionWarning> {
+    let packages_without_exact_hints = coverage
+        .packages_without_exact_hints
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut warnings = Vec::new();
+
+    for package_id in &coverage.packages_without_match_package_ids {
+        if packages_without_exact_hints.contains(package_id) {
+            continue;
+        }
+
+        warnings.push(AddonIndexInspectionWarning {
+            code: AddonIndexInspectionWarningCode::MissingMatchPackageIds,
+            severity: AddonIndexInspectionWarningSeverity::Advisory,
+            package_id: package_id.clone(),
+            message: format!(
+                "package `{package_id}` declares `addon_directories` but not `match_package_ids`; add curated historical package ids when known so addon-index preflight can preserve package-id continuity across source-family drift"
+            ),
+        });
+    }
+
+    for package_id in &coverage.packages_without_addon_directories {
+        if packages_without_exact_hints.contains(package_id) {
+            continue;
+        }
+
+        warnings.push(AddonIndexInspectionWarning {
+            code: AddonIndexInspectionWarningCode::MissingAddonDirectories,
+            severity: AddonIndexInspectionWarningSeverity::Advisory,
+            package_id: package_id.clone(),
+            message: format!(
+                "package `{package_id}` declares `match_package_ids` but not explicit `addon_directories`; add stable addon directory names so addon-index preflight can preserve directory continuity without downloading package contents first"
+            ),
+        });
+    }
+
+    for package_id in &coverage.packages_without_exact_hints {
+        warnings.push(AddonIndexInspectionWarning {
+            code: AddonIndexInspectionWarningCode::MissingExactIdentityHints,
+            severity: AddonIndexInspectionWarningSeverity::Blocking,
+            package_id: package_id.clone(),
+            message: format!(
+                "package `{package_id}` does not declare exact identity hints (`match_package_ids` or `addon_directories`), so addon-index preflight may need to fall back to domain matching if source identity drifts"
+            ),
+        });
+    }
+
+    warnings
 }

@@ -46,11 +46,38 @@ Scan known installation locations:
 cargo run -- scan
 ```
 
+Inspect current runtime diagnostics and stable capability projection:
+
+```powershell
+cargo run -- runtime
+```
+
+Inspect runtime diagnostics for one concrete installation, including exact managed addon state
+paths:
+
+```powershell
+cargo run -- runtime --install "E:\Games\World of Warcraft" --flavor retail
+```
+
 Inspect a WoW installation:
 
 ```powershell
 cargo run -- inspect --install "E:\Games\World of Warcraft" --flavor retail
 ```
+
+HearthSync keeps scan-only inspection separate from tracked addon management.
+Commands such as `scan` and `inspect` do not need to create managed addon state first.
+Tracked addon workflows still use persistent managed state, which defaults to platform app-data and
+can be switched to portable sidecar mode explicitly:
+
+```powershell
+cargo run -- --addon-state-storage sidecar addon list --install "E:\Games\World of Warcraft" --flavor retail
+```
+
+In the default app-data backend, neither scan-only commands nor normal tracked-addon commands need
+to create `Interface/AddOns/.hearthsync`.
+That sidecar path appears only when you explicitly choose `--addon-state-storage sidecar` or when
+bundle metadata is unpacked on purpose under `.hearthsync/bundles/...`.
 
 Create and list backups:
 
@@ -117,6 +144,9 @@ cargo run -- bundle addon-apply --bundle .\my-ui.zip --install "E:\Games\World o
 
 These commands read `metadata/addons/lock.toml` from the bundle without unpacking sidecar files first.
 If the lock points to a source-machine local archive path, the direct bundle commands use the embedded package archive as a transport fallback, while keeping the original source reference in the target registry for attribution and future provider-based updates.
+They also honor the global `--addon-state-storage app-data|sidecar` runtime setting for the
+target installation's managed addon state; only unpacked bundle metadata continues to land under
+`Interface/AddOns/.hearthsync/bundles/<bundle-id>/`.
 
 Preview and unpack a bundle:
 
@@ -167,7 +197,14 @@ Supported `source.kind` values are the same source references used by the instal
 
 ## Addon Lock File
 
-HearthSync now maintains a derived addon lock file at `Interface/AddOns/.hearthsync/lock.toml`.
+HearthSync maintains a derived addon lock file in the managed addon state backend.
+By default that backend lives under platform app-data keyed by installation identity.
+If you switch to portable sidecar mode with `--addon-state-storage sidecar`, the lock returns to
+`Interface/AddOns/.hearthsync/lock.toml`.
+Use `cargo run -- runtime --install "<wow-path>" --flavor <flavor>` to inspect the exact resolved
+managed-state paths for a specific installation.
+Staying on the default app-data backend means tracked addon state does not need to create
+`Interface/AddOns/.hearthsync` just to hold the registry, lock, or policy files.
 
 The lock file is generated from the tracked addon registry and records:
 

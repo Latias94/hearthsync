@@ -1,20 +1,35 @@
 use std::path::PathBuf;
 
 use super::RuntimeDefaultableRequest;
-use crate::core::addon::InstallAddonRequest as DomainInstallAddonRequest;
+use crate::core::addon::index::{
+    AddonIndexAttachRequest as DomainAddonIndexAttachRequest,
+    AddonIndexRelinkRequest as DomainAddonIndexRelinkRequest,
+};
+use crate::core::addon::policy::{
+    AddonPolicyPin as DomainAddonPolicyPin,
+    RemoveAddonPolicyRequest as DomainRemoveAddonPolicyRequest,
+    SetAddonPolicyRequest as DomainSetAddonPolicyRequest,
+};
+use crate::core::addon::{
+    InstallAddonRequest as DomainInstallAddonRequest,
+    RelinkAddonRequest as DomainRelinkAddonRequest,
+};
 use crate::core::app::{
-    AddonPackageMetadataValue, AppRuntime, ApplyAddonLockAppRequest,
-    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyConfigAppRequest,
-    ApplyExternalPackageAppRequest, BackupGroupValue, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
-    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
-    BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest, CreateBackupAppRequest,
-    CreateExternalPackageBundleAppRequest, HostPlatformValue, InspectConfigAppRequest,
-    InstallAddonAppRequest, InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest,
-    PackBundleAppRequest, PlanAddonLockSyncRequest, PlanBundleApplyRequest,
-    PlanConfigApplyAppRequest, PlanExternalPackageApplyAppRequest, RemoveAddonAppRequest,
-    ResolvedInstallationValue, ResourceApplyPolicyValue, RestoreBackupAppRequest,
-    UpdateAddonAppRequest, UpdateAddonIndexAppRequest, WowFlavorValue,
+    AddonPackageMetadataValue, AddonPolicyPinValue, AddonReleaseChannelValue, AppRuntime,
+    ApplyAddonLockAppRequest, ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest,
+    ApplyConfigAppRequest, ApplyExternalPackageAppRequest, AttachAddonIndexAppRequest,
+    BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
+    BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
+    BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
+    CharacterMappingModeValue, ConfigPackageAppRequest, CreateBackupAppRequest,
+    CreateExternalPackageBundleAppRequest, HostPlatformValue, InspectAddonPolicyRequest,
+    InspectConfigAppRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
+    ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
+    PlanBundleApplyRequest, PlanConfigApplyAppRequest, PlanExternalPackageApplyAppRequest,
+    RelinkAddonAppRequest, RelinkAddonIndexAppRequest, RemoveAddonAppRequest,
+    RemoveAddonPolicyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
+    RestoreBackupAppRequest, SetAddonPolicyAppRequest, UpdateAddonAppRequest,
+    UpdateAddonIndexAppRequest, WowFlavorValue,
 };
 use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
@@ -275,7 +290,8 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
         replace_existing: true,
         metadata: None,
     }
-    .into_domain_request(&runtime);
+    .into_domain_request(&runtime)
+    .expect("install domain request");
     let backup_dir = ListBackupsRequest { backup_dir: None }.into_backup_dir(&runtime);
     let external_bundle = sample_external_package_bundle_request().into_domain_request(&runtime);
 
@@ -297,15 +313,17 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
 #[test]
 fn thin_installation_requests_project_domain_inputs() {
     let installation = sample_installation();
+    let runtime = AppRuntime::new();
     let domain_installation = ListAddonsRequest {
         installation: installation.clone(),
     }
     .into_domain_installation();
-    let (lock_installation, lock_path) = PlanAddonLockSyncRequest {
+    let (lock_installation, _lock_state_paths, lock_path) = PlanAddonLockSyncRequest {
         installation: installation.clone(),
         lock_path: Some(PathBuf::from("lock.toml")),
     }
-    .into_domain_inputs();
+    .into_domain_inputs(&runtime)
+    .expect("lock request");
     let (bundle_path, bundle_installation, apply_mappings) = PlanBundleApplyRequest {
         bundle_path: PathBuf::from("bundle.zip"),
         installation,
@@ -337,6 +355,51 @@ fn thin_installation_requests_project_domain_inputs() {
     assert_eq!(apply_mappings.target_account.as_deref(), Some("AccountA"));
     assert_eq!(apply_mappings.target_server.as_deref(), Some("Illidan"));
     assert_eq!(apply_mappings.target_character.as_deref(), Some("Main"));
+}
+
+#[test]
+fn addon_policy_requests_project_domain_inputs() {
+    let runtime = AppRuntime::new();
+    let (inspection_installation, _inspection_state_paths) = InspectAddonPolicyRequest {
+        installation: sample_installation(),
+    }
+    .into_domain_inputs(&runtime)
+    .expect("inspection request");
+    let set_request: DomainSetAddonPolicyRequest = SetAddonPolicyAppRequest {
+        installation: sample_installation(),
+        package: "WeakAuras".to_string(),
+        ignored: Some(true),
+        pin: Some(AddonPolicyPinValue::Version {
+            value: "2.0.0".to_string(),
+        }),
+        release_channel: Some(AddonReleaseChannelValue::Beta),
+        allow_prerelease: Some(true),
+        install_dependencies: Some(false),
+    }
+    .into_domain_request(&runtime)
+    .expect("set request");
+    let remove_request: DomainRemoveAddonPolicyRequest = RemoveAddonPolicyAppRequest {
+        installation: sample_installation(),
+        package: "WeakAuras".to_string(),
+    }
+    .into_domain_request(&runtime)
+    .expect("remove request");
+
+    assert_eq!(
+        inspection_installation.product_root,
+        PathBuf::from("World of Warcraft")
+    );
+    assert_eq!(set_request.package, "WeakAuras");
+    assert_eq!(set_request.ignored, Some(true));
+    assert_eq!(
+        set_request.release_channel,
+        Some(crate::core::addon::policy::AddonReleaseChannel::Beta)
+    );
+    assert_eq!(set_request.allow_prerelease, Some(true));
+    assert_eq!(set_request.install_dependencies, Some(false));
+    assert_eq!(set_request.pinned_version, Some("2.0.0".to_string()));
+    assert_eq!(set_request.pinned_file_id, None);
+    assert_eq!(remove_request.package, "WeakAuras");
 }
 
 #[test]
@@ -476,7 +539,8 @@ fn install_addon_request_converts_app_owned_metadata() {
             supported_flavors: vec!["retail".to_string()],
         }),
     }
-    .into_domain_request(&runtime);
+    .into_domain_request(&runtime)
+    .expect("install request");
 
     let metadata = domain.metadata.expect("metadata");
     assert_eq!(metadata.index_name.as_deref(), Some("curated"));
@@ -488,6 +552,87 @@ fn install_addon_request_converts_app_owned_metadata() {
         Some("https://example.invalid/weakauras.zip")
     );
     assert_eq!(metadata.supported_flavors, vec!["retail"]);
+}
+
+#[test]
+fn relink_addon_request_projects_domain_inputs() {
+    let runtime = AppRuntime::new();
+    let domain: DomainRelinkAddonRequest = RelinkAddonAppRequest {
+        installation: sample_installation(),
+        name: "WeakAuras".to_string(),
+        source: "github:WeakAuras/WeakAuras2".to_string(),
+        dry_run: true,
+    }
+    .into_domain_request(&runtime)
+    .expect("relink request");
+
+    assert_eq!(domain.name, "WeakAuras");
+    assert_eq!(domain.source, "github:WeakAuras/WeakAuras2");
+    assert!(domain.dry_run);
+    assert_eq!(
+        domain.installation.addon_dir,
+        PathBuf::from("World of Warcraft/_retail_/Interface/AddOns")
+    );
+}
+
+#[test]
+fn relink_addon_index_request_projects_domain_inputs() {
+    let runtime = AppRuntime::new();
+    let domain: DomainAddonIndexRelinkRequest = RelinkAddonIndexAppRequest {
+        installation: sample_installation(),
+        index_path: PathBuf::from("addons.index.toml"),
+        name: "details".to_string(),
+        target: Some("details-local".to_string()),
+        dry_run: true,
+    }
+    .into_domain_request(&runtime)
+    .expect("relink addon index request");
+
+    assert_eq!(domain.index_path, PathBuf::from("addons.index.toml"));
+    assert_eq!(domain.name, "details");
+    assert_eq!(domain.target.as_deref(), Some("details-local"));
+    assert!(domain.dry_run);
+}
+
+#[test]
+fn attach_addon_index_request_projects_domain_inputs() {
+    let runtime = AppRuntime::new();
+    let domain: DomainAddonIndexAttachRequest = AttachAddonIndexAppRequest {
+        installation: sample_installation(),
+        index_path: PathBuf::from("addons.index.toml"),
+        name: Some("details".to_string()),
+        dry_run: true,
+    }
+    .into_domain_request(&runtime)
+    .expect("attach addon index request");
+
+    assert_eq!(domain.index_path, PathBuf::from("addons.index.toml"));
+    assert_eq!(domain.name.as_deref(), Some("details"));
+    assert!(domain.dry_run);
+}
+
+#[test]
+fn addon_policy_request_converts_file_id_pin() {
+    let runtime = AppRuntime::new();
+    let domain: DomainSetAddonPolicyRequest = SetAddonPolicyAppRequest {
+        installation: sample_installation(),
+        package: "details".to_string(),
+        ignored: Some(false),
+        pin: Some(AddonPolicyPinValue::FileId { value: 123 }),
+        release_channel: Some(AddonReleaseChannelValue::Stable),
+        allow_prerelease: None,
+        install_dependencies: Some(true),
+    }
+    .into_domain_request(&runtime)
+    .expect("addon policy request");
+
+    assert_eq!(domain.package, "details");
+    assert_eq!(domain.pinned_version, None);
+    assert_eq!(domain.pinned_file_id, Some(123));
+    assert_eq!(
+        AddonPolicyPinValue::from_domain(DomainAddonPolicyPin::FileId { value: 123 }),
+        AddonPolicyPinValue::FileId { value: 123 }
+    );
 }
 
 fn sample_installation() -> ResolvedInstallationValue {

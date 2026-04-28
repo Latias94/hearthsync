@@ -10,7 +10,6 @@ use std::path::Path;
 
 use self::bytes::rewrite_lua_bytes;
 use self::policy::DEFAULT_LUA_REWRITE_POLICY_REGISTRY;
-use self::text::build_text_replacements;
 use crate::core::error::AppResult;
 
 pub use self::model::{CharacterMapping, LuaRewriteOptions};
@@ -58,17 +57,13 @@ pub fn preview_lua_bytes_rewrite(
         return Ok(None);
     }
 
-    let replacements = build_text_replacements(mappings, rewrite_options);
-    if replacements.is_empty() {
-        return Ok(None);
-    }
-
     if let Ok(content) = std::str::from_utf8(bytes) {
         let rewritten = rewrite_lua_text(content, mappings, rewrite_options);
         if rewritten != content {
             return Ok(Some(rewritten.into_bytes()));
         }
+        return Ok(None);
     }
 
-    Ok(rewrite_lua_bytes(bytes, &replacements))
+    Ok(rewrite_lua_bytes(bytes, mappings, rewrite_options))
 }

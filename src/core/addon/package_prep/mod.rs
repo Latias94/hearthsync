@@ -9,7 +9,7 @@ use tempfile::{TempDir, tempdir};
 
 use super::provider::{
     AddonDownloadProgressObserver, AddonProvider, AddonProviderContext,
-    MaterializeSourceInputRequest, MaterializeSourceRefRequest,
+    AddonSourceResolutionPolicy, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
 };
 use super::{AddonSourceRef, PreparedAddonDirectory, PreparedAddonPackage, TrackedAddon};
 use crate::core::error::{AppError, AppResult};
@@ -20,10 +20,10 @@ use crate::core::task::{
 };
 
 use self::archive::extract_archive_addons;
-pub(crate) use self::inspect::find_primary_toc;
+pub(crate) use self::inspect::{find_primary_toc, inspect_addon_directory};
 use self::package_id::derive_package_id;
+pub(crate) use self::package_id::slugify_package_id;
 
-#[cfg(test)]
 pub(crate) fn prepare_package_from_source_input_with_provider<P>(
     provider: &P,
     source: &str,
@@ -92,12 +92,41 @@ where
     P: AddonProvider + ?Sized,
     TProgress: TaskProgressSink,
 {
+    prepare_package_from_source_ref_task_with_provider_and_policy(
+        provider,
+        source,
+        AddonSourceResolutionPolicy::default(),
+        target_flavor,
+        target_platform,
+        cancellation,
+        task,
+        phase,
+        progress,
+    )
+}
+
+pub(crate) fn prepare_package_from_source_ref_task_with_provider_and_policy<P, TProgress>(
+    provider: &P,
+    source: &AddonSourceRef,
+    resolution_policy: AddonSourceResolutionPolicy,
+    target_flavor: Option<WowFlavor>,
+    target_platform: HostPlatform,
+    cancellation: &dyn CancellationToken,
+    task: TaskKind,
+    phase: TaskPhase,
+    progress: &mut TProgress,
+) -> AppResult<PreparedAddonPackage>
+where
+    P: AddonProvider + ?Sized,
+    TProgress: TaskProgressSink,
+{
     let stage_dir = tempdir()?;
     let download_progress = TaskAddonDownloadProgressObserver::new(task, phase, progress);
     let materialized = provider.materialize_source_ref(MaterializeSourceRefRequest {
         source,
         stage_root: stage_dir.path(),
         context: AddonProviderContext::new(target_flavor, Some(cancellation))
+            .with_resolution_policy(resolution_policy)
             .with_download_progress(Some(&download_progress)),
     })?;
     prepare_package_from_archive(

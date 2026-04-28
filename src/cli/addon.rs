@@ -1,22 +1,52 @@
 use super::AddonCommands;
+use super::addon_cache::handle_addon_cache_command;
 use super::addon_index::handle_addon_index_command;
 use super::addon_lock::handle_addon_lock_command;
 use super::addon_manage::{
-    handle_addon_install, handle_addon_list, handle_addon_remove, handle_addon_search,
-    handle_addon_update,
+    handle_addon_adopt, handle_addon_install, handle_addon_list, handle_addon_relink,
+    handle_addon_remove, handle_addon_search, handle_addon_update,
 };
+use super::addon_policy::handle_addon_policy_command;
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 
-pub(super) fn handle_addon_command(json: bool, command: AddonCommands) -> AppResult<()> {
+pub(super) fn handle_addon_command(
+    json: bool,
+    runtime: AppRuntime,
+    command: AddonCommands,
+) -> AppResult<()> {
     match command {
-        AddonCommands::Index { command } => handle_addon_index_command(json, command)?,
-        AddonCommands::Lock { command } => handle_addon_lock_command(json, command)?,
+        AddonCommands::Cache { command } => handle_addon_cache_command(json, runtime, command)?,
+        AddonCommands::Index { command } => handle_addon_index_command(json, runtime, command)?,
+        AddonCommands::Lock { command } => handle_addon_lock_command(json, runtime, command)?,
+        AddonCommands::Policy { command } => handle_addon_policy_command(json, runtime, command)?,
         AddonCommands::Search {
             install_target,
             query,
             limit,
-        } => handle_addon_search(json, install_target, query, limit)?,
-        AddonCommands::List { install_target } => handle_addon_list(json, install_target)?,
+        } => handle_addon_search(json, runtime, install_target, query, limit)?,
+        AddonCommands::List { install_target } => handle_addon_list(json, runtime, install_target)?,
+        AddonCommands::Adopt {
+            install_target,
+            addon_directories,
+            package_id,
+            archive_output,
+            dry_run,
+        } => handle_addon_adopt(
+            json,
+            runtime,
+            install_target,
+            addon_directories,
+            package_id,
+            archive_output,
+            dry_run,
+        )?,
+        AddonCommands::Relink {
+            install_target,
+            name,
+            source,
+            dry_run,
+        } => handle_addon_relink(json, runtime, install_target, name, source, dry_run)?,
         AddonCommands::Install {
             install_target,
             source,
@@ -25,6 +55,7 @@ pub(super) fn handle_addon_command(json: bool, command: AddonCommands) -> AppRes
             replace_existing,
         } => handle_addon_install(
             json,
+            runtime,
             install_target,
             source,
             dry_run,
@@ -36,13 +67,13 @@ pub(super) fn handle_addon_command(json: bool, command: AddonCommands) -> AppRes
             name,
             dry_run,
             backup_output,
-        } => handle_addon_update(json, install_target, name, dry_run, backup_output)?,
+        } => handle_addon_update(json, runtime, install_target, name, dry_run, backup_output)?,
         AddonCommands::Remove {
             install_target,
             name,
             dry_run,
             backup_output,
-        } => handle_addon_remove(json, install_target, name, dry_run, backup_output)?,
+        } => handle_addon_remove(json, runtime, install_target, name, dry_run, backup_output)?,
     }
 
     Ok(())

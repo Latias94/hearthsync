@@ -1,16 +1,16 @@
 use crate::core::error::AppResult;
 use crate::core::task::{
-    CallbackCancellationToken, CallbackProgressSink, NeverCancel, NoopProgressSink,
-    TaskProgressEvent, TaskRun, VecTaskProgressSink, run_task_with_callbacks,
-    run_task_with_collected_progress,
+    CallbackCancellationToken, CallbackProgressSink, NeverCancel, TaskProgressEvent, TaskRun,
+    VecTaskProgressSink, run_task_with_callbacks, run_task_with_collected_progress,
 };
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn run_direct_task<TResult, FTask>(task: FTask) -> AppResult<TResult>
 where
-    FTask: FnOnce(&NeverCancel, &mut NoopProgressSink) -> AppResult<TResult>,
+    FTask: FnOnce(&NeverCancel, &mut crate::core::task::NoopProgressSink) -> AppResult<TResult>,
 {
     let cancellation = NeverCancel;
-    let mut progress = NoopProgressSink;
+    let mut progress = crate::core::task::NoopProgressSink;
     task(&cancellation, &mut progress)
 }
 
@@ -21,6 +21,7 @@ where
     run_task_with_collected_progress(task)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn run_callback_task<TResult, FTask, FCancel, FProgress>(
     is_cancelled: FCancel,
     on_progress: FProgress,
@@ -37,13 +38,19 @@ where
     run_task_with_callbacks(is_cancelled, on_progress, task)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn run_service_task_direct<TService, TRequest, TResult, FTask>(
     service: &TService,
     request: TRequest,
     task: FTask,
 ) -> AppResult<TResult>
 where
-    FTask: FnOnce(&TService, TRequest, &NeverCancel, &mut NoopProgressSink) -> AppResult<TResult>,
+    FTask: FnOnce(
+        &TService,
+        TRequest,
+        &NeverCancel,
+        &mut crate::core::task::NoopProgressSink,
+    ) -> AppResult<TResult>,
 {
     run_direct_task(|cancellation, progress| task(service, request, cancellation, progress))
 }
@@ -60,6 +67,7 @@ where
     run_collecting_task(|cancellation, progress| task(service, request, cancellation, progress))
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn run_service_task_with_callbacks<
     TService,
     TRequest,

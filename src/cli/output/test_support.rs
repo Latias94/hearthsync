@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::core::app::{
-    AddonIndexPackageResult, AddonLockApplyResult, AddonLockDiffResult,
-    AddonLockPackageSnapshotResult, AddonLockPlanResult, AddonLockVerifyResult,
-    AddonSourceKindResult, AddonSourceResult, ApplyGroupPoliciesResult, BackupGroupValue,
-    BackupMetadataResult, BundleApplyDefaultsValue, BundleCharacterResourceValue,
+    AddonDependencyResolutionCapabilityValue, AddonIndexPackageResult, AddonLockApplyResult,
+    AddonLockDiffResult, AddonLockPackageSnapshotResult, AddonLockPlanResult,
+    AddonLockVerifyResult, AddonSourceKindResult, AddonSourceResult, ApplyGroupPoliciesResult,
+    BackupGroupValue, BackupMetadataResult, BundleApplyDefaultsValue, BundleCharacterResourceValue,
     BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesResult,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, CharacterMappingResult,
     ExternalPackageAnalysisResult, ExternalPackageEntryResult, ExternalPackageSummaryResult,
@@ -101,6 +101,7 @@ pub(super) fn sample_index_package(package_id: &str, version: &str) -> AddonInde
         id: package_id.to_string(),
         name: package_id.to_string(),
         version: version.to_string(),
+        match_package_ids: Vec::new(),
         source: sample_source(),
         source_label: "local.zip".to_string(),
         source_url: None,
@@ -289,6 +290,7 @@ pub(super) fn sample_source() -> AddonSourceResult {
     AddonSourceResult {
         kind: AddonSourceKindResult::LocalArchive,
         display_name: "local.zip".to_string(),
+        dependency_resolution_capability: AddonDependencyResolutionCapabilityValue::Unsupported,
         local_archive_path: Some(PathBuf::from("local.zip")),
         url: None,
         mod_id: None,

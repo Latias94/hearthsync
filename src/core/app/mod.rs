@@ -1,6 +1,7 @@
 mod addon;
 mod addon_index;
 mod addon_lock;
+mod addon_policy;
 mod backup;
 mod bundle;
 mod config;
@@ -10,6 +11,7 @@ mod install;
 mod request;
 mod response;
 mod runtime;
+mod runtime_settings;
 mod stable;
 mod task_support;
 mod types;
@@ -28,6 +30,7 @@ pub use crate::core::task::{
 pub(in crate::core::app) use addon::AddonService;
 pub(in crate::core::app) use addon_index::AddonIndexService;
 pub(in crate::core::app) use addon_lock::AddonLockService;
+pub(in crate::core::app) use addon_policy::AddonPolicyService;
 pub(in crate::core::app) use backup::BackupService;
 pub(in crate::core::app) use bundle::BundleService;
 pub(in crate::core::app) use config::ConfigService;
@@ -35,16 +38,21 @@ pub use extended::ExtendedAppServices;
 pub(in crate::core::app) use external_package::ExternalPackageService;
 pub(in crate::core::app) use install::InstallationService;
 pub use request::addon::{
-    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, SearchAddonsRequest,
-    UpdateAddonAppRequest,
+    AdoptAddonsAppRequest, InstallAddonAppRequest, ListAddonsRequest, RelinkAddonAppRequest,
+    RemoveAddonAppRequest, SearchAddonsRequest, UpdateAddonAppRequest,
 };
 pub use request::addon_index::{
-    InspectAddonIndexRequest, InstallAddonIndexAppRequest, UpdateAddonIndexAppRequest,
+    AttachAddonIndexAppRequest, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
+    RelinkAddonIndexAppRequest, ScaffoldAddonIndexRequest, SuggestAddonIndexRequest,
+    UpdateAddonIndexAppRequest,
 };
 pub use request::addon_lock::{
     AddonLockSourceOverrideRequest, ApplyAddonLockAppRequest, DiffAddonLockRequest,
     InspectAddonLockRequest, PlanAddonLockSyncRequest, VerifyAddonLockRequest,
     WriteAddonLockRequest,
+};
+pub use request::addon_policy::{
+    InspectAddonPolicyRequest, RemoveAddonPolicyAppRequest, SetAddonPolicyAppRequest,
 };
 pub use request::backup::{CreateBackupAppRequest, ListBackupsRequest, RestoreBackupAppRequest};
 pub use request::bundle::{
@@ -60,20 +68,30 @@ pub use request::external_package::{
     CreateExternalPackageBundleAppRequest, PlanExternalPackageApplyAppRequest,
 };
 pub use request::installation::{InspectInstallationRequest, ResolveInstallationRequest};
+pub use request::runtime_settings::SetRuntimeSettingsAppRequest;
 pub use response::addon::{
-    AddonInventoryResult, AddonSearchCatalogResult, AddonSearchResult, AddonSourceKindResult,
-    AddonSourceResult, InstalledAddonPackageResult, RemovedAddonPackageResult,
+    AddonCachePurgeResult, AddonCacheRepairResult, AddonInventoryResult, AddonSearchCatalogResult,
+    AddonSearchResult, AddonSourceKindResult, AddonSourceResult, AdoptedAddonPackageResult,
+    InstalledAddonPackageResult, RelinkedAddonPackageResult, RemovedAddonPackageResult,
     TrackedAddonPackageResult, TrackedAddonResult, UpdatedAddonPackageResult,
 };
 pub use response::addon_index::{
-    AddonIndexInspectionResult, AddonIndexInstallResult, AddonIndexPackageResult,
-    AddonIndexUpdateResult,
+    AddonIndexAttachPackageResult, AddonIndexAttachPackageStatusResult, AddonIndexAttachResult,
+    AddonIndexIdentityHintCoverageResult, AddonIndexInspectionResult,
+    AddonIndexInspectionWarningCodeResult, AddonIndexInspectionWarningResult,
+    AddonIndexInspectionWarningSeverityResult, AddonIndexInstallResult, AddonIndexPackageResult,
+    AddonIndexPackageSuggestionResult, AddonIndexPackageSuggestionStatusResult,
+    AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSuggestionResult,
+    AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult, AddonIndexValidationResult,
 };
 pub use response::addon_lock::{
     AddonLockApplyResult, AddonLockDiffResult, AddonLockFieldChangeResult,
     AddonLockInspectionResult, AddonLockPackageDiffResult, AddonLockPackageDirectoryIssueResult,
     AddonLockPackageResult, AddonLockPackageSnapshotResult, AddonLockPlanResult,
     AddonLockSyncActionResult, AddonLockVerifyResult, AddonLockWriteResult,
+};
+pub use response::addon_policy::{
+    AddonPolicyInspectionResult, AddonPolicyMutationResult, AddonPolicyPackageResult,
 };
 pub use response::backup::{
     BackupCatalogResult, BackupEntryResult, BackupMetadataResult, CreatedBackupResult,
@@ -96,11 +114,21 @@ pub use response::external_package::{
 pub use response::installation::{
     InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,
 };
+pub use response::runtime_settings::{
+    RuntimeSettingsInspectionResult, RuntimeSettingsMutationResult,
+};
 pub use runtime::AppRuntime;
+pub(in crate::core::app) use runtime_settings::RuntimeSettingsService;
+pub(crate) use runtime_settings::load_persisted_runtime_settings_value;
+#[cfg(test)]
+pub(crate) use runtime_settings::runtime_settings_path_guard;
 pub use stable::StableAppServices;
 pub use types::addon::{
-    AddonPackageMetadataValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AppRuntimeCapabilitiesValue,
+    AddonDependencyResolutionCapabilityValue, AddonDependencyResolutionStrategyValue,
+    AddonManagementCapabilitiesValue, AddonPackageMetadataValue, AddonPolicyPinValue,
+    AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
+    AddonReleaseChannelValue, AddonStatePathsValue, AddonStateStorageValue,
+    AppRuntimeCapabilitiesValue, HttpNoValidatorCachePolicyValue,
 };
 pub use types::backup::BackupGroupValue;
 pub use types::bundle::{
@@ -116,6 +144,6 @@ pub use types::install::{
     HealthStatusValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
 };
 pub use types::runtime::{
-    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
-    HelperStrategyValue,
+    AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    ExternalHelperPolicyValue, HelperStrategyValue, RuntimeSettingsValue,
 };

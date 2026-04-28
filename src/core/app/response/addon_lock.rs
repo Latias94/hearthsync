@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::core::addon::AddonProvider;
 use crate::core::addon::lock::{
     AddonLockApplyResult as DomainAddonLockApplyResult,
     AddonLockDiffResult as DomainAddonLockDiffResult,
@@ -39,8 +40,11 @@ pub struct AddonLockPackageResult {
 }
 
 impl AddonLockPackageResult {
-    pub(crate) fn from_domain(value: AddonLockPackage) -> Self {
-        let source = AddonSourceResult::from_domain(value.source);
+    pub(crate) fn from_domain_with_provider<P>(value: AddonLockPackage, provider: &P) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
+        let source = AddonSourceResult::from_domain_with_provider(value.source, provider);
         let source_label = source.display_name.clone();
         let addon_count = value.addons.len();
 
@@ -74,12 +78,17 @@ pub struct AddonLockInspectionResult {
 }
 
 impl AddonLockInspectionResult {
-    pub(crate) fn from_domain(value: AddonLockInspection) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(value: AddonLockInspection, provider: &P) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         Self {
             lock_path: value.lock_path,
             generated_at: value.lock.generated_at,
             package_count: value.package_count,
-            packages: map_owned_vec(value.lock.packages, AddonLockPackageResult::from_domain),
+            packages: map_owned_vec(value.lock.packages, |value| {
+                AddonLockPackageResult::from_domain_with_provider(value, provider)
+            }),
         }
     }
 }
@@ -119,8 +128,14 @@ pub struct AddonLockPackageSnapshotResult {
 }
 
 impl AddonLockPackageSnapshotResult {
-    pub(crate) fn from_domain(value: DomainAddonLockPackageSnapshot) -> Self {
-        let source = AddonSourceResult::from_domain(value.source);
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockPackageSnapshot,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
+        let source = AddonSourceResult::from_domain_with_provider(value.source, provider);
         let source_label = source.display_name.clone();
 
         Self {
@@ -167,11 +182,17 @@ pub struct AddonLockPackageDiffResult {
 }
 
 impl AddonLockPackageDiffResult {
-    pub(crate) fn from_domain(value: DomainAddonLockPackageDiff) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockPackageDiff,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         Self {
             comparison_key: value.comparison_key,
-            left: AddonLockPackageSnapshotResult::from_domain(value.left),
-            right: AddonLockPackageSnapshotResult::from_domain(value.right),
+            left: AddonLockPackageSnapshotResult::from_domain_with_provider(value.left, provider),
+            right: AddonLockPackageSnapshotResult::from_domain_with_provider(value.right, provider),
             changes: map_owned_vec(value.changes, AddonLockFieldChangeResult::from_domain),
         }
     }
@@ -194,7 +215,13 @@ pub struct AddonLockDiffResult {
 }
 
 impl AddonLockDiffResult {
-    pub(crate) fn from_domain(value: DomainAddonLockDiffResult) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockDiffResult,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         let added_package_count = value.added_packages.len();
         let removed_package_count = value.removed_packages.len();
         let changed_package_count = value.changed_packages.len();
@@ -209,18 +236,15 @@ impl AddonLockDiffResult {
             added_package_count,
             removed_package_count,
             changed_package_count,
-            added_packages: map_owned_vec(
-                value.added_packages,
-                AddonLockPackageSnapshotResult::from_domain,
-            ),
-            removed_packages: map_owned_vec(
-                value.removed_packages,
-                AddonLockPackageSnapshotResult::from_domain,
-            ),
-            changed_packages: map_owned_vec(
-                value.changed_packages,
-                AddonLockPackageDiffResult::from_domain,
-            ),
+            added_packages: map_owned_vec(value.added_packages, |value| {
+                AddonLockPackageSnapshotResult::from_domain_with_provider(value, provider)
+            }),
+            removed_packages: map_owned_vec(value.removed_packages, |value| {
+                AddonLockPackageSnapshotResult::from_domain_with_provider(value, provider)
+            }),
+            changed_packages: map_owned_vec(value.changed_packages, |value| {
+                AddonLockPackageDiffResult::from_domain_with_provider(value, provider)
+            }),
         }
     }
 }
@@ -256,7 +280,13 @@ pub struct AddonLockVerifyResult {
 }
 
 impl AddonLockVerifyResult {
-    pub(crate) fn from_domain(value: DomainAddonLockVerifyResult) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockVerifyResult,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         let untracked_addon_count = value.untracked_addons.len();
         let missing_package_count = value.missing_addon_directories.len();
 
@@ -271,7 +301,7 @@ impl AddonLockVerifyResult {
                 value.missing_addon_directories,
                 AddonLockPackageDirectoryIssueResult::from_domain,
             ),
-            diff: AddonLockDiffResult::from_domain(value.diff),
+            diff: AddonLockDiffResult::from_domain_with_provider(value.diff, provider),
             matches: value.matches,
         }
     }
@@ -292,8 +322,16 @@ pub struct AddonLockSyncActionResult {
 }
 
 impl AddonLockSyncActionResult {
-    pub(crate) fn from_domain(value: DomainAddonLockSyncAction) -> Self {
-        let source = value.source.map(AddonSourceResult::from_domain);
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockSyncAction,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
+        let source = value
+            .source
+            .map(|value| AddonSourceResult::from_domain_with_provider(value, provider));
         let source_label = source.as_ref().map(|source| source.display_name.clone());
 
         Self {
@@ -328,7 +366,13 @@ pub struct AddonLockPlanResult {
 }
 
 impl AddonLockPlanResult {
-    pub(crate) fn from_domain(value: DomainAddonLockPlanResult) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockPlanResult,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         let untracked_addon_count = value.untracked_addons.len();
         let action_count = value.actions.len();
 
@@ -344,7 +388,9 @@ impl AddonLockPlanResult {
             untracked_addon_count,
             untracked_addons: value.untracked_addons,
             action_count,
-            actions: map_owned_vec(value.actions, AddonLockSyncActionResult::from_domain),
+            actions: map_owned_vec(value.actions, |value| {
+                AddonLockSyncActionResult::from_domain_with_provider(value, provider)
+            }),
         }
     }
 }
@@ -367,7 +413,13 @@ pub struct AddonLockApplyResult {
 }
 
 impl AddonLockApplyResult {
-    pub(crate) fn from_domain(value: DomainAddonLockApplyResult) -> Self {
+    pub(crate) fn from_domain_with_provider<P>(
+        value: DomainAddonLockApplyResult,
+        provider: &P,
+    ) -> Self
+    where
+        P: AddonProvider + ?Sized,
+    {
         let untracked_addon_count = value.untracked_addons.len();
         let action_count = value.actions.len();
 
@@ -383,8 +435,13 @@ impl AddonLockApplyResult {
             untracked_addon_count,
             untracked_addons: value.untracked_addons,
             action_count,
-            actions: map_owned_vec(value.actions, AddonLockSyncActionResult::from_domain),
-            verification: AddonLockVerifyResult::from_domain(value.verification),
+            actions: map_owned_vec(value.actions, |value| {
+                AddonLockSyncActionResult::from_domain_with_provider(value, provider)
+            }),
+            verification: AddonLockVerifyResult::from_domain_with_provider(
+                value.verification,
+                provider,
+            ),
         }
     }
 }

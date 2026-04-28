@@ -23,6 +23,16 @@ use crate::core::task::{
     VecTaskProgressSink,
 };
 
+fn addon_state_paths(
+    installation: &DetectedFlavorInstallation,
+) -> crate::core::addon::AddonStatePaths {
+    crate::core::addon::AddonStatePaths::for_installation(
+        crate::core::addon::AddonStateStorageKind::default(),
+        installation,
+    )
+    .expect("addon state paths")
+}
+
 #[test]
 fn install_addon_writes_lock_with_metadata_and_content_hash() {
     let temp = tempdir().expect("temp dir");
@@ -37,6 +47,7 @@ fn install_addon_writes_lock_with_metadata_and_content_hash() {
     );
 
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
         installation: installation.clone(),
         source: archive_path.display().to_string(),
         dry_run: false,
@@ -55,7 +66,8 @@ fn install_addon_writes_lock_with_metadata_and_content_hash() {
     })
     .expect("install addon");
 
-    let inspection = inspect_addon_lock(&installation).expect("inspect lock");
+    let inspection =
+        inspect_addon_lock(&installation, &addon_state_paths(&installation)).expect("inspect lock");
     assert_eq!(inspection.package_count, 1);
     assert_eq!(
         inspection.lock.packages[0].index_package_id.as_deref(),
@@ -77,11 +89,12 @@ fn install_addon_writes_lock_with_metadata_and_content_hash() {
 fn write_addon_lock_removes_stale_lock_when_registry_is_empty() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());
-    let path = lock_path(&installation);
+    let path = lock_path(&addon_state_paths(&installation));
     fs::create_dir_all(path.parent().expect("lock parent")).expect("lock parent");
     fs::write(&path, "stale").expect("stale lock");
 
-    let result = write_addon_lock(&installation).expect("write lock");
+    let result =
+        write_addon_lock(&installation, &addon_state_paths(&installation)).expect("write lock");
 
     assert!(result.removed);
     assert!(!path.exists());
@@ -101,6 +114,7 @@ fn remove_addon_cleans_lock_file_when_last_package_is_removed() {
     );
 
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
         installation: installation.clone(),
         source: archive_path.display().to_string(),
         dry_run: false,
@@ -109,9 +123,10 @@ fn remove_addon_cleans_lock_file_when_last_package_is_removed() {
         metadata: None,
     })
     .expect("install addon");
-    assert!(lock_path(&installation).exists());
+    assert!(lock_path(&addon_state_paths(&installation)).exists());
 
     remove_addons(RemoveAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
         installation: installation.clone(),
         name: "Details".to_string(),
         dry_run: false,
@@ -119,7 +134,7 @@ fn remove_addon_cleans_lock_file_when_last_package_is_removed() {
     })
     .expect("remove addon");
 
-    assert!(!lock_path(&installation).exists());
+    assert!(!lock_path(&addon_state_paths(&installation)).exists());
 }
 
 #[test]
@@ -220,6 +235,7 @@ fn verify_addon_lock_reports_drift_and_untracked_addons() {
     );
 
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
         installation: installation.clone(),
         source: archive_path.display().to_string(),
         dry_run: false,
@@ -241,7 +257,8 @@ fn verify_addon_lock_reports_drift_and_untracked_addons() {
     )
     .expect("untracked addon toc");
 
-    let verification = verify_addon_lock(&installation, None).expect("verify lock");
+    let verification = verify_addon_lock(&installation, &addon_state_paths(&installation), None)
+        .expect("verify lock");
 
     assert!(!verification.matches);
     assert_eq!(verification.diff.changed_packages.len(), 1);
@@ -292,6 +309,7 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
 
     let desired_installation = create_fixture_installation(&temp.path().join("desired"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&desired_installation.clone()),
         installation: desired_installation.clone(),
         source: details_v2.display().to_string(),
         dry_run: false,
@@ -301,6 +319,7 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     })
     .expect("install desired details");
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&desired_installation.clone()),
         installation: desired_installation.clone(),
         source: bigwigs.display().to_string(),
         dry_run: false,
@@ -309,12 +328,16 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
         metadata: None,
     })
     .expect("install desired bigwigs");
-    let desired_lock = write_addon_lock(&desired_installation)
-        .expect("write desired lock")
-        .lock_path;
+    let desired_lock = write_addon_lock(
+        &desired_installation,
+        &addon_state_paths(&desired_installation),
+    )
+    .expect("write desired lock")
+    .lock_path;
 
     let current_installation = create_fixture_installation(&temp.path().join("current"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         source: details_v1.display().to_string(),
         dry_run: false,
@@ -324,6 +347,7 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     })
     .expect("install current details");
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         source: omen.display().to_string(),
         dry_run: false,
@@ -333,7 +357,12 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     })
     .expect("install current omen");
 
-    let plan = plan_addon_lock_sync(&current_installation, Some(&desired_lock)).expect("plan");
+    let plan = plan_addon_lock_sync(
+        &current_installation,
+        &addon_state_paths(&current_installation),
+        Some(&desired_lock),
+    )
+    .expect("plan");
     assert_eq!(plan.install_count, 1);
     assert_eq!(plan.update_count, 1);
     assert_eq!(plan.remove_count, 1);
@@ -341,6 +370,7 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
 
     let apply_backup_dir = temp.path().join("apply-backups");
     let result = apply_addon_lock_sync(AddonLockApplyRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         lock_path: Some(desired_lock.clone()),
         backup_output_path: Some(apply_backup_dir.clone()),
@@ -393,6 +423,7 @@ fn apply_addon_lock_sync_task_reports_progress() {
 
     let desired_installation = create_fixture_installation(&temp.path().join("desired"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&desired_installation.clone()),
         installation: desired_installation.clone(),
         source: details_v2.display().to_string(),
         dry_run: false,
@@ -401,12 +432,16 @@ fn apply_addon_lock_sync_task_reports_progress() {
         metadata: None,
     })
     .expect("install desired details");
-    let desired_lock = write_addon_lock(&desired_installation)
-        .expect("write desired lock")
-        .lock_path;
+    let desired_lock = write_addon_lock(
+        &desired_installation,
+        &addon_state_paths(&desired_installation),
+    )
+    .expect("write desired lock")
+    .lock_path;
 
     let current_installation = create_fixture_installation(&temp.path().join("current"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         source: details_v1.display().to_string(),
         dry_run: false,
@@ -420,6 +455,7 @@ fn apply_addon_lock_sync_task_reports_progress() {
     let cancellation = NeverCancel;
     let result = apply_addon_lock_sync_task(
         AddonLockApplyRequest {
+            state_paths: addon_state_paths(&current_installation),
             installation: current_installation,
             lock_path: Some(desired_lock),
             backup_output_path: Some(temp.path().join("apply-backups")),
@@ -487,6 +523,7 @@ fn apply_addon_lock_sync_task_rolls_back_when_verification_is_cancelled() {
 
     let desired_installation = create_fixture_installation(&temp.path().join("desired"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&desired_installation.clone()),
         installation: desired_installation.clone(),
         source: details_v2.display().to_string(),
         dry_run: false,
@@ -495,12 +532,16 @@ fn apply_addon_lock_sync_task_rolls_back_when_verification_is_cancelled() {
         metadata: None,
     })
     .expect("install desired details");
-    let desired_lock = write_addon_lock(&desired_installation)
-        .expect("write desired lock")
-        .lock_path;
+    let desired_lock = write_addon_lock(
+        &desired_installation,
+        &addon_state_paths(&desired_installation),
+    )
+    .expect("write desired lock")
+    .lock_path;
 
     let current_installation = create_fixture_installation(&temp.path().join("current"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         source: details_v1.display().to_string(),
         dry_run: false,
@@ -515,6 +556,7 @@ fn apply_addon_lock_sync_task_rolls_back_when_verification_is_cancelled() {
     let mut progress = CancelDuringVerifyingProgressSink::new(&cancellation.cancel_requested);
     let error = apply_addon_lock_sync_task(
         AddonLockApplyRequest {
+            state_paths: addon_state_paths(&current_installation.clone()),
             installation: current_installation.clone(),
             lock_path: Some(desired_lock),
             backup_output_path: Some(apply_backup_dir.clone()),
@@ -564,6 +606,7 @@ fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
 
     let desired_installation = create_fixture_installation(&temp.path().join("desired"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&desired_installation.clone()),
         installation: desired_installation.clone(),
         source: archive_path.display().to_string(),
         dry_run: false,
@@ -578,12 +621,16 @@ fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
         }),
     })
     .expect("install desired details");
-    let desired_lock = write_addon_lock(&desired_installation)
-        .expect("write desired lock")
-        .lock_path;
+    let desired_lock = write_addon_lock(
+        &desired_installation,
+        &addon_state_paths(&desired_installation),
+    )
+    .expect("write desired lock")
+    .lock_path;
 
     let current_installation = create_fixture_installation(&temp.path().join("current"));
     install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         source: archive_path.display().to_string(),
         dry_run: false,
@@ -593,7 +640,12 @@ fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
     })
     .expect("install current details");
 
-    let plan = plan_addon_lock_sync(&current_installation, Some(&desired_lock)).expect("plan");
+    let plan = plan_addon_lock_sync(
+        &current_installation,
+        &addon_state_paths(&current_installation),
+        Some(&desired_lock),
+    )
+    .expect("plan");
     assert_eq!(plan.install_count, 0);
     assert_eq!(plan.update_count, 0);
     assert_eq!(plan.remove_count, 0);
@@ -601,6 +653,7 @@ fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
 
     let apply_backup_dir = temp.path().join("metadata-apply-backups");
     let result = apply_addon_lock_sync(AddonLockApplyRequest {
+        state_paths: addon_state_paths(&current_installation.clone()),
         installation: current_installation.clone(),
         lock_path: Some(desired_lock),
         backup_output_path: Some(apply_backup_dir.clone()),
@@ -613,7 +666,11 @@ fn apply_addon_lock_sync_applies_metadata_only_actions_transactionally() {
     assert_eq!(result.metadata_only_count, 1);
     assert_eq!(count_backup_archives(&apply_backup_dir), 1);
 
-    let inventory = list_addons(&current_installation).expect("list addons");
+    let inventory = list_addons(
+        &current_installation,
+        &addon_state_paths(&current_installation),
+    )
+    .expect("list addons");
     let metadata = inventory.tracked_packages[0]
         .metadata
         .as_ref()

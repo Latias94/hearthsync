@@ -1,11 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use directories::ProjectDirs;
-
 use super::archive::{read_backup_metadata_from_path, restore_backup_task};
 use super::model::{BackupCatalog, BackupCatalogEntry, RestoreBackupRequest, RestoredBackup};
 use crate::core::error::{AppError, AppResult};
+use crate::core::platform_dirs::app_data_subdir;
 use crate::core::task::{
     CancellationToken, NeverCancel, NoopProgressSink, TaskKind, TaskPhase, TaskProgressSink,
     emit_task_progress, ensure_task_not_cancelled,
@@ -143,11 +142,7 @@ pub(super) fn resolve_backup_dir(backup_dir: Option<&Path>) -> AppResult<PathBuf
 }
 
 fn default_backup_dir() -> AppResult<PathBuf> {
-    let project_dirs = ProjectDirs::from("dev", "hearthsync", "hearthsync").ok_or_else(|| {
-        AppError::Validation("failed to determine platform-specific backup directory".to_string())
-    })?;
-
-    Ok(project_dirs.data_local_dir().join("backups"))
+    app_data_subdir(Path::new("backups"))
 }
 
 fn resolve_backup_archive(

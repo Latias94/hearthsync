@@ -14,7 +14,8 @@ use crate::core::task::{
 };
 
 use super::{
-    AddonRegistry, PreparedAddonPackage, TrackedAddonPackage, load_registry, save_registry,
+    AddonRegistry, AddonStatePaths, PreparedAddonPackage, TrackedAddonPackage, load_registry,
+    save_registry,
 };
 
 #[derive(Clone, Copy)]
@@ -36,6 +37,14 @@ enum AddonMutationStep<'a> {
         current: usize,
         total: usize,
     },
+}
+
+pub(crate) struct UpdatePreparedPackagesWithDependenciesRequest {
+    pub(crate) registry: AddonRegistry,
+    pub(crate) selected_packages: Vec<TrackedAddonPackage>,
+    pub(crate) prepared_packages: Vec<PreparedAddonPackage>,
+    pub(crate) dependency_prepared_packages: Vec<PreparedAddonPackage>,
+    pub(crate) task: TaskKind,
 }
 
 trait AddonMutationObserver {
@@ -90,6 +99,7 @@ where
 
 pub(crate) fn install_prepared_package_task<TCancel, TProgress>(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     prepared: PreparedAddonPackage,
     replace_existing: bool,
     task: TaskKind,
@@ -102,11 +112,38 @@ where
 {
     let mut observer =
         TaskAddonMutationObserver::new(task, MutationProgressMode::Install, cancellation, progress);
-    install_prepared_package_with_observer(installation, prepared, replace_existing, &mut observer)
+    install_prepared_package_with_observer(
+        installation,
+        state_paths,
+        prepared,
+        replace_existing,
+        &mut observer,
+    )
 }
 
 fn install_prepared_package_with_observer(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
+    prepared: PreparedAddonPackage,
+    replace_existing: bool,
+    observer: &mut impl AddonMutationObserver,
+) -> AppResult<(TrackedAddonPackage, usize)> {
+    let mut registry = load_registry(installation, state_paths)?;
+    let result = apply_install_prepared_package_with_observer(
+        installation,
+        &mut registry,
+        prepared,
+        replace_existing,
+        observer,
+    )?;
+    save_registry(installation, state_paths, &registry)?;
+
+    Ok(result)
+}
+
+fn apply_install_prepared_package_with_observer(
+    installation: &DetectedFlavorInstallation,
+    registry: &mut AddonRegistry,
     prepared: PreparedAddonPackage,
     replace_existing: bool,
     observer: &mut impl AddonMutationObserver,
@@ -118,7 +155,6 @@ fn install_prepared_package_with_observer(
         .collect::<BTreeSet<_>>();
     let total_addons = prepared.addons.len();
     let mut written_files = 0usize;
-    let mut registry = load_registry(installation)?;
 
     registry.packages.retain(|package| {
         !package
@@ -160,13 +196,13 @@ fn install_prepared_package_with_observer(
         metadata: prepared.metadata,
     };
     registry.packages.push(package.clone());
-    save_registry(installation, &registry)?;
 
     Ok((package, written_files))
 }
 
 pub(crate) fn update_prepared_packages_task<TCancel, TProgress>(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     registry: AddonRegistry,
     selected_packages: Vec<TrackedAddonPackage>,
     prepared_packages: Vec<PreparedAddonPackage>,
@@ -182,6 +218,7 @@ where
         TaskAddonMutationObserver::new(task, MutationProgressMode::Update, cancellation, progress);
     update_prepared_packages_with_observer(
         installation,
+        state_paths,
         registry,
         selected_packages,
         prepared_packages,
@@ -189,9 +226,96 @@ where
     )
 }
 
+pub(crate) fn update_prepared_packages_with_dependencies_task<TCancel, TProgress>(
+    installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
+    request: UpdatePreparedPackagesWithDependenciesRequest,
+    cancellation: &TCancel,
+    progress: &mut TProgress,
+) -> AppResult<(Vec<TrackedAddonPackage>, Vec<TrackedAddonPackage>, usize)>
+where
+    TCancel: CancellationToken,
+    TProgress: TaskProgressSink,
+{
+    let UpdatePreparedPackagesWithDependenciesRequest {
+        registry,
+        selected_packages,
+        prepared_packages,
+        dependency_prepared_packages,
+        task,
+    } = request;
+    let mut registry = registry;
+    let (updated_packages, mut written_files) = {
+        let mut observer = TaskAddonMutationObserver::new(
+            task,
+            MutationProgressMode::Update,
+            cancellation,
+            progress,
+        );
+        apply_update_prepared_packages_with_observer(
+            installation,
+            &mut registry,
+            selected_packages,
+            prepared_packages,
+            &mut observer,
+        )?
+    };
+
+    let mut installed_dependency_packages = Vec::new();
+    {
+        let mut observer = TaskAddonMutationObserver::new(
+            task,
+            MutationProgressMode::Install,
+            cancellation,
+            progress,
+        );
+        for prepared_dependency in dependency_prepared_packages {
+            let (installed_dependency, installed_files) =
+                apply_install_prepared_package_with_observer(
+                    installation,
+                    &mut registry,
+                    prepared_dependency,
+                    false,
+                    &mut observer,
+                )?;
+            written_files += installed_files;
+            installed_dependency_packages.push(installed_dependency);
+        }
+    }
+
+    save_registry(installation, state_paths, &registry)?;
+
+    Ok((
+        updated_packages,
+        installed_dependency_packages,
+        written_files,
+    ))
+}
+
 fn update_prepared_packages_with_observer(
     installation: &DetectedFlavorInstallation,
-    mut registry: AddonRegistry,
+    state_paths: &AddonStatePaths,
+    registry: AddonRegistry,
+    selected_packages: Vec<TrackedAddonPackage>,
+    prepared_packages: Vec<PreparedAddonPackage>,
+    observer: &mut impl AddonMutationObserver,
+) -> AppResult<(Vec<TrackedAddonPackage>, usize)> {
+    let mut registry = registry;
+    let result = apply_update_prepared_packages_with_observer(
+        installation,
+        &mut registry,
+        selected_packages,
+        prepared_packages,
+        observer,
+    )?;
+    save_registry(installation, state_paths, &registry)?;
+
+    Ok(result)
+}
+
+fn apply_update_prepared_packages_with_observer(
+    installation: &DetectedFlavorInstallation,
+    registry: &mut AddonRegistry,
     selected_packages: Vec<TrackedAddonPackage>,
     prepared_packages: Vec<PreparedAddonPackage>,
     observer: &mut impl AddonMutationObserver,
@@ -258,12 +382,12 @@ fn update_prepared_packages_with_observer(
         updated_packages.push(updated_package);
     }
 
-    save_registry(installation, &registry)?;
     Ok((updated_packages, written_files))
 }
 
 pub(crate) fn remove_selected_packages_task<TCancel, TProgress>(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     selected_packages: Vec<TrackedAddonPackage>,
     task: TaskKind,
     cancellation: &TCancel,
@@ -275,15 +399,21 @@ where
 {
     let mut observer =
         TaskAddonMutationObserver::new(task, MutationProgressMode::Remove, cancellation, progress);
-    remove_selected_packages_with_observer(installation, selected_packages, &mut observer)
+    remove_selected_packages_with_observer(
+        installation,
+        state_paths,
+        selected_packages,
+        &mut observer,
+    )
 }
 
 fn remove_selected_packages_with_observer(
     installation: &DetectedFlavorInstallation,
+    state_paths: &AddonStatePaths,
     selected_packages: Vec<TrackedAddonPackage>,
     observer: &mut impl AddonMutationObserver,
 ) -> AppResult<bool> {
-    let mut registry = load_registry(installation)?;
+    let mut registry = load_registry(installation, state_paths)?;
     let total_removed_addons = selected_packages
         .iter()
         .map(|package| package.addons.len())
@@ -310,7 +440,7 @@ fn remove_selected_packages_with_observer(
             .iter()
             .any(|selected| selected == candidate)
     });
-    save_registry(installation, &registry)?;
+    save_registry(installation, state_paths, &registry)?;
 
     Ok(registry.packages.is_empty())
 }

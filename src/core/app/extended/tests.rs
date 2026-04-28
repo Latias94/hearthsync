@@ -4,10 +4,11 @@ use std::path::Path;
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AppRuntime,
-    AppRuntimeCapabilitiesValue, ExtendedAppServices, ExternalHelperAvailabilityValue,
-    ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HealthStatusValue,
-    HelperStrategyValue, HostPlatformValue, InspectInstallationRequest, ResolveInstallationRequest,
+    AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
+    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime, AppRuntimeCapabilitiesValue,
+    ExtendedAppServices, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
+    HttpNoValidatorCachePolicyValue, InspectInstallationRequest, ResolveInstallationRequest,
     WowFlavorValue,
 };
 
@@ -107,7 +108,14 @@ fn extended_app_services_exposes_runtime_capabilities_as_app_owned_value() {
                 options: AddonProviderOptionsValue {
                     download_cache_dir: None,
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                    http_no_validator_cache_policy:
+                        HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                 },
+            },
+            addon_management: AddonManagementCapabilitiesValue {
+                state_storage: AddonStateStorageValue::AppData,
+                scan_only_without_managed_state: true,
+                managed_mode_requires_state: true,
             },
             external_helper: ExternalHelperCapabilitiesValue {
                 policy: ExternalHelperPolicyValue::PreferExternal,

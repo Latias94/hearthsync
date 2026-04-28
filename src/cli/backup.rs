@@ -1,6 +1,10 @@
 use super::BackupCommands;
-use super::app_support::{render_with_installation, render_with_value, stable_services};
+use super::app_support::{
+    render_with_installation, render_with_installation_task_result, render_with_value,
+    stable_services,
+};
 use super::output::backup::{render_backup_catalog, render_backup_created, render_backup_restored};
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 
 mod request;
@@ -9,8 +13,12 @@ use request::{
     build_create_backup_request, build_list_backups_request, build_restore_backup_request,
 };
 
-pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppResult<()> {
-    let app = stable_services();
+pub(super) fn handle_backup_command(
+    json: bool,
+    runtime: AppRuntime,
+    command: BackupCommands,
+) -> AppResult<()> {
+    let app = stable_services(runtime);
 
     match command {
         BackupCommands::Create {
@@ -34,14 +42,16 @@ pub(super) fn handle_backup_command(json: bool, command: BackupCommands) -> AppR
             archive,
             id,
             dir,
-        } => render_with_installation(
-            json,
-            &app,
-            install_target,
-            |installation| build_restore_backup_request(installation, archive, id, dir),
-            |request| app.restore_backup(request),
-            render_backup_restored,
-        )?,
+        } => {
+            render_with_installation_task_result(
+                json,
+                &app,
+                install_target,
+                |installation| build_restore_backup_request(installation, archive, id, dir),
+                |request| app.restore_backup(request),
+                render_backup_restored,
+            )?;
+        }
     }
 
     Ok(())

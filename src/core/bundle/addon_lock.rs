@@ -11,6 +11,7 @@ use crate::core::addon::lock::{
     AddonLockApplyRequest, AddonLockSourceOverride, apply_addon_lock_sync,
     plan_addon_lock_sync_with_source_overrides,
 };
+use crate::core::addon::{AddonStatePaths, AddonStateStorageKind};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -23,10 +24,13 @@ pub(super) struct ExtractedAddonLock {
 pub fn plan_bundle_addon_lock(
     bundle_path: &Path,
     installation: &DetectedFlavorInstallation,
+    addon_state_storage_kind: AddonStateStorageKind,
 ) -> AppResult<BundleAddonLockPlan> {
     let extracted = extract_embedded_addon_lock(bundle_path)?;
+    let state_paths = AddonStatePaths::for_installation(addon_state_storage_kind, installation)?;
     let mut plan = plan_addon_lock_sync_with_source_overrides(
         installation,
+        &state_paths,
         Some(&extracted.lock_path),
         &extracted.source_overrides,
     )?;
@@ -43,8 +47,11 @@ pub fn apply_bundle_addon_lock(
     request: BundleAddonLockApplyRequest,
 ) -> AppResult<BundleAddonLockApply> {
     let extracted = extract_embedded_addon_lock(&request.bundle_path)?;
+    let state_paths =
+        AddonStatePaths::for_installation(request.addon_state_storage_kind, &request.installation)?;
     let mut apply = apply_addon_lock_sync(AddonLockApplyRequest {
         installation: request.installation,
+        state_paths,
         lock_path: Some(extracted.lock_path.clone()),
         backup_output_path: request.backup_output_path,
         replace_existing: request.replace_existing,

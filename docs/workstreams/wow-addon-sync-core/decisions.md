@@ -982,3 +982,222 @@ This applies at least to:
 - provider and HTTP observer details stay internal and can evolve without breaking the app boundary
 - future download-capable flows extend the same event shape instead of adding a parallel callback
   or DTO surface
+
+## ADR-042: Existing Local Addon State Enters Tracking through Explicit Snapshot Adoption
+
+### Status
+
+Accepted on 2026-04-22
+
+### Decision
+
+When a WoW installation already contains usable addon directories but has no HearthSync tracked
+registry yet, the bootstrap path should be explicit addon adoption rather than ambient folder
+scanning, fake remote-source reconstruction, or a new self-referential local-directory source
+kind.
+
+Specifically:
+
+- the operator must explicitly choose which untracked addon directories to adopt
+- multi-addon grouping requires an explicit tracked `package_id`
+- HearthSync snapshots those directories into a real local archive and records that archive as the
+  tracked `local_archive` source
+- the bootstrap flow must not pretend to know the original CurseForge/GitHub/HTTP identity when
+  the local machine no longer has that information
+
+### Consequences
+
+- the current addon source model remains honest and reusable for CLI plus future GUI work
+- manual local installs can still enter tracked state and immediately unlock curator scaffold or
+  suggestion workflows
+- follow-up “upgrade this adopted snapshot to a real curated/provider source” flows remain possible
+  later without overloading the initial bootstrap step with guesswork
+
+## ADR-043: Source Relink Upgrades Tracking Truth Without Reinstalling AddOn Files
+
+Accepted on 2026-04-22
+
+### Decision
+
+When an operator already has one tracked addon package and later learns the package's real source,
+HearthSync should support an explicit source relink step instead of forcing reinstall just to
+rewrite registry identity.
+
+The first implementation is deliberately conservative:
+
+- `addon relink` targets exactly one tracked package selected by tracked package id or addon
+  directory name
+- HearthSync prepares the candidate source and requires the prepared addon-directory set to match
+  the currently tracked package exactly
+- on success, HearthSync rewrites only the tracked registry source and leaves live AddOns files
+  untouched
+- generic relink clears stored package metadata rather than preserving possibly stale index/source
+  details that no longer truthfully describe the new source
+
+### Consequences
+
+- adopted local snapshots now have a clean upgrade path to real provider or archive sources
+- relink stays low-risk because it does not mutate live addon content and fails closed on addon-set
+  mismatches
+- curator/index-aware attach remains a separate follow-up because generic relink does not yet
+  repopulate curated metadata
+
+## ADR-044: Curated Index Relink May Attach Metadata Without Reinstalling Matching Sources
+
+Accepted on 2026-04-22
+
+### Decision
+
+Once generic source relink exists, curator attach should build on the same relink model instead of
+falling back to reinstall semantics.
+
+Specifically:
+
+- `addon index relink` resolves one package from a curated addon index and targets exactly one
+  tracked package, either by explicit operator choice or by the existing tracked-package matching
+  heuristics
+- the resolved source must still expose the exact same addon-directory set as the tracked package
+- when the resolved source differs, HearthSync rewrites both registry source and curated metadata
+- when the resolved source is already the same, HearthSync may still proceed if curated metadata
+  would change; metadata attach alone is a valid outcome
+- if both source and curated metadata already match, the operation fails as a no-op instead of
+  pretending new work happened
+
+### Consequences
+
+- operators can promote adopted or manually tracked packages into curated index identity without
+  reinstalling unchanged AddOns content
+- generic relink remains the lower-level "source only" primitive, while curator relink becomes the
+  truthful path for attaching index metadata
+- exact addon-directory parity remains the shared safety rule across both relink paths
+
+## ADR-045: Bulk Curator Attach Stays Reviewable And Fail-Closed
+
+Accepted on 2026-04-22
+
+### Decision
+
+Once single-package curator relink exists, the higher-level multi-package workflow should batch the
+same truthful attach model instead of inventing partial reinstall or partial registry-write
+semantics.
+
+Specifically:
+
+- `addon index attach` selects one package or the whole curated index and reuses the existing
+  suggestion/preflight matching order to map each index package onto at most one tracked package
+- each matched package still prepares the resolved source and must prove exact addon-directory
+  parity before it becomes attachable
+- the operation returns a structured review result for ready packages, already-attached packages,
+  blocked packages, and skipped unsupported-flavor packages
+- dry runs may report mixed ready and blocked states, but non-dry execution remains fail-closed:
+  if any selected package is blocked, HearthSync writes no registry changes at all
+- when every selected package is ready, HearthSync rewrites tracked registry source plus curated
+  metadata in one batch and still leaves live AddOns content untouched
+
+### Consequences
+
+- operators can bootstrap many locally tracked packages into curated identity without repeating
+  one-package commands
+- CLI and future GUI work get one stable review surface for bulk curator attach instead of parsing
+  ad hoc errors from repeated single-package relink calls
+- exact addon-directory parity remains the shared safety rule across single-package relink and
+  bulk attach
+- future partial-apply behavior, if it ever exists, must be an explicit higher-level decision
+  rather than the default semantics of the first bulk attach flow
+
+## ADR-046: Managed Addon State Defaults To App Data And Keeps Sidecar Portable
+
+Accepted on 2026-04-22
+
+### Decision
+
+HearthSync still needs persisted addon state for tracked registry truth, lock reproducibility,
+mutable update policy, and adopted snapshot archives, but that state should not default to writing
+inside the live WoW client tree.
+
+Specifically:
+
+- managed addon state is now resolved through one runtime-owned backend abstraction
+- the default backend is platform app-data keyed by installation identity
+- sidecar `.hearthsync` remains supported as an explicit portable backend instead of the default
+- the first migration scope covers addon registry, addon lock, addon policy, and adopted snapshot
+  archives only; bundle sidecar metadata is intentionally unchanged for now
+
+### Consequences
+
+- default desktop operation no longer creates managed state files under `Interface/AddOns`
+- scan-only and "just inspect the client" workflows stay compatible with NewBeeBox-style
+  expectations that the tool should recognize installs without first mutating the client tree
+- managed addon flows still keep the persisted truth they need for source identity, curator
+  attachment, policy, and reproducibility
+- the product can expose backend choice as one runtime-level control instead of scattering
+  feature-specific path overrides; the CLI now does this through global
+  `--addon-state-storage app-data|sidecar`
+- bundle unpack sidecar metadata can stay an explicit portable artifact without forcing bundle
+  export or bundle addon-lock shortcut flows to ignore the configured managed-state backend
+- future GUI work can surface backend choice explicitly without re-deriving path rules per feature
+- runtime diagnostics can now also project exact managed addon state paths when the caller supplies
+  an installation context, which keeps CLI troubleshooting and future GUI settings views on the
+  same runtime-owned path-resolution contract
+- the canonical app-data root now uses application-only `ProjectDirs` naming to avoid the
+  duplicated Windows `.../hearthsync/hearthsync/data/...` segment
+- because HearthSync is still pre-release, obsolete managed-state path compatibility was deleted
+  instead of being preserved behind legacy fallback branches or migration-state diagnostics
+
+## ADR-047: Runtime Settings Persist Through An App-Owned Backend
+
+Accepted on 2026-04-22
+
+### Decision
+
+Cross-invocation runtime defaults should not live only in one-shot CLI flags, and they should not
+default to writing hidden product settings into the WoW client tree.
+
+Specifically:
+
+- persisted runtime settings are owned by `core::app`, not by CLI-only bootstrap code
+- the shared backend stores selected runtime overrides under app-data `settings/runtime.toml`
+- the first persisted fields are `addon_state_storage`, `addon_cache_dir`, and
+  `http_no_validator_cache_policy`
+- the first operator-facing mutation surface is the explicit CLI namespace
+  `settings inspect|set|reset`
+- runtime assembly merges values in one order: built-in defaults, then persisted settings, then
+  one-shot CLI flags for the current invocation
+
+### Consequences
+
+- CLI and future GUI work now have one shared persistence contract for runtime defaults instead of
+  parallel settings stores
+- cache policy persistence no longer depends on retyping global flags on every invocation
+- addon-state backend choice can persist without making sidecar `.hearthsync` the desktop default
+- future GUI settings work should layer on the same app-owned backend rather than inventing a
+  second persistence path
+- invalid persisted settings fail closed during runtime assembly or settings inspection until the
+  operator fixes or resets them
+
+## ADR-048: Pre-GUI Hardening Stays In The Core Workstream
+
+Accepted on 2026-04-28
+
+### Decision
+
+The 2026-04-28 architecture-hardening findings should remain inside
+`docs/workstreams/wow-addon-sync-core` instead of becoming a new top-level workstream.
+
+Specifically:
+
+- addon update transaction completion belongs to the shared mutation engine
+- ignored-policy ordering belongs to shared addon-index planning
+- config-owned DTO work belongs to the stable app boundary
+- provider decomposition belongs to the addon acquisition core
+- live task progress and cancellation belong to the app task contract
+- clippy cleanup is a repo-wide quality gate, but the meaningful boundary pressure is concentrated
+  in the core
+
+### Consequences
+
+- the core workstream remains the architecture source of truth for CLI and future `egui` callers
+- the new review is tracked as `review-2026-04-28-architecture-hardening.md`
+- `todo.md` and `milestones.md` carry the follow-up work as `R9` / `M9`
+- because HearthSync is still pre-release, this hardening phase may delete obsolete transition code
+  and reshape app contracts instead of preserving compatibility for current internal call sites

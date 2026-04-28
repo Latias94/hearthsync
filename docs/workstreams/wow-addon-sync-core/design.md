@@ -75,6 +75,19 @@ Portable bundle groups:
 This model intentionally stays close to the real WoW filesystem while giving the planner explicit
 resource-group semantics.
 
+## Product Interaction Modes
+
+The product should distinguish between scan-only posture and managed addon mode instead of treating
+every installation-facing action as the same kind of ownership.
+
+- scan-only flows discover, inspect, validate, or preview WoW content without establishing tracked
+  addon truth for that installation
+- managed addon flows depend on persistent HearthSync-owned state for tracked package identity,
+  mutable policy, reproducibility, and adopted local snapshots
+
+The full product note for that boundary lives in
+`scan-only-vs-managed-mode.md`.
+
 ## Current Architecture Snapshot
 
 The repository already has useful core subdomains:
@@ -179,6 +192,15 @@ Custom provider injection may still exist as an internal crate seam for tests or
 composition, but it should not remain part of the stable frontend runtime contract.
 The stable runtime contract should make it explicit whether the app is using configurable
 default-provider options or a fully internal custom provider implementation.
+
+The same ownership rule applies to persisted runtime settings.
+If the frontend needs addon-state backend choice, addon download cache location, or no-validator
+HTTP freshness policy to survive across invocations, that persistence belongs to `core::app`
+rather than to CLI-only flag glue.
+The current shared backend stores selected runtime overrides under app-data
+`settings/runtime.toml`, the CLI exposes `settings inspect|set|reset` on top of that backend, and
+one-shot CLI flags remain ephemeral overlays on the current process instead of becoming a second
+persistence path.
 
 Helper capability reporting follows the same rule.
 The selected helper strategy belongs to app runtime state, not to bundle-planner DTOs.
@@ -459,6 +481,124 @@ Stable addon package metadata should follow the same rule.
 Addon install requests and tracked-package metadata results should use one app-owned metadata value
 so stable addon callers do not need domain `AddonPackageMetadata` to pass curated metadata through
 the frontend boundary or read it back from addon inventory results.
+
+Mutable addon policy should now follow that same rule too.
+Addon ignore/pin/channel/pre-release/dependency choices should live in a separate
+HearthSync-managed addon policy state file instead of leaking into `lock.toml`, and stable callers
+should use app-owned addon-policy value types plus first-class inspect/set/remove entrypoints
+rather than domain policy enums or ad hoc frontend state. Managed addon state now defaults to
+platform app-data storage keyed by installation identity, while sidecar `.hearthsync` remains an
+explicit portable backend instead of the default desktop path. Runtime diagnostics should expose the
+selected backend generically and, when the caller has already resolved one installation, the exact
+managed addon state paths for that installation too. The canonical app-data root should stay
+product-named rather than duplicating organization and application segments. Because this remains a
+pre-release codebase, the project should prefer one canonical managed-state layout over carrying
+forward obsolete path compatibility branches.
+
+Current execution coverage for that policy is intentionally narrower than the stored schema.
+Bulk `addon update` and `addon index update` already consume `ignored = true`, and provider-backed
+`addon update` also applies basic pin overrides (`pin.file_id` for CurseForge, `pin.version` as a
+GitHub tag override) while preserving the tracked `package_id`.
+Regular provider-backed `addon update` now also consumes release-channel/prerelease source
+selection plus `install_dependencies = true` for the first explicit dependency-installation slice:
+missing required CurseForge dependencies are installed as additional tracked packages, while
+unsupported source kinds fail explicitly instead of silently treating the policy field as a no-op.
+Addon-index update now also consumes that same first `install_dependencies = true` slice, but it
+resolves dependencies from the curated index source while still treating those curated source
+declarations as authoritative instead of letting user policy override them via pin or
+release-channel/prerelease preferences. The execution layer now also reflects that distinction
+explicitly through separate provider-backed and indexed-update policy projections instead of
+sharing one “everything can read everything” policy accessor surface. Provider-side dependency
+resolution now follows the same rule: the contract expresses an explicit dependency-resolution
+strategy rather than returning a bare source list whose semantics only exist in comments. Provider-
+side dependency support is also advertised through an explicit capability surface, so “unsupported”
+and “missing required only” are part of the contract rather than only emerging from validation
+errors after execution has already started. That capability now also projects through app-owned
+source value payloads, so future GUI work can inspect dependency support from stable addon, index,
+and lock results without reaching into provider-domain internals. The app boundary now also owns a
+first preflight gate for that capability: addon and addon-index update entrypoints reject
+`install_dependencies = true` for unsupported sources before they enter domain update execution.
+Indexed update now also reuses provider-level source-family identity during both preflight and
+domain matching, so index-package id drift and GitHub asset-name drift no longer force a fallback
+when the tracked package still points at the same underlying package family. It also accepts unique
+exact display-name continuity as a later fallback, so source-family migration can still preflight
+when the curated package name remains stable across tracked package id, stored metadata package
+name, addon directory name, or addon title. The curated index schema now also supports explicit
+exact `match_package_ids` hints, so index authors can bridge known historical tracked package ids
+without adding fuzzier runtime heuristics. Preflight remains intentionally conservative only for
+the narrower case where the curated source family itself changes and the index package also omits
+explicit `match_package_ids`, stable `addon_directories`, and any exact unique display-name
+continuity, so the deeper domain validation path still remains the final correctness backstop.
+Curator diagnostics now also treat those exact-hint gaps as structured issues with explicit
+severity. Packages that omit both hint types surface one blocking
+`missing_exact_identity_hints` issue because that is the remaining case that can still force
+preflight down to the deeper domain validation path. Packages that declare only one hint type now
+surface advisory `missing_match_package_ids` or `missing_addon_directories` issues instead, so
+inspect/validate/GUI consumers can still encourage fuller curation without turning every partial
+hint into a hard failure. Validation now keys off blocking warning count rather than total warning
+count, which keeps exact missing-bridge failures non-zero while still exposing softer curator
+follow-up work in the same structured result.
+Curator authoring help should follow the same contract too. Rather than adding weaker runtime
+matching rules, addon-index curation should reuse the existing preflight matching order to explain
+one current local mapping and propose missing exact hints from it. The new suggestion surface does
+that directly: it resolves local-archive index sources through the same index-path canonicalization
+used by install/update, matches one tracked package through the same preflight rule order, and
+then suggests only the missing `match_package_ids` and `addon_directories` additions that would
+make that mapping explicit next time. Ambiguous or absent local matches stay structured results
+instead of turning the helper into another all-or-nothing validator.
+Initial authoring should follow the same principle too. When no curator index exists yet, the tool
+should bootstrap one from tracked package state instead of making operators hand-write package
+source references from scratch. The new scaffold surface does that from the tracked addon registry:
+it preserves existing curated metadata when already available, falls back to tracked addon
+directory/title/version data only where necessary, emits addon directories directly from tracked
+package contents, and only injects `match_package_ids` when the preserved curated package id differs
+from the tracked local package id. It also fails closed when no tracked registry exists yet, rather
+than inventing source references from an untracked addon folder scan.
+That still leaves one real bootstrap gap for existing manual installs: if a machine already has
+usable addon directories but no tracked registry, addon-index scaffold/suggest cannot help yet.
+That gap still belongs in `wow-addon-sync-core`; it is not a new workstream because it cuts across
+addon source identity, registry semantics, CLI/app product flow, and future GUI reuse at the same
+time.
+The bootstrap rule should stay explicit and honest:
+
+- do not silently sweep the entire `Interface/AddOns` directory into one or more tracked packages
+- require explicit addon-directory selection from the operator
+- if multiple addon directories belong to one package, require an explicit tracked `package_id`
+- snapshot the selected directories into a real local archive and record that archive as the
+  tracked source
+- do not invent remote provider identity when the current machine no longer knows it
+- do not add a self-referential "local addon directory" source kind whose update behavior only
+  points back at the mutable installation itself
+
+That explicit adopt path keeps the source model honest while still unblocking the real operator
+workflow:
+
+1. adopt explicit untracked local addon directories into tracked state
+2. scaffold or suggest curator data from the new tracked registry
+3. later replace the local snapshot source with a real curated or provider-backed source when known
+   through an explicit relink step rather than silent source inference
+
+The first implementation of that follow-up step is intentionally narrow.
+`addon relink` prepares one new source, requires the prepared addon-directory set to match the
+currently tracked package exactly, and then rewrites only the tracked registry source.
+It does not rewrite live AddOns content, and it clears old package metadata rather than carrying
+forward stale curator/source details that may no longer describe the new source truthfully.
+
+The curator-aware follow-up now builds on that same rule set instead of inventing a separate
+mutation model.
+`addon index relink` resolves one package from a curated index, prepares its resolved source,
+requires exact addon-directory parity against one tracked package, and then rewrites registry
+source plus curated metadata together. It still does not rewrite live AddOns content, but unlike
+generic relink it intentionally allows "metadata attach only" when the source already matches and
+the missing step is simply attaching truthful curated identity.
+
+The higher-level bulk curator workflow now follows the same rule set too.
+`addon index attach` reuses the same suggestion-style tracked-package matching order across one
+selected index scope, prepares each resolved source only to prove exact addon-directory parity, and
+then returns a structured ready/blocked/skipped review result before any registry mutation occurs.
+Execution is deliberately fail-closed: the command may preview mixed states, but it only writes
+registry source plus curated metadata when every selected package is attachable, so future GUI work
+can present operator review without inheriting partial-write semantics.
 
 Full manifest payloads should follow that same ownership rule too.
 Pack requests and bundle/external-package result payloads should use one app-owned manifest value

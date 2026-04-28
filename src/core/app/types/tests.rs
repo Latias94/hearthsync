@@ -1,11 +1,19 @@
 use std::path::PathBuf;
 
+use crate::core::addon::AddonStateStorageKind;
+use crate::core::addon::policy::{AddonPolicyPin, AddonReleaseChannel};
+use crate::core::addon::{
+    AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy, AddonStatePaths,
+};
 use crate::core::app::{
-    AddonPackageMetadataValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-    BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
-    BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
-    BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, HealthStatusValue,
-    HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue,
+    AddonDependencyResolutionCapabilityValue, AddonDependencyResolutionStrategyValue,
+    AddonManagementCapabilitiesValue, AddonPackageMetadataValue, AddonPolicyPinValue,
+    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonReleaseChannelValue,
+    AddonStatePathsValue, AddonStateStorageValue, BundleApplyDefaultsValue,
+    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
+    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
+    BundleSourceValue, CharacterMappingModeValue, HealthStatusValue, HostPlatformValue,
+    HttpNoValidatorCachePolicyValue, ResourceApplyPolicyValue, WowFlavorValue,
 };
 use crate::core::manifest::ResourceApplyPolicy;
 
@@ -65,11 +73,59 @@ fn addon_provider_options_value_roundtrips_domain_shape() {
     let value = AddonProviderOptionsValue {
         download_cache_dir: Some(PathBuf::from("cache")),
         retry_policy: AddonProviderRetryPolicyValue { max_attempts: 2 },
+        http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
+            max_age_secs: 120,
+        },
     };
 
     let domain = value.clone().into_domain();
 
     assert_eq!(AddonProviderOptionsValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_state_storage_value_roundtrips_domain_shape() {
+    let value = AddonStateStorageValue::Sidecar;
+
+    let domain = value.into_domain();
+
+    assert_eq!(domain, AddonStateStorageKind::Sidecar);
+    assert_eq!(AddonStateStorageValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_state_paths_value_projects_domain_shape() {
+    let domain = AddonStatePaths {
+        root_dir: PathBuf::from("state"),
+        registry_path: PathBuf::from("state/addons.toml"),
+        lock_path: PathBuf::from("state/lock.toml"),
+        policy_path: PathBuf::from("state/addon-policy.toml"),
+        adopted_dir: PathBuf::from("state/adopted"),
+    };
+
+    assert_eq!(
+        AddonStatePathsValue::from_domain(domain),
+        AddonStatePathsValue {
+            root_dir: PathBuf::from("state"),
+            registry_path: PathBuf::from("state/addons.toml"),
+            lock_path: PathBuf::from("state/lock.toml"),
+            policy_path: PathBuf::from("state/addon-policy.toml"),
+            adopted_dir: PathBuf::from("state/adopted"),
+        }
+    );
+}
+
+#[test]
+fn addon_management_capabilities_value_exposes_scan_only_and_managed_contract() {
+    let value = AddonManagementCapabilitiesValue {
+        state_storage: AddonStateStorageValue::AppData,
+        scan_only_without_managed_state: true,
+        managed_mode_requires_state: true,
+    };
+
+    assert_eq!(value.state_storage, AddonStateStorageValue::AppData);
+    assert!(value.scan_only_without_managed_state);
+    assert!(value.managed_mode_requires_state);
 }
 
 #[test]
@@ -88,6 +144,70 @@ fn addon_package_metadata_value_roundtrips_domain_shape() {
     let domain = value.clone().into_domain();
 
     assert_eq!(AddonPackageMetadataValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_release_channel_value_roundtrips_domain_shape() {
+    let value = AddonReleaseChannelValue::Alpha;
+
+    let domain = value.into_domain();
+
+    assert_eq!(AddonReleaseChannelValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_policy_pin_value_roundtrips_domain_shape() {
+    let version = AddonPolicyPinValue::Version {
+        value: "1.2.3".to_string(),
+    };
+    let file_id = AddonPolicyPinValue::FileId { value: 42 };
+
+    assert_eq!(
+        AddonPolicyPinValue::from_domain(version.clone().into_domain()),
+        version
+    );
+    assert_eq!(
+        AddonPolicyPinValue::from_domain(file_id.clone().into_domain()),
+        file_id
+    );
+    assert_eq!(
+        AddonPolicyPinValue::from_domain(AddonPolicyPin::Version {
+            value: "4.5.6".to_string()
+        }),
+        AddonPolicyPinValue::Version {
+            value: "4.5.6".to_string()
+        }
+    );
+    assert_eq!(
+        AddonReleaseChannelValue::from_domain(AddonReleaseChannel::Beta),
+        AddonReleaseChannelValue::Beta
+    );
+}
+
+#[test]
+fn addon_dependency_resolution_values_project_domain_shape() {
+    assert_eq!(
+        AddonDependencyResolutionStrategyValue::from_domain(
+            AddonDependencyResolutionStrategy::MissingRequiredOnly
+        ),
+        AddonDependencyResolutionStrategyValue::MissingRequiredOnly
+    );
+    assert_eq!(
+        AddonDependencyResolutionCapabilityValue::from_domain(
+            AddonDependencyResolutionCapability::Unsupported
+        ),
+        AddonDependencyResolutionCapabilityValue::Unsupported
+    );
+    assert_eq!(
+        AddonDependencyResolutionCapabilityValue::from_domain(
+            AddonDependencyResolutionCapability::Supported {
+                strategy: AddonDependencyResolutionStrategy::MissingRequiredOnly
+            }
+        ),
+        AddonDependencyResolutionCapabilityValue::Supported {
+            strategy: AddonDependencyResolutionStrategyValue::MissingRequiredOnly
+        }
+    );
 }
 
 #[test]

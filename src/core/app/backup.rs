@@ -38,6 +38,7 @@ impl BackupService {
         Ok(BackupCatalogResult::from_domain(catalog))
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn restore(
         &self,
         request: RestoreBackupAppRequest,
@@ -70,6 +71,7 @@ impl BackupService {
         task_support::run_service_task_collecting(self, request, Self::restore_task)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn restore_with_callbacks<FCancel, FProgress>(
         &self,
         request: RestoreBackupAppRequest,

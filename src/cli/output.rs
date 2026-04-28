@@ -4,10 +4,12 @@ use crate::core::error::AppResult;
 
 pub(super) mod addon;
 pub(super) mod addon_lock;
+pub(super) mod addon_policy;
 pub(super) mod backup;
 pub(super) mod bundle;
 pub(super) mod config;
 pub(super) mod external_package;
+pub(super) mod settings;
 pub(super) mod shared;
 pub(super) mod system;
 #[cfg(test)]

@@ -5,7 +5,10 @@ use crate::core::error::AppResult;
 
 use super::TrackedAddon;
 
-pub(super) fn inspect_staged_addon(stage_path: &Path, addon_name: &str) -> AppResult<TrackedAddon> {
+pub(crate) fn inspect_addon_directory(
+    stage_path: &Path,
+    addon_name: &str,
+) -> AppResult<TrackedAddon> {
     let toc_path = find_primary_toc(stage_path, addon_name)?;
     let (toc_file, title, version) = if let Some(path) = toc_path {
         let toc_file = path

@@ -228,6 +228,15 @@ fn list_backups_reads_metadata_and_sorts_newest_first() {
 }
 
 #[test]
+fn resolve_backup_dir_defaults_to_clean_appdata_layout() {
+    let backup_dir = super::storage::resolve_backup_dir(None).expect("default backup dir");
+    let path = backup_dir.to_string_lossy().replace('\\', "/");
+
+    assert!(path.ends_with("/hearthsync/data/backups") || path.ends_with("/hearthsync/backups"));
+    assert!(!path.contains("/hearthsync/hearthsync/"));
+}
+
+#[test]
 fn restore_backup_selection_resolves_backup_by_id() {
     let temp = tempdir().expect("temp dir");
     let flavor_root = temp.path().join("_retail_");

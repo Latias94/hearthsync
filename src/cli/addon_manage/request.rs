@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::core::app::{
-    InstallAddonAppRequest, ListAddonsRequest, RemoveAddonAppRequest, ResolvedInstallationValue,
-    SearchAddonsRequest, UpdateAddonAppRequest,
+    AdoptAddonsAppRequest, InstallAddonAppRequest, ListAddonsRequest, RelinkAddonAppRequest,
+    RemoveAddonAppRequest, ResolvedInstallationValue, SearchAddonsRequest, UpdateAddonAppRequest,
 };
 
 pub(super) fn build_search_addons_request(
@@ -21,6 +21,36 @@ pub(super) fn build_list_addons_request(
     installation: ResolvedInstallationValue,
 ) -> ListAddonsRequest {
     ListAddonsRequest { installation }
+}
+
+pub(super) fn build_adopt_addons_request(
+    installation: ResolvedInstallationValue,
+    addon_directories: Vec<String>,
+    package_id: Option<String>,
+    archive_output_path: Option<PathBuf>,
+    dry_run: bool,
+) -> AdoptAddonsAppRequest {
+    AdoptAddonsAppRequest {
+        installation,
+        addon_directories,
+        package_id,
+        archive_output_path,
+        dry_run,
+    }
+}
+
+pub(super) fn build_relink_addon_request(
+    installation: ResolvedInstallationValue,
+    name: String,
+    source: String,
+    dry_run: bool,
+) -> RelinkAddonAppRequest {
+    RelinkAddonAppRequest {
+        installation,
+        name,
+        source,
+        dry_run,
+    }
 }
 
 pub(super) fn build_install_addon_request(
@@ -73,9 +103,29 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{
-        build_install_addon_request, build_remove_addons_request, build_update_addons_request,
+        build_adopt_addons_request, build_install_addon_request, build_relink_addon_request,
+        build_remove_addons_request, build_update_addons_request,
     };
     use crate::cli::test_support::sample_installation;
+
+    #[test]
+    fn build_adopt_addons_request_preserves_explicit_inputs() {
+        let request = build_adopt_addons_request(
+            sample_installation(),
+            vec!["WeakAuras".to_string(), "SharedMedia".to_string()],
+            Some("ui-pack".to_string()),
+            Some(PathBuf::from("exports\\ui-pack.zip")),
+            true,
+        );
+
+        assert_eq!(request.addon_directories, vec!["WeakAuras", "SharedMedia"]);
+        assert_eq!(request.package_id.as_deref(), Some("ui-pack"));
+        assert_eq!(
+            request.archive_output_path,
+            Some(PathBuf::from("exports\\ui-pack.zip"))
+        );
+        assert!(request.dry_run);
+    }
 
     #[test]
     fn build_install_addon_request_sets_optional_metadata_to_none() {
@@ -92,6 +142,20 @@ mod tests {
         assert_eq!(request.backup_output_path, Some(PathBuf::from("backups")));
         assert!(request.replace_existing);
         assert!(request.metadata.is_none());
+    }
+
+    #[test]
+    fn build_relink_addon_request_preserves_explicit_inputs() {
+        let request = build_relink_addon_request(
+            sample_installation(),
+            "WeakAuras".to_string(),
+            "github:WeakAuras/WeakAuras2".to_string(),
+            true,
+        );
+
+        assert_eq!(request.name, "WeakAuras");
+        assert_eq!(request.source, "github:WeakAuras/WeakAuras2");
+        assert!(request.dry_run);
     }
 
     #[test]

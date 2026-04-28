@@ -512,12 +512,11 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - the current codebase is already much stronger than the older NewBeeBox gap notes: root WTF cache
   files, `AddOns.txt`, mutable-source freshness, and byte-level task progress are now part of the
   implemented core instead of remaining open design wishes
-- the remaining work is now concentrated in five places:
-  - task surface width at the stable app boundary
-  - text-path rewrite safety
-  - cache integrity semantics
-  - first-class config product ergonomics
-  - addon policy/preference persistence
+- the remaining work is now concentrated in four places:
+  - internal task-execution consolidation below the stable app boundary
+  - generic transport-level cache validator coverage
+  - remaining addon policy execution gaps
+  - sanitized real-world SavedVariables coverage
 - first progress inside this milestone is now in place: the text Lua rewrite path no longer uses
   collision-prone fixed placeholders, and dedicated regression coverage now verifies that existing
   `__HEARTHSYNC_REWRITE_<n>__` literals in user content survive rewriting unchanged
@@ -527,8 +526,323 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - the stable app boundary now also exposes first-class config-oriented request and task entrypoints
   on top of the same engine, so future GUI work no longer has to enter config sync only through
   external-package-shaped app contracts
+- the first stable-surface shrink pass is now also in place: long-running `StableAppServices` and
+  `ExtendedAppServices` entrypoints return `TaskRun<T>` directly, while CLI convenience helpers
+  now render `run.result` instead of forcing the app boundary to keep direct,
+  `*_collecting_progress`, and `*_with_callbacks` triplets for the same operation
+- that means the remaining task-surface gap is now narrower and internal: callback streaming still
+  exists below the stable boundary for lower-level reuse and tests, but future public streaming
+  work should return through one explicit task-context abstraction rather than reintroducing
+  per-operation triplets
+- addon policy now also has a first concrete product/state seam: mutable preferences persist in
+  the managed addon state backend (default platform app-data; sidecar portable mode optional), the
+  stable app boundary exposes
+  inspect/set/remove entrypoints, and the CLI now has a matching `addon policy` namespace without
+  weakening `lock.toml`'s reproducible contract
+- addon update now also has a first bounded policy-execution slice: bulk `addon update` and bulk
+  `addon index update` honor `ignored = true`, explicit named addon update can override `ignored`,
+  and provider-backed addon update applies basic pin overrides (`pin.file_id` for CurseForge,
+  `pin.version` as a GitHub tag override) while preserving the tracked `package_id`
+- regular provider-backed addon update now also forwards `release_channel` and
+  `allow_prerelease` into provider resolution while preserving tracked source identity:
+  floating GitHub releases can opt into prerelease selection, floating CurseForge mods can filter
+  by stable/beta/alpha release type, and explicit GitHub tag / CurseForge file-id pins remain
+  authoritative instead of being re-filtered as floating references
+- regular provider-backed addon update now also consumes `install_dependencies = true` for
+  supported sources by installing missing required CurseForge dependencies as additional tracked
+  packages inside the same update transaction; unsupported source kinds now fail explicitly instead
+  of silently treating the field as a no-op
+- addon-index update now also consumes `install_dependencies = true` for the same first
+  dependency-installation slice, but it resolves missing required dependencies from the curated
+  index source while keeping that source authoritative instead of letting mutable policy rewrite it
+- addon-policy execution now also has an explicit code-level split between provider-backed update
+  policy and indexed-update policy, so pin and release-channel/prerelease overrides are
+  structurally unavailable to `addon index update` instead of only being filtered by convention
+- provider-side dependency resolution now also uses an explicit strategy result instead of a bare
+  dependency-source list, so the current `missing required only` slice is encoded in the contract
+  that regular update and addon-index update both consume
+- provider-side dependency support now also has an explicit capability contract, so unsupported
+  sources and `missing required only` sources are distinguished before execution instead of only by
+  downstream validation strings
+- that dependency capability now also projects through app-owned source values, so stable app
+  callers can inspect dependency support from addon inventory/search/index/lock results without
+  coupling themselves to provider-domain types or waiting for an update failure
+- addon and addon-index app services now also preflight `install_dependencies = true` against
+  provider dependency capability before they enter domain update execution, so unsupported sources
+  fail at the app boundary instead of only surfacing from prepare-stage validation
+- addon-index matching now also uses provider-level source-family identity in both preflight and
+  domain update flows, so index-package id drift or GitHub asset-name drift no longer forces a
+  fallback when the tracked source still identifies the same underlying package family
+- addon-index matching now also accepts unique exact display-name continuity as a later fallback,
+  so source-family migration can still preflight when the curated package name remains stable
+  across tracked package id, stored metadata package name, addon directory name, or addon title
+- addon-index schema now also supports exact author-declared `match_package_ids` hints, and both
+  preflight and domain matching reuse them before falling back to weaker continuity signals
+- the remaining addon-policy gap is now narrower still: indexed update still does not consume pin
+  or release-channel/prerelease source-resolution overrides, and dependency execution is not yet a
+  generic cross-provider or dependency-upgrade policy
+- addon-index preflight matching is still intentionally conservative only when the curated source
+  family itself changes, the index package omits exact `match_package_ids`, stable
+  `addon_directories`, and exact unique display-name continuity, and there is no stronger stored or
+  source-based identity either; that narrower case still falls back to the domain validation path
+- that remaining fallback path now also emits explicit guidance when unsupported dependency-install
+  policy is only discovered during domain preparation, so operators and curators can see that app
+  preflight lacked stable identity hints and which exact hint types would close the gap
+- `addon index inspect` now also reports structured exact-identity-hint coverage, so CLI and
+  future GUI surfaces can flag packages that still lack any exact migration bridge instead of only
+  echoing raw package fields
+- that inspect surface now also emits structured warning objects with explicit blocking/advisory
+  severity, so downstream consumers can bind on stable warning codes instead of scraping human
+  text from summary lines
+- those warning codes now distinguish the hard "missing both exact hints" case from softer
+  curation follow-up: `missing_exact_identity_hints` is blocking, while
+  `missing_match_package_ids` and `missing_addon_directories` remain advisory
+- `addon index validate` now also exists as an explicit curator gate, returning a structured
+  validation result while making the CLI fail fast only on blocking addon-index curation warnings
+- `addon index suggest` now also exists as the first explicit curator authoring helper: it reuses
+  local tracked-registry state plus the existing preflight matching order to suggest missing
+  `match_package_ids` and `addon_directories` additions, while still reporting no-match and
+  ambiguous-match cases as structured outcomes instead of inventing new runtime matching rules
+- that suggestion path now also resolves local-archive index sources through the same
+  index-relative canonicalization used by install/update, so local curated-package authoring no
+  longer loses source-identity matches just because the registry stores canonicalized archive paths
+- `addon index scaffold` now also exists as the first bootstrap authoring path: it writes a new
+  curated index from the current tracked addon registry, preserves curated metadata when already
+  present, infers only the remaining package name/version fields from tracked addon state, and
+  refuses to overwrite an existing index unless explicitly told to do so
+- that scaffold path now also fails closed when no tracked addon registry exists yet, so an
+  untracked local addon folder scan cannot silently turn into a fake curated source inventory
 - cache integrity now also has a first concrete floor: immutable-source cache reuse writes a local
   integrity sidecar and re-hashes cached archives before reuse, so missing metadata or locally
   modified cached files trigger a refresh instead of being trusted because the file merely exists
+- provider-backed immutable cache reuse now also consumes first remote validators where the source
+  API already exposes them: GitHub release assets and CurseForge files refresh the cached archive
+  when published size, modified time, or digest/hash metadata changes even if the cached file still
+  matches the previous local sidecar
+- generic `http(s)` archives now also use one shared transport-level conditional GET path through
+  the provider HTTP layer: when a cached archive already matches the local integrity sidecar and a
+  server exposes stable `ETag` or `Last-Modified` headers, HearthSync now sends
+  `If-None-Match` / `If-Modified-Since` and reuses the cache on `304 Not Modified` instead of
+  refreshing unconditionally
+- URLs without reusable transport validators now also have an explicit bounded fallback instead of
+  refresh-on-every-run: cache sidecars record fetch time, the default provider policy reuses
+  no-validator cache entries only within a short freshness window, and legacy sidecars without a
+  fetch timestamp fail closed by refreshing
+- provider, stable app, and CLI now also expose first operator-facing cache maintenance flows:
+  `addon cache purge` clears the configured download cache root, while `addon cache repair`
+  removes incomplete downloads, orphaned archives, and invalid sidecar-backed cache entries
+- `addon cache repair` now also performs first remote validator-driven maintenance: HTTP cache
+  entries with reusable transport validators use conditional GET during repair, resolved
+  GitHub/CurseForge entries compare fresh provider metadata and refresh when validator state
+  changes, and expired no-validator HTTP entries are pruned
+- provider cache semantics are now also operator-facing instead of only runtime-internal:
+  global CLI/runtime options can configure the cache directory plus the no-validator HTTP
+  freshness policy, and runtime diagnostics project that configured policy through the stable app
+  capability surface
+- cache and addon-state runtime defaults now also have one explicit persistent settings backend:
+  `core::app` persists selected runtime overrides under app-data `settings/runtime.toml`, the CLI
+  exposes `settings inspect|set|reset`, and one-shot CLI flags override persisted values instead
+  of duplicating persistence logic
+- the remaining cache-validity gap is now narrower still: remote repair is best-effort rather
+  than a richer operator-configurable policy surface, and GUI work still needs a richer settings
+  surface on top of the shared backend
+- SavedVariables rewrite safety now also has a first sanitized real-world fixture floor: the
+  `lua_patch` tests include a more realistic UTF-8 `Details.lua` sample with Chinese text plus a
+  more realistic Latin-1 `Pawn.lua` sample with extended characters, so localized text
+  preservation and non-UTF-8 identity rewrites are no longer only validated through tiny synthetic
+  snippets
+- fixture breadth now also covers a more realistic UTF-8 `Clique.lua` slice with Chinese
+  character/server profile keys plus a more realistic UTF-8 `BagSync.lua` slice with
+  realm-and-character keyed account data, so the rewrite floor is no longer limited to one
+  profile-key addon shape and one Latin-1 character-root addon shape
+- fixture breadth now also covers a more realistic UTF-8 `AddOnSkins.lua` slice with `profiles`
+  plus `profileKeys` keyed by `角色 - 服务器`, so the positive floor now also includes a
+  profile-key-driven addon that does not rely on the broader identity whitelist
+- fixture breadth now also covers a more realistic UTF-8 `ElvUI.lua` slice with mixed
+  `角色 - 服务器` profile keys, nested realm/character maps, and no-space `角色-服务器`
+  combined identity keys, so rewrite coverage now includes the current support for both spaced and
+  compact combined identities
+- fixture breadth now also covers a more realistic UTF-8 `NewBeeBox.lua` slice with no-space
+  `服务器-角色` combined identity keys plus separate `name` / `realmName` fields, so rewrite
+  coverage now also includes the current narrow support for reversed compact combined identities
+  without touching `Player-...` GUID fields
+- identity rewrite targeting is now narrower too: unknown `SavedVariables/*.lua` files no longer
+  enter identity rewrite only because they contain generic `playerName` / `realm`-style fields,
+  so real multi-character account files such as `Syndicator.lua` now fail closed unless HearthSync
+  has an explicit known-file rule for them
+- that fail-closed boundary is now also explicit for `WIM.lua`-style chat history and cache
+  payloads: nested `服务器 -> 角色 -> 会话历史` data is regression-covered as out of scope for
+  automatic config rewrite rather than silently expanding the supported rewrite surface
+- `Rarity.lua` is now narrower too: profile keys still rewrite through the generic
+  `profileKeys` signal path, but account-wide statistics no longer ride the identity-rewrite
+  whitelist because real payloads contain many same-server characters and broad `playerName` /
+  `server` replacement would mis-target unrelated records
+- fixture breadth now also covers a more realistic UTF-8 `RurutiaSuite.lua` slice plus a more
+  realistic UTF-8 `NDui_Bags.lua` slice with a long single-line `profileKeys` payload, so the
+  generic profile-key path is now regression-covered against author text, mixed
+  simplified/traditional character variants, legacy suffixed profile keys, and dense one-line
+  account maps without widening the identity whitelist
+- the UTF-8 `profileKeys` path is now narrower too: profile-style rewrites are scoped to direct
+  `profileKeys` entries, direct `profiles` keys, and `*profileKey` field values instead of whole-
+  document exact-string replacement, and `Clique.lua` now also rides an explicit known-file
+  identity rule because its real payload keeps `char` tables keyed by `角色 - 服务器`
+- the UTF-8 known-file identity path is now narrower too: explicit identity field values such as
+  `playerName`, `realm`, `server`, `character`, `LastPlayerFullName`, `LastRealm`, `guildrealm`,
+  `realmKey`, `rwsKey`, and paired `name + realmName` no longer rely on whole-document quoted-
+  string replacement, so real `Details.lua`-style `lastPlayerName` text now stays untouched while
+  real `NewBeeBox.lua` player records still rewrite correctly
+- the UTF-8 identity-key path is narrower again: exact identity-shaped Lua keys now rewrite only in
+  known containers such as root table-key records, `profileKeys`, `profiles`, `char`, `faction`,
+  `worldBoss`, `searchHistoryList`, `Toons`, `value`, `currentrealm`, and `totals`, plus
+  root/faction `服务器 -> 角色` maps, so arbitrary nested cache keys that merely equal
+  `角色 - 服务器`, `角色-服务器`, or `服务器-角色` now stay untouched
+- the non-UTF-8 byte fallback is now also scoped by Lua structure instead of whole-document text
+  replacement, and UTF-8 payloads no longer fall through into byte rewriting after a scoped
+  rewrite miss
+- the main remaining safety gap is now narrower: new addon-specific identity-key containers still
+  require explicit evidence before they should join the shared allowlist, and fixture breadth is
+  still limited
+- the remaining rewrite-fixture gap is now breadth rather than total absence: more addon-specific
+  SavedVariables shapes and more encoding/pathology variants are still needed before broad desktop
+  migration claims feel justified
 - the bounded review that motivates this milestone is recorded in
   `review-2026-04-21-config-sync-gap.md`
+
+## M8 - Tracked Registry Bootstrap for Existing Local Installs
+
+### Status
+
+Active
+
+### Goal
+
+Let existing manual addon installs enter tracked HearthSync state without inventing fake remote
+source identity or requiring operators to hand-build the registry first.
+
+### Deliverables
+
+- explicit `addon adopt` bootstrap flow for untracked local addon directories
+- tracked-registry bootstrap semantics documented in the core workstream instead of a new parallel
+  workstream
+- local snapshot archive creation that reuses the existing archive/source model
+- minimal `addon relink` flow that upgrades adopted snapshot state to a real source without
+  reinstalling addon files
+- curator-aware `addon index relink` flow that can attach curated metadata without reinstalling
+  addon files
+- guided bulk `addon index attach` flow that batches curator-aware relinks without reinstalling
+  addon files
+- regression coverage for explicit adopt safety and follow-up curator bootstrap flows
+
+### Exit Criteria
+
+- a machine with only manual addon directories can create a real tracked registry without scanning
+  the whole `Interface/AddOns` tree implicitly
+- adopted packages are represented by real local snapshot archives rather than fake remote sources
+  or self-referential local-directory sources
+- operators can later switch one tracked package from an adopted snapshot to a real source while
+  keeping the live installation untouched, as long as addon-directory identity matches exactly
+- operators can also attach one tracked package to a curated index package, including metadata-only
+  attach when the source already matches, without forcing reinstall
+- operators can preview and batch-attach multiple tracked packages against one curated index
+  without partial registry writes
+- `addon index scaffold` and `addon index suggest` become usable immediately after explicit adopt
+
+### Current Notes
+
+- this milestone intentionally stays inside `wow-addon-sync-core`; it is a product-core boundary
+  correction, not a new workstream
+- curator scaffolding is now strong once tracked registry state exists, but the product still
+  needed a safe answer for the common "manual install first, curate later" machine state
+- the chosen direction is explicit adoption rather than ambient discovery: operators select the
+  untracked addon directories they want to group, optionally provide a tracked `package_id`, and
+  HearthSync snapshots those directories into a real local archive under managed addon state
+  storage by default
+- that keeps the current source model honest: tracked packages continue to point at a real archive
+  source instead of pretending to know a remote provider or pointing update semantics back at the
+  mutable live installation itself
+- runtime now owns addon-state backend selection too: managed addon registry, lock, policy, and
+  adopted snapshot archives default to platform app-data keyed by installation identity, while
+  sidecar `.hearthsync` remains an explicit portable backend rather than the desktop default
+- that also makes the user-visible filesystem behavior clearer: default scan-only flows and default
+  managed-addon flows no longer need to create `Interface/AddOns/.hearthsync`; that path now
+  signals either explicit portable sidecar mode or explicit bundle sidecar metadata output
+- operators now also have a first explicit product control for that backend choice: the CLI accepts
+  global `--addon-state-storage app-data|sidecar`, so backend selection stays centralized at the
+  runtime layer instead of leaking into per-feature path flags
+- bundle export and bundle addon-lock shortcut flows now also respect that runtime backend when
+  they access active tracked addon state; only unpacked bundle metadata continues to use the
+  explicit `.hearthsync/bundles/<bundle-id>/` sidecar location
+- the stable app capability surface now also projects addon-management semantics explicitly:
+  frontend callers can read the selected addon-state backend and the `scan-only` versus
+  `managed mode` contract from app-owned runtime capability values instead of scraping CLI help or
+  reverse-engineering documentation
+- the product now also has a first explicit runtime-diagnostics query path: CLI and future GUI
+  callers can read host platform, scan roots, default output dirs, addon backend, provider mode,
+  and helper strategy from one stable app-owned surface
+- that runtime-diagnostics surface now also projects exact managed addon state paths when an
+  installation context is supplied, so operators and future GUI settings screens do not need to
+  reimplement app-data versus sidecar path resolution on their own
+- the canonical app-data root has now also been normalized before the layout becomes stable:
+  addon state and default backup storage resolve through one shared application-only
+  `ProjectDirs` helper, and the pre-release codebase now keeps only that canonical layout instead
+  of carrying a legacy fallback branch
+- the first follow-up upgrade path is now explicit too: `addon relink` validates one new source
+  against the already-tracked addon-directory set and rewrites only registry source state
+- generic relink deliberately clears stored package metadata and requires exact addon-directory
+  parity
+- curator-aware relink is now explicit too: `addon index relink` rewrites both registry source and
+  curated metadata, while still refusing addon-directory mismatches and still leaving live AddOns
+  untouched
+- the higher-level curator workflow now exists too: `addon index attach` batches that same
+  curator-aware relink model across one index, reuses suggestion-style matching order, returns a
+  structured review result for ready/blocked/skipped packages, and only writes the registry when
+  every selected package is safe to attach
+  content untouched
+
+## M9 - Pre-GUI Architecture Hardening
+
+### Status
+
+Planned
+
+### Goal
+
+Close the remaining architecture and behavior risks that would otherwise become accidental
+contracts for the future `egui` frontend.
+
+### Deliverables
+
+- rollback-aware addon update execution that covers dependency installation after primary package
+  updates
+- policy-first bulk index update planning for ignored packages
+- config-owned app request/result DTOs that hide external-package internals from product callers
+- decomposed addon provider modules for cache, materialization, validation, and source adapters
+- one app-owned live task contract for progress and cancellation
+- clippy baseline cleanup sufficient for `cargo clippy --all-targets -- -D warnings`
+
+### Exit Criteria
+
+- update execution either fully succeeds or reports a rollback-aware failure after every post-backup
+  mutation step
+- ignored bulk index packages do not perform provider download or archive preparation in the common
+  preflight-match path
+- GUI code can consume configuration sync through config-named app contracts
+- provider cache and materialization changes have focused module ownership
+- live task progress and cancellation are stable app concepts, not internal service details
+- clippy can be used as a practical quality gate during later refactors
+
+### Current Notes
+
+- this milestone intentionally stays inside `wow-addon-sync-core`; the 2026-04-28 findings cut
+  across shared core boundaries rather than forming a new product workstream
+- the motivating review is recorded in
+  `review-2026-04-28-architecture-hardening.md`
+- because HearthSync is still pre-release, this milestone may delete obsolete transition paths and
+  reshape app contracts instead of preserving compatibility for old call sites
+- first progress is now in place: regular addon update and addon-index update share one
+  dependency-aware mutation helper that saves the addon registry only after primary packages and
+  dependency packages all succeed, so dependency install failure after a primary update now rolls
+  back through the same outcome path instead of leaving half-updated tracked state
+- second progress is also in place: bulk addon-index update now skips preflight-matched ignored
+  packages before source resolution or package preparation, so ignored packages do not trigger
+  provider download work in the common stable-match path

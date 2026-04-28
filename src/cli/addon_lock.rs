@@ -1,9 +1,13 @@
 use super::AddonLockCommands;
-use super::app_support::{extended_services, render_with_installation, render_with_value};
+use super::app_support::{
+    extended_services, render_with_installation, render_with_installation_task_result,
+    render_with_value,
+};
 use super::output::addon_lock::{
     render_addon_lock_apply, render_addon_lock_diff, render_addon_lock_inspection,
     render_addon_lock_plan, render_addon_lock_verify, render_addon_lock_write,
 };
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 
 mod request;
@@ -14,8 +18,12 @@ use request::{
     build_verify_addon_lock_request, build_write_addon_lock_request,
 };
 
-pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) -> AppResult<()> {
-    let app = extended_services();
+pub(super) fn handle_addon_lock_command(
+    json: bool,
+    runtime: AppRuntime,
+    command: AddonLockCommands,
+) -> AppResult<()> {
+    let app = extended_services(runtime);
 
     match command {
         AddonLockCommands::Inspect { install_target } => render_with_installation(
@@ -69,16 +77,23 @@ pub(super) fn handle_addon_lock_command(json: bool, command: AddonLockCommands) 
             file,
             backup_output,
             replace_existing,
-        } => render_with_installation(
-            json,
-            app.stable(),
-            install_target,
-            |installation| {
-                build_apply_addon_lock_request(installation, file, backup_output, replace_existing)
-            },
-            |request| app.apply_addon_lock_sync(request),
-            render_addon_lock_apply,
-        )?,
+        } => {
+            render_with_installation_task_result(
+                json,
+                app.stable(),
+                install_target,
+                |installation| {
+                    build_apply_addon_lock_request(
+                        installation,
+                        file,
+                        backup_output,
+                        replace_existing,
+                    )
+                },
+                |request| app.apply_addon_lock_sync(request),
+                render_addon_lock_apply,
+            )?;
+        }
     }
 
     Ok(())

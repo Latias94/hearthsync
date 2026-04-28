@@ -56,6 +56,7 @@ impl BundleService {
         ))
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn apply(&self, request: ApplyBundleAppRequest) -> AppResult<BundleApplyResult> {
         task_support::run_service_task_direct(self, request, Self::apply_task)
     }
@@ -65,8 +66,15 @@ impl BundleService {
         request: PlanBundleAddonLockRequest,
     ) -> AppResult<BundleAddonLockPlanResult> {
         let (bundle_path, installation) = request.into_domain_inputs();
-        let plan = plan_bundle_addon_lock(&bundle_path, &installation)?;
-        Ok(BundleAddonLockPlanResult::from_domain(plan))
+        let plan = plan_bundle_addon_lock(
+            &bundle_path,
+            &installation,
+            self.runtime.addon_state_storage_kind(),
+        )?;
+        Ok(BundleAddonLockPlanResult::from_domain_with_provider(
+            plan,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn apply_addon_lock(
@@ -74,7 +82,10 @@ impl BundleService {
         request: ApplyBundleAddonLockAppRequest,
     ) -> AppResult<BundleAddonLockApplyResult> {
         let applied = apply_bundle_addon_lock(request.into_domain_request(&self.runtime))?;
-        Ok(BundleAddonLockApplyResult::from_domain(applied))
+        Ok(BundleAddonLockApplyResult::from_domain_with_provider(
+            applied,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn apply_task<TCancel, TProgress>(
@@ -102,6 +113,7 @@ impl BundleService {
         task_support::run_service_task_collecting(self, request, Self::apply_task)
     }
 
+    #[allow(dead_code)]
     pub(super) fn apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: ApplyBundleAppRequest,

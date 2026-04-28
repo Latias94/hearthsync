@@ -10,4 +10,5 @@ pub mod error;
 pub mod install;
 pub mod lua_patch;
 pub mod manifest;
+mod platform_dirs;
 pub mod task;

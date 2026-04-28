@@ -17,6 +17,7 @@ use super::super::wtf_archive::common::add_common_wtf_to_zip;
 use super::super::wtf_archive::resolve::resolve_character_account;
 use super::super::zip_write::{add_path_to_zip, register_bundle_archive_output, write_toml_to_zip};
 use crate::core::addon::lock::write_addon_lock;
+use crate::core::addon::{AddonStatePaths, AddonStateStorageKind};
 use crate::core::archive_io::{PortableArchivePathSet, start_file_to_zip};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -54,9 +55,11 @@ pub(in crate::core::bundle::packing) fn add_addons_to_zip(
 pub(in crate::core::bundle::packing) fn add_optional_addon_lock_to_zip(
     zip: &mut ZipWriter<File>,
     installation: &DetectedFlavorInstallation,
+    addon_state_storage_kind: AddonStateStorageKind,
     archive_outputs: &mut PortableArchivePathSet,
 ) -> AppResult<usize> {
-    let lock_result = write_addon_lock(installation)?;
+    let state_paths = AddonStatePaths::for_installation(addon_state_storage_kind, installation)?;
+    let lock_result = write_addon_lock(installation, &state_paths)?;
     if lock_result.removed {
         return Err(AppError::Validation(
             "cannot embed addon lock because no tracked addon packages were found".to_string(),

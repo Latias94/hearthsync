@@ -29,6 +29,38 @@ pub(super) fn fetch_github_release_with_client(
     Ok(serde_json::from_str(&response.body)?)
 }
 
+pub(super) fn fetch_github_releases_with_client(
+    client: &impl HttpClient,
+    owner: &str,
+    repo: &str,
+) -> AppResult<Vec<GitHubRelease>> {
+    let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/releases");
+    let response = client.get(HttpRequest::new(url).with_headers(github_headers()))?;
+    if !response.is_success() {
+        return Err(AppError::Validation(format!(
+            "GitHub request failed with HTTP status {}",
+            response.status_code
+        )));
+    }
+    Ok(serde_json::from_str(&response.body)?)
+}
+
+pub(super) fn select_github_release(
+    releases: &[GitHubRelease],
+    allow_prerelease: bool,
+) -> AppResult<&GitHubRelease> {
+    releases
+        .iter()
+        .find(|release| !release.draft && (allow_prerelease || !release.prerelease))
+        .ok_or_else(|| {
+            AppError::Validation(if allow_prerelease {
+                "GitHub repository does not expose a published release".to_string()
+            } else {
+                "GitHub repository does not expose a published stable release".to_string()
+            })
+        })
+}
+
 pub(super) fn select_github_release_asset<'a>(
     release: &'a GitHubRelease,
     requested_asset_name: Option<&str>,
@@ -89,14 +121,24 @@ pub(super) fn github_headers() -> Vec<HttpHeader> {
     ]
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(super) struct GitHubRelease {
     pub(super) tag_name: String,
+    #[serde(default)]
+    pub(super) draft: bool,
+    #[serde(default)]
+    pub(super) prerelease: bool,
     pub(super) assets: Vec<GitHubReleaseAsset>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(super) struct GitHubReleaseAsset {
     pub(super) name: String,
     pub(super) browser_download_url: String,
+    #[serde(default)]
+    pub(super) size: Option<u64>,
+    #[serde(default)]
+    pub(super) digest: Option<String>,
+    #[serde(default)]
+    pub(super) updated_at: Option<String>,
 }

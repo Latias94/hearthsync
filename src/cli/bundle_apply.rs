@@ -1,6 +1,9 @@
-use super::app_support::{render_with_apply_target, stable_services};
+use super::app_support::{
+    render_with_apply_target, render_with_apply_target_task_result, stable_services,
+};
 use super::output::bundle::{render_bundle_apply, render_bundle_apply_plan};
 use super::{ApplyMappingArgs, InstallTargetArgs};
+use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
 
 mod request;
@@ -9,11 +12,12 @@ use request::{build_apply_bundle_request, build_plan_bundle_apply_request};
 
 pub(super) fn handle_bundle_plan(
     json: bool,
+    runtime: AppRuntime,
     bundle: std::path::PathBuf,
     install_target: InstallTargetArgs,
     apply_mapping: ApplyMappingArgs,
 ) -> AppResult<()> {
-    let app = stable_services();
+    let app = stable_services(runtime);
 
     render_with_apply_target(
         json,
@@ -30,15 +34,16 @@ pub(super) fn handle_bundle_plan(
 
 pub(super) fn handle_bundle_unpack(
     json: bool,
+    runtime: AppRuntime,
     bundle: std::path::PathBuf,
     install_target: InstallTargetArgs,
     dry_run: bool,
     backup_output: Option<std::path::PathBuf>,
     apply_mapping: ApplyMappingArgs,
 ) -> AppResult<()> {
-    let app = stable_services();
+    let app = stable_services(runtime);
 
-    render_with_apply_target(
+    render_with_apply_target_task_result(
         json,
         &app,
         install_target,
@@ -55,4 +60,5 @@ pub(super) fn handle_bundle_unpack(
         |request| app.apply_bundle(request),
         render_bundle_apply,
     )
+    .map(|_| ())
 }

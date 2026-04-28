@@ -1,6 +1,7 @@
 use super::{
-    AddonService, AppRuntime, AppRuntimeCapabilitiesValue, BackupService, BundleService,
-    ConfigService, ExternalPackageService, InstallationService,
+    AddonPolicyService, AddonService, AppRuntime, AppRuntimeCapabilitiesValue,
+    AppRuntimeDiagnosticsValue, BackupService, BundleService, ConfigService,
+    ExternalPackageService, InstallationService, ResolvedInstallationValue, RuntimeSettingsService,
 };
 use crate::core::error::AppResult;
 
@@ -9,10 +10,12 @@ pub struct StableAppServices {
     pub(super) runtime: AppRuntime,
     installations: InstallationService,
     addons: AddonService,
+    addon_policies: AddonPolicyService,
     backups: BackupService,
     bundles: BundleService,
     configs: ConfigService,
     external_packages: ExternalPackageService,
+    runtime_settings: RuntimeSettingsService,
 }
 
 impl Default for StableAppServices {
@@ -30,9 +33,11 @@ impl StableAppServices {
         Self {
             installations: InstallationService::with_runtime(runtime.clone()),
             addons: AddonService::with_runtime(runtime.clone()),
+            addon_policies: AddonPolicyService::with_runtime(runtime.clone()),
             backups: BackupService::with_runtime(runtime.clone()),
             bundles: BundleService::with_runtime(runtime.clone()),
             external_packages: ExternalPackageService::with_runtime(runtime.clone()),
+            runtime_settings: RuntimeSettingsService::with_runtime(runtime.clone()),
             configs: ConfigService::with_external_packages(ExternalPackageService::with_runtime(
                 runtime.clone(),
             )),
@@ -47,6 +52,32 @@ impl StableAppServices {
 
     pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
         self.runtime.capabilities()
+    }
+
+    pub fn runtime_diagnostics(&self) -> AppRuntimeDiagnosticsValue {
+        self.runtime.diagnostics()
+    }
+
+    pub fn runtime_diagnostics_for_installation(
+        &self,
+        installation: ResolvedInstallationValue,
+    ) -> AppResult<AppRuntimeDiagnosticsValue> {
+        self.runtime.diagnostics_for_installation(installation)
+    }
+
+    pub fn inspect_runtime_settings(&self) -> AppResult<super::RuntimeSettingsInspectionResult> {
+        self.runtime_settings().inspect()
+    }
+
+    pub fn set_runtime_settings(
+        &self,
+        request: super::SetRuntimeSettingsAppRequest,
+    ) -> AppResult<super::RuntimeSettingsMutationResult> {
+        self.runtime_settings().set(request)
+    }
+
+    pub fn reset_runtime_settings(&self) -> AppResult<super::RuntimeSettingsMutationResult> {
+        self.runtime_settings().reset()
     }
 
     pub fn scan_installations(&self) -> AppResult<super::InstallationScanResult> {
@@ -81,88 +112,68 @@ impl StableAppServices {
         self.addons().list(request)
     }
 
-    pub fn install_addon(
+    pub fn adopt_addons(
         &self,
-        request: super::InstallAddonAppRequest,
-    ) -> AppResult<super::InstalledAddonPackageResult> {
-        self.addons().install(request)
+        request: super::AdoptAddonsAppRequest,
+    ) -> AppResult<super::AdoptedAddonPackageResult> {
+        self.addons().adopt(request)
     }
 
-    pub fn install_addon_collecting_progress(
+    pub fn relink_addon(
+        &self,
+        request: super::RelinkAddonAppRequest,
+    ) -> AppResult<super::RelinkedAddonPackageResult> {
+        self.addons().relink(request)
+    }
+
+    pub fn purge_addon_cache(&self) -> AppResult<super::AddonCachePurgeResult> {
+        self.addons().purge_cache()
+    }
+
+    pub fn repair_addon_cache(&self) -> AppResult<super::AddonCacheRepairResult> {
+        self.addons().repair_cache()
+    }
+
+    pub fn install_addon(
         &self,
         request: super::InstallAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::InstalledAddonPackageResult>> {
         self.addons().install_collecting_progress(request)
     }
 
-    pub fn install_addon_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::InstallAddonAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::InstalledAddonPackageResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.addons()
-            .install_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn update_addons(
-        &self,
-        request: super::UpdateAddonAppRequest,
-    ) -> AppResult<super::UpdatedAddonPackageResult> {
-        self.addons().update(request)
-    }
-
-    pub fn update_addons_collecting_progress(
         &self,
         request: super::UpdateAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::UpdatedAddonPackageResult>> {
         self.addons().update_collecting_progress(request)
     }
 
-    pub fn update_addons_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::UpdateAddonAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::UpdatedAddonPackageResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.addons()
-            .update_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn remove_addons(
-        &self,
-        request: super::RemoveAddonAppRequest,
-    ) -> AppResult<super::RemovedAddonPackageResult> {
-        self.addons().remove(request)
-    }
-
-    pub fn remove_addons_collecting_progress(
         &self,
         request: super::RemoveAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::RemovedAddonPackageResult>> {
         self.addons().remove_collecting_progress(request)
     }
 
-    pub fn remove_addons_with_callbacks<FCancel, FProgress>(
+    pub fn inspect_addon_policy(
         &self,
-        request: super::RemoveAddonAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::RemovedAddonPackageResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.addons()
-            .remove_with_callbacks(request, is_cancelled, on_progress)
+        request: super::InspectAddonPolicyRequest,
+    ) -> AppResult<super::AddonPolicyInspectionResult> {
+        self.addon_policies().inspect(request)
+    }
+
+    pub fn set_addon_policy(
+        &self,
+        request: super::SetAddonPolicyAppRequest,
+    ) -> AppResult<super::AddonPolicyMutationResult> {
+        self.addon_policies().set(request)
+    }
+
+    pub fn remove_addon_policy(
+        &self,
+        request: super::RemoveAddonPolicyAppRequest,
+    ) -> AppResult<super::AddonPolicyMutationResult> {
+        self.addon_policies().remove(request)
     }
 
     pub fn create_backup(
@@ -182,29 +193,8 @@ impl StableAppServices {
     pub fn restore_backup(
         &self,
         request: super::RestoreBackupAppRequest,
-    ) -> AppResult<super::RestoredBackupResult> {
-        self.backups().restore(request)
-    }
-
-    pub fn restore_backup_collecting_progress(
-        &self,
-        request: super::RestoreBackupAppRequest,
     ) -> AppResult<super::TaskRun<super::RestoredBackupResult>> {
         self.backups().restore_collecting_progress(request)
-    }
-
-    pub fn restore_backup_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::RestoreBackupAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::RestoredBackupResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.backups()
-            .restore_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn inspect_bundle(
@@ -231,142 +221,37 @@ impl StableAppServices {
     pub fn apply_bundle(
         &self,
         request: super::ApplyBundleAppRequest,
-    ) -> AppResult<super::BundleApplyResult> {
-        self.bundles().apply(request)
-    }
-
-    pub fn apply_bundle_collecting_progress(
-        &self,
-        request: super::ApplyBundleAppRequest,
     ) -> AppResult<super::TaskRun<super::BundleApplyResult>> {
         self.bundles().apply_collecting_progress(request)
     }
 
-    pub fn apply_bundle_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::ApplyBundleAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::BundleApplyResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.bundles()
-            .apply_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn inspect_config(
-        &self,
-        request: super::InspectConfigAppRequest,
-    ) -> AppResult<super::ConfigInspectionResult> {
-        self.configs().inspect(request)
-    }
-
-    pub fn inspect_config_collecting_progress(
         &self,
         request: super::InspectConfigAppRequest,
     ) -> AppResult<super::TaskRun<super::ConfigInspectionResult>> {
         self.configs().inspect_collecting_progress(request)
     }
 
-    pub fn inspect_config_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::InspectConfigAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ConfigInspectionResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.configs()
-            .inspect_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn plan_config_apply(
-        &self,
-        request: super::PlanConfigApplyAppRequest,
-    ) -> AppResult<super::ConfigApplyPlanResult> {
-        self.configs().plan_apply(request)
-    }
-
-    pub fn plan_config_apply_collecting_progress(
         &self,
         request: super::PlanConfigApplyAppRequest,
     ) -> AppResult<super::TaskRun<super::ConfigApplyPlanResult>> {
         self.configs().plan_apply_collecting_progress(request)
     }
 
-    pub fn plan_config_apply_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::PlanConfigApplyAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ConfigApplyPlanResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.configs()
-            .plan_apply_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn apply_config(
-        &self,
-        request: super::ApplyConfigAppRequest,
-    ) -> AppResult<super::ConfigApplyResult> {
-        self.configs().apply(request)
-    }
-
-    pub fn apply_config_collecting_progress(
         &self,
         request: super::ApplyConfigAppRequest,
     ) -> AppResult<super::TaskRun<super::ConfigApplyResult>> {
         self.configs().apply_collecting_progress(request)
     }
 
-    pub fn apply_config_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::ApplyConfigAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ConfigApplyResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.configs()
-            .apply_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn analyze_external_package(
-        &self,
-        request: super::AnalyzeExternalPackageAppRequest,
-    ) -> AppResult<super::ExternalPackageAnalysisResult> {
-        self.external_packages().analyze(request)
-    }
-
-    pub fn analyze_external_package_collecting_progress(
         &self,
         request: super::AnalyzeExternalPackageAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageAnalysisResult>> {
         self.external_packages()
             .analyze_collecting_progress(request)
-    }
-
-    pub fn analyze_external_package_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::AnalyzeExternalPackageAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ExternalPackageAnalysisResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.external_packages()
-            .analyze_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub fn create_external_package_bundle(
@@ -379,58 +264,16 @@ impl StableAppServices {
     pub fn plan_external_package_apply(
         &self,
         request: super::PlanExternalPackageApplyAppRequest,
-    ) -> AppResult<super::ExternalPackageApplyPlanResult> {
-        self.external_packages().plan_apply(request)
-    }
-
-    pub fn plan_external_package_apply_collecting_progress(
-        &self,
-        request: super::PlanExternalPackageApplyAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageApplyPlanResult>> {
         self.external_packages()
             .plan_apply_collecting_progress(request)
     }
 
-    pub fn plan_external_package_apply_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::PlanExternalPackageApplyAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ExternalPackageApplyPlanResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.external_packages()
-            .plan_apply_with_callbacks(request, is_cancelled, on_progress)
-    }
-
     pub fn apply_external_package(
-        &self,
-        request: super::ApplyExternalPackageAppRequest,
-    ) -> AppResult<super::ExternalPackageApplyResult> {
-        self.external_packages().apply(request)
-    }
-
-    pub fn apply_external_package_collecting_progress(
         &self,
         request: super::ApplyExternalPackageAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageApplyResult>> {
         self.external_packages().apply_collecting_progress(request)
-    }
-
-    pub fn apply_external_package_with_callbacks<FCancel, FProgress>(
-        &self,
-        request: super::ApplyExternalPackageAppRequest,
-        is_cancelled: FCancel,
-        on_progress: FProgress,
-    ) -> AppResult<super::ExternalPackageApplyResult>
-    where
-        FCancel: Fn() -> bool,
-        FProgress: FnMut(super::TaskProgressEvent),
-    {
-        self.external_packages()
-            .apply_with_callbacks(request, is_cancelled, on_progress)
     }
 
     pub(super) fn installations(&self) -> &InstallationService {
@@ -439,6 +282,10 @@ impl StableAppServices {
 
     pub(super) fn addons(&self) -> &AddonService {
         &self.addons
+    }
+
+    pub(super) fn addon_policies(&self) -> &AddonPolicyService {
+        &self.addon_policies
     }
 
     pub(super) fn backups(&self) -> &BackupService {
@@ -455,6 +302,10 @@ impl StableAppServices {
 
     pub(super) fn external_packages(&self) -> &ExternalPackageService {
         &self.external_packages
+    }
+
+    pub(super) fn runtime_settings(&self) -> &RuntimeSettingsService {
+        &self.runtime_settings
     }
 }
 #[cfg(test)]

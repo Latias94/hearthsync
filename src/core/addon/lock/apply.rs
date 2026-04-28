@@ -58,6 +58,7 @@ where
 
     let plan = build_addon_lock_plan(
         &request.installation,
+        &request.state_paths,
         request.lock_path.as_deref(),
         &request.source_overrides,
     )?;
@@ -109,6 +110,7 @@ where
     }
     if let Err(error) = execute_prepared_addon_lock_apply(
         &request.installation,
+        &request.state_paths,
         prepared,
         request.replace_existing,
         cancellation,
@@ -132,8 +134,13 @@ where
         TaskKind::AddonLockApply,
         TaskPhase::Verifying,
     )
-    .and_then(|()| verify_addon_lock(&request.installation, Some(&plan.result.lock_path)))
-    {
+    .and_then(|()| {
+        verify_addon_lock(
+            &request.installation,
+            &request.state_paths,
+            Some(&plan.result.lock_path),
+        )
+    }) {
         Ok(verification) => verification,
         Err(error) => {
             return rollback_or_report_addon_error(

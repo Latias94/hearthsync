@@ -2,12 +2,14 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::core::addon::AddonStateStorageKind;
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;
 
 #[derive(Debug, Clone)]
 pub struct PackBundleRequest {
     pub installation: DetectedFlavorInstallation,
+    pub addon_state_storage_kind: AddonStateStorageKind,
     pub manifest: BundleManifest,
     pub output_path: Option<PathBuf>,
     pub manifest_base_dir: Option<PathBuf>,

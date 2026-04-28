@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::core::addon::AddonStateStorageKind;
 use crate::core::addon::lock::{AddonLockApplyResult, AddonLockPlanResult};
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -16,6 +17,7 @@ pub struct BundleAddonLockPlan {
 pub struct BundleAddonLockApplyRequest {
     pub bundle_path: PathBuf,
     pub installation: DetectedFlavorInstallation,
+    pub addon_state_storage_kind: AddonStateStorageKind,
     pub backup_output_path: Option<PathBuf>,
     pub replace_existing: bool,
 }

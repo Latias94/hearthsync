@@ -2,10 +2,17 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::addon::policy::{
+    AddonPolicyPin as DomainAddonPolicyPin, AddonReleaseChannel as DomainAddonReleaseChannel,
+};
 use crate::core::addon::{
+    AddonDependencyResolutionCapability as DomainAddonDependencyResolutionCapability,
+    AddonDependencyResolutionStrategy as DomainAddonDependencyResolutionStrategy,
     AddonPackageMetadata as DomainAddonPackageMetadata,
     AddonProviderOptions as DomainAddonProviderOptions,
     AddonProviderRetryPolicy as DomainAddonProviderRetryPolicy,
+    AddonStatePaths as DomainAddonStatePaths, AddonStateStorageKind as DomainAddonStateStorageKind,
+    HttpNoValidatorCachePolicy as DomainHttpNoValidatorCachePolicy,
 };
 
 use super::runtime::ExternalHelperCapabilitiesValue;
@@ -58,6 +65,91 @@ impl AddonPackageMetadataValue {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonReleaseChannelValue {
+    Stable,
+    Beta,
+    Alpha,
+}
+
+impl AddonReleaseChannelValue {
+    pub(crate) fn from_domain(value: DomainAddonReleaseChannel) -> Self {
+        match value {
+            DomainAddonReleaseChannel::Stable => Self::Stable,
+            DomainAddonReleaseChannel::Beta => Self::Beta,
+            DomainAddonReleaseChannel::Alpha => Self::Alpha,
+        }
+    }
+
+    pub(crate) fn into_domain(self) -> DomainAddonReleaseChannel {
+        match self {
+            Self::Stable => DomainAddonReleaseChannel::Stable,
+            Self::Beta => DomainAddonReleaseChannel::Beta,
+            Self::Alpha => DomainAddonReleaseChannel::Alpha,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AddonPolicyPinValue {
+    Version { value: String },
+    FileId { value: u32 },
+}
+
+impl AddonPolicyPinValue {
+    pub(crate) fn from_domain(value: DomainAddonPolicyPin) -> Self {
+        match value {
+            DomainAddonPolicyPin::Version { value } => Self::Version { value },
+            DomainAddonPolicyPin::FileId { value } => Self::FileId { value },
+        }
+    }
+
+    pub(crate) fn into_domain(self) -> DomainAddonPolicyPin {
+        match self {
+            Self::Version { value } => DomainAddonPolicyPin::Version { value },
+            Self::FileId { value } => DomainAddonPolicyPin::FileId { value },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonDependencyResolutionStrategyValue {
+    MissingRequiredOnly,
+}
+
+impl AddonDependencyResolutionStrategyValue {
+    pub(crate) fn from_domain(value: DomainAddonDependencyResolutionStrategy) -> Self {
+        match value {
+            DomainAddonDependencyResolutionStrategy::MissingRequiredOnly => {
+                Self::MissingRequiredOnly
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum AddonDependencyResolutionCapabilityValue {
+    Unsupported,
+    Supported {
+        strategy: AddonDependencyResolutionStrategyValue,
+    },
+}
+
+impl AddonDependencyResolutionCapabilityValue {
+    pub(crate) fn from_domain(value: DomainAddonDependencyResolutionCapability) -> Self {
+        match value {
+            DomainAddonDependencyResolutionCapability::Unsupported => Self::Unsupported,
+            DomainAddonDependencyResolutionCapability::Supported { strategy } => Self::Supported {
+                strategy: AddonDependencyResolutionStrategyValue::from_domain(strategy),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum AddonProviderModeValue {
@@ -65,9 +157,62 @@ pub enum AddonProviderModeValue {
     InternalCustom,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonStateStorageValue {
+    AppData,
+    Sidecar,
+}
+
+impl AddonStateStorageValue {
+    pub(crate) fn from_domain(value: DomainAddonStateStorageKind) -> Self {
+        match value {
+            DomainAddonStateStorageKind::AppData => Self::AppData,
+            DomainAddonStateStorageKind::Sidecar => Self::Sidecar,
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn into_domain(self) -> DomainAddonStateStorageKind {
+        match self {
+            Self::AppData => DomainAddonStateStorageKind::AppData,
+            Self::Sidecar => DomainAddonStateStorageKind::Sidecar,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddonStatePathsValue {
+    pub root_dir: PathBuf,
+    pub registry_path: PathBuf,
+    pub lock_path: PathBuf,
+    pub policy_path: PathBuf,
+    pub adopted_dir: PathBuf,
+}
+
+impl AddonStatePathsValue {
+    pub(crate) fn from_domain(value: DomainAddonStatePaths) -> Self {
+        Self {
+            root_dir: value.root_dir,
+            registry_path: value.registry_path,
+            lock_path: value.lock_path,
+            policy_path: value.policy_path,
+            adopted_dir: value.adopted_dir,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddonManagementCapabilitiesValue {
+    pub state_storage: AddonStateStorageValue,
+    pub scan_only_without_managed_state: bool,
+    pub managed_mode_requires_state: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppRuntimeCapabilitiesValue {
     pub addon_provider: AddonProviderModeValue,
+    pub addon_management: AddonManagementCapabilitiesValue,
     pub external_helper: ExternalHelperCapabilitiesValue,
 }
 
@@ -97,10 +242,57 @@ impl AddonProviderRetryPolicyValue {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum HttpNoValidatorCachePolicyValue {
+    AlwaysRefresh,
+    ReuseWithinWindow { max_age_secs: u64 },
+}
+
+impl Default for HttpNoValidatorCachePolicyValue {
+    fn default() -> Self {
+        Self::ReuseWithinWindow { max_age_secs: 900 }
+    }
+}
+
+impl HttpNoValidatorCachePolicyValue {
+    pub(crate) fn from_domain(value: DomainHttpNoValidatorCachePolicy) -> Self {
+        match value {
+            DomainHttpNoValidatorCachePolicy::AlwaysRefresh => Self::AlwaysRefresh,
+            DomainHttpNoValidatorCachePolicy::ReuseWithinWindow { max_age_secs } => {
+                Self::ReuseWithinWindow { max_age_secs }
+            }
+        }
+    }
+
+    pub(crate) fn into_domain(self) -> DomainHttpNoValidatorCachePolicy {
+        match self {
+            Self::AlwaysRefresh => DomainHttpNoValidatorCachePolicy::AlwaysRefresh,
+            Self::ReuseWithinWindow { max_age_secs } => {
+                DomainHttpNoValidatorCachePolicy::ReuseWithinWindow { max_age_secs }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddonProviderOptionsValue {
+    #[serde(default)]
     pub download_cache_dir: Option<PathBuf>,
+    #[serde(default)]
     pub retry_policy: AddonProviderRetryPolicyValue,
+    #[serde(default)]
+    pub http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue,
+}
+
+impl Default for AddonProviderOptionsValue {
+    fn default() -> Self {
+        Self {
+            download_cache_dir: None,
+            retry_policy: AddonProviderRetryPolicyValue::default(),
+            http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::default(),
+        }
+    }
 }
 
 impl AddonProviderOptionsValue {
@@ -109,6 +301,9 @@ impl AddonProviderOptionsValue {
         Self {
             download_cache_dir: value.download_cache_dir,
             retry_policy: AddonProviderRetryPolicyValue::from_domain(value.retry_policy),
+            http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::from_domain(
+                value.http_no_validator_cache_policy,
+            ),
         }
     }
 
@@ -116,6 +311,7 @@ impl AddonProviderOptionsValue {
         DomainAddonProviderOptions {
             download_cache_dir: self.download_cache_dir,
             retry_policy: self.retry_policy.into_domain(),
+            http_no_validator_cache_policy: self.http_no_validator_cache_policy.into_domain(),
         }
     }
 }

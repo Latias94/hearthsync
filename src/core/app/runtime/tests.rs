@@ -3,11 +3,12 @@ use std::path::PathBuf;
 
 use tempfile::tempdir;
 
-use crate::core::addon::DefaultAddonProvider;
+use crate::core::addon::{AddonStateStorageKind, DefaultAddonProvider};
 use crate::core::app::{
-    AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AppRuntime,
-    AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-    ExternalHelperPolicyValue, HelperStrategyValue, HostPlatformValue,
+    AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
+    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime, AppRuntimeCapabilitiesValue,
+    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
+    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
 };
 
 #[test]
@@ -36,6 +37,45 @@ fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
     assert_eq!(
         runtime.bundle_output_or_default(Some(explicit_bundle.clone())),
         Some(explicit_bundle)
+    );
+}
+
+#[test]
+fn runtime_defaults_addon_state_storage_to_appdata() {
+    let temp = tempdir().expect("temp dir");
+    let installation = sample_installation(temp.path());
+    let runtime = AppRuntime::new();
+    let state_paths = runtime
+        .addon_state_paths(&installation)
+        .expect("addon state paths");
+
+    assert_eq!(
+        runtime.addon_state_storage_kind(),
+        AddonStateStorageKind::AppData
+    );
+    assert!(
+        state_paths.root_dir.ends_with("retail\\addons")
+            || state_paths.root_dir.ends_with("retail/addons")
+    );
+    assert!(!state_paths.root_dir.starts_with(&installation.addon_dir));
+}
+
+#[test]
+fn runtime_can_override_addon_state_storage_to_sidecar() {
+    let temp = tempdir().expect("temp dir");
+    let installation = sample_installation(temp.path());
+    let runtime = AppRuntime::new().with_addon_state_storage_kind(AddonStateStorageKind::Sidecar);
+    let state_paths = runtime
+        .addon_state_paths(&installation)
+        .expect("addon state paths");
+
+    assert_eq!(
+        runtime.addon_state_storage_kind(),
+        AddonStateStorageKind::Sidecar
+    );
+    assert_eq!(
+        state_paths.root_dir,
+        installation.addon_dir.join(".hearthsync")
     );
 }
 
@@ -80,6 +120,9 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
     let runtime = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
         download_cache_dir: Some(PathBuf::from("cache")),
         retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
+        http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
+            max_age_secs: 600,
+        },
     })
     .with_external_helper_policy(ExternalHelperPolicyValue::NativeOnly);
 
@@ -90,7 +133,14 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
                 options: AddonProviderOptionsValue {
                     download_cache_dir: Some(PathBuf::from("cache")),
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
+                    http_no_validator_cache_policy:
+                        HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
                 },
+            },
+            addon_management: AddonManagementCapabilitiesValue {
+                state_storage: AddonStateStorageValue::AppData,
+                scan_only_without_managed_state: true,
+                managed_mode_requires_state: true,
             },
             external_helper: ExternalHelperCapabilitiesValue {
                 policy: ExternalHelperPolicyValue::NativeOnly,
@@ -109,6 +159,11 @@ fn runtime_capabilities_report_internal_custom_provider_when_injected() {
         runtime.capabilities(),
         AppRuntimeCapabilitiesValue {
             addon_provider: AddonProviderModeValue::InternalCustom,
+            addon_management: AddonManagementCapabilitiesValue {
+                state_storage: AddonStateStorageValue::AppData,
+                scan_only_without_managed_state: true,
+                managed_mode_requires_state: true,
+            },
             external_helper: ExternalHelperCapabilitiesValue {
                 policy: ExternalHelperPolicyValue::NativeOnly,
                 availability: ExternalHelperAvailabilityValue::NotRequested,
@@ -127,7 +182,14 @@ fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_s
                 options: AddonProviderOptionsValue {
                     download_cache_dir: None,
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                    http_no_validator_cache_policy:
+                        HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                 },
+            },
+            addon_management: AddonManagementCapabilitiesValue {
+                state_storage: AddonStateStorageValue::AppData,
+                scan_only_without_managed_state: true,
+                managed_mode_requires_state: true,
             },
             external_helper: ExternalHelperCapabilitiesValue {
                 policy: ExternalHelperPolicyValue::NativeOnly,
@@ -163,6 +225,64 @@ fn runtime_capabilities_report_unavailable_external_helper_when_preferred() {
 }
 
 #[test]
+fn runtime_capabilities_project_sidecar_addon_management_backend() {
+    let runtime = AppRuntime::new().with_addon_state_storage_kind(AddonStateStorageKind::Sidecar);
+
+    assert_eq!(
+        runtime.addon_management_capabilities(),
+        AddonManagementCapabilitiesValue {
+            state_storage: AddonStateStorageValue::Sidecar,
+            scan_only_without_managed_state: true,
+            managed_mode_requires_state: true,
+        }
+    );
+}
+
+#[test]
+fn runtime_diagnostics_for_installation_projects_exact_addon_state_paths() {
+    let temp = tempdir().expect("temp dir");
+    let installation = sample_installation(temp.path());
+    let runtime = AppRuntime::new();
+
+    let diagnostics = runtime
+        .diagnostics_for_installation(crate::core::app::ResolvedInstallationValue::from_domain(
+            installation.clone(),
+        ))
+        .expect("runtime diagnostics");
+
+    assert_eq!(
+        diagnostics.selected_installation,
+        Some(crate::core::app::ResolvedInstallationValue::from_domain(
+            installation.clone()
+        ))
+    );
+
+    let addon_state_paths = diagnostics.addon_state_paths.expect("addon state paths");
+    let root = addon_state_paths
+        .root_dir
+        .to_string_lossy()
+        .replace('\\', "/");
+    assert!(root.contains("/wow/"));
+    assert!(root.contains("/retail/addons"));
+    assert_eq!(
+        addon_state_paths.registry_path,
+        addon_state_paths.root_dir.join("addons.toml")
+    );
+    assert_eq!(
+        addon_state_paths.lock_path,
+        addon_state_paths.root_dir.join("lock.toml")
+    );
+    assert_eq!(
+        addon_state_paths.policy_path,
+        addon_state_paths.root_dir.join("addon-policy.toml")
+    );
+    assert_eq!(
+        addon_state_paths.adopted_dir,
+        addon_state_paths.root_dir.join("adopted")
+    );
+}
+
+#[test]
 fn runtime_defaults_provider_options_to_default_configured_mode() {
     assert_eq!(
         AppRuntime::new().capabilities().addon_provider,
@@ -170,7 +290,25 @@ fn runtime_defaults_provider_options_to_default_configured_mode() {
             options: AddonProviderOptionsValue {
                 download_cache_dir: None,
                 retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
+                http_no_validator_cache_policy:
+                    HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
             },
         }
     );
+}
+
+fn sample_installation(root: &std::path::Path) -> crate::core::install::DetectedFlavorInstallation {
+    let product_root = root.join("World of Warcraft");
+    let flavor_root = product_root.join("_retail_");
+
+    crate::core::install::DetectedFlavorInstallation {
+        platform: crate::core::install::HostPlatform::Windows,
+        product_root,
+        flavor_root: flavor_root.clone(),
+        flavor: crate::core::install::WowFlavor::Retail,
+        interface_dir: flavor_root.join("Interface"),
+        addon_dir: flavor_root.join("Interface").join("AddOns"),
+        wtf_dir: flavor_root.join("WTF"),
+        fonts_dir: flavor_root.join("Fonts"),
+    }
 }

@@ -1,12 +1,15 @@
 use crate::core::addon::{
-    install_addon_task_with_provider, list_addons, remove_addons_task, search_addons_with_provider,
-    update_addons_task_with_provider,
+    adopt_addons, install_addon_task_with_provider, list_addons, relink_addon_with_provider,
+    remove_addons_task, search_addons_with_provider, update_addons_task_with_provider,
+    validate_addon_update_dependency_policy_support,
 };
 use crate::core::app::{
-    AddonInventoryResult, AddonSearchCatalogResult, AppRuntime, CancellationToken,
-    InstallAddonAppRequest, InstalledAddonPackageResult, ListAddonsRequest, RemoveAddonAppRequest,
-    RemovedAddonPackageResult, SearchAddonsRequest, TaskProgressEvent, TaskProgressSink, TaskRun,
-    UpdateAddonAppRequest, UpdatedAddonPackageResult, task_support,
+    AddonCachePurgeResult, AddonCacheRepairResult, AddonInventoryResult, AddonSearchCatalogResult,
+    AdoptAddonsAppRequest, AdoptedAddonPackageResult, AppRuntime, CancellationToken,
+    InstallAddonAppRequest, InstalledAddonPackageResult, ListAddonsRequest, RelinkAddonAppRequest,
+    RelinkedAddonPackageResult, RemoveAddonAppRequest, RemovedAddonPackageResult,
+    SearchAddonsRequest, TaskProgressEvent, TaskProgressSink, TaskRun, UpdateAddonAppRequest,
+    UpdatedAddonPackageResult, task_support,
 };
 use crate::core::error::AppResult;
 
@@ -38,15 +41,62 @@ impl AddonService {
             self.runtime.addon_provider(),
             request.into_domain_request(),
         )?;
-        Ok(AddonSearchCatalogResult::from_domain(results))
+        Ok(AddonSearchCatalogResult::from_domain_with_provider(
+            results,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
         let installation = request.into_domain_installation();
-        let inventory = list_addons(&installation)?;
-        Ok(AddonInventoryResult::from_domain(inventory))
+        let state_paths = self.runtime.addon_state_paths(&installation)?;
+        let inventory = list_addons(&installation, &state_paths)?;
+        Ok(AddonInventoryResult::from_domain_with_provider(
+            inventory,
+            self.runtime.addon_provider(),
+        ))
     }
 
+    pub(super) fn adopt(
+        &self,
+        request: AdoptAddonsAppRequest,
+    ) -> AppResult<AdoptedAddonPackageResult> {
+        let adopted = adopt_addons(request.into_domain_request(&self.runtime)?)?;
+        Ok(AdoptedAddonPackageResult::from_domain_with_provider(
+            adopted,
+            self.runtime.addon_provider(),
+        ))
+    }
+
+    pub(super) fn relink(
+        &self,
+        request: RelinkAddonAppRequest,
+    ) -> AppResult<RelinkedAddonPackageResult> {
+        let relinked = relink_addon_with_provider(
+            self.runtime.addon_provider(),
+            request.into_domain_request(&self.runtime)?,
+        )?;
+        Ok(RelinkedAddonPackageResult::from_domain_with_provider(
+            relinked,
+            self.runtime.addon_provider(),
+        ))
+    }
+
+    pub(super) fn purge_cache(&self) -> AppResult<AddonCachePurgeResult> {
+        self.runtime
+            .addon_provider()
+            .purge_download_cache()
+            .map(AddonCachePurgeResult::from_domain)
+    }
+
+    pub(super) fn repair_cache(&self) -> AppResult<AddonCacheRepairResult> {
+        self.runtime
+            .addon_provider()
+            .repair_download_cache()
+            .map(AddonCacheRepairResult::from_domain)
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn install(
         &self,
         request: InstallAddonAppRequest,
@@ -66,11 +116,14 @@ impl AddonService {
     {
         let installed = install_addon_task_with_provider(
             self.runtime.addon_provider(),
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;
-        Ok(InstalledAddonPackageResult::from_domain(installed))
+        Ok(InstalledAddonPackageResult::from_domain_with_provider(
+            installed,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn install_collecting_progress(
@@ -80,6 +133,7 @@ impl AddonService {
         task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
+    #[allow(dead_code)]
     pub(super) fn install_with_callbacks<FCancel, FProgress>(
         &self,
         request: InstallAddonAppRequest,
@@ -99,6 +153,7 @@ impl AddonService {
         )
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn update(
         &self,
         request: UpdateAddonAppRequest,
@@ -116,13 +171,24 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
+        let installation = request.installation.clone().into_domain();
+        let state_paths = self.runtime.addon_state_paths(&installation)?;
+        validate_addon_update_dependency_policy_support(
+            self.runtime.addon_provider(),
+            &installation,
+            &state_paths,
+            request.name.as_deref(),
+        )?;
         let updated = update_addons_task_with_provider(
             self.runtime.addon_provider(),
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;
-        Ok(UpdatedAddonPackageResult::from_domain(updated))
+        Ok(UpdatedAddonPackageResult::from_domain_with_provider(
+            updated,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn update_collecting_progress(
@@ -132,6 +198,7 @@ impl AddonService {
         task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn update_with_callbacks<FCancel, FProgress>(
         &self,
         request: UpdateAddonAppRequest,
@@ -151,6 +218,7 @@ impl AddonService {
         )
     }
 
+    #[allow(dead_code)]
     pub(super) fn remove(
         &self,
         request: RemoveAddonAppRequest,
@@ -169,11 +237,14 @@ impl AddonService {
         TProgress: TaskProgressSink,
     {
         let removed = remove_addons_task(
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;
-        Ok(RemovedAddonPackageResult::from_domain(removed))
+        Ok(RemovedAddonPackageResult::from_domain_with_provider(
+            removed,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn remove_collecting_progress(
@@ -183,6 +254,7 @@ impl AddonService {
         task_support::run_service_task_collecting(self, request, Self::remove_task)
     }
 
+    #[allow(dead_code)]
     pub(super) fn remove_with_callbacks<FCancel, FProgress>(
         &self,
         request: RemoveAddonAppRequest,
