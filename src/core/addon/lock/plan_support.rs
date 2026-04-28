@@ -1,8 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use crate::core::addon::{AddonInventory, AddonSourceRef, TrackedAddonPackage};
+use crate::core::addon::{
+    AddonInventory, AddonSourceRef, TrackedAddonPackage, addon_directory_path_key,
+};
 use crate::core::error::{AppError, AppResult};
+use crate::core::install::HostPlatform;
 
 use super::{
     AddonLock, AddonLockFieldChange, AddonLockPackage, AddonLockPackageDirectoryIssue,
@@ -68,7 +71,10 @@ pub(super) fn missing_directory_map(
         .collect()
 }
 
-pub(super) fn tracked_directory_owner_map(inventory: &AddonInventory) -> BTreeMap<String, String> {
+pub(super) fn tracked_directory_owner_map(
+    inventory: &AddonInventory,
+    platform: HostPlatform,
+) -> BTreeMap<String, String> {
     let mut map = BTreeMap::new();
     for package in &inventory.tracked_packages {
         let metadata = package.metadata.as_ref();
@@ -83,7 +89,10 @@ pub(super) fn tracked_directory_owner_map(inventory: &AddonInventory) -> BTreeMa
                 .collect::<Vec<_>>(),
         );
         for addon in &package.addons {
-            map.insert(addon.directory_name.to_ascii_lowercase(), key.clone());
+            map.insert(
+                addon_directory_path_key(&addon.directory_name, platform),
+                key.clone(),
+            );
         }
     }
     map
@@ -93,12 +102,13 @@ pub(super) fn freed_directory_set(
     current_packages: &BTreeMap<String, TrackedAddonPackage>,
     remove_keys: &BTreeSet<String>,
     update_keys: &BTreeSet<String>,
+    platform: HostPlatform,
 ) -> BTreeSet<String> {
     let mut freed = BTreeSet::new();
     for key in remove_keys.iter().chain(update_keys.iter()) {
         if let Some(package) = current_packages.get(key) {
             for addon in &package.addons {
-                freed.insert(addon.directory_name.to_ascii_lowercase());
+                freed.insert(addon_directory_path_key(&addon.directory_name, platform));
             }
         }
     }
@@ -129,12 +139,13 @@ pub(super) fn directory_conflicts(
     occupied_by_tracked: &BTreeMap<String, String>,
     freed_directories: &BTreeSet<String>,
     untracked_addons: &BTreeSet<String>,
+    platform: HostPlatform,
 ) -> (Vec<String>, bool) {
     let mut blocked_reasons = Vec::new();
     let mut requires_replace_existing = false;
 
     for addon_directory in addon_directories {
-        let normalized = addon_directory.to_ascii_lowercase();
+        let normalized = addon_directory_path_key(addon_directory, platform);
         if untracked_addons.contains(&normalized) {
             requires_replace_existing = true;
         }

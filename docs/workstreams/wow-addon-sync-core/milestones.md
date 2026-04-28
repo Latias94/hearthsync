@@ -358,6 +358,10 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   entries through the selected installation platform's case-folding rules, so Windows/default-macOS
   dry-runs catch `Details` vs `details` conflicts early and replace/update/remove paths remove the
   actual on-disk entry even when archive casing differs
+- addon-lock planning and verification now use the same platform-aware addon-directory keys for
+  tracked owners, freed directories, untracked replace checks, and missing-directory detection, so
+  lock plans preserve Linux case-distinct behavior while Windows/default-macOS targets treat
+  case-only live AddOns as the same directory
 - external-package staging materialization now also reuses the shared
   `core::bundle::entry_layout` classifier for normalized bundle-style paths, so addon/WTF/fonts/
   interface root dispatch no longer lives in a second parallel match tree when building a

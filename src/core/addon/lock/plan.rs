@@ -11,7 +11,7 @@ use super::verify::{compare_lock_snapshots, lock_snapshots, snapshot_from_tracke
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::core::addon::{AddonStatePaths, list_addons};
+use crate::core::addon::{AddonStatePaths, addon_directory_path_key, list_addons};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -90,15 +90,21 @@ pub(super) fn build_addon_lock_plan(
         .collect::<BTreeSet<_>>();
     let missing_map = missing_directory_map(&missing_addon_directories);
     let update_keys = collect_update_keys(&diff, &missing_map);
-    let occupied_by_tracked = tracked_directory_owner_map(&inventory);
-    let freed_directories = freed_directory_set(&current_packages, &remove_keys, &update_keys);
+    let occupied_by_tracked = tracked_directory_owner_map(&inventory, installation.platform);
+    let freed_directories = freed_directory_set(
+        &current_packages,
+        &remove_keys,
+        &update_keys,
+        installation.platform,
+    );
     let untracked_addons = inventory
         .untracked_addons
         .iter()
-        .map(|name| name.to_ascii_lowercase())
+        .map(|name| addon_directory_path_key(name, installation.platform))
         .collect::<BTreeSet<_>>();
 
     let actions = build_plan_actions(ActionBuildInputs {
+        target_platform: installation.platform,
         diff: &diff,
         expected_packages: &expected_packages,
         current_packages: &current_packages,

@@ -414,6 +414,12 @@ enough that these rules live in one place.
   installs for Windows/default-macOS targets now reject `Details` vs `details` conflicts before
   backup or execution, and replace/update/remove paths delete the actual on-disk entry instead of
   assuming the archive casing matches the live directory casing.
+  Current progress: addon-lock planning now uses the same platform-aware addon-directory keys for
+  tracked owners, freed directories, and untracked replace checks. macOS/Windows plans treat
+  case-only live AddOns as conflicts, while Linux plans can still keep case-distinct directories.
+  Addon-lock verification also resolves tracked addon directories through the selected platform
+  before reporting missing directories, so case-only live casing drift is not misclassified as a
+  vanished addon on default macOS/Windows targets.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

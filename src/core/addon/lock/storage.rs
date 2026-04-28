@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use crate::core::addon::{
     AddonPackageMetadata, AddonRegistry, AddonStatePaths, TrackedAddon, TrackedAddonPackage,
-    load_registry,
+    find_existing_addon_path, load_registry,
 };
 use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
@@ -198,11 +198,16 @@ pub(super) fn package_content_sha256_with_missing(
     let mut files = Vec::new();
     let mut missing_addon_directories = Vec::new();
     for addon in &package.addons {
-        let addon_path = installation.addon_dir.join(&addon.directory_name);
-        if !addon_path.is_dir() {
+        let Some(existing) = find_existing_addon_path(
+            &installation.addon_dir,
+            &addon.directory_name,
+            installation.platform,
+        )?
+        else {
             missing_addon_directories.push(addon.directory_name.clone());
             continue;
-        }
+        };
+        let addon_path = existing.path;
 
         for entry in WalkDir::new(&addon_path) {
             let entry = entry.map_err(|error| AppError::Validation(error.to_string()))?;

@@ -272,6 +272,49 @@ fn verify_addon_lock_reports_drift_and_untracked_addons() {
 }
 
 #[test]
+fn verify_addon_lock_treats_case_only_live_directory_as_present_on_macos() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation_for_platform(temp.path(), HostPlatform::MacOs);
+    let archive_path = temp.path().join("details.zip");
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+    install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install addon");
+    let lock_path = write_addon_lock(&installation, &addon_state_paths(&installation))
+        .expect("write addon lock")
+        .lock_path;
+
+    let original = installation.addon_dir.join("Details");
+    let temporary = installation.addon_dir.join("__details_case_tmp");
+    let lowercase = installation.addon_dir.join("details");
+    fs::rename(&original, &temporary).expect("rename to temporary");
+    fs::rename(&temporary, &lowercase).expect("rename to lowercase");
+
+    let verification = verify_addon_lock(
+        &installation,
+        &addon_state_paths(&installation),
+        Some(&lock_path),
+    )
+    .expect("verify addon lock");
+
+    assert!(verification.missing_addon_directories.is_empty());
+    assert!(verification.untracked_addons.is_empty());
+}
+
+#[test]
 fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     let temp = tempdir().expect("temp dir");
     let source_root = temp.path().join("sources");
@@ -396,6 +439,58 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     assert!(current_installation.addon_dir.join("BigWigs").exists());
     assert!(!current_installation.addon_dir.join("Omen").exists());
     assert_eq!(count_backup_archives(&apply_backup_dir), 1);
+}
+
+#[test]
+fn plan_addon_lock_sync_requires_replace_for_case_folded_untracked_addon_on_macos() {
+    let temp = tempdir().expect("temp dir");
+    let desired_lock = desired_lock_with_single_addon(
+        temp.path(),
+        HostPlatform::MacOs,
+        "Details",
+        "Details/Details.toc",
+    );
+    let current_installation =
+        create_fixture_installation_for_platform(&temp.path().join("current"), HostPlatform::MacOs);
+    create_untracked_addon(&current_installation, "details");
+
+    let plan = plan_addon_lock_sync(
+        &current_installation,
+        &addon_state_paths(&current_installation),
+        Some(&desired_lock),
+    )
+    .expect("plan");
+
+    assert_eq!(plan.install_count, 1);
+    assert_eq!(plan.blocked_count, 0);
+    assert_eq!(plan.actions.len(), 1);
+    assert!(plan.actions[0].requires_replace_existing);
+}
+
+#[test]
+fn plan_addon_lock_sync_allows_case_distinct_untracked_addon_on_linux() {
+    let temp = tempdir().expect("temp dir");
+    let desired_lock = desired_lock_with_single_addon(
+        temp.path(),
+        HostPlatform::Linux,
+        "Details",
+        "Details/Details.toc",
+    );
+    let current_installation =
+        create_fixture_installation_for_platform(&temp.path().join("current"), HostPlatform::Linux);
+    create_untracked_addon(&current_installation, "details");
+
+    let plan = plan_addon_lock_sync(
+        &current_installation,
+        &addon_state_paths(&current_installation),
+        Some(&desired_lock),
+    )
+    .expect("plan");
+
+    assert_eq!(plan.install_count, 1);
+    assert_eq!(plan.blocked_count, 0);
+    assert_eq!(plan.actions.len(), 1);
+    assert!(!plan.actions[0].requires_replace_existing);
 }
 
 #[test]
@@ -739,7 +834,59 @@ fn count_backup_archives(path: &Path) -> usize {
         .count()
 }
 
+fn desired_lock_with_single_addon(
+    root: &Path,
+    platform: HostPlatform,
+    addon_name: &str,
+    toc_entry: &str,
+) -> std::path::PathBuf {
+    let archive_path = root.join(format!("{addon_name}.zip"));
+    create_addon_archive(
+        &archive_path,
+        &[(
+            toc_entry,
+            "## Interface: 110000\n## Title: Fixture\n## Version: 1.0.0\n",
+        )],
+    );
+    let desired_installation =
+        create_fixture_installation_for_platform(&root.join("desired"), platform);
+    install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&desired_installation.clone()),
+        installation: desired_installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(root.join("desired-backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect("install desired addon");
+
+    write_addon_lock(
+        &desired_installation,
+        &addon_state_paths(&desired_installation),
+    )
+    .expect("write desired lock")
+    .lock_path
+}
+
+fn create_untracked_addon(installation: &DetectedFlavorInstallation, addon_name: &str) {
+    let addon_dir = installation.addon_dir.join(addon_name);
+    fs::create_dir_all(&addon_dir).expect("untracked addon dir");
+    fs::write(
+        addon_dir.join(format!("{addon_name}.toc")),
+        "## Interface: 110000\n## Version: local\n",
+    )
+    .expect("untracked addon toc");
+}
+
 fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {
+    create_fixture_installation_for_platform(root, HostPlatform::Windows)
+}
+
+fn create_fixture_installation_for_platform(
+    root: &Path,
+    platform: HostPlatform,
+) -> DetectedFlavorInstallation {
     let product_root = root.join("World of Warcraft");
     let flavor_root = product_root.join("_retail_");
     let interface_dir = flavor_root.join("Interface");
@@ -752,7 +899,7 @@ fn create_fixture_installation(root: &Path) -> DetectedFlavorInstallation {
     fs::create_dir_all(&fonts_dir).expect("fonts dir");
 
     DetectedFlavorInstallation {
-        platform: HostPlatform::Windows,
+        platform,
         product_root,
         flavor_root,
         flavor: WowFlavor::Retail,

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use crate::core::addon::TrackedAddonPackage;
 use crate::core::error::{AppError, AppResult};
+use crate::core::install::HostPlatform;
 
 use super::{
     AddonLockDiffResult, AddonLockPackage, AddonLockPackageDiff, AddonLockPackageSnapshot,
@@ -14,6 +15,7 @@ use super::{
 };
 
 pub(super) struct ActionBuildInputs<'a> {
+    pub(super) target_platform: HostPlatform,
     pub(super) diff: &'a AddonLockDiffResult,
     pub(super) expected_packages: &'a BTreeMap<String, AddonLockPackage>,
     pub(super) current_packages: &'a BTreeMap<String, TrackedAddonPackage>,
@@ -70,6 +72,7 @@ fn build_install_action(
         inputs.occupied_by_tracked,
         inputs.freed_directories,
         inputs.untracked_addons,
+        inputs.target_platform,
     );
 
     Ok(PlannedLockAction {
@@ -173,6 +176,7 @@ fn build_changed_action(
             inputs.occupied_by_tracked,
             inputs.freed_directories,
             inputs.untracked_addons,
+            inputs.target_platform,
         )
     } else {
         (Vec::new(), false)
