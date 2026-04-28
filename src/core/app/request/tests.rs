@@ -16,20 +16,20 @@ use crate::core::addon::{
 };
 use crate::core::app::{
     AddonLockSourceOverrideRequest, AddonPackageMetadataValue, AddonPolicyPinValue,
-    AddonReleaseChannelValue, AppRuntime, ApplyAddonLockAppRequest, ApplyBundleAddonLockAppRequest,
-    ApplyBundleAppRequest, ApplyConfigAppRequest, ApplyExternalPackageAppRequest,
-    AttachAddonIndexAppRequest, BackupGroupValue, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
-    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
-    BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest, CreateBackupAppRequest,
-    CreateExternalPackageBundleAppRequest, HostPlatformValue, InspectAddonPolicyRequest,
-    InspectConfigAppRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
-    ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
-    PlanBundleApplyRequest, PlanConfigApplyAppRequest, PlanExternalPackageApplyAppRequest,
-    RelinkAddonAppRequest, RelinkAddonIndexAppRequest, RemoveAddonAppRequest,
-    RemoveAddonPolicyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
-    RestoreBackupAppRequest, SetAddonPolicyAppRequest, UpdateAddonAppRequest,
-    UpdateAddonIndexAppRequest, WowFlavorValue,
+    AddonReleaseChannelValue, AdoptAddonsAppRequest, AppRuntime, ApplyAddonLockAppRequest,
+    ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest, ApplyConfigAppRequest,
+    ApplyExternalPackageAppRequest, AttachAddonIndexAppRequest, BackupGroupValue,
+    BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
+    BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
+    BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest,
+    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, HostPlatformValue,
+    InspectAddonPolicyRequest, InspectConfigAppRequest, InstallAddonAppRequest,
+    InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest,
+    PlanAddonLockSyncRequest, PlanBundleApplyRequest, PlanConfigApplyAppRequest,
+    PlanExternalPackageApplyAppRequest, RelinkAddonAppRequest, RelinkAddonIndexAppRequest,
+    RemoveAddonAppRequest, RemoveAddonPolicyAppRequest, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, RestoreBackupAppRequest, SetAddonPolicyAppRequest,
+    UpdateAddonAppRequest, UpdateAddonIndexAppRequest, WowFlavorValue,
 };
 use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
@@ -303,7 +303,7 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
 
     assert_eq!(
         install.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
+        Some(base.join("runtime-backups"))
     );
     assert_eq!(backup_dir, Some(base.join("runtime-backups")));
     assert_eq!(
@@ -312,7 +312,7 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
     );
     assert_eq!(
         external_bundle.output_path,
-        Some(PathBuf::from("runtime-bundles"))
+        Some(base.join("runtime-bundles"))
     );
     assert_eq!(external_bundle.source_path, base.join("author-ui.zip"));
 }
@@ -385,6 +385,7 @@ fn apply_addon_lock_request_resolves_relative_lock_and_source_overrides() {
     .expect("addon lock apply request");
 
     assert_eq!(domain.lock_path, Some(base.join("locks/addons.lock.toml")));
+    assert_eq!(domain.backup_output_path, Some(base.join("backup")));
     assert_eq!(
         domain.source_overrides[0].archive_path,
         base.join("sources/Details.zip")
@@ -438,6 +439,27 @@ fn addon_policy_requests_project_domain_inputs() {
 }
 
 #[test]
+fn adopt_addons_request_resolves_relative_archive_output() {
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+
+    let domain = AdoptAddonsAppRequest {
+        installation: sample_installation(),
+        addon_directories: vec!["WeakAuras".to_string()],
+        package_id: Some("weak-auras".to_string()),
+        archive_output_path: Some(PathBuf::from("snapshots/WeakAuras.zip")),
+        dry_run: true,
+    }
+    .into_domain_request(&runtime)
+    .expect("adopt addons request");
+
+    assert_eq!(
+        domain.archive_output_path,
+        Some(base.join("snapshots/WeakAuras.zip"))
+    );
+}
+
+#[test]
 fn apply_bundle_request_converts_app_owned_apply_mappings() {
     let base = std::env::current_dir().expect("cwd");
     let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
@@ -467,6 +489,7 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
     .expect("apply bundle request");
 
     assert_eq!(domain.bundle_path, base.join("bundle.zip"));
+    assert_eq!(domain.backup_output_path, Some(base.join("backup")));
     assert!(domain.dry_run);
     assert_eq!(
         domain.apply_mappings.target_account.as_deref(),
@@ -519,6 +542,7 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
     .expect("external package request");
 
     assert_eq!(domain.source_path, base.join("author-ui.zip"));
+    assert_eq!(domain.output_path, Some(base.join("out")));
     let apply_defaults = domain.apply_defaults.expect("apply defaults");
     assert!(!apply_defaults.create_backup);
     assert_eq!(apply_defaults.addons, ResourceApplyPolicy::Mirror);
@@ -563,7 +587,8 @@ fn pack_bundle_request_converts_app_owned_manifest() {
 
 #[test]
 fn install_addon_request_converts_app_owned_metadata() {
-    let runtime = AppRuntime::new();
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
 
     let domain: DomainInstallAddonRequest = InstallAddonAppRequest {
         installation: sample_installation(),
@@ -585,6 +610,7 @@ fn install_addon_request_converts_app_owned_metadata() {
     .into_domain_request(&runtime)
     .expect("install request");
 
+    assert_eq!(domain.backup_output_path, Some(base.join("backup")));
     let metadata = domain.metadata.expect("metadata");
     assert_eq!(metadata.index_name.as_deref(), Some("curated"));
     assert_eq!(metadata.index_package_id.as_deref(), Some("weakauras"));

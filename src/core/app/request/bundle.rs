@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::{
     RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
-    resolve_app_input_path, resolve_optional_app_input_path,
+    resolve_app_input_path, resolve_optional_app_input_path, resolve_optional_app_output_path,
 };
 use crate::core::app::{
     AppRuntime, BundleApplyMappingsValue, BundleManifestValue, ResolvedInstallationValue,
@@ -112,7 +112,10 @@ impl ApplyBundleAppRequest {
                 bundle_path: resolve_bundle_path(runtime, request.bundle_path)?,
                 installation: request.installation.into_domain(),
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_bundle_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
                 apply_mappings: request.apply_mappings.into_domain(),
             })
         })
@@ -162,7 +165,10 @@ impl ApplyBundleAddonLockAppRequest {
                 bundle_path: resolve_bundle_path(runtime, request.bundle_path)?,
                 installation: request.installation.into_domain(),
                 addon_state_storage_kind: runtime.addon_state_storage_kind(),
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_bundle_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
                 replace_existing: request.replace_existing,
             })
         })
@@ -171,4 +177,11 @@ impl ApplyBundleAddonLockAppRequest {
 
 fn resolve_bundle_path(runtime: &AppRuntime, path: PathBuf) -> AppResult<PathBuf> {
     resolve_app_input_path(runtime, path, "bundle archive")
+}
+
+fn resolve_bundle_backup_output_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+) -> AppResult<Option<PathBuf>> {
+    resolve_optional_app_output_path(runtime, path, "bundle backup output directory")
 }

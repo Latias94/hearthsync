@@ -292,8 +292,12 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon-lock and backup selection paths now also resolve at the app boundary: relative lock diff
   files, verify/plan/apply lock files, explicit addon-lock source override archives, backup list
   directories, restore directories, and restore archive paths resolve against the runtime
-  relative-path base before addon-lock or backup core code reads them; backup output directories
-  remain queued for a cross-flow output-path cleanup
+  relative-path base before addon-lock or backup core code reads them
+- app-level output choices now use the same boundary rule: mutation backup output directories,
+  backup creation output directories, addon adoption archive outputs, and external-package bundle
+  output directories resolve against the runtime relative-path base before core services write
+  files. Bundle pack output paths remain the explicit exception and keep the
+  manifest/installation-derived bundle-domain placement rule.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

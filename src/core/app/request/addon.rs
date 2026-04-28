@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use super::{RuntimeDefaultableRequest, apply_backup_output_default};
+use super::{
+    RuntimeDefaultableRequest, apply_backup_output_default, resolve_optional_app_output_path,
+};
 use crate::core::addon::{
     AdoptAddonsRequest as DomainAdoptAddonsRequest,
     InstallAddonRequest as DomainInstallAddonRequest,
@@ -62,7 +64,11 @@ impl AdoptAddonsAppRequest {
             state_paths,
             addon_directories: self.addon_directories,
             package_id: self.package_id,
-            archive_output_path: self.archive_output_path,
+            archive_output_path: resolve_optional_app_output_path(
+                runtime,
+                self.archive_output_path,
+                "addon adoption archive output",
+            )?,
             dry_run: self.dry_run,
         })
     }
@@ -125,7 +131,10 @@ impl InstallAddonAppRequest {
                 state_paths,
                 source: resolve_addon_source_input(runtime, request.source)?,
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_addon_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
                 replace_existing: request.replace_existing,
                 metadata: request.metadata.map(AddonPackageMetadataValue::into_domain),
             })
@@ -178,7 +187,10 @@ impl UpdateAddonAppRequest {
                 state_paths,
                 name: request.name,
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_addon_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
             })
         })
     }
@@ -213,8 +225,18 @@ impl RemoveAddonAppRequest {
                 state_paths,
                 name: request.name,
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_addon_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
             })
         })
     }
+}
+
+fn resolve_addon_backup_output_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+) -> AppResult<Option<PathBuf>> {
+    resolve_optional_app_output_path(runtime, path, "addon backup output directory")
 }

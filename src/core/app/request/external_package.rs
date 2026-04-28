@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use super::super::map_owned_vec;
 use super::{
     RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
-    apply_source_platform_default, resolve_app_input_path,
+    apply_source_platform_default, resolve_app_input_path, resolve_optional_app_output_path,
 };
 use crate::core::app::{
     AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
@@ -74,7 +74,11 @@ impl CreateExternalPackageBundleAppRequest {
             source_flavor: self.source_flavor.into_domain(),
             source_platform: self.source_platform.map(HostPlatformValue::into_domain),
             supported_targets: map_owned_vec(self.supported_targets, WowFlavorValue::into_domain),
-            output_path: self.output_path,
+            output_path: resolve_optional_app_output_path(
+                runtime,
+                self.output_path,
+                "external package bundle output",
+            )?,
             package_id: self.package_id,
             package_name: self.package_name,
             created_by: self.created_by,
@@ -146,7 +150,11 @@ impl ApplyExternalPackageAppRequest {
                     .into_domain_request_after_defaults(runtime)?,
                 installation: request.installation.into_domain(),
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_optional_app_output_path(
+                    runtime,
+                    request.backup_output_path,
+                    "external package backup output directory",
+                )?,
                 apply_mappings: request.apply_mappings.into_domain(),
             })
         })

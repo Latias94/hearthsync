@@ -219,6 +219,22 @@ impl AppRuntime {
         path: PathBuf,
         description: &str,
     ) -> AppResult<PathBuf> {
+        self.resolve_runtime_relative_path(path, description)
+    }
+
+    pub(crate) fn resolve_output_path(
+        &self,
+        path: PathBuf,
+        description: &str,
+    ) -> AppResult<PathBuf> {
+        self.resolve_runtime_relative_path(path, description)
+    }
+
+    fn resolve_runtime_relative_path(
+        &self,
+        path: PathBuf,
+        description: &str,
+    ) -> AppResult<PathBuf> {
         if path.is_absolute() {
             return Ok(path);
         }

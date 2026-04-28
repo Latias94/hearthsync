@@ -1313,3 +1313,33 @@ Specifically:
   process launch directory.
 - The remaining backup-output cleanup can be done consistently across every mutation flow instead
   of changing only one caller family.
+
+## ADR-053: Output Paths Resolve At The App Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+App-level output selections are frontend output choices and must resolve before app services call
+domain code.
+
+Specifically:
+
+- Relative mutation backup output directories resolve against `AppRuntime`'s absolute
+  relative-path base before addon, addon-index, addon-lock, bundle, external-package, or config
+  apply work begins.
+- Relative backup creation output directories resolve against the same runtime base before backup
+  domain code creates archives.
+- Relative addon adoption archive output paths and external-package bundle output directories also
+  resolve at the app boundary.
+- Bundle pack output paths keep the existing bundle-domain rule: relative paths resolve against
+  the manifest/installation-derived output base, not the app relative-path base.
+
+### Consequences
+
+- CLI keeps expected `--backup-output ./backups`, `backup create --output ./backups`, adoption
+  archive, and author-package bundle output behavior without letting core services infer process
+  cwd.
+- Future `egui` callers can attach output choices to an explicit file-dialog or project base.
+- Bundle export remains intentionally different because it already has a domain-owned portable
+  placement model tied to the selected manifest and installation.

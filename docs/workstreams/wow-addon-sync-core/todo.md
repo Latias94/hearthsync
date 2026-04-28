@@ -437,8 +437,12 @@ enough that these rules live in one place.
   Current progress: addon-lock and backup selection paths now also resolve at the app boundary.
   Relative lock diff files, verify/plan/apply lock files, explicit addon-lock source override
   archives, backup list directories, restore directories, and restore archive paths resolve against
-  the runtime relative-path base before core code reads them. Backup output directories remain a
-  separate cross-flow cleanup because the same output option appears across every mutation family.
+  the runtime relative-path base before core code reads them.
+  Current progress: app-level output choices now use the same app-boundary rule. Mutation backup
+  output directories, backup creation output directories, addon adoption archive outputs, and
+  external-package bundle output directories resolve against the runtime relative-path base before
+  core services write files. Bundle pack output paths remain the explicit exception and keep the
+  manifest/installation-derived bundle-domain placement rule.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

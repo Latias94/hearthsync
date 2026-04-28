@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use super::{RuntimeDefaultableRequest, apply_backup_output_default};
+use super::{
+    RuntimeDefaultableRequest, apply_backup_output_default, resolve_optional_app_output_path,
+};
 use crate::core::addon::index::{
     AddonIndexAttachRequest as DomainAddonIndexAttachRequest,
     AddonIndexInstallRequest as DomainAddonIndexInstallRequest,
@@ -137,7 +139,10 @@ impl InstallAddonIndexAppRequest {
                 index_path: resolve_addon_index_path(runtime, request.index_path)?,
                 name: request.name,
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_addon_index_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
                 replace_existing: request.replace_existing,
             })
         })
@@ -175,7 +180,10 @@ impl UpdateAddonIndexAppRequest {
                 index_path: resolve_addon_index_path(runtime, request.index_path)?,
                 name: request.name,
                 dry_run: request.dry_run,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_addon_index_backup_output_path(
+                    runtime,
+                    request.backup_output_path,
+                )?,
             })
         })
     }
@@ -211,4 +219,11 @@ impl RelinkAddonIndexAppRequest {
 
 fn resolve_addon_index_path(runtime: &AppRuntime, path: PathBuf) -> AppResult<PathBuf> {
     runtime.resolve_input_path(path, "addon index file")
+}
+
+fn resolve_addon_index_backup_output_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+) -> AppResult<Option<PathBuf>> {
+    resolve_optional_app_output_path(runtime, path, "addon index backup output directory")
 }

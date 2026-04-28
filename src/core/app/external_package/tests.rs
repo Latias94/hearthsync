@@ -306,6 +306,65 @@ fn external_package_service_create_bundle_uses_runtime_platform_and_output_dir()
 }
 
 #[test]
+fn external_package_service_create_bundle_resolves_relative_runtime_output_dir() {
+    let source = tempdir().expect("source temp dir");
+    let output_base = tempdir().expect("output base temp dir");
+    let package_root = create_minimal_external_package_source(source.path());
+
+    let service = ExternalPackageService::with_runtime(
+        AppRuntime::new()
+            .with_relative_path_base(Some(output_base.path().to_path_buf()))
+            .with_default_bundle_output_dir(Some(PathBuf::from("exports"))),
+    );
+    let prepared = service
+        .create_bundle(CreateExternalPackageBundleAppRequest {
+            source_path: package_root,
+            source_flavor: WowFlavorValue::Retail,
+            source_platform: Some(HostPlatformValue::Windows),
+            supported_targets: vec![WowFlavorValue::Retail],
+            output_path: None,
+            package_id: None,
+            package_name: None,
+            created_by: None,
+            description: None,
+            apply_defaults: None,
+        })
+        .expect("create bundle with relative runtime output dir");
+
+    let expected_output = output_base.path().join("exports");
+    assert_eq!(
+        prepared.as_ref().bundle.archive_path.parent(),
+        Some(expected_output.as_path())
+    );
+}
+
+#[test]
+fn external_package_service_create_bundle_rejects_relative_runtime_output_without_base() {
+    let source = tempdir().expect("source temp dir");
+    let package_root = create_minimal_external_package_source(source.path());
+
+    let service = ExternalPackageService::with_runtime(
+        AppRuntime::new().with_default_bundle_output_dir(Some(PathBuf::from("exports"))),
+    );
+    let error = service
+        .create_bundle(CreateExternalPackageBundleAppRequest {
+            source_path: package_root,
+            source_flavor: WowFlavorValue::Retail,
+            source_platform: Some(HostPlatformValue::Windows),
+            supported_targets: vec![WowFlavorValue::Retail],
+            output_path: None,
+            package_id: None,
+            package_name: None,
+            created_by: None,
+            description: None,
+            apply_defaults: None,
+        })
+        .expect_err("relative runtime output without base should fail");
+
+    assert!(error.to_string().contains("relative path base"));
+}
+
+#[test]
 fn external_package_service_create_bundle_keeps_temporary_bundle_alive_while_handle_exists() {
     let source = tempdir().expect("source temp dir");
     let package_root = create_minimal_external_package_source(source.path());

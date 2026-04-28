@@ -28,7 +28,7 @@ impl BackupService {
     }
 
     pub(super) fn create(&self, request: CreateBackupAppRequest) -> AppResult<CreatedBackupResult> {
-        let created = create_backup(request.into_domain_request(&self.runtime))?;
+        let created = create_backup(request.into_domain_request(&self.runtime)?)?;
         Ok(CreatedBackupResult::from_domain(created))
     }
 

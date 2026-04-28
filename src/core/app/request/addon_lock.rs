@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::{
     RuntimeDefaultableRequest, apply_backup_output_default, resolve_app_input_path,
-    resolve_optional_app_input_path,
+    resolve_optional_app_input_path, resolve_optional_app_output_path,
 };
 use crate::core::addon::lock::{
     AddonLockApplyRequest as DomainAddonLockApplyRequest,
@@ -170,7 +170,11 @@ impl ApplyAddonLockAppRequest {
                     request.lock_path,
                     "addon lock file",
                 )?,
-                backup_output_path: request.backup_output_path,
+                backup_output_path: resolve_optional_app_output_path(
+                    runtime,
+                    request.backup_output_path,
+                    "addon lock backup output directory",
+                )?,
                 replace_existing: request.replace_existing,
                 source_overrides: request
                     .source_overrides

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use super::super::map_owned_vec;
 use super::{
     RuntimeDefaultableRequest, apply_backup_dir_default, apply_backup_output_default,
-    resolve_optional_app_input_path,
+    resolve_optional_app_input_path, resolve_optional_app_output_path,
 };
 use crate::core::app::{AppRuntime, BackupGroupValue, ResolvedInstallationValue};
 use crate::core::backup::{
@@ -49,12 +49,21 @@ impl RuntimeDefaultableRequest for CreateBackupAppRequest {
 }
 
 impl CreateBackupAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainBackupRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainBackupRequest {
-            installation: request.installation.into_domain(),
-            output_path: request.output_path,
-            groups: map_owned_vec(request.groups, BackupGroupValue::into_domain),
-            label: request.label,
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainBackupRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            Ok(DomainBackupRequest {
+                installation: request.installation.into_domain(),
+                output_path: resolve_optional_app_output_path(
+                    runtime,
+                    request.output_path,
+                    "backup output directory",
+                )?,
+                groups: map_owned_vec(request.groups, BackupGroupValue::into_domain),
+                label: request.label,
+            })
         })
     }
 }

@@ -65,5 +65,22 @@ pub(super) fn resolve_optional_app_input_path(
         .transpose()
 }
 
+pub(super) fn resolve_app_output_path(
+    runtime: &AppRuntime,
+    path: PathBuf,
+    description: &str,
+) -> AppResult<PathBuf> {
+    runtime.resolve_output_path(path, description)
+}
+
+pub(super) fn resolve_optional_app_output_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+    description: &str,
+) -> AppResult<Option<PathBuf>> {
+    path.map(|path| resolve_app_output_path(runtime, path, description))
+        .transpose()
+}
+
 #[cfg(test)]
 mod tests;
