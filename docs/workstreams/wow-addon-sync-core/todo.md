@@ -309,6 +309,10 @@ enough that these rules live in one place.
   common macOS resource-fork metadata and desktop noise (`__MACOSX`, `._*`, `.DS_Store`,
   `Thumbs.db`, `desktop.ini`), so these archive artifacts stay out of normalized package entries
   and warning counts.
+  Current progress: archive-compatibility coverage now also includes a larger wrapped author zip
+  with a dozen addon roots, more than one hundred normalized files, WTF/fonts/interface resources,
+  and repeated archive noise, so resource summary behavior is no longer only covered by tiny
+  fixtures.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two

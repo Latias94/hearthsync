@@ -150,6 +150,103 @@ fn analyze_external_package_directory_ignores_appledouble_sidecars() {
 }
 
 #[test]
+fn analyze_external_package_zip_handles_large_wrapped_author_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("large-author-ui-pack.zip");
+    let mut entries = Vec::new();
+    let mut expected_addons = Vec::new();
+
+    for addon_index in 0..12 {
+        let addon_name = format!("Addon{addon_index:02}");
+        expected_addons.push(addon_name.clone());
+        entries.push((
+            format!("AuthorUI/Interface/AddOns/{addon_name}/{addon_name}.toc"),
+            format!("## Interface: 110000\n## Title: {addon_name}\n"),
+        ));
+
+        for module_index in 0..8 {
+            entries.push((
+                format!("AuthorUI/Interface/AddOns/{addon_name}/Modules/Module{module_index}.lua"),
+                format!("print('{addon_name}:{module_index}')"),
+            ));
+        }
+
+        entries.push((
+            format!("AuthorUI/Interface/AddOns/{addon_name}/.DS_Store"),
+            "noise".to_string(),
+        ));
+        entries.push((
+            format!("__MACOSX/AuthorUI/Interface/AddOns/{addon_name}/._{addon_name}.toc"),
+            "resource fork".to_string(),
+        ));
+    }
+
+    entries.extend([
+        (
+            "AuthorUI/WTF/Config.wtf".to_string(),
+            "SET locale enUS".to_string(),
+        ),
+        (
+            "AuthorUI/WTF/Account/ACCOUNT/SavedVariables/Details.lua".to_string(),
+            "DetailsDB = {}".to_string(),
+        ),
+        (
+            "AuthorUI/WTF/Account/ACCOUNT/Illidan/Examplemage/AddOns.txt".to_string(),
+            "addons".to_string(),
+        ),
+        (
+            "AuthorUI/WTF/Account/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua".to_string(),
+            "PawnOptions = {}".to_string(),
+        ),
+        (
+            "AuthorUI/Fonts/FRIZQT__.ttf".to_string(),
+            "font".to_string(),
+        ),
+        (
+            "AuthorUI/Interface/SharedXML/texture.blp".to_string(),
+            "texture".to_string(),
+        ),
+    ]);
+    create_archive_with_owned_raw_entries(&package_path, &entries);
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
+        source_path: package_path,
+    })
+    .expect("analyze large author package");
+
+    assert_eq!(analysis.source_kind, ExternalPackageSourceKind::ZipArchive);
+    assert_eq!(analysis.summary.total_files, 114);
+    assert_eq!(analysis.summary.normalized_files, 114);
+    assert_eq!(analysis.summary.warning_count, 0);
+    assert_eq!(analysis.summary.addons, 108);
+    assert_eq!(analysis.summary.wtf_common, 2);
+    assert_eq!(analysis.summary.wtf_characters, 2);
+    assert_eq!(analysis.summary.fonts, 1);
+    assert_eq!(analysis.summary.interface_assets, 1);
+    assert_eq!(analysis.resources.addons, expected_addons);
+    assert!(analysis.resources.wtf_common);
+    assert_eq!(analysis.resources.wtf_characters.len(), 1);
+    assert!(analysis.resources.fonts);
+    assert_eq!(
+        analysis.resources.interface_assets,
+        vec!["SharedXML".to_string()]
+    );
+    assert!(analysis.warnings.is_empty());
+    assert!(
+        analysis
+            .entries
+            .iter()
+            .all(|entry| !entry.source_path.contains("__MACOSX"))
+    );
+    assert!(
+        analysis
+            .entries
+            .iter()
+            .all(|entry| !entry.source_path.contains(".DS_Store"))
+    );
+}
+
+#[test]
 fn analyze_external_package_directory_fixture_normalizes_wrapped_ui_layout() {
     let package_root = external_package_fixture_root();
 

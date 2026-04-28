@@ -245,6 +245,24 @@ pub(super) fn create_archive_with_raw_entries(archive_path: &Path, entries: &[(&
     zip.finish().expect("finish raw archive");
 }
 
+pub(super) fn create_archive_with_owned_raw_entries(
+    archive_path: &Path,
+    entries: &[(String, String)],
+) {
+    let file = fs::File::create(archive_path).expect("archive file");
+    let mut zip = ZipWriter::new(file);
+    for (name, content) in entries {
+        zip.start_file(
+            name,
+            SimpleFileOptions::default().compression_method(CompressionMethod::Deflated),
+        )
+        .expect("start raw archive file");
+        zip.write_all(content.as_bytes())
+            .expect("write raw archive file");
+    }
+    zip.finish().expect("finish raw archive");
+}
+
 pub(super) fn create_archive_with_raw_directories(archive_path: &Path, entries: &[&str]) {
     let file = fs::File::create(archive_path).expect("archive file");
     let mut zip = ZipWriter::new(file);

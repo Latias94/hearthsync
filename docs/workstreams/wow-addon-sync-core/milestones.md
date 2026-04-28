@@ -324,6 +324,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - author-package zip and directory analysis now also explicitly covers common macOS resource-fork
   metadata and desktop noise, keeping `__MACOSX`, `._*`, `.DS_Store`, `Thumbs.db`, and
   `desktop.ini` artifacts out of normalized package entries and warning counts
+- archive-compatibility coverage now also includes a larger wrapped author zip with a dozen addon
+  roots, more than one hundred normalized files, WTF/fonts/interface resources, and repeated
+  archive noise, so resource summary behavior is no longer only covered by tiny fixtures
 - bundle archive inspect/apply/addon-lock extraction now also reject symlink entries up front, so
   first-party bundle ingestion no longer trails addon/external-package/backup archive safety
 - bundle archive entry validation now also rejects non-portable path segments during inspect/apply,
