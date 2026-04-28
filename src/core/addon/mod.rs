@@ -41,8 +41,9 @@ pub(crate) use self::relink::{
     ensure_relink_addon_directories_match, relink_addon_with_provider, relink_source_changed,
     relink_timestamp,
 };
+use crate::core::archive_path::platform_path_collision_key;
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::DetectedFlavorInstallation;
+use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
 
 pub(crate) use self::dependency::{
     MissingDependencyCollectionRequest, MissingDependencyCollectionState,
@@ -264,6 +265,11 @@ pub(crate) struct PreparedAddonDirectory {
     pub(crate) file_count: usize,
 }
 
+pub(crate) struct ExistingAddonPath {
+    pub(crate) name: String,
+    pub(crate) path: PathBuf,
+}
+
 pub fn list_addons(
     installation: &DetectedFlavorInstallation,
     state_paths: &AddonStatePaths,
@@ -277,12 +283,14 @@ pub fn list_addons(
             package
                 .addons
                 .iter()
-                .map(|addon| addon.directory_name.clone())
+                .map(|addon| addon_directory_path_key(&addon.directory_name, installation.platform))
         })
         .collect::<BTreeSet<_>>();
     let mut untracked_addons = discover_addon_directories(&installation.addon_dir)?
         .into_iter()
-        .filter(|name| !tracked_addons.contains(name))
+        .filter(|name| {
+            !tracked_addons.contains(&addon_directory_path_key(name, installation.platform))
+        })
         .collect::<Vec<_>>();
     untracked_addons.sort();
 
@@ -313,6 +321,34 @@ pub(crate) fn no_tracked_packages_error(
                 .to_string(),
         )
     }
+}
+
+pub(crate) fn find_existing_addon_path(
+    addon_dir: &Path,
+    addon_name: &str,
+    platform: HostPlatform,
+) -> AppResult<Option<ExistingAddonPath>> {
+    if !addon_dir.exists() {
+        return Ok(None);
+    }
+
+    let target_key = addon_directory_path_key(addon_name, platform);
+    for entry in fs::read_dir(addon_dir)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if addon_directory_path_key(&name, platform) == target_key {
+            return Ok(Some(ExistingAddonPath {
+                name,
+                path: entry.path(),
+            }));
+        }
+    }
+
+    Ok(None)
+}
+
+pub(crate) fn addon_directory_path_key(addon_name: &str, platform: HostPlatform) -> String {
+    platform_path_collision_key(Path::new(addon_name), platform)
 }
 
 pub fn search_addons(request: SearchAddonRequest) -> AppResult<AddonSearchCatalog> {

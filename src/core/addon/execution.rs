@@ -9,6 +9,7 @@ use crate::core::task::{
     emit_task_progress, ensure_task_not_cancelled,
 };
 
+use super::find_existing_addon_path;
 use super::registry::registry_path;
 use super::{
     AddonPackageMetadata, AddonProvider, AddonRegistry, AddonStatePaths, DefaultAddonProvider,
@@ -412,15 +413,16 @@ pub(crate) fn prepare_install_prepared_addon(
     let replaced_addons = prepared
         .addons
         .iter()
-        .filter(|addon| {
-            request
-                .installation
-                .addon_dir
-                .join(&addon.addon.directory_name)
-                .exists()
+        .filter_map(|addon| {
+            find_existing_addon_path(
+                &request.installation.addon_dir,
+                &addon.addon.directory_name,
+                request.installation.platform,
+            )
+            .transpose()
         })
-        .map(|addon| addon.addon.directory_name.clone())
-        .collect::<Vec<_>>();
+        .map(|existing| existing.map(|existing| existing.name))
+        .collect::<AppResult<Vec<_>>>()?;
 
     if !request.replace_existing && !replaced_addons.is_empty() {
         return Err(AppError::Validation(format!(

@@ -14,8 +14,8 @@ use crate::core::task::{
 };
 
 use super::{
-    AddonRegistry, AddonStatePaths, PreparedAddonPackage, TrackedAddonPackage, load_registry,
-    save_registry,
+    AddonRegistry, AddonStatePaths, PreparedAddonPackage, TrackedAddonPackage,
+    addon_directory_path_key, find_existing_addon_path, load_registry, save_registry,
 };
 
 #[derive(Clone, Copy)]
@@ -158,16 +158,18 @@ fn apply_install_prepared_package_with_observer(
     let addon_names = prepared
         .addons
         .iter()
-        .map(|addon| addon.addon.directory_name.clone())
+        .map(|addon| addon_directory_path_key(&addon.addon.directory_name, installation.platform))
         .collect::<BTreeSet<_>>();
     let total_addons = prepared.addons.len();
     let mut written_files = 0usize;
 
     registry.packages.retain(|package| {
-        !package
-            .addons
-            .iter()
-            .any(|addon| addon_names.contains(&addon.directory_name))
+        !package.addons.iter().any(|addon| {
+            addon_names.contains(&addon_directory_path_key(
+                &addon.directory_name,
+                installation.platform,
+            ))
+        })
     });
 
     for (index, addon) in prepared.addons.iter().enumerate() {
@@ -176,16 +178,20 @@ fn apply_install_prepared_package_with_observer(
             current: index + 1,
             total: total_addons,
         })?;
-        let destination = installation.addon_dir.join(&addon.addon.directory_name);
-        if destination.exists() {
+        if let Some(existing) = find_existing_addon_path(
+            &installation.addon_dir,
+            &addon.addon.directory_name,
+            installation.platform,
+        )? {
             if !replace_existing {
                 return Err(AppError::Validation(format!(
                     "addon directory already exists: {}",
-                    destination.display()
+                    existing.path.display()
                 )));
             }
-            remove_path(&destination)?;
+            remove_path(&existing.path)?;
         }
+        let destination = installation.addon_dir.join(&addon.addon.directory_name);
         written_files += copy_directory(&addon.stage_path, &destination)?;
     }
 
@@ -352,9 +358,12 @@ fn apply_update_prepared_packages_with_observer(
                 current: removed_addons,
                 total: total_removed_addons,
             })?;
-            let path = installation.addon_dir.join(&addon.directory_name);
-            if path.exists() {
-                remove_path(&path)?;
+            if let Some(existing) = find_existing_addon_path(
+                &installation.addon_dir,
+                &addon.directory_name,
+                installation.platform,
+            )? {
+                remove_path(&existing.path)?;
             }
         }
 
@@ -365,10 +374,14 @@ fn apply_update_prepared_packages_with_observer(
                 current: written_addons,
                 total: total_written_addons,
             })?;
-            let destination = installation.addon_dir.join(&addon.addon.directory_name);
-            if destination.exists() {
-                remove_path(&destination)?;
+            if let Some(existing) = find_existing_addon_path(
+                &installation.addon_dir,
+                &addon.addon.directory_name,
+                installation.platform,
+            )? {
+                remove_path(&existing.path)?;
             }
+            let destination = installation.addon_dir.join(&addon.addon.directory_name);
             written_files += copy_directory(&addon.stage_path, &destination)?;
         }
 
@@ -438,9 +451,12 @@ fn remove_selected_packages_with_observer(
                 current: removed_addons,
                 total: total_removed_addons,
             })?;
-            let path = installation.addon_dir.join(&addon.directory_name);
-            if path.exists() {
-                remove_path(&path)?;
+            if let Some(existing) = find_existing_addon_path(
+                &installation.addon_dir,
+                &addon.directory_name,
+                installation.platform,
+            )? {
+                remove_path(&existing.path)?;
             }
         }
     }

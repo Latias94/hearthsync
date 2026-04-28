@@ -354,6 +354,10 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   addon-directory sets, case-insensitive package IDs, and case-insensitive addon-directory
   ownership, while addon-index bulk matching records used tracked IDs with the same normalized key
   so curator attach/update flows do not depend on case-sensitive registry assumptions
+- addon install planning and addon mutation execution now also resolve existing live AddOns
+  entries through the selected installation platform's case-folding rules, so Windows/default-macOS
+  dry-runs catch `Details` vs `details` conflicts early and replace/update/remove paths remove the
+  actual on-disk entry even when archive casing differs
 - external-package staging materialization now also reuses the shared
   `core::bundle::entry_layout` classifier for normalized bundle-style paths, so addon/WTF/fonts/
   interface root dispatch no longer lives in a second parallel match tree when building a

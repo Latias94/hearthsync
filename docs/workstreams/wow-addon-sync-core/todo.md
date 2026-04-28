@@ -409,6 +409,11 @@ enough that these rules live in one place.
   ownership before state is trusted or persisted. Addon-index bulk matching now also records used
   tracked package IDs with the same normalized key, so case-folded registries cannot make one
   package appear available twice during curator attach/update flows.
+  Current progress: addon install planning and addon mutation execution now resolve existing
+  `Interface/AddOns` entries with the selected installation platform's case-folding rules. Dry-run
+  installs for Windows/default-macOS targets now reject `Details` vs `details` conflicts before
+  backup or execution, and replace/update/remove paths delete the actual on-disk entry instead of
+  assuming the archive casing matches the live directory casing.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

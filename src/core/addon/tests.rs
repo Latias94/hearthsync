@@ -312,6 +312,96 @@ fn save_registry_rejects_case_insensitive_duplicate_addon_directory_owners() {
 }
 
 #[test]
+fn install_addon_dry_run_rejects_case_insensitive_existing_addon_on_macos_target() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation_for_platform(temp.path(), HostPlatform::MacOs);
+    let existing_dir = installation.addon_dir.join("Details");
+    fs::create_dir_all(&existing_dir).expect("existing details dir");
+    fs::write(
+        existing_dir.join("Details.toc"),
+        "## Interface: 110000\n## Title: Details!\n",
+    )
+    .expect("existing toc");
+    let archive_path = temp.path().join("details-lower.zip");
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "details/details.toc",
+            "## Interface: 110000\n## Title: Details Lower\n",
+        )],
+    );
+
+    let error = install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
+        installation,
+        source: archive_path.display().to_string(),
+        dry_run: true,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: false,
+        metadata: None,
+    })
+    .expect_err("case-insensitive existing addon should fail during planning");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    let message = error.to_string();
+    assert!(message.contains("addon directories already exist: Details"));
+    assert!(!temp.path().join("backups").exists());
+}
+
+#[test]
+fn install_addon_replace_existing_removes_case_insensitive_existing_addon_on_macos_target() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation_for_platform(temp.path(), HostPlatform::MacOs);
+    let existing_dir = installation.addon_dir.join("Details");
+    fs::create_dir_all(&existing_dir).expect("existing details dir");
+    fs::write(
+        existing_dir.join("Details.toc"),
+        "## Interface: 110000\n## Title: Details!\n",
+    )
+    .expect("existing toc");
+    fs::write(existing_dir.join("Old.lua"), "print('old')").expect("old file");
+    let archive_path = temp.path().join("details-lower.zip");
+    create_addon_archive(
+        &archive_path,
+        &[
+            (
+                "details/details.toc",
+                "## Interface: 110000\n## Title: Details Lower\n",
+            ),
+            ("details/New.lua", "print('new')"),
+        ],
+    );
+
+    let result = install_addon(InstallAddonRequest {
+        state_paths: addon_state_paths(&installation.clone()),
+        installation: installation.clone(),
+        source: archive_path.display().to_string(),
+        dry_run: false,
+        backup_output_path: Some(temp.path().join("backups")),
+        replace_existing: true,
+        metadata: None,
+    })
+    .expect("replace existing addon");
+
+    assert_eq!(result.replaced_addons, vec!["Details".to_string()]);
+    assert_eq!(result.addons[0].directory_name, "details");
+    assert!(
+        !installation
+            .addon_dir
+            .join("Details")
+            .join("Old.lua")
+            .exists()
+    );
+    assert!(
+        installation
+            .addon_dir
+            .join("details")
+            .join("New.lua")
+            .exists()
+    );
+}
+
+#[test]
 fn install_addon_task_reports_install_progress() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());
