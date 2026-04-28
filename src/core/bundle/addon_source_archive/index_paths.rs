@@ -41,14 +41,43 @@ pub(in crate::core::bundle) fn resolve_addon_index_paths(
             })?
             .to_string();
         validate_plain_name("addon index file", &file_name)?;
-        if file_names.iter().any(|item| item == &file_name) {
-            return Err(AppError::Validation(format!(
-                "duplicate addon index file name in bundle metadata: {file_name}"
-            )));
-        }
-        file_names.push(file_name.clone());
+        register_addon_index_file_name(&mut file_names, &file_name)?;
         resolved.push((file_name, source_path));
     }
 
     Ok(resolved)
+}
+
+fn register_addon_index_file_name(file_names: &mut Vec<String>, file_name: &str) -> AppResult<()> {
+    if file_names
+        .iter()
+        .any(|item| item.eq_ignore_ascii_case(file_name))
+    {
+        return Err(AppError::Validation(format!(
+            "duplicate addon index file name in bundle metadata: {file_name}"
+        )));
+    }
+    file_names.push(file_name.to_string());
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::register_addon_index_file_name;
+
+    #[test]
+    fn register_addon_index_file_name_rejects_case_insensitive_duplicates() {
+        let mut file_names = Vec::new();
+        register_addon_index_file_name(&mut file_names, "Addon-Index.toml")
+            .expect("first file name");
+
+        let error = register_addon_index_file_name(&mut file_names, "addon-index.toml")
+            .expect_err("case-insensitive duplicate should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate addon index file name in bundle metadata")
+        );
+    }
 }

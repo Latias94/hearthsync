@@ -76,7 +76,10 @@ fn unique_bundle_source_archive_name(
 
     let mut candidate = format!("{base}.zip");
     let mut suffix = 2usize;
-    while used_file_names.iter().any(|item| item == &candidate) {
+    while used_file_names
+        .iter()
+        .any(|item| item.eq_ignore_ascii_case(&candidate))
+    {
         candidate = format!("{base}-{suffix}.zip");
         suffix += 1;
     }
@@ -120,4 +123,33 @@ fn write_addon_package_source_archive(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unique_bundle_source_archive_name;
+
+    #[test]
+    fn unique_bundle_source_archive_name_suffixes_case_insensitive_collisions() {
+        let mut used_file_names = Vec::new();
+
+        assert_eq!(
+            unique_bundle_source_archive_name(
+                "index:CurseForge:WeakAuras",
+                "first",
+                0,
+                &mut used_file_names,
+            ),
+            "index-CurseForge-WeakAuras.zip"
+        );
+        assert_eq!(
+            unique_bundle_source_archive_name(
+                "index:curseforge:weakauras",
+                "second",
+                1,
+                &mut used_file_names,
+            ),
+            "index-curseforge-weakauras-2.zip"
+        );
+    }
 }

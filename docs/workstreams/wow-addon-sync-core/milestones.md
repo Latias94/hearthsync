@@ -341,6 +341,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   rejection plus non-directory portable-path validation, and addon archive prep /
   external-package zip ingest now also reuse the same helper to return owned file segments instead
   of validating and reparsing the same entry name separately
+- bundle addon-source archive names and embedded addon-index metadata file names now also use
+  case-insensitive uniqueness checks before zip output, so Windows/default-macOS bundles fail or
+  suffix deterministically without relying on late archive-writer collision detection
 - external-package staging materialization now also reuses the shared
   `core::bundle::entry_layout` classifier for normalized bundle-style paths, so addon/WTF/fonts/
   interface root dispatch no longer lives in a second parallel match tree when building a
