@@ -307,6 +307,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon cache runtime paths are now absolute after boundary handling: CLI one-shot cache
   overrides resolve against the invocation runtime base, `settings set --addon-cache-dir` persists
   resolved absolute paths, and relative persisted cache paths fail closed.
+- runtime construction now has a fallible `AppRuntimeBuilder` for path-bearing production
+  assembly, so addon provider options, scan roots, and default output directories normalize after
+  the relative-path base is known instead of depending on constructor call order.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

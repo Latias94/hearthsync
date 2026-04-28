@@ -453,6 +453,9 @@ enough that these rules live in one place.
   one-shot cache overrides resolve against the invocation runtime base,
   `settings set --addon-cache-dir` persists resolved absolute paths, and relative persisted cache
   paths fail closed.
+  Current progress: runtime construction now has a fallible `AppRuntimeBuilder` for path-bearing
+  production assembly, so addon provider options, scan roots, and default output directories
+  normalize after the relative-path base is known instead of depending on constructor call order.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

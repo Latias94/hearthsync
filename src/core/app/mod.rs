@@ -124,7 +124,7 @@ pub use response::installation::{
 pub use response::runtime_settings::{
     RuntimeSettingsInspectionResult, RuntimeSettingsMutationResult,
 };
-pub use runtime::AppRuntime;
+pub use runtime::{AppRuntime, AppRuntimeBuilder};
 pub(in crate::core::app) use runtime_settings::RuntimeSettingsService;
 pub(crate) use runtime_settings::load_persisted_runtime_settings_value;
 #[cfg(test)]

@@ -117,21 +117,26 @@ fn runtime_scan_installations_uses_configured_roots_and_host_platform() {
 
 #[test]
 fn runtime_capabilities_report_configured_default_provider_and_external_helper_state() {
-    let runtime = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
-        download_cache_dir: Some(PathBuf::from("cache")),
-        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
-        http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
-            max_age_secs: 600,
-        },
-    })
-    .with_external_helper_policy(ExternalHelperPolicyValue::NativeOnly);
+    let temp = tempdir().expect("temp dir");
+    let runtime = AppRuntime::builder()
+        .with_relative_path_base(Some(temp.path().to_path_buf()))
+        .with_addon_provider_options(AddonProviderOptionsValue {
+            download_cache_dir: Some(PathBuf::from("cache")),
+            retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
+            http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
+                max_age_secs: 600,
+            },
+        })
+        .with_external_helper_policy(ExternalHelperPolicyValue::NativeOnly)
+        .build()
+        .expect("runtime");
 
     assert_eq!(
         runtime.capabilities(),
         AppRuntimeCapabilitiesValue {
             addon_provider: AddonProviderModeValue::ConfiguredDefault {
                 options: AddonProviderOptionsValue {
-                    download_cache_dir: Some(PathBuf::from("cache")),
+                    download_cache_dir: Some(temp.path().join("cache")),
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
@@ -148,6 +153,48 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
                 active_strategy: HelperStrategyValue::NativeRust,
             },
         }
+    );
+}
+
+#[test]
+fn runtime_builder_rejects_relative_provider_cache_without_runtime_base() {
+    let error = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
+        download_cache_dir: Some(PathBuf::from("cache")),
+        ..AddonProviderOptionsValue::default()
+    })
+    .expect_err("relative cache path should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon cache directory relative path requires")
+    );
+}
+
+#[test]
+fn runtime_builder_resolves_relative_runtime_paths_before_diagnostics() {
+    let temp = tempdir().expect("temp dir");
+    let runtime = AppRuntime::builder()
+        .with_relative_path_base(Some(temp.path().to_path_buf()))
+        .with_install_scan_roots(Some(vec![PathBuf::from("World of Warcraft")]))
+        .with_default_backup_dir(Some(PathBuf::from("backups")))
+        .with_default_bundle_output_dir(Some(PathBuf::from("bundles")))
+        .build()
+        .expect("runtime");
+
+    let diagnostics = runtime.diagnostics();
+
+    assert_eq!(
+        diagnostics.install_scan_roots,
+        Some(vec![temp.path().join("World of Warcraft")])
+    );
+    assert_eq!(
+        diagnostics.default_backup_dir,
+        Some(temp.path().join("backups"))
+    );
+    assert_eq!(
+        diagnostics.default_bundle_output_dir,
+        Some(temp.path().join("bundles"))
     );
 }
 

@@ -8,17 +8,13 @@ use crate::core::app::{
 };
 use crate::core::error::{AppError, AppResult};
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
     let persisted_settings = load_persisted_runtime_settings_value()?.unwrap_or_default();
     let relative_path_base = std::env::current_dir()?;
     let download_cache_dir = match options.addon_cache_dir.clone() {
-        Some(path) => Some(resolve_cli_runtime_path(
-            path,
-            &relative_path_base,
-            "addon cache directory",
-        )?),
+        Some(path) => Some(path),
         None => persisted_settings
             .addon_cache_dir
             .clone()
@@ -34,8 +30,9 @@ pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
         ..AddonProviderOptionsValue::default()
     };
 
-    let mut runtime = AppRuntime::with_addon_provider_options(provider_options)
-        .with_relative_path_base(Some(relative_path_base));
+    let mut runtime = AppRuntime::builder()
+        .with_relative_path_base(Some(relative_path_base))
+        .with_addon_provider_options(provider_options);
 
     if let Some(storage) = persisted_settings.addon_state_storage {
         runtime = runtime.with_addon_state_storage_kind(storage.into_domain());
@@ -45,21 +42,7 @@ pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
         runtime = runtime.with_addon_state_storage_kind(storage.into());
     }
 
-    Ok(runtime)
-}
-
-fn resolve_cli_runtime_path(path: PathBuf, base: &Path, description: &str) -> AppResult<PathBuf> {
-    if path.is_absolute() {
-        return Ok(path);
-    }
-    if !base.is_absolute() {
-        return Err(AppError::Validation(format!(
-            "CLI runtime relative path base must be absolute before resolving {description}: {}",
-            base.display()
-        )));
-    }
-
-    Ok(base.join(path))
+    runtime.build()
 }
 
 fn validate_persisted_runtime_path(path: PathBuf, description: &str) -> AppResult<PathBuf> {

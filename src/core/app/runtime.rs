@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::core::addon::{
     AddonProvider, AddonStatePaths, AddonStateStorageKind, DefaultAddonProvider,
 };
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{
     DetectedFlavorInstallation, scan_installations_for_host, scan_installations_with_roots,
 };
@@ -32,17 +32,34 @@ pub struct AppRuntime {
     default_bundle_output_dir: Option<PathBuf>,
 }
 
-impl AppRuntime {
-    pub fn new() -> Self {
-        Self::default()
-    }
+#[derive(Clone)]
+enum AppRuntimeAddonProviderConfig {
+    Default(AddonProviderOptionsValue),
+    Custom(SharedAddonProvider),
+}
 
-    pub fn with_addon_provider_options(options: AddonProviderOptionsValue) -> Self {
+impl Default for AppRuntimeAddonProviderConfig {
+    fn default() -> Self {
+        Self::Default(AddonProviderOptionsValue::default())
+    }
+}
+
+#[derive(Clone)]
+pub struct AppRuntimeBuilder {
+    addon_provider: AppRuntimeAddonProviderConfig,
+    addon_state_storage_kind: AddonStateStorageKind,
+    external_helper_policy: ExternalHelperPolicyValue,
+    host_platform: HostPlatformValue,
+    install_scan_roots: Option<Vec<PathBuf>>,
+    relative_path_base: Option<PathBuf>,
+    default_backup_dir: Option<PathBuf>,
+    default_bundle_output_dir: Option<PathBuf>,
+}
+
+impl Default for AppRuntimeBuilder {
+    fn default() -> Self {
         Self {
-            addon_provider: Arc::new(
-                DefaultAddonProvider::default().with_options(options.clone().into_domain()),
-            ),
-            default_addon_provider_options: Some(options),
+            addon_provider: AppRuntimeAddonProviderConfig::default(),
             addon_state_storage_kind: AddonStateStorageKind::default(),
             external_helper_policy: ExternalHelperPolicyValue::default(),
             host_platform: HostPlatformValue::current(),
@@ -51,6 +68,133 @@ impl AppRuntime {
             default_backup_dir: None,
             default_bundle_output_dir: None,
         }
+    }
+}
+
+impl AppRuntimeBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_addon_provider_options(mut self, options: AddonProviderOptionsValue) -> Self {
+        self.addon_provider = AppRuntimeAddonProviderConfig::Default(options);
+        self
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn with_addon_provider<P>(mut self, provider: P) -> Self
+    where
+        P: AddonProvider + Send + Sync + 'static,
+    {
+        self.addon_provider = AppRuntimeAddonProviderConfig::Custom(Arc::new(provider));
+        self
+    }
+
+    pub fn with_addon_state_storage_kind(
+        mut self,
+        addon_state_storage_kind: AddonStateStorageKind,
+    ) -> Self {
+        self.addon_state_storage_kind = addon_state_storage_kind;
+        self
+    }
+
+    pub fn with_external_helper_policy(
+        mut self,
+        external_helper_policy: ExternalHelperPolicyValue,
+    ) -> Self {
+        self.external_helper_policy = external_helper_policy;
+        self
+    }
+
+    pub fn with_host_platform(mut self, host_platform: HostPlatformValue) -> Self {
+        self.host_platform = host_platform;
+        self
+    }
+
+    pub fn with_install_scan_roots(mut self, install_scan_roots: Option<Vec<PathBuf>>) -> Self {
+        self.install_scan_roots = install_scan_roots;
+        self
+    }
+
+    pub fn with_relative_path_base(mut self, relative_path_base: Option<PathBuf>) -> Self {
+        self.relative_path_base = relative_path_base;
+        self
+    }
+
+    pub fn with_default_backup_dir(mut self, default_backup_dir: Option<PathBuf>) -> Self {
+        self.default_backup_dir = default_backup_dir;
+        self
+    }
+
+    pub fn with_default_bundle_output_dir(
+        mut self,
+        default_bundle_output_dir: Option<PathBuf>,
+    ) -> Self {
+        self.default_bundle_output_dir = default_bundle_output_dir;
+        self
+    }
+
+    pub fn build(self) -> AppResult<AppRuntime> {
+        let relative_path_base = validate_relative_path_base(self.relative_path_base)?;
+        let base = relative_path_base.as_deref();
+        let install_scan_roots = resolve_optional_runtime_paths(
+            self.install_scan_roots,
+            base,
+            "installation scan root",
+        )?;
+        let default_backup_dir = resolve_optional_runtime_path(
+            self.default_backup_dir,
+            base,
+            "default backup directory",
+        )?;
+        let default_bundle_output_dir = resolve_optional_runtime_path(
+            self.default_bundle_output_dir,
+            base,
+            "default bundle output directory",
+        )?;
+
+        let (addon_provider, default_addon_provider_options) = match self.addon_provider {
+            AppRuntimeAddonProviderConfig::Default(mut options) => {
+                options.download_cache_dir = resolve_optional_runtime_path(
+                    options.download_cache_dir,
+                    base,
+                    "addon cache directory",
+                )?;
+                (
+                    Arc::new(
+                        DefaultAddonProvider::default().with_options(options.clone().into_domain()),
+                    ) as SharedAddonProvider,
+                    Some(options),
+                )
+            }
+            AppRuntimeAddonProviderConfig::Custom(provider) => (provider, None),
+        };
+
+        Ok(AppRuntime {
+            addon_provider,
+            default_addon_provider_options,
+            addon_state_storage_kind: self.addon_state_storage_kind,
+            external_helper_policy: self.external_helper_policy,
+            host_platform: self.host_platform,
+            install_scan_roots,
+            relative_path_base,
+            default_backup_dir,
+            default_bundle_output_dir,
+        })
+    }
+}
+
+impl AppRuntime {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn builder() -> AppRuntimeBuilder {
+        AppRuntimeBuilder::new()
+    }
+
+    pub fn with_addon_provider_options(options: AddonProviderOptionsValue) -> AppResult<Self> {
+        Self::builder().with_addon_provider_options(options).build()
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -58,17 +202,10 @@ impl AppRuntime {
     where
         P: AddonProvider + Send + Sync + 'static,
     {
-        Self {
-            addon_provider: Arc::new(provider),
-            default_addon_provider_options: None,
-            addon_state_storage_kind: AddonStateStorageKind::default(),
-            external_helper_policy: ExternalHelperPolicyValue::default(),
-            host_platform: HostPlatformValue::current(),
-            install_scan_roots: None,
-            relative_path_base: None,
-            default_backup_dir: None,
-            default_bundle_output_dir: None,
-        }
+        Self::builder()
+            .with_addon_provider(provider)
+            .build()
+            .expect("custom provider runtime has no fallible path normalization")
     }
 
     pub(crate) fn addon_provider(&self) -> &(dyn AddonProvider + Send + Sync) {
@@ -235,24 +372,7 @@ impl AppRuntime {
         path: PathBuf,
         description: &str,
     ) -> AppResult<PathBuf> {
-        if path.is_absolute() {
-            return Ok(path);
-        }
-
-        let Some(base) = &self.relative_path_base else {
-            return Err(crate::core::error::AppError::Validation(format!(
-                "{description} relative path requires an app runtime relative path base: {}",
-                path.display()
-            )));
-        };
-        if !base.is_absolute() {
-            return Err(crate::core::error::AppError::Validation(format!(
-                "app runtime relative path base must be absolute before resolving {description}: {}",
-                base.display()
-            )));
-        }
-
-        Ok(base.join(path))
+        resolve_runtime_path(path, self.relative_path_base.as_deref(), description)
     }
 
     pub(crate) fn scan_installations(&self) -> AppResult<Vec<DetectedFlavorInstallation>> {
@@ -312,8 +432,72 @@ impl AppRuntime {
 
 impl Default for AppRuntime {
     fn default() -> Self {
-        Self::with_addon_provider_options(AddonProviderOptionsValue::default())
+        Self::builder()
+            .build()
+            .expect("default runtime has no fallible path normalization")
     }
+}
+
+fn validate_relative_path_base(relative_path_base: Option<PathBuf>) -> AppResult<Option<PathBuf>> {
+    if let Some(base) = relative_path_base.as_deref()
+        && !base.is_absolute()
+    {
+        return Err(AppError::Validation(format!(
+            "app runtime relative path base must be absolute: {}",
+            base.display()
+        )));
+    }
+
+    Ok(relative_path_base)
+}
+
+fn resolve_optional_runtime_paths(
+    paths: Option<Vec<PathBuf>>,
+    base: Option<&Path>,
+    description: &str,
+) -> AppResult<Option<Vec<PathBuf>>> {
+    paths
+        .map(|paths| {
+            paths
+                .into_iter()
+                .map(|path| resolve_runtime_path(path, base, description))
+                .collect()
+        })
+        .transpose()
+}
+
+fn resolve_optional_runtime_path(
+    path: Option<PathBuf>,
+    base: Option<&Path>,
+    description: &str,
+) -> AppResult<Option<PathBuf>> {
+    path.map(|path| resolve_runtime_path(path, base, description))
+        .transpose()
+}
+
+fn resolve_runtime_path(
+    path: PathBuf,
+    base: Option<&Path>,
+    description: &str,
+) -> AppResult<PathBuf> {
+    if path.is_absolute() {
+        return Ok(path);
+    }
+
+    let Some(base) = base else {
+        return Err(AppError::Validation(format!(
+            "{description} relative path requires an app runtime relative path base: {}",
+            path.display()
+        )));
+    };
+    if !base.is_absolute() {
+        return Err(AppError::Validation(format!(
+            "app runtime relative path base must be absolute before resolving {description}: {}",
+            base.display()
+        )));
+    }
+
+    Ok(base.join(path))
 }
 
 impl fmt::Debug for AppRuntime {

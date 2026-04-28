@@ -197,15 +197,16 @@ fn addon_service_repair_cache_projects_provider_summary() {
     )
     .expect("orphan archive");
 
-    let service = AddonService::with_runtime(AppRuntime::with_addon_provider_options(
-        AddonProviderOptionsValue {
+    let service = AddonService::with_runtime(
+        AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
             download_cache_dir: Some(cache_dir.clone()),
             retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
             http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
                 max_age_secs: 900,
             },
-        },
-    ));
+        })
+        .expect("runtime"),
+    );
 
     let result = service.repair_cache().expect("repair cache");
 

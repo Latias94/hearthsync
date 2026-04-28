@@ -1419,3 +1419,29 @@ Specifically:
 - Runtime diagnostics and capabilities report stable cache paths.
 - Future GUI settings screens can store file-dialog selections as absolute paths while still
   accepting relative form input when they provide an explicit runtime base.
+
+## ADR-057: Runtime Builder Owns Path Normalization
+
+Accepted on 2026-04-28
+
+### Decision
+
+Runtime construction should have one fallible build step that validates and normalizes
+runtime-owned filesystem paths before services receive an `AppRuntime`.
+
+Specifically:
+
+- `AppRuntimeBuilder` collects host platform, relative-path base, provider options, addon-state
+  storage, helper policy, scan roots, and default output directories.
+- Builder `build()` validates that the relative-path base is absolute when present.
+- Builder `build()` resolves relative addon cache directories, installation scan roots, default
+  backup directories, and default bundle output directories against that base.
+- Direct default-provider construction through addon provider options is fallible, so relative
+  cache paths cannot bypass the runtime base by being applied before the base exists.
+
+### Consequences
+
+- CLI and future GUI runtime assembly can express all runtime policy first and then build once.
+- Runtime diagnostics for builder-created runtimes report normalized path policy.
+- The older simple mutators remain useful for narrow tests and app-service fixtures, while
+  path-bearing production assembly should use the builder.
