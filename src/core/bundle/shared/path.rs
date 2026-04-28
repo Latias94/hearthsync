@@ -25,6 +25,7 @@ pub(in crate::core::bundle) fn should_skip_path(path: &Path) -> bool {
             name.eq_ignore_ascii_case(".DS_Store")
                 || name.eq_ignore_ascii_case("Thumbs.db")
                 || name.eq_ignore_ascii_case("desktop.ini")
+                || name.starts_with("._")
         })
 }
 
@@ -49,6 +50,9 @@ pub(in crate::core::bundle) fn safe_file_part(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
+    use super::should_skip_path;
     use super::validate_plain_name;
 
     #[test]
@@ -72,5 +76,14 @@ mod tests {
     #[test]
     fn validate_plain_name_accepts_portable_names() {
         validate_plain_name("target account", "Account#1").expect("portable plain name");
+    }
+
+    #[test]
+    fn should_skip_path_ignores_desktop_and_appledouble_noise() {
+        for path in [".DS_Store", "Thumbs.db", "desktop.ini", "._WeakAuras.lua"] {
+            assert!(should_skip_path(Path::new(path)));
+        }
+
+        assert!(!should_skip_path(Path::new("WeakAuras.lua")));
     }
 }

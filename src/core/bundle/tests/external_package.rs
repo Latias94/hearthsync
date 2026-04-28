@@ -75,6 +75,11 @@ fn analyze_external_package_zip_ignores_macos_metadata_and_desktop_noise() {
                 "__MACOSX/AuthorUI/Interface/AddOns/WeakAuras/._WeakAuras.toc",
                 "resource fork",
             ),
+            (
+                "AuthorUI/Interface/AddOns/WeakAuras/._WeakAuras.lua",
+                "resource fork",
+            ),
+            ("AuthorUI/Fonts/._FRIZQT__.ttf", "resource fork"),
             ("AuthorUI/Interface/AddOns/WeakAuras/.DS_Store", "noise"),
             ("AuthorUI/Interface/AddOns/WeakAuras/Thumbs.db", "noise"),
             ("AuthorUI/desktop.ini", "noise"),
@@ -101,6 +106,46 @@ fn analyze_external_package_zip_ignores_macos_metadata_and_desktop_noise() {
             .entries
             .iter()
             .all(|entry| !entry.source_path.contains("__MACOSX"))
+    );
+    assert!(
+        analysis
+            .entries
+            .iter()
+            .all(|entry| !entry.source_path.contains("/._"))
+    );
+}
+
+#[test]
+fn analyze_external_package_directory_ignores_appledouble_sidecars() {
+    let temp = tempdir().expect("temp dir");
+    let package_root = temp.path().join("AuthorUI");
+    let addon_root = package_root
+        .join("Interface")
+        .join("AddOns")
+        .join("WeakAuras");
+
+    fs::create_dir_all(&addon_root).expect("addon root");
+    fs::write(
+        addon_root.join("WeakAuras.toc"),
+        "## Interface: 110000\n## Title: WeakAuras\n",
+    )
+    .expect("toc");
+    fs::write(addon_root.join("._WeakAuras.toc"), "resource fork").expect("sidecar");
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
+        source_path: package_root,
+    })
+    .expect("analyze external package directory with sidecar");
+
+    assert_eq!(analysis.summary.total_files, 1);
+    assert_eq!(analysis.summary.normalized_files, 1);
+    assert_eq!(analysis.summary.ignored_files, 0);
+    assert_eq!(analysis.summary.warning_count, 0);
+    assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
+    assert_eq!(analysis.entries.len(), 1);
+    assert_eq!(
+        analysis.entries[0].normalized_path,
+        "addons/WeakAuras/WeakAuras.toc"
     );
 }
 

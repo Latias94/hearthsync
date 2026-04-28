@@ -305,9 +305,10 @@ enough that these rules live in one place.
   regression coverage in addition to zip-fixture coverage, so Windows/default-macOS case-folding
   behavior is tested without depending on a host filesystem that can physically materialize
   case-only directory entries.
-  Current progress: author-package zip analysis now also has explicit coverage for common macOS
-  resource-fork metadata and desktop noise (`__MACOSX`, `.DS_Store`, `Thumbs.db`, `desktop.ini`),
-  so these archive artifacts stay out of normalized package entries and warning counts.
+  Current progress: author-package zip and directory analysis now also has explicit coverage for
+  common macOS resource-fork metadata and desktop noise (`__MACOSX`, `._*`, `.DS_Store`,
+  `Thumbs.db`, `desktop.ini`), so these archive artifacts stay out of normalized package entries
+  and warning counts.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two

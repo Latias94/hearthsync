@@ -321,9 +321,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - external-package normalized-path collision rules now also have pure logical regression coverage
   in addition to zip-fixture coverage, so Windows/default-macOS case-folding behavior no longer
   depends only on integration fixtures that a host filesystem may be unable to materialize
-- author-package zip analysis now also explicitly covers common macOS resource-fork metadata and
-  desktop noise, keeping `__MACOSX`, `.DS_Store`, `Thumbs.db`, and `desktop.ini` artifacts out of
-  normalized package entries and warning counts
+- author-package zip and directory analysis now also explicitly covers common macOS resource-fork
+  metadata and desktop noise, keeping `__MACOSX`, `._*`, `.DS_Store`, `Thumbs.db`, and
+  `desktop.ini` artifacts out of normalized package entries and warning counts
 - bundle archive inspect/apply/addon-lock extraction now also reject symlink entries up front, so
   first-party bundle ingestion no longer trails addon/external-package/backup archive safety
 - bundle archive entry validation now also rejects non-portable path segments during inspect/apply,
