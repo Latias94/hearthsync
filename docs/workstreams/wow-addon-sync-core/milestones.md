@@ -386,6 +386,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   Windows/default-macOS author-package normalization and addon-archive install/update flows no
   longer silently drop mixed-case addon subtree files while Linux still preserves case-sensitive
   distinct-root behavior
+- Windows-to-macOS author-package apply coverage now also includes a complex zip with a wrapper
+  directory, mixed-case `Interface/AddOns` subtree paths, WTF/fonts/interface resources, default
+  author-package policies, backup creation, and macOS/desktop noise that must not be imported
 - the next `M4` slices should now focus on archive compatibility, Windows-to-macOS regression
   coverage, and remaining path-portability hardening
 

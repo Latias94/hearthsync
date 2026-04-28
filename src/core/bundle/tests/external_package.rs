@@ -1402,6 +1402,191 @@ fn apply_external_package_respects_policy_overrides_on_macos_target() {
 }
 
 #[test]
+fn apply_external_package_applies_complex_windows_author_zip_to_macos_target() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let package_path = source.path().join("complex-author-ui-pack.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            (
+                "AuthorUI/Interface/AddOns/WeakAuras/WeakAuras.toc",
+                "## Interface: 110000\n## Title: WeakAuras\n",
+            ),
+            (
+                "AuthorUI/INTERFACE/ADDONS/weakauras/Core.lua",
+                "print('core')",
+            ),
+            (
+                "AuthorUI/INTERFACE/ADDONS/weakauras/Modules/Module.lua",
+                "print('module')",
+            ),
+            (
+                "__MACOSX/AuthorUI/Interface/AddOns/WeakAuras/._WeakAuras.toc",
+                "resource fork",
+            ),
+            (
+                "AuthorUI/INTERFACE/ADDONS/weakauras/._Core.lua",
+                "resource fork",
+            ),
+            ("AuthorUI/Interface/AddOns/WeakAuras/.DS_Store", "noise"),
+            ("AuthorUI/WTF/Config.wtf", "SET locale enUS"),
+            (
+                "AuthorUI/WTF/Account/ACCOUNT/SavedVariables/Details.lua",
+                "DetailsDB = {}",
+            ),
+            (
+                "AuthorUI/WTF/Account/ACCOUNT/bindings-cache.wtf",
+                "target bindings",
+            ),
+            (
+                "AuthorUI/WTF/Account/ACCOUNT/Illidan/Examplemage/AddOns.txt",
+                "WeakAuras: enabled",
+            ),
+            (
+                "AuthorUI/WTF/Account/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua",
+                "PawnOptions = {}",
+            ),
+            ("AuthorUI/Fonts/FRIZQT__.ttf", "complex-font"),
+            ("AuthorUI/Fonts/._FRIZQT__.ttf", "resource fork"),
+            (
+                "AuthorUI/INTERFACE/SharedXML/texture.blp",
+                "complex-texture",
+            ),
+            ("AuthorUI/INTERFACE/SharedXML/Thumbs.db", "noise"),
+        ],
+    );
+
+    let target_installation =
+        create_fixture_installation_on_platform(target.path(), false, HostPlatform::MacOs);
+    seed_external_package_policy_target(&target_installation);
+
+    let result = apply_external_package(ApplyExternalPackageRequest {
+        external_package: sample_external_package_request_with_apply_defaults(package_path, None),
+        installation: target_installation.clone(),
+        dry_run: false,
+        backup_output_path: Some(target.path().join("backups")),
+        apply_mappings: BundleApplyMappings {
+            target_account: Some("ACCOUNT".to_string()),
+            target_server: Some("Illidan".to_string()),
+            target_character: Some("Examplemage".to_string()),
+            ..BundleApplyMappings::default()
+        },
+    })
+    .expect("apply complex external package");
+
+    assert_eq!(target_installation.platform, HostPlatform::MacOs);
+    assert_eq!(result.manifest.source.platform, Some(HostPlatform::Windows));
+    assert!(result.manifest.apply.create_backup);
+    assert!(result.backup_path.is_some());
+    assert_eq!(result.analysis.summary.total_files, 10);
+    assert_eq!(result.analysis.summary.normalized_files, 10);
+    assert_eq!(result.analysis.summary.warning_count, 0);
+    assert_eq!(
+        result.analysis.resources.addons,
+        vec!["WeakAuras".to_string()]
+    );
+    assert_eq!(
+        result.analysis.resources.interface_assets,
+        vec!["SharedXML".to_string()]
+    );
+    assert_eq!(result.written_files, 9);
+    assert_eq!(result.plan_summary.paths_to_remove, 4);
+    assert_eq!(result.plan_summary.files_to_preserve, 1);
+
+    let addon_root = target_installation.addon_dir.join("WeakAuras");
+    assert!(addon_root.join("WeakAuras.toc").exists());
+    assert_eq!(
+        fs::read_to_string(addon_root.join("Core.lua")).expect("core"),
+        "print('core')"
+    );
+    assert_eq!(
+        fs::read_to_string(addon_root.join("Modules").join("Module.lua")).expect("module"),
+        "print('module')"
+    );
+    assert!(!addon_root.join("Stale.lua").exists());
+    assert!(!addon_root.join("._Core.lua").exists());
+    assert!(!addon_root.join(".DS_Store").exists());
+
+    assert_eq!(
+        fs::read_to_string(target_installation.wtf_dir.join("Config.wtf")).expect("target config"),
+        "SET locale zhCN"
+    );
+    assert!(
+        target_installation
+            .wtf_dir
+            .join("Account")
+            .join("ACCOUNT")
+            .join("SavedVariables")
+            .join("Details.lua")
+            .exists()
+    );
+    assert!(
+        target_installation
+            .wtf_dir
+            .join("Account")
+            .join("ACCOUNT")
+            .join("bindings-cache.wtf")
+            .exists()
+    );
+    assert!(
+        !target_installation
+            .wtf_dir
+            .join("Account")
+            .join("ACCOUNT")
+            .join("Illidan")
+            .join("Examplemage")
+            .join("StaleCharacter.txt")
+            .exists()
+    );
+    assert!(
+        target_installation
+            .wtf_dir
+            .join("Account")
+            .join("ACCOUNT")
+            .join("Illidan")
+            .join("Examplemage")
+            .join("SavedVariables")
+            .join("Pawn.lua")
+            .exists()
+    );
+    assert_eq!(
+        fs::read_to_string(target_installation.fonts_dir.join("FRIZQT__.ttf")).expect("font"),
+        "complex-font"
+    );
+    assert!(
+        !target_installation
+            .fonts_dir
+            .join("._FRIZQT__.ttf")
+            .exists()
+    );
+    assert!(
+        !target_installation
+            .interface_dir
+            .join("SharedXML")
+            .join("old.blp")
+            .exists()
+    );
+    assert_eq!(
+        fs::read_to_string(
+            target_installation
+                .interface_dir
+                .join("SharedXML")
+                .join("texture.blp")
+        )
+        .expect("texture"),
+        "complex-texture"
+    );
+    assert!(
+        !target_installation
+            .interface_dir
+            .join("SharedXML")
+            .join("Thumbs.db")
+            .exists()
+    );
+}
+
+#[test]
 fn analyze_external_package_serializes_warning_groups_for_machine_consumers() {
     let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
         source_path: external_package_dirty_fixture_root(),

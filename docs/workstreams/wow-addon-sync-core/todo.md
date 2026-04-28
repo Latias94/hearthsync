@@ -317,6 +317,10 @@ enough that these rules live in one place.
   platform-aware contract. Windows/default-macOS author-package normalization and addon-archive
   install/update flows no longer silently drop files when one addon subtree uses mixed path casing,
   while Linux keeps case-sensitive distinct-root behavior.
+  Current progress: the Windows-to-macOS apply floor now includes a complex author-package zip with
+  a wrapper directory, mixed-case `Interface/AddOns` subtree paths, WTF/fonts/interface resources,
+  default author-package apply policies, backup creation, and macOS/desktop noise that must not be
+  imported.
 - [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and
   caller-working-directory assumptions
   Current progress: bundle export no longer defaults output paths or relative output references
