@@ -15,13 +15,13 @@ use crate::core::addon::{
     RelinkAddonRequest as DomainRelinkAddonRequest,
 };
 use crate::core::app::{
-    AddonPackageMetadataValue, AddonPolicyPinValue, AddonReleaseChannelValue, AppRuntime,
-    ApplyAddonLockAppRequest, ApplyBundleAddonLockAppRequest, ApplyBundleAppRequest,
-    ApplyConfigAppRequest, ApplyExternalPackageAppRequest, AttachAddonIndexAppRequest,
-    BackupGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
-    BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
-    BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-    CharacterMappingModeValue, ConfigPackageAppRequest, CreateBackupAppRequest,
+    AddonLockSourceOverrideRequest, AddonPackageMetadataValue, AddonPolicyPinValue,
+    AddonReleaseChannelValue, AppRuntime, ApplyAddonLockAppRequest, ApplyBundleAddonLockAppRequest,
+    ApplyBundleAppRequest, ApplyConfigAppRequest, ApplyExternalPackageAppRequest,
+    AttachAddonIndexAppRequest, BackupGroupValue, BundleApplyDefaultsValue,
+    BundleApplyMappingsValue, BundleCharacterMappingOverrideValue, BundleCharacterResourceValue,
+    BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue,
+    BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest, CreateBackupAppRequest,
     CreateExternalPackageBundleAppRequest, HostPlatformValue, InspectAddonPolicyRequest,
     InspectConfigAppRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
     ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
@@ -294,7 +294,9 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
     }
     .into_domain_request(&runtime)
     .expect("install domain request");
-    let backup_dir = ListBackupsRequest { backup_dir: None }.into_backup_dir(&runtime);
+    let backup_dir = ListBackupsRequest { backup_dir: None }
+        .into_backup_dir(&runtime)
+        .expect("backup dir");
     let external_bundle = sample_external_package_bundle_request()
         .into_domain_request(&runtime)
         .expect("external package domain request");
@@ -303,7 +305,7 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
         install.backup_output_path,
         Some(PathBuf::from("runtime-backups"))
     );
-    assert_eq!(backup_dir, Some(PathBuf::from("runtime-backups")));
+    assert_eq!(backup_dir, Some(base.join("runtime-backups")));
     assert_eq!(
         external_bundle.source_platform,
         Some(crate::core::install::HostPlatform::MacOs)
@@ -353,7 +355,7 @@ fn thin_installation_requests_project_domain_inputs() {
         lock_installation.flavor_root,
         PathBuf::from("World of Warcraft/_retail_")
     );
-    assert_eq!(lock_path, Some(PathBuf::from("lock.toml")));
+    assert_eq!(lock_path, Some(base.join("lock.toml")));
     assert_eq!(bundle_path, base.join("bundle.zip"));
     assert_eq!(
         bundle_installation.addon_dir,
@@ -362,6 +364,32 @@ fn thin_installation_requests_project_domain_inputs() {
     assert_eq!(apply_mappings.target_account.as_deref(), Some("AccountA"));
     assert_eq!(apply_mappings.target_server.as_deref(), Some("Illidan"));
     assert_eq!(apply_mappings.target_character.as_deref(), Some("Main"));
+}
+
+#[test]
+fn apply_addon_lock_request_resolves_relative_lock_and_source_overrides() {
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+
+    let domain = ApplyAddonLockAppRequest {
+        installation: sample_installation(),
+        lock_path: Some(PathBuf::from("locks/addons.lock.toml")),
+        backup_output_path: Some(PathBuf::from("backup")),
+        replace_existing: true,
+        source_overrides: vec![AddonLockSourceOverrideRequest {
+            comparison_key: "addons:details".to_string(),
+            archive_path: PathBuf::from("sources/Details.zip"),
+        }],
+    }
+    .into_domain_request(&runtime)
+    .expect("addon lock apply request");
+
+    assert_eq!(domain.lock_path, Some(base.join("locks/addons.lock.toml")));
+    assert_eq!(
+        domain.source_overrides[0].archive_path,
+        base.join("sources/Details.zip")
+    );
+    assert_eq!(domain.source_overrides[0].comparison_key, "addons:details");
 }
 
 #[test]

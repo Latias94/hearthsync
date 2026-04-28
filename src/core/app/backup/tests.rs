@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 
@@ -8,6 +8,7 @@ use crate::core::app::{
     AppRuntime, BackupService, CreateBackupAppRequest, ListBackupsRequest,
     ResolvedInstallationValue, RestoreBackupAppRequest,
 };
+use crate::core::error::AppError;
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase, TaskProgressCode, TaskProgressEvent};
 
@@ -69,6 +70,110 @@ fn backup_service_restore_collecting_progress_returns_restore_task_events() {
     assert_eq!(restore_entry.current, Some(1));
     assert_eq!(restore_entry.total, Some(1));
     assert_backup_restore_task_progress(&run.progress);
+}
+
+#[test]
+fn backup_service_list_resolves_relative_dir_against_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let backup_dir = temp.path().join("backups");
+    fs::create_dir_all(&backup_dir).expect("backup dir");
+
+    let service = BackupService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+    );
+    let catalog = service
+        .list(ListBackupsRequest {
+            backup_dir: Some(PathBuf::from("backups")),
+        })
+        .expect("list relative backup dir");
+
+    assert_eq!(catalog.backup_dir, backup_dir);
+}
+
+#[test]
+fn backup_service_list_rejects_relative_dir_without_runtime_base() {
+    let error = BackupService::new()
+        .list(ListBackupsRequest {
+            backup_dir: Some(PathBuf::from("backups")),
+        })
+        .expect_err("relative backup dir without base should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("relative path base"));
+}
+
+#[test]
+fn backup_service_restore_resolves_relative_archive_against_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_empty_installation(temp.path());
+
+    fs::create_dir_all(installation.addon_dir.join("WeakAuras")).expect("addon dir");
+    fs::write(
+        installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc"),
+        "before",
+    )
+    .expect("write toc");
+
+    let backup = BackupService::new()
+        .create(CreateBackupAppRequest {
+            installation: installation.clone(),
+            output_path: Some(temp.path().join("backups")),
+            groups: vec![crate::core::app::BackupGroupValue::Addons],
+            label: Some("relative-restore".to_string()),
+        })
+        .expect("create backup");
+
+    fs::write(
+        installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc"),
+        "after",
+    )
+    .expect("mutate addon");
+
+    let backup_file_name =
+        PathBuf::from(backup.archive_path.file_name().expect("backup file name"));
+    let service = BackupService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(
+            backup
+                .archive_path
+                .parent()
+                .expect("backup parent")
+                .to_path_buf(),
+        )),
+    );
+    let restored = service
+        .restore(RestoreBackupAppRequest {
+            installation,
+            archive_path: Some(backup_file_name),
+            backup_id: None,
+            backup_dir: None,
+        })
+        .expect("restore relative backup archive");
+
+    assert_eq!(restored.restored_files, 1);
+}
+
+#[test]
+fn backup_service_restore_rejects_relative_archive_without_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_empty_installation(temp.path());
+
+    let error = BackupService::new()
+        .restore(RestoreBackupAppRequest {
+            installation,
+            archive_path: Some(PathBuf::from("backup.zip")),
+            backup_id: None,
+            backup_dir: None,
+        })
+        .expect_err("relative backup archive without base should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("relative path base"));
 }
 
 #[test]

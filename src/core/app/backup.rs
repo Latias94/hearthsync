@@ -33,7 +33,7 @@ impl BackupService {
     }
 
     pub(super) fn list(&self, request: ListBackupsRequest) -> AppResult<BackupCatalogResult> {
-        let backup_dir = request.into_backup_dir(&self.runtime);
+        let backup_dir = request.into_backup_dir(&self.runtime)?;
         let catalog = list_backups(backup_dir.as_deref())?;
         Ok(BackupCatalogResult::from_domain(catalog))
     }
@@ -57,7 +57,7 @@ impl BackupService {
         TProgress: TaskProgressSink,
     {
         let restored = restore_backup_selection_task(
-            request.into_domain_request(&self.runtime),
+            request.into_domain_request(&self.runtime)?,
             cancellation,
             progress,
         )?;

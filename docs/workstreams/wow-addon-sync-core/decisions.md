@@ -1285,3 +1285,31 @@ Specifically:
   paths with no runtime base dependency.
 - Export destination semantics stay separate from read-input semantics, avoiding accidental
   changes to bundle output placement.
+
+## ADR-052: Lock And Backup Selection Paths Resolve At The App Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+Addon-lock file selections and backup restore/list selections are frontend input and must resolve
+before app services call addon-lock or backup core code.
+
+Specifically:
+
+- Relative addon-lock diff paths, verify/plan/apply lock paths, and explicit source override
+  archive paths resolve against `AppRuntime`'s absolute relative-path base.
+- Relative backup list directories, restore directories, and restore archive paths resolve against
+  the same runtime base before backup catalog or restore selection logic runs.
+- Backup output directories remain a separate output-path decision because the same option shape is
+  shared across addon, addon-index, addon-lock, bundle, external-package, and backup creation
+  flows.
+
+### Consequences
+
+- CLI keeps the expected `addon-lock diff ./left.toml ./right.toml` and `backup restore
+  --archive ./backup.zip` behavior through runtime assembly rather than core cwd.
+- Future GUI callers can make lock/backup file-dialog bases explicit instead of relying on the
+  process launch directory.
+- The remaining backup-output cleanup can be done consistently across every mutation flow instead
+  of changing only one caller family.

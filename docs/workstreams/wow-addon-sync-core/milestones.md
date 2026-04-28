@@ -289,6 +289,11 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   manifest base directories resolve against the runtime relative-path base before stable app
   services enter bundle or external-package core code; bundle output paths keep their existing
   manifest/installation-derived base semantics
+- addon-lock and backup selection paths now also resolve at the app boundary: relative lock diff
+  files, verify/plan/apply lock files, explicit addon-lock source override archives, backup list
+  directories, restore directories, and restore archive paths resolve against the runtime
+  relative-path base before addon-lock or backup core code reads them; backup output directories
+  remain queued for a cross-flow output-path cleanup
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

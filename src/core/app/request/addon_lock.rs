@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
-use super::super::map_owned_vec;
-use super::{RuntimeDefaultableRequest, apply_backup_output_default};
+use super::{
+    RuntimeDefaultableRequest, apply_backup_output_default, resolve_app_input_path,
+    resolve_optional_app_input_path,
+};
 use crate::core::addon::lock::{
     AddonLockApplyRequest as DomainAddonLockApplyRequest,
     AddonLockSourceOverride as DomainAddonLockSourceOverride,
@@ -54,6 +56,15 @@ pub struct DiffAddonLockRequest {
     pub right_lock_path: PathBuf,
 }
 
+impl DiffAddonLockRequest {
+    pub(crate) fn into_lock_paths(self, runtime: &AppRuntime) -> AppResult<(PathBuf, PathBuf)> {
+        Ok((
+            resolve_addon_lock_path(runtime, self.left_lock_path, "left addon lock file")?,
+            resolve_addon_lock_path(runtime, self.right_lock_path, "right addon lock file")?,
+        ))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct VerifyAddonLockRequest {
     pub installation: ResolvedInstallationValue,
@@ -71,7 +82,11 @@ impl VerifyAddonLockRequest {
     )> {
         let installation = self.installation.into_domain();
         let state_paths = runtime.addon_state_paths(&installation)?;
-        Ok((installation, state_paths, self.lock_path))
+        Ok((
+            installation,
+            state_paths,
+            resolve_optional_addon_lock_path(runtime, self.lock_path, "addon lock file")?,
+        ))
     }
 }
 
@@ -92,7 +107,11 @@ impl PlanAddonLockSyncRequest {
     )> {
         let installation = self.installation.into_domain();
         let state_paths = runtime.addon_state_paths(&installation)?;
-        Ok((installation, state_paths, self.lock_path))
+        Ok((
+            installation,
+            state_paths,
+            resolve_optional_addon_lock_path(runtime, self.lock_path, "addon lock file")?,
+        ))
     }
 }
 
@@ -103,11 +122,18 @@ pub struct AddonLockSourceOverrideRequest {
 }
 
 impl AddonLockSourceOverrideRequest {
-    fn into_domain_override(self) -> DomainAddonLockSourceOverride {
-        DomainAddonLockSourceOverride {
+    fn into_domain_override(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonLockSourceOverride> {
+        Ok(DomainAddonLockSourceOverride {
             comparison_key: self.comparison_key,
-            archive_path: self.archive_path,
-        }
+            archive_path: resolve_addon_lock_path(
+                runtime,
+                self.archive_path,
+                "addon lock source override archive",
+            )?,
+        })
     }
 }
 
@@ -139,14 +165,35 @@ impl ApplyAddonLockAppRequest {
             Ok(DomainAddonLockApplyRequest {
                 installation,
                 state_paths,
-                lock_path: request.lock_path,
+                lock_path: resolve_optional_addon_lock_path(
+                    runtime,
+                    request.lock_path,
+                    "addon lock file",
+                )?,
                 backup_output_path: request.backup_output_path,
                 replace_existing: request.replace_existing,
-                source_overrides: map_owned_vec(
-                    request.source_overrides,
-                    AddonLockSourceOverrideRequest::into_domain_override,
-                ),
+                source_overrides: request
+                    .source_overrides
+                    .into_iter()
+                    .map(|source_override| source_override.into_domain_override(runtime))
+                    .collect::<AppResult<Vec<_>>>()?,
             })
         })
     }
+}
+
+fn resolve_addon_lock_path(
+    runtime: &AppRuntime,
+    path: PathBuf,
+    description: &str,
+) -> AppResult<PathBuf> {
+    resolve_app_input_path(runtime, path, description)
+}
+
+fn resolve_optional_addon_lock_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+    description: &str,
+) -> AppResult<Option<PathBuf>> {
+    resolve_optional_app_input_path(runtime, path, description)
 }

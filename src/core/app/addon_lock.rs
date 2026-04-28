@@ -50,7 +50,8 @@ impl AddonLockService {
     }
 
     pub(super) fn diff(&self, request: DiffAddonLockRequest) -> AppResult<AddonLockDiffResult> {
-        let diff = diff_addon_locks(&request.left_lock_path, &request.right_lock_path)?;
+        let (left_lock_path, right_lock_path) = request.into_lock_paths(&self.runtime)?;
+        let diff = diff_addon_locks(&left_lock_path, &right_lock_path)?;
         Ok(AddonLockDiffResult::from_domain_with_provider(
             diff,
             self.runtime.addon_provider(),

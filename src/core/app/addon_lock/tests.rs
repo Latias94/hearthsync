@@ -5,8 +5,10 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AddonLockService, ApplyAddonLockAppRequest, PlanAddonLockSyncRequest, ResolvedInstallationValue,
+    AddonLockService, AppRuntime, ApplyAddonLockAppRequest, DiffAddonLockRequest,
+    PlanAddonLockSyncRequest, ResolvedInstallationValue,
 };
+use crate::core::error::AppError;
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};
 
@@ -27,6 +29,67 @@ fn addon_lock_service_plan_sync_reads_empty_lock() {
     assert_eq!(plan.install_count, 0);
     assert_eq!(plan.update_count, 0);
     assert_eq!(plan.remove_count, 0);
+}
+
+#[test]
+fn addon_lock_service_plan_sync_resolves_relative_lock_against_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let current = create_empty_installation(&temp.path().join("current"));
+    let locks = temp.path().join("locks");
+    fs::create_dir_all(&locks).expect("locks dir");
+    let lock_path = write_empty_lock(locks.join("desired-lock.toml"));
+
+    let service = AddonLockService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(locks.clone())),
+    );
+    let plan = service
+        .plan_sync(PlanAddonLockSyncRequest {
+            installation: current,
+            lock_path: Some(PathBuf::from("desired-lock.toml")),
+        })
+        .expect("plan relative addon lock");
+
+    assert_eq!(plan.lock_path, lock_path);
+    assert_eq!(plan.install_count, 0);
+}
+
+#[test]
+fn addon_lock_service_plan_sync_rejects_relative_lock_without_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let current = create_empty_installation(&temp.path().join("current"));
+
+    let error = AddonLockService::new()
+        .plan_sync(PlanAddonLockSyncRequest {
+            installation: current,
+            lock_path: Some(PathBuf::from("desired-lock.toml")),
+        })
+        .expect_err("relative addon lock without base should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("relative path base"));
+}
+
+#[test]
+fn addon_lock_service_diff_resolves_relative_locks_against_runtime_base() {
+    let temp = tempdir().expect("temp dir");
+    let locks = temp.path().join("locks");
+    fs::create_dir_all(&locks).expect("locks dir");
+    let left = write_empty_lock(locks.join("left.toml"));
+    let right = write_empty_lock(locks.join("right.toml"));
+
+    let service = AddonLockService::with_runtime(
+        AppRuntime::new().with_relative_path_base(Some(locks.clone())),
+    );
+    let diff = service
+        .diff(DiffAddonLockRequest {
+            left_lock_path: PathBuf::from("left.toml"),
+            right_lock_path: PathBuf::from("right.toml"),
+        })
+        .expect("diff relative locks");
+
+    assert!(diff.identical);
+    assert_eq!(diff.left_label, left.display().to_string());
+    assert_eq!(diff.right_label, right.display().to_string());
 }
 
 #[test]

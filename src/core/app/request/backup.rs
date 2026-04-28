@@ -1,11 +1,15 @@
 use std::path::PathBuf;
 
 use super::super::map_owned_vec;
-use super::{RuntimeDefaultableRequest, apply_backup_dir_default, apply_backup_output_default};
+use super::{
+    RuntimeDefaultableRequest, apply_backup_dir_default, apply_backup_output_default,
+    resolve_optional_app_input_path,
+};
 use crate::core::app::{AppRuntime, BackupGroupValue, ResolvedInstallationValue};
 use crate::core::backup::{
     BackupRequest as DomainBackupRequest, RestoreBackupRequest as DomainRestoreBackupRequest,
 };
+use crate::core::error::AppResult;
 
 #[derive(Debug, Clone)]
 pub struct ListBackupsRequest {
@@ -20,8 +24,12 @@ impl RuntimeDefaultableRequest for ListBackupsRequest {
 }
 
 impl ListBackupsRequest {
-    pub(crate) fn into_backup_dir(self, runtime: &AppRuntime) -> Option<PathBuf> {
-        self.apply_runtime_defaults(runtime).backup_dir
+    pub(crate) fn into_backup_dir(self, runtime: &AppRuntime) -> AppResult<Option<PathBuf>> {
+        resolve_optional_backup_path(
+            runtime,
+            self.apply_runtime_defaults(runtime).backup_dir,
+            "backup directory",
+        )
     }
 }
 
@@ -67,12 +75,33 @@ impl RuntimeDefaultableRequest for RestoreBackupAppRequest {
 }
 
 impl RestoreBackupAppRequest {
-    pub(crate) fn into_domain_request(self, runtime: &AppRuntime) -> DomainRestoreBackupRequest {
-        self.into_domain_with_runtime_defaults(runtime, |request| DomainRestoreBackupRequest {
-            installation: request.installation.into_domain(),
-            archive_path: request.archive_path,
-            backup_id: request.backup_id,
-            backup_dir: request.backup_dir,
+    pub(crate) fn into_domain_request(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainRestoreBackupRequest> {
+        self.into_domain_with_runtime_defaults(runtime, |request| {
+            Ok(DomainRestoreBackupRequest {
+                installation: request.installation.into_domain(),
+                archive_path: resolve_optional_backup_path(
+                    runtime,
+                    request.archive_path,
+                    "backup archive",
+                )?,
+                backup_id: request.backup_id,
+                backup_dir: resolve_optional_backup_path(
+                    runtime,
+                    request.backup_dir,
+                    "backup directory",
+                )?,
+            })
         })
     }
+}
+
+fn resolve_optional_backup_path(
+    runtime: &AppRuntime,
+    path: Option<PathBuf>,
+    description: &str,
+) -> AppResult<Option<PathBuf>> {
+    resolve_optional_app_input_path(runtime, path, description)
 }
