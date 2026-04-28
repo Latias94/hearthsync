@@ -8,6 +8,7 @@ mod config;
 mod extended;
 mod external_package;
 mod install;
+mod live_task;
 mod request;
 mod response;
 mod runtime;
@@ -37,6 +38,8 @@ pub(in crate::core::app) use config::ConfigService;
 pub use extended::ExtendedAppServices;
 pub(in crate::core::app) use external_package::ExternalPackageService;
 pub(in crate::core::app) use install::InstallationService;
+pub use live_task::AppLiveTask;
+pub(in crate::core::app) use live_task::run_app_live_task;
 pub use request::addon::{
     AdoptAddonsAppRequest, InstallAddonAppRequest, ListAddonsRequest, RelinkAddonAppRequest,
     RemoveAddonAppRequest, SearchAddonsRequest, UpdateAddonAppRequest,

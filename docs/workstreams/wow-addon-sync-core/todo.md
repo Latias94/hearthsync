@@ -857,9 +857,12 @@ place.
   sibling modules. Provider cache/freshness changes and new source adapters no longer expand one
   multi-responsibility module. The provider-local clippy findings from the review are also cleared;
   remaining clippy work is outside the provider slice.
-- [ ] promote one app-owned live task contract for cancellation and progress streaming
-  Target: CLI collected-progress helpers and future `egui` live progress both consume the same
-  stable task semantics.
+- [x] promote one app-owned live task contract for cancellation and progress streaming
+  Completed: `core::app::AppLiveTask` is now the public live-task input contract. Stable and
+  extended app services expose `*_live` methods for long-running operations, while existing
+  collected `TaskRun<T>` methods remain convenience wrappers. GUI callers can now stream
+  `TaskProgressEvent` payloads and provide cancellation without reaching into internal service
+  callback methods or `core::task` runners.
 - [ ] turn clippy into an actionable refactor gate
   Target: `cargo clippy --all-targets -- -D warnings` passes, or any remaining warnings are narrow,
   intentional, and documented.

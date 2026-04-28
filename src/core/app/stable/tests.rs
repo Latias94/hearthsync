@@ -1,3 +1,4 @@
+use std::cell::{Cell, RefCell};
 use std::fs;
 use std::path::Path;
 
@@ -5,11 +6,12 @@ use tempfile::tempdir;
 
 use crate::core::app::{
     AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime, AppRuntimeCapabilitiesValue,
-    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
-    HealthStatusValue, HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
-    InspectInstallationRequest, ResolveInstallationRequest, SetRuntimeSettingsAppRequest,
-    StableAppServices, WowFlavorValue, runtime_settings_path_guard,
+    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppLiveTask, AppRuntime,
+    AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
+    HttpNoValidatorCachePolicyValue, InspectConfigAppRequest, InspectInstallationRequest,
+    ResolveInstallationRequest, SetRuntimeSettingsAppRequest, StableAppServices, TaskKind,
+    TaskPhase, WowFlavorValue, runtime_settings_path_guard,
 };
 
 #[test]
@@ -285,4 +287,62 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
         reset.settings,
         crate::core::app::RuntimeSettingsValue::default()
     );
+}
+
+#[test]
+fn stable_app_services_live_task_streams_progress_through_app_contract() {
+    let temp = tempdir().expect("temp dir");
+    let package_root = create_minimal_config_source(temp.path());
+    let services = StableAppServices::new();
+    let seen = RefCell::new(Vec::new());
+    let cancellation_checks = Cell::new(0usize);
+
+    let result = services
+        .inspect_config_live(
+            InspectConfigAppRequest {
+                source_path: package_root,
+            },
+            AppLiveTask::new(
+                || {
+                    let next = cancellation_checks.get() + 1;
+                    cancellation_checks.set(next);
+                    false
+                },
+                |event| seen.borrow_mut().push(event),
+            ),
+        )
+        .expect("inspect config live");
+
+    assert_eq!(result.resources.addons, vec!["WeakAuras".to_string()]);
+    assert!(cancellation_checks.get() > 0);
+
+    let seen = seen.borrow();
+    assert_eq!(
+        seen.iter()
+            .map(|event| (event.task, event.phase))
+            .collect::<Vec<_>>(),
+        vec![
+            (TaskKind::ExternalPackageAnalyze, TaskPhase::Preparing),
+            (TaskKind::ExternalPackageAnalyze, TaskPhase::Planning),
+            (TaskKind::ExternalPackageAnalyze, TaskPhase::Completed),
+        ]
+    );
+    assert!(seen.iter().all(|event| event.task_id.is_some()));
+    assert!(
+        seen.windows(2)
+            .all(|window| window[0].task_id == window[1].task_id)
+    );
+}
+
+fn create_minimal_config_source(root: &Path) -> std::path::PathBuf {
+    let package_root = root.join("AuthorPack");
+    let addon_root = package_root.join("WeakAuras");
+    fs::create_dir_all(&addon_root).expect("addon dir");
+    fs::write(
+        addon_root.join("WeakAuras.toc"),
+        "## Interface: 110000\n## Title: WeakAuras\n",
+    )
+    .expect("toc");
+    fs::write(addon_root.join("WeakAuras.lua"), "WeakAurasSaved = {}").expect("lua");
+    package_root
 }

@@ -859,3 +859,7 @@ contracts for the future `egui` frontend.
   composition. Provider-local clippy findings were reduced out of the remaining baseline; the
   follow-up clippy milestone is now concentrated in addon mutation/package-prep, task progress,
   bundle/install/lua helpers, and tests.
+- fifth progress is also in place: `core::app::AppLiveTask` is the stable live-task input contract,
+  and stable/extended services now expose public `*_live` entrypoints for long-running operations.
+  These entrypoints reuse the same cancellation polling and `TaskProgressEvent` stream as the
+  existing callback runner, while `TaskRun<T>` remains the collected-progress convenience result.

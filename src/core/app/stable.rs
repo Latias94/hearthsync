@@ -141,6 +141,21 @@ impl StableAppServices {
         self.addons().install_collecting_progress(request)
     }
 
+    pub fn install_addon_live<FCancel, FProgress>(
+        &self,
+        request: super::InstallAddonAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::InstalledAddonPackageResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addons()
+                .install_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn update_addons(
         &self,
         request: super::UpdateAddonAppRequest,
@@ -148,11 +163,41 @@ impl StableAppServices {
         self.addons().update_collecting_progress(request)
     }
 
+    pub fn update_addons_live<FCancel, FProgress>(
+        &self,
+        request: super::UpdateAddonAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::UpdatedAddonPackageResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addons()
+                .update_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn remove_addons(
         &self,
         request: super::RemoveAddonAppRequest,
     ) -> AppResult<super::TaskRun<super::RemovedAddonPackageResult>> {
         self.addons().remove_collecting_progress(request)
+    }
+
+    pub fn remove_addons_live<FCancel, FProgress>(
+        &self,
+        request: super::RemoveAddonAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::RemovedAddonPackageResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addons()
+                .remove_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn inspect_addon_policy(
@@ -197,6 +242,21 @@ impl StableAppServices {
         self.backups().restore_collecting_progress(request)
     }
 
+    pub fn restore_backup_live<FCancel, FProgress>(
+        &self,
+        request: super::RestoreBackupAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::RestoredBackupResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.backups()
+                .restore_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn inspect_bundle(
         &self,
         request: super::InspectBundleRequest,
@@ -225,11 +285,41 @@ impl StableAppServices {
         self.bundles().apply_collecting_progress(request)
     }
 
+    pub fn apply_bundle_live<FCancel, FProgress>(
+        &self,
+        request: super::ApplyBundleAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::BundleApplyResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.bundles()
+                .apply_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn inspect_config(
         &self,
         request: super::InspectConfigAppRequest,
     ) -> AppResult<super::TaskRun<super::ConfigInspectionResult>> {
         self.configs().inspect_collecting_progress(request)
+    }
+
+    pub fn inspect_config_live<FCancel, FProgress>(
+        &self,
+        request: super::InspectConfigAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::ConfigInspectionResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.configs()
+                .inspect_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn plan_config_apply(
@@ -239,11 +329,41 @@ impl StableAppServices {
         self.configs().plan_apply_collecting_progress(request)
     }
 
+    pub fn plan_config_apply_live<FCancel, FProgress>(
+        &self,
+        request: super::PlanConfigApplyAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::ConfigApplyPlanResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.configs()
+                .plan_apply_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn apply_config(
         &self,
         request: super::ApplyConfigAppRequest,
     ) -> AppResult<super::TaskRun<super::ConfigApplyResult>> {
         self.configs().apply_collecting_progress(request)
+    }
+
+    pub fn apply_config_live<FCancel, FProgress>(
+        &self,
+        request: super::ApplyConfigAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::ConfigApplyResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.configs()
+                .apply_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn analyze_external_package(
@@ -252,6 +372,21 @@ impl StableAppServices {
     ) -> AppResult<super::TaskRun<super::ExternalPackageAnalysisResult>> {
         self.external_packages()
             .analyze_collecting_progress(request)
+    }
+
+    pub fn analyze_external_package_live<FCancel, FProgress>(
+        &self,
+        request: super::AnalyzeExternalPackageAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::ExternalPackageAnalysisResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.external_packages()
+                .analyze_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn create_external_package_bundle(
@@ -269,11 +404,41 @@ impl StableAppServices {
             .plan_apply_collecting_progress(request)
     }
 
+    pub fn plan_external_package_apply_live<FCancel, FProgress>(
+        &self,
+        request: super::PlanExternalPackageApplyAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::ExternalPackageApplyPlanResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.external_packages()
+                .plan_apply_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn apply_external_package(
         &self,
         request: super::ApplyExternalPackageAppRequest,
     ) -> AppResult<super::TaskRun<super::ExternalPackageApplyResult>> {
         self.external_packages().apply_collecting_progress(request)
+    }
+
+    pub fn apply_external_package_live<FCancel, FProgress>(
+        &self,
+        request: super::ApplyExternalPackageAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::ExternalPackageApplyResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.external_packages()
+                .apply_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub(super) fn installations(&self) -> &InstallationService {

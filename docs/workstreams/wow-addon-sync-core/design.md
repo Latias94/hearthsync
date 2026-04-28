@@ -346,11 +346,13 @@ The stable entry shapes are:
   progress sink
 - collecting-progress calls that return `TaskRun<TResult>` with one generated `task_id` plus an
   ordered `Vec<TaskProgressEvent>`
-- callback-based calls that stream the same `TaskProgressEvent` payloads while polling a caller-
-  supplied cancellation closure
+- public live calls that accept `AppLiveTask<FCancel, FProgress>`, stream the same
+  `TaskProgressEvent` payloads, and poll a caller-supplied cancellation closure
 
 Those task contract types should be consumed through `core::app`, so frontend callers do not need
 to depend on the lower-level `core::task` module directly just to drive stable app services.
+`TaskRun<TResult>` remains the convenience collected-progress result for CLI-style command flows;
+`AppLiveTask` is the frontend-ready live input contract for GUI workers.
 
 Stable progress event fields are:
 

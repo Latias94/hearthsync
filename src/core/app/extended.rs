@@ -66,11 +66,41 @@ impl ExtendedAppServices {
         self.addon_indexes().attach_collecting_progress(request)
     }
 
+    pub fn attach_addon_index_live<FCancel, FProgress>(
+        &self,
+        request: super::AttachAddonIndexAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::AddonIndexAttachResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addon_indexes()
+                .attach_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn install_addon_index(
         &self,
         request: super::InstallAddonIndexAppRequest,
     ) -> AppResult<super::TaskRun<super::AddonIndexInstallResult>> {
         self.addon_indexes().install_collecting_progress(request)
+    }
+
+    pub fn install_addon_index_live<FCancel, FProgress>(
+        &self,
+        request: super::InstallAddonIndexAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::AddonIndexInstallResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addon_indexes()
+                .install_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn update_addon_index(
@@ -80,11 +110,41 @@ impl ExtendedAppServices {
         self.addon_indexes().update_collecting_progress(request)
     }
 
+    pub fn update_addon_index_live<FCancel, FProgress>(
+        &self,
+        request: super::UpdateAddonIndexAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::AddonIndexUpdateResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addon_indexes()
+                .update_with_callbacks(request, is_cancelled, on_progress)
+        })
+    }
+
     pub fn relink_addon_index(
         &self,
         request: super::RelinkAddonIndexAppRequest,
     ) -> AppResult<super::TaskRun<super::AddonIndexRelinkResult>> {
         self.addon_indexes().relink_collecting_progress(request)
+    }
+
+    pub fn relink_addon_index_live<FCancel, FProgress>(
+        &self,
+        request: super::RelinkAddonIndexAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::AddonIndexRelinkResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addon_indexes()
+                .relink_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn inspect_addon_lock(
@@ -127,6 +187,21 @@ impl ExtendedAppServices {
         request: super::ApplyAddonLockAppRequest,
     ) -> AppResult<super::TaskRun<super::AddonLockApplyResult>> {
         self.addon_locks().apply_sync_collecting_progress(request)
+    }
+
+    pub fn apply_addon_lock_sync_live<FCancel, FProgress>(
+        &self,
+        request: super::ApplyAddonLockAppRequest,
+        live_task: super::AppLiveTask<FCancel, FProgress>,
+    ) -> AppResult<super::AddonLockApplyResult>
+    where
+        FCancel: Fn() -> bool,
+        FProgress: FnMut(super::TaskProgressEvent),
+    {
+        super::run_app_live_task(live_task, |is_cancelled, on_progress| {
+            self.addon_locks()
+                .apply_sync_with_callbacks(request, is_cancelled, on_progress)
+        })
     }
 
     pub fn plan_bundle_addon_lock(
