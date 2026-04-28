@@ -449,6 +449,10 @@ enough that these rules live in one place.
   Current progress: CLI-only sidecar files now also resolve through the runtime base before CLI
   loaders read them. Bundle pack manifests, manifest validation files, and apply mapping files no
   longer reintroduce process-cwd filesystem reads outside app services.
+  Current progress: addon cache runtime paths are now absolute after boundary handling. CLI
+  one-shot cache overrides resolve against the invocation runtime base,
+  `settings set --addon-cache-dir` persists resolved absolute paths, and relative persisted cache
+  paths fail closed.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

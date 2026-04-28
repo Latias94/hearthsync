@@ -243,6 +243,7 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
     let settings_path = temp.path().join("settings").join("runtime.toml");
     let _guard = runtime_settings_path_guard(&settings_path);
     let services = StableAppServices::with_runtime(AppRuntime::new());
+    let cache_dir = temp.path().join("cache");
 
     let initial = services
         .inspect_runtime_settings()
@@ -258,7 +259,7 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
         .set_runtime_settings(SetRuntimeSettingsAppRequest {
             addon_state_storage: Some(AddonStateStorageValue::Sidecar),
             clear_addon_state_storage: false,
-            addon_cache_dir: Some(Path::new("/cache").to_path_buf()),
+            addon_cache_dir: Some(cache_dir.clone()),
             clear_addon_cache_dir: false,
             http_no_validator_cache_policy: Some(
                 HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 300 },
@@ -272,6 +273,7 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
         mutation.settings.addon_state_storage,
         Some(AddonStateStorageValue::Sidecar)
     );
+    assert_eq!(mutation.settings.addon_cache_dir, Some(cache_dir));
 
     let inspection = services
         .inspect_runtime_settings()

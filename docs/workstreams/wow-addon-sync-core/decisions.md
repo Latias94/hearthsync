@@ -1394,3 +1394,28 @@ Specifically:
 - Bundle manifest base directories derived by CLI are absolute when they enter app requests.
 - Future GUI code remains free to load these sidecar documents through its own file-dialog model,
   while CLI keeps one deterministic relative-path contract.
+
+## ADR-056: Addon Cache Runtime Paths Are Absolute After The Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+Addon download cache directories are runtime filesystem policy and must not remain relative after
+CLI or settings boundaries.
+
+Specifically:
+
+- Relative CLI `--addon-cache-dir` values resolve against the CLI runtime relative-path base before
+  the default addon provider is constructed.
+- Relative `settings set --addon-cache-dir` values resolve against `AppRuntime`'s absolute
+  relative-path base before they are persisted.
+- Persisted addon cache directories must be absolute when loaded; relative persisted values fail
+  closed instead of drifting with a later invocation directory.
+
+### Consequences
+
+- Provider cache reads, repairs, purges, and materialization no longer depend on process cwd.
+- Runtime diagnostics and capabilities report stable cache paths.
+- Future GUI settings screens can store file-dialog selections as absolute paths while still
+  accepting relative form input when they provide an explicit runtime base.

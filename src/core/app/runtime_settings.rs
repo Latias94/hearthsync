@@ -19,11 +19,13 @@ const RUNTIME_SETTINGS_RELATIVE_PATH: &str = "settings/runtime.toml";
 const TEST_RUNTIME_SETTINGS_PATH_ENV: &str = "HEARTHSYNC_TEST_RUNTIME_SETTINGS_PATH";
 
 #[derive(Debug, Clone, Default)]
-pub(super) struct RuntimeSettingsService;
+pub(super) struct RuntimeSettingsService {
+    runtime: AppRuntime,
+}
 
 impl RuntimeSettingsService {
-    pub(super) fn with_runtime(_runtime: AppRuntime) -> Self {
-        Self
+    pub(super) fn with_runtime(runtime: AppRuntime) -> Self {
+        Self { runtime }
     }
 
     pub(super) fn inspect(&self) -> AppResult<RuntimeSettingsInspectionResult> {
@@ -57,7 +59,10 @@ impl RuntimeSettingsService {
             settings.addon_cache_dir = None;
         }
         if let Some(value) = request.addon_cache_dir {
-            settings.addon_cache_dir = Some(value);
+            settings.addon_cache_dir = Some(
+                self.runtime
+                    .resolve_output_path(value, "addon cache directory")?,
+            );
         }
         if request.clear_http_no_validator_cache_policy {
             settings.http_no_validator_cache_policy = None;
@@ -238,7 +243,8 @@ mod tests {
 
     use super::{RuntimeSettingsService, runtime_settings_path_guard};
     use crate::core::app::{
-        AddonStateStorageValue, HttpNoValidatorCachePolicyValue, SetRuntimeSettingsAppRequest,
+        AddonStateStorageValue, AppRuntime, HttpNoValidatorCachePolicyValue,
+        SetRuntimeSettingsAppRequest,
     };
     use crate::core::error::AppError;
 
@@ -247,7 +253,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService;
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
 
         let mutation = service
             .set(SetRuntimeSettingsAppRequest {
@@ -275,11 +281,64 @@ mod tests {
     }
 
     #[test]
+    fn runtime_settings_service_resolves_relative_addon_cache_dir_against_runtime_base() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::with_runtime(
+            AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+        );
+
+        let mutation = service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: None,
+                clear_addon_state_storage: false,
+                addon_cache_dir: Some(PathBuf::from("cache")),
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: None,
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect("set relative cache dir");
+        let inspection = service.inspect().expect("inspect settings");
+
+        assert_eq!(
+            mutation.settings.addon_cache_dir,
+            Some(temp.path().join("cache"))
+        );
+        assert_eq!(inspection.settings, mutation.settings);
+    }
+
+    #[test]
+    fn runtime_settings_service_rejects_relative_addon_cache_dir_without_runtime_base() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
+
+        let error = service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: None,
+                clear_addon_state_storage: false,
+                addon_cache_dir: Some(PathBuf::from("cache")),
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: None,
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect_err("relative cache dir should fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("addon cache directory relative path requires")
+        );
+    }
+
+    #[test]
     fn runtime_settings_service_reset_removes_settings_file() {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService;
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
 
         service
             .set(SetRuntimeSettingsAppRequest {
@@ -307,7 +366,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService;
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
 
         let error = service
             .set(SetRuntimeSettingsAppRequest {
@@ -328,7 +387,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService;
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
 
         let error = service
             .set(SetRuntimeSettingsAppRequest {
@@ -349,7 +408,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService;
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
         std::fs::create_dir_all(settings_path.parent().expect("settings dir"))
             .expect("create settings dir");
         std::fs::write(&settings_path, "addon_cache_dir = [").expect("write invalid settings");

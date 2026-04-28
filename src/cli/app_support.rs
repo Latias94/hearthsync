@@ -6,16 +6,27 @@ use crate::core::app::{
     ResolveInstallationRequest, ResolvedInstallationValue, StableAppServices, TaskRun,
     load_persisted_runtime_settings_value,
 };
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 
 pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
     let persisted_settings = load_persisted_runtime_settings_value()?.unwrap_or_default();
-    let provider_options = AddonProviderOptionsValue {
-        download_cache_dir: options
+    let relative_path_base = std::env::current_dir()?;
+    let download_cache_dir = match options.addon_cache_dir.clone() {
+        Some(path) => Some(resolve_cli_runtime_path(
+            path,
+            &relative_path_base,
+            "addon cache directory",
+        )?),
+        None => persisted_settings
             .addon_cache_dir
             .clone()
-            .or(persisted_settings.addon_cache_dir.clone()),
+            .map(|path| validate_persisted_runtime_path(path, "addon cache directory"))
+            .transpose()?,
+    };
+    let provider_options = AddonProviderOptionsValue {
+        download_cache_dir,
         http_no_validator_cache_policy: options
             .http_no_validator_cache_policy()
             .or(persisted_settings.http_no_validator_cache_policy.clone())
@@ -24,7 +35,7 @@ pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
     };
 
     let mut runtime = AppRuntime::with_addon_provider_options(provider_options)
-        .with_relative_path_base(Some(std::env::current_dir()?));
+        .with_relative_path_base(Some(relative_path_base));
 
     if let Some(storage) = persisted_settings.addon_state_storage {
         runtime = runtime.with_addon_state_storage_kind(storage.into_domain());
@@ -35,6 +46,31 @@ pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
     }
 
     Ok(runtime)
+}
+
+fn resolve_cli_runtime_path(path: PathBuf, base: &Path, description: &str) -> AppResult<PathBuf> {
+    if path.is_absolute() {
+        return Ok(path);
+    }
+    if !base.is_absolute() {
+        return Err(AppError::Validation(format!(
+            "CLI runtime relative path base must be absolute before resolving {description}: {}",
+            base.display()
+        )));
+    }
+
+    Ok(base.join(path))
+}
+
+fn validate_persisted_runtime_path(path: PathBuf, description: &str) -> AppResult<PathBuf> {
+    if path.is_absolute() {
+        return Ok(path);
+    }
+
+    Err(AppError::Validation(format!(
+        "persisted {description} must be absolute: {}",
+        path.display()
+    )))
 }
 
 pub(super) fn stable_services(runtime: AppRuntime) -> StableAppServices {
@@ -297,6 +333,49 @@ mod tests {
                 },
             }
         );
+    }
+
+    #[test]
+    fn build_runtime_resolves_relative_addon_cache_override_against_invocation_base() {
+        let temp = tempdir().expect("temp dir");
+        let _guard =
+            runtime_settings_path_guard(&temp.path().join("settings").join("runtime.toml"));
+        let cwd = std::env::current_dir().expect("cwd");
+        let runtime = build_runtime(CliRuntimeArgs {
+            addon_cache_dir: Some(PathBuf::from("cache")),
+            ..CliRuntimeArgs::default()
+        })
+        .expect("build runtime");
+
+        assert_eq!(
+            runtime.capabilities().addon_provider,
+            AddonProviderModeValue::ConfiguredDefault {
+                options: AddonProviderOptionsValue {
+                    download_cache_dir: Some(cwd.join("cache")),
+                    ..AddonProviderOptionsValue::default()
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn build_runtime_rejects_relative_persisted_addon_cache_dir() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        fs::create_dir_all(settings_path.parent().expect("settings dir"))
+            .expect("create settings dir");
+        fs::write(&settings_path, "addon_cache_dir = \"cache\"").expect("write relative settings");
+
+        let error = build_runtime(CliRuntimeArgs::default())
+            .expect_err("relative persisted cache should fail");
+
+        match error {
+            crate::core::error::AppError::Validation(message) => {
+                assert!(message.contains("persisted addon cache directory must be absolute"));
+            }
+            other => panic!("expected validation error, got {other:?}"),
+        }
     }
 
     #[test]
