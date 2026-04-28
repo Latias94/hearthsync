@@ -443,6 +443,9 @@ enough that these rules live in one place.
   external-package bundle output directories resolve against the runtime relative-path base before
   core services write files. Bundle pack output paths remain the explicit exception and keep the
   manifest/installation-derived bundle-domain placement rule.
+  Current progress: installation path inputs now also resolve at the app boundary. Relative
+  inspect/resolve installation paths and configured installation scan roots are joined to the
+  runtime relative-path base before install-discovery core code probes the filesystem.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::resolve_app_input_path;
 use crate::core::app::{AppRuntime, WowFlavorValue};
 use crate::core::error::AppResult;
 use crate::core::install::{
@@ -18,8 +19,9 @@ impl InspectInstallationRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<ProductInstallInspection> {
+        let path = resolve_app_input_path(runtime, self.path, "installation path")?;
         inspect_installation_on_host(
-            &self.path,
+            &path,
             self.flavor.map(WowFlavorValue::into_domain),
             runtime.host_platform().into_domain(),
         )
@@ -37,8 +39,9 @@ impl ResolveInstallationRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DetectedFlavorInstallation> {
+        let path = resolve_app_input_path(runtime, self.path, "installation path")?;
         resolve_installation_on_host(
-            &self.path,
+            &path,
             self.flavor.map(WowFlavorValue::into_domain),
             runtime.host_platform().into_domain(),
         )

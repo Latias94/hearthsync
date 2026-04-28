@@ -298,6 +298,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   output directories resolve against the runtime relative-path base before core services write
   files. Bundle pack output paths remain the explicit exception and keep the
   manifest/installation-derived bundle-domain placement rule.
+- installation path inputs now also resolve at the app boundary: relative inspect/resolve
+  installation paths and configured installation scan roots are joined to the runtime
+  relative-path base before install-discovery core code probes the filesystem.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

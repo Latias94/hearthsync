@@ -257,7 +257,14 @@ impl AppRuntime {
 
     pub(crate) fn scan_installations(&self) -> AppResult<Vec<DetectedFlavorInstallation>> {
         match self.install_scan_roots() {
-            Some(roots) => scan_installations_with_roots(roots, self.host_platform.into_domain()),
+            Some(roots) => {
+                let roots = roots
+                    .iter()
+                    .cloned()
+                    .map(|root| self.resolve_input_path(root, "installation scan root"))
+                    .collect::<AppResult<Vec<_>>>()?;
+                scan_installations_with_roots(&roots, self.host_platform.into_domain())
+            }
             None => scan_installations_for_host(self.host_platform.into_domain()),
         }
     }

@@ -1343,3 +1343,29 @@ Specifically:
 - Future `egui` callers can attach output choices to an explicit file-dialog or project base.
 - Bundle export remains intentionally different because it already has a domain-owned portable
   placement model tied to the selected manifest and installation.
+
+## ADR-054: Installation Paths Resolve At The App Boundary
+
+Accepted on 2026-04-28
+
+### Decision
+
+Installation path selections and configured installation scan roots are frontend inputs and must
+resolve before install-discovery core code probes the filesystem.
+
+Specifically:
+
+- Relative inspect and resolve installation paths resolve against `AppRuntime`'s absolute
+  relative-path base before installation classification runs.
+- Relative configured installation scan roots resolve against the same runtime base before scan
+  code checks whether roots exist.
+- Relative installation paths without a runtime base fail closed at the app boundary instead of
+  falling through to process-cwd filesystem probes.
+
+### Consequences
+
+- CLI keeps expected `--install ./World of Warcraft` behavior through runtime assembly rather than
+  implicit core cwd.
+- Future `egui` callers can resolve file-dialog selections against an explicit base.
+- Installation discovery now follows the same boundary rule as addon, bundle, backup, and output
+  selections.
