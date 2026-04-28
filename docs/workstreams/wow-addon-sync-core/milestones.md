@@ -846,3 +846,7 @@ contracts for the future `egui` frontend.
 - second progress is also in place: bulk addon-index update now skips preflight-matched ignored
   packages before source resolution or package preparation, so ignored packages do not trigger
   provider download work in the common stable-match path
+- third progress is also in place: config sync no longer exposes `external-package` response
+  aliases at the app boundary. The config service still delegates to the shared import engine, but
+  it now projects concrete config-owned inspection, plan, apply, warning, summary, and source-kind
+  DTOs for CLI and future GUI callers.

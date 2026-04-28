@@ -1,14 +1,15 @@
 use crate::core::app::{
-    ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
+    ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ConfigPackageSummaryResult,
+    ConfigWarningCategoryValue, ConfigWarningCodeValue, ConfigWarningResult,
 };
 
 use super::shared::{
     format_bundle_characters, format_character_mapping_summary, format_discovered_accounts,
-    format_external_package_warnings, format_selected_accounts, format_string_list_or_none,
+    format_selected_accounts, format_string_list_or_none,
 };
 
-pub(in crate::cli) fn render_config_analysis(item: &ExternalPackageAnalysisResult) -> String {
-    let warnings = format_external_package_warnings(&item.warnings, &item.summary);
+pub(in crate::cli) fn render_config_analysis(item: &ConfigInspectionResult) -> String {
+    let warnings = format_config_warnings(&item.warnings, &item.summary);
 
     format!(
         "Config source: {}\nDetected kind: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
@@ -33,14 +34,14 @@ pub(in crate::cli) fn render_config_analysis(item: &ExternalPackageAnalysisResul
     )
 }
 
-pub(in crate::cli) fn render_config_plan(item: &ExternalPackageApplyPlanResult) -> String {
+pub(in crate::cli) fn render_config_plan(item: &ConfigApplyPlanResult) -> String {
     format!(
         "Config source: {}\nTarget: {}\nDiscovered accounts: {}\nSelected accounts: {}\nWarnings: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}",
-        item.analysis.source_path.display(),
+        item.inspection.source_path.display(),
         item.target_flavor_root.display(),
         format_discovered_accounts(&item.discovered_accounts),
         format_selected_accounts(&item.selected_target_accounts),
-        format_external_package_warnings(&item.analysis.warnings, &item.analysis.summary),
+        format_config_warnings(&item.inspection.warnings, &item.inspection.summary),
         item.summary.paths_to_remove,
         item.summary.files_to_add,
         item.summary.files_to_replace,
@@ -50,7 +51,7 @@ pub(in crate::cli) fn render_config_plan(item: &ExternalPackageApplyPlanResult) 
     )
 }
 
-pub(in crate::cli) fn render_config_apply(item: &ExternalPackageApplyResult) -> String {
+pub(in crate::cli) fn render_config_apply(item: &ConfigApplyResult) -> String {
     let backup = item
         .backup_path
         .as_ref()
@@ -62,9 +63,9 @@ pub(in crate::cli) fn render_config_apply(item: &ExternalPackageApplyResult) -> 
     if item.dry_run {
         format!(
             "Dry run only.\nConfig source: {}\nTarget: {}\nWarnings: {}\nPlanned files: {}\nSelected accounts: {}\nPlanned remove: {}\nPlanned add: {}\nPlanned replace: {}\nPlanned skip: {}\nPlanned preserve: {}\nCharacter mappings: {}\nBackup: {}",
-            item.analysis.source_path.display(),
+            item.inspection.source_path.display(),
             item.target_flavor_root.display(),
-            format_external_package_warnings(&item.analysis.warnings, &item.analysis.summary),
+            format_config_warnings(&item.inspection.warnings, &item.inspection.summary),
             item.planned_files,
             selected_accounts,
             item.plan_summary.paths_to_remove,
@@ -78,7 +79,7 @@ pub(in crate::cli) fn render_config_apply(item: &ExternalPackageApplyResult) -> 
     } else {
         format!(
             "Applied config package: {}\nTarget: {}\nWritten files: {}\nRewritten files: {}\nSelected accounts: {}\nCharacter mappings: {}\nBackup: {}",
-            item.analysis.source_path.display(),
+            item.inspection.source_path.display(),
             item.target_flavor_root.display(),
             item.written_files,
             item.rewritten_files,
@@ -86,6 +87,72 @@ pub(in crate::cli) fn render_config_apply(item: &ExternalPackageApplyResult) -> 
             mapping_summary,
             backup
         )
+    }
+}
+
+fn format_config_warnings(
+    warnings: &[ConfigWarningResult],
+    summary: &ConfigPackageSummaryResult,
+) -> String {
+    if warnings.is_empty() {
+        return "none".to_string();
+    }
+
+    let groups = summary
+        .warning_groups
+        .iter()
+        .map(|group| {
+            format!(
+                "{}/{}={}",
+                format_config_warning_category(group.category),
+                format_config_warning_code(group.code),
+                group.count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let details = warnings
+        .iter()
+        .map(|warning| {
+            format!(
+                "{}/{}: {}",
+                format_config_warning_category(warning.category),
+                format_config_warning_code(warning.code),
+                warning.source_path
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    format!(
+        "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
+        summary.warning_count,
+        summary.addon_warning_count,
+        summary.wtf_warning_count,
+        groups,
+        details
+    )
+}
+
+fn format_config_warning_category(category: ConfigWarningCategoryValue) -> &'static str {
+    match category {
+        ConfigWarningCategoryValue::Addon => "addon",
+        ConfigWarningCategoryValue::Wtf => "wtf",
+    }
+}
+
+fn format_config_warning_code(code: ConfigWarningCodeValue) -> &'static str {
+    match code {
+        ConfigWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
+        ConfigWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
+        ConfigWarningCodeValue::WtfAccountPathWithoutFile => "wtf_account_path_without_file",
+        ConfigWarningCodeValue::WtfSavedVariablesPathWithoutFile => {
+            "wtf_savedvariables_path_without_file"
+        }
+        ConfigWarningCodeValue::UnsupportedWtfNestedAccountLayout => {
+            "unsupported_wtf_nested_account_layout"
+        }
     }
 }
 
@@ -99,13 +166,15 @@ mod tests {
     };
     use super::{render_config_analysis, render_config_apply, render_config_plan};
     use crate::core::app::{
-        ApplyPlanSummaryResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
+        ApplyPlanSummaryResult, ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult,
         HelperStrategyValue,
     };
 
     #[test]
     fn render_config_analysis_reports_resources_and_warnings() {
-        let rendered = render_config_analysis(&sample_external_package_analysis());
+        let rendered = render_config_analysis(&ConfigInspectionResult::from_external(
+            sample_external_package_analysis(),
+        ));
 
         assert!(rendered.contains("Config source: C:\\temp\\author-ui.zip"));
         assert!(rendered.contains("Detected kind: ZipArchive"));
@@ -116,8 +185,8 @@ mod tests {
 
     #[test]
     fn render_config_plan_reports_accounts_and_mappings() {
-        let rendered = render_config_plan(&ExternalPackageApplyPlanResult {
-            analysis: sample_external_package_analysis(),
+        let rendered = render_config_plan(&ConfigApplyPlanResult {
+            inspection: ConfigInspectionResult::from_external(sample_external_package_analysis()),
             target_flavor_root: PathBuf::from("World of Warcraft/_retail_"),
             discovered_accounts: vec![sample_local_account("AccountA")],
             selected_target_accounts: vec!["TargetAccount".to_string()],
@@ -148,8 +217,8 @@ mod tests {
 
     #[test]
     fn render_config_apply_reports_written_files() {
-        let rendered = render_config_apply(&ExternalPackageApplyResult {
-            analysis: sample_external_package_analysis(),
+        let rendered = render_config_apply(&ConfigApplyResult {
+            inspection: ConfigInspectionResult::from_external(sample_external_package_analysis()),
             target_flavor_root: PathBuf::from("World of Warcraft/_retail_"),
             dry_run: false,
             planned_files: 0,

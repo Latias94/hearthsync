@@ -844,9 +844,11 @@ place.
   packages before resolving or preparing the source. Explicit named update still overrides ignored,
   and the fallback path remains available when matching cannot safely be determined before
   preparation.
-- [ ] replace config response aliases with config-owned app DTOs
-  Target: future GUI code can depend on config-sync vocabulary without learning
-  external-package-shaped result types.
+- [x] replace config response aliases with config-owned app DTOs
+  Completed: `ConfigInspectionResult`, `ConfigApplyPlanResult`, and `ConfigApplyResult` are now
+  concrete app-owned DTOs with config-named nested entry, summary, warning, and source-kind types.
+  `ConfigService` still reuses the external-package engine internally, but it projects the results
+  at the app boundary so CLI and future GUI callers do not consume external-package result aliases.
 - [ ] decompose addon provider responsibilities into cache, materialization, validation, and
   source-adapter modules
   Target: provider cache/freshness changes and new source adapters can evolve without expanding one

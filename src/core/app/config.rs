@@ -21,6 +21,7 @@ impl ConfigService {
     ) -> AppResult<ConfigInspectionResult> {
         self.external_packages
             .analyze(request.into_external_request())
+            .map(ConfigInspectionResult::from_external)
     }
 
     pub(super) fn inspect_collecting_progress(
@@ -29,6 +30,11 @@ impl ConfigService {
     ) -> AppResult<TaskRun<ConfigInspectionResult>> {
         self.external_packages
             .analyze_collecting_progress(request.into_external_request())
+            .map(|run| TaskRun {
+                task_id: run.task_id,
+                result: ConfigInspectionResult::from_external(run.result),
+                progress: run.progress,
+            })
     }
 
     #[allow(dead_code)]
@@ -42,11 +48,9 @@ impl ConfigService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        self.external_packages.analyze_with_callbacks(
-            request.into_external_request(),
-            is_cancelled,
-            on_progress,
-        )
+        self.external_packages
+            .analyze_with_callbacks(request.into_external_request(), is_cancelled, on_progress)
+            .map(ConfigInspectionResult::from_external)
     }
 
     #[allow(dead_code)]
@@ -56,6 +60,7 @@ impl ConfigService {
     ) -> AppResult<ConfigApplyPlanResult> {
         self.external_packages
             .plan_apply(request.into_external_request())
+            .map(ConfigApplyPlanResult::from_external)
     }
 
     pub(super) fn plan_apply_collecting_progress(
@@ -64,6 +69,11 @@ impl ConfigService {
     ) -> AppResult<TaskRun<ConfigApplyPlanResult>> {
         self.external_packages
             .plan_apply_collecting_progress(request.into_external_request())
+            .map(|run| TaskRun {
+                task_id: run.task_id,
+                result: ConfigApplyPlanResult::from_external(run.result),
+                progress: run.progress,
+            })
     }
 
     #[allow(dead_code)]
@@ -77,11 +87,9 @@ impl ConfigService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        self.external_packages.plan_apply_with_callbacks(
-            request.into_external_request(),
-            is_cancelled,
-            on_progress,
-        )
+        self.external_packages
+            .plan_apply_with_callbacks(request.into_external_request(), is_cancelled, on_progress)
+            .map(ConfigApplyPlanResult::from_external)
     }
 
     #[allow(dead_code)]
@@ -91,6 +99,7 @@ impl ConfigService {
     ) -> AppResult<ConfigApplyResult> {
         self.external_packages
             .apply(request.into_external_request())
+            .map(ConfigApplyResult::from_external)
     }
 
     pub(super) fn apply_collecting_progress(
@@ -99,6 +108,11 @@ impl ConfigService {
     ) -> AppResult<TaskRun<ConfigApplyResult>> {
         self.external_packages
             .apply_collecting_progress(request.into_external_request())
+            .map(|run| TaskRun {
+                task_id: run.task_id,
+                result: ConfigApplyResult::from_external(run.result),
+                progress: run.progress,
+            })
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -112,11 +126,9 @@ impl ConfigService {
         FCancel: Fn() -> bool,
         FProgress: FnMut(TaskProgressEvent),
     {
-        self.external_packages.apply_with_callbacks(
-            request.into_external_request(),
-            is_cancelled,
-            on_progress,
-        )
+        self.external_packages
+            .apply_with_callbacks(request.into_external_request(), is_cancelled, on_progress)
+            .map(ConfigApplyResult::from_external)
     }
 }
 

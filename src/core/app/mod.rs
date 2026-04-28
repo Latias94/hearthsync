@@ -105,7 +105,11 @@ pub use response::bundle::{
     BundleResourcesResult, BundleSourceResult, CharacterMappingResult, CreatedBundleResult,
     GroupPolicyResult, LocalWowAccountResult, LocalWowCharacterResult,
 };
-pub use response::config::{ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult};
+pub use response::config::{
+    ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ConfigPackageEntryResult,
+    ConfigPackageSourceKindResult, ConfigPackageSummaryResult, ConfigWarningCategoryValue,
+    ConfigWarningCodeValue, ConfigWarningGroupResult, ConfigWarningResult,
+};
 pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
