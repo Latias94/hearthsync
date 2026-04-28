@@ -441,8 +441,8 @@ enough that these rules live in one place.
   Current progress: app-level output choices now use the same app-boundary rule. Mutation backup
   output directories, backup creation output directories, addon adoption archive outputs, and
   external-package bundle output directories resolve against the runtime relative-path base before
-  core services write files. Bundle pack output paths remain the explicit exception and keep the
-  manifest/installation-derived bundle-domain placement rule.
+  core services write files. Bundle pack output paths now resolve before core projection too,
+  while still keeping the manifest/installation-derived bundle-domain placement rule.
   Current progress: installation path inputs now also resolve at the app boundary. Relative
   inspect/resolve installation paths and configured installation scan roots are joined to the
   runtime relative-path base before install-discovery core code probes the filesystem.

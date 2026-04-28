@@ -1498,3 +1498,29 @@ Specifically:
   process cwd from app-layer DTOs.
 - Request projection methods now surface invalid installation DTOs as app validation errors before
   any filesystem mutation is planned.
+
+## ADR-060: Bundle Pack Output Paths Resolve Before Core Projection
+
+Accepted on 2026-04-28
+
+### Decision
+
+App-owned bundle pack requests must resolve explicit output paths before they are projected into
+core bundle packing requests.
+
+Specifically:
+
+- Absolute bundle pack output paths pass through unchanged.
+- Relative bundle pack output paths keep the existing bundle placement rule:
+  - when a manifest base directory is present, they resolve under that manifest base;
+  - otherwise, they resolve under the selected installation product root's parent directory, or the
+    product root itself when it has no parent.
+- Runtime default bundle output directories still normalize in `AppRuntimeBuilder` and remain
+  absolute when injected into app requests.
+
+### Consequences
+
+- Future GUI callers cannot send an explicit relative bundle output path into core packing code.
+- CLI behavior stays stable for `--output exports` next to a manifest loaded from a subdirectory.
+- Core packing keeps its deterministic default placement behavior, but the stable app boundary no
+  longer relies on core to interpret frontend-provided relative output paths.

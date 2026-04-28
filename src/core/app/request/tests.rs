@@ -547,6 +547,10 @@ fn pack_bundle_request_converts_app_owned_manifest() {
     .expect("pack bundle request");
 
     assert_eq!(domain.manifest_base_dir, Some(base.join("manifest-dir")));
+    assert_eq!(
+        domain.output_path,
+        Some(base.join("manifest-dir").join("bundle.zip"))
+    );
     assert_eq!(domain.manifest.schema_version, 1);
     assert_eq!(domain.manifest.package.id, "author-ui");
     assert_eq!(
@@ -560,6 +564,29 @@ fn pack_bundle_request_converts_app_owned_manifest() {
         CharacterMappingMode::Explicit
     );
     assert_eq!(domain.manifest.apply.addons, ResourceApplyPolicy::Mirror);
+}
+
+#[test]
+fn pack_bundle_request_resolves_relative_output_without_manifest_base_against_installation_parent()
+{
+    let runtime = AppRuntime::new();
+    let installation = sample_installation();
+    let expected_output_path = installation
+        .product_root
+        .parent()
+        .expect("installation parent")
+        .join("exports");
+
+    let domain: DomainPackBundleRequest = PackBundleAppRequest {
+        installation,
+        manifest: sample_manifest(),
+        output_path: Some(PathBuf::from("exports")),
+        manifest_base_dir: None,
+    }
+    .into_domain_request(&runtime)
+    .expect("pack bundle request");
+
+    assert_eq!(domain.output_path, Some(expected_output_path));
 }
 
 #[test]

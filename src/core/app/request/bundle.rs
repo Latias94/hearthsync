@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::{
     RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
@@ -47,16 +47,24 @@ impl PackBundleAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainPackBundleRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
+            let installation = request.installation.into_domain()?;
+            let manifest_base_dir = resolve_optional_app_input_path(
+                runtime,
+                request.manifest_base_dir,
+                "bundle manifest base directory",
+            )?;
+            let output_path = resolve_pack_bundle_output_path(
+                &installation,
+                manifest_base_dir.as_deref(),
+                request.output_path,
+            );
+
             Ok(DomainPackBundleRequest {
-                installation: request.installation.into_domain()?,
+                installation,
                 addon_state_storage_kind: runtime.addon_state_storage_kind(),
                 manifest: request.manifest.into_domain(),
-                output_path: request.output_path,
-                manifest_base_dir: resolve_optional_app_input_path(
-                    runtime,
-                    request.manifest_base_dir,
-                    "bundle manifest base directory",
-                )?,
+                output_path,
+                manifest_base_dir,
             })
         })
     }
@@ -184,4 +192,28 @@ fn resolve_bundle_backup_output_path(
     path: Option<PathBuf>,
 ) -> AppResult<Option<PathBuf>> {
     resolve_optional_app_output_path(runtime, path, "bundle backup output directory")
+}
+
+fn resolve_pack_bundle_output_path(
+    installation: &DetectedFlavorInstallation,
+    manifest_base_dir: Option<&Path>,
+    path: Option<PathBuf>,
+) -> Option<PathBuf> {
+    path.map(|path| {
+        if path.is_absolute() {
+            path
+        } else {
+            pack_bundle_output_base_dir(installation, manifest_base_dir).join(path)
+        }
+    })
+}
+
+fn pack_bundle_output_base_dir(
+    installation: &DetectedFlavorInstallation,
+    manifest_base_dir: Option<&Path>,
+) -> PathBuf {
+    manifest_base_dir
+        .map(Path::to_path_buf)
+        .or_else(|| installation.product_root.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| installation.product_root.clone())
 }

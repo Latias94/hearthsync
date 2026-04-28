@@ -296,7 +296,7 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - app-level output choices now use the same boundary rule: mutation backup output directories,
   backup creation output directories, addon adoption archive outputs, and external-package bundle
   output directories resolve against the runtime relative-path base before core services write
-  files. Bundle pack output paths remain the explicit exception and keep the
+  files. Bundle pack output paths now also resolve before core projection while preserving their
   manifest/installation-derived bundle-domain placement rule.
 - installation path inputs now also resolve at the app boundary: relative inspect/resolve
   installation paths and configured installation scan roots are joined to the runtime
