@@ -333,18 +333,8 @@ impl AppRuntime {
         self.host_platform
     }
 
-    pub fn with_install_scan_roots(mut self, install_scan_roots: Option<Vec<PathBuf>>) -> Self {
-        self.install_scan_roots = install_scan_roots;
-        self
-    }
-
     pub fn install_scan_roots(&self) -> Option<&[PathBuf]> {
         self.install_scan_roots.as_deref()
-    }
-
-    pub fn with_relative_path_base(mut self, relative_path_base: Option<PathBuf>) -> Self {
-        self.relative_path_base = relative_path_base;
-        self
     }
 
     pub fn relative_path_base(&self) -> Option<&Path> {
@@ -389,11 +379,6 @@ impl AppRuntime {
         }
     }
 
-    pub fn with_default_backup_dir(mut self, default_backup_dir: Option<PathBuf>) -> Self {
-        self.default_backup_dir = default_backup_dir;
-        self
-    }
-
     pub fn default_backup_dir(&self) -> Option<&Path> {
         self.default_backup_dir.as_deref()
     }
@@ -404,14 +389,6 @@ impl AppRuntime {
 
     pub(crate) fn backup_dir_or_default(&self, path: Option<PathBuf>) -> Option<PathBuf> {
         path.or_else(|| self.default_backup_dir.clone())
-    }
-
-    pub fn with_default_bundle_output_dir(
-        mut self,
-        default_bundle_output_dir: Option<PathBuf>,
-    ) -> Self {
-        self.default_bundle_output_dir = default_bundle_output_dir;
-        self
     }
 
     pub fn default_bundle_output_dir(&self) -> Option<&Path> {

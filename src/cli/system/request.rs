@@ -105,8 +105,10 @@ mod tests {
             crate::core::manifest::example_manifest().expect("example manifest"),
         )
         .expect("write manifest");
-        let runtime =
-            AppRuntime::new().with_relative_path_base(Some(temp_dir.path().to_path_buf()));
+        let runtime = AppRuntime::builder()
+            .with_relative_path_base(Some(temp_dir.path().to_path_buf()))
+            .build()
+            .expect("runtime");
 
         let result = build_manifest_validation_result(PathBuf::from("manifest.toml"), &runtime)
             .expect("valid manifest");

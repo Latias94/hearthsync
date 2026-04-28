@@ -286,7 +286,10 @@ mod tests {
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
         let service = RuntimeSettingsService::with_runtime(
-            AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+            AppRuntime::builder()
+                .with_relative_path_base(Some(temp.path().to_path_buf()))
+                .build()
+                .expect("runtime"),
         );
 
         let mutation = service

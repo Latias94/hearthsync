@@ -40,7 +40,10 @@ fn addon_lock_service_plan_sync_resolves_relative_lock_against_runtime_base() {
     let lock_path = write_empty_lock(locks.join("desired-lock.toml"));
 
     let service = AddonLockService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(locks.clone())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(locks.clone()))
+            .build()
+            .expect("runtime"),
     );
     let plan = service
         .plan_sync(PlanAddonLockSyncRequest {
@@ -78,7 +81,10 @@ fn addon_lock_service_diff_resolves_relative_locks_against_runtime_base() {
     let right = write_empty_lock(locks.join("right.toml"));
 
     let service = AddonLockService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(locks.clone())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(locks.clone()))
+            .build()
+            .expect("runtime"),
     );
     let diff = service
         .diff(DiffAddonLockRequest {

@@ -76,7 +76,10 @@ fn addon_service_install_resolves_relative_local_archive_against_runtime_base() 
     );
 
     let service = AddonService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(source_dir.clone())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(source_dir.clone()))
+            .build()
+            .expect("runtime"),
     );
     let installed = service
         .install(InstallAddonAppRequest {
@@ -129,21 +132,9 @@ fn addon_service_install_rejects_relative_local_archive_without_runtime_base() {
 
 #[test]
 fn addon_service_install_rejects_relative_runtime_base_for_relative_archives() {
-    let temp = tempdir().expect("temp dir");
-    let installation = create_empty_installation(temp.path());
-    let service = AddonService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(PathBuf::from("sources"))),
-    );
-
-    let error = service
-        .install(InstallAddonAppRequest {
-            installation,
-            source: "WeakAuras.zip".to_string(),
-            dry_run: false,
-            backup_output_path: Some(temp.path().join("backups")),
-            replace_existing: false,
-            metadata: None,
-        })
+    let error = AppRuntime::builder()
+        .with_relative_path_base(Some(PathBuf::from("sources")))
+        .build()
         .expect_err("relative runtime base should fail");
 
     assert!(matches!(error, AppError::Validation(_)));

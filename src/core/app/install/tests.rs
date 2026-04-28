@@ -18,9 +18,11 @@ fn installation_service_scan_uses_runtime_scan_roots_and_host_platform() {
     fs::create_dir_all(flavor_root.join("WTF")).expect("wtf dir");
 
     let service = InstallationService::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_host_platform(HostPlatformValue::MacOs)
-            .with_install_scan_roots(Some(vec![product_root.clone()])),
+            .with_install_scan_roots(Some(vec![product_root.clone()]))
+            .build()
+            .expect("runtime"),
     );
     let installations = service.scan().expect("scan installations");
 
@@ -42,10 +44,12 @@ fn installation_service_scan_resolves_relative_roots_against_runtime_base() {
     fs::create_dir_all(flavor_root.join("WTF")).expect("wtf dir");
 
     let service = InstallationService::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_host_platform(HostPlatformValue::MacOs)
             .with_relative_path_base(Some(temp.path().to_path_buf()))
-            .with_install_scan_roots(Some(vec![PathBuf::from("World of Warcraft")])),
+            .with_install_scan_roots(Some(vec![PathBuf::from("World of Warcraft")]))
+            .build()
+            .expect("runtime"),
     );
     let installations = service.scan().expect("scan installations");
 
@@ -59,12 +63,9 @@ fn installation_service_scan_resolves_relative_roots_against_runtime_base() {
 
 #[test]
 fn installation_service_scan_rejects_relative_roots_without_runtime_base() {
-    let service = InstallationService::with_runtime(
-        AppRuntime::new().with_install_scan_roots(Some(vec![PathBuf::from("World of Warcraft")])),
-    );
-
-    let error = service
-        .scan()
+    let error = AppRuntime::builder()
+        .with_install_scan_roots(Some(vec![PathBuf::from("World of Warcraft")]))
+        .build()
         .expect_err("relative scan root should fail closed");
 
     assert!(
@@ -131,9 +132,11 @@ fn installation_service_resolves_relative_paths_against_runtime_base() {
     fs::create_dir_all(flavor_root.join("WTF")).expect("wtf dir");
 
     let service = InstallationService::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_host_platform(HostPlatformValue::MacOs)
-            .with_relative_path_base(Some(temp.path().to_path_buf())),
+            .with_relative_path_base(Some(temp.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let inspection = service
         .inspect(InspectInstallationRequest {

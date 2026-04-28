@@ -18,11 +18,13 @@ fn extended_app_services_builds_services_with_shared_runtime() {
     let scan_root = temp.path().join("scan-root");
     let backup_dir = temp.path().join("backups");
     let bundle_dir = temp.path().join("bundles");
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
         .with_install_scan_roots(Some(vec![scan_root.clone()]))
         .with_default_backup_dir(Some(backup_dir.clone()))
-        .with_default_bundle_output_dir(Some(bundle_dir.clone()));
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
 
     let app = ExtendedAppServices::with_runtime(runtime);
     let stable = app.stable();
@@ -71,10 +73,12 @@ fn extended_app_services_exposes_first_wave_stable_services() {
     let temp = tempdir().expect("temp dir");
     let backup_dir = temp.path().join("backups");
     let bundle_dir = temp.path().join("bundles");
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
         .with_default_backup_dir(Some(backup_dir.clone()))
-        .with_default_bundle_output_dir(Some(bundle_dir.clone()));
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
 
     let app = ExtendedAppServices::with_runtime(runtime);
     let stable = app.stable();
@@ -141,9 +145,11 @@ fn extended_app_services_stable_bridge_uses_shared_runtime_for_installation_flow
     .expect("config");
 
     let app = ExtendedAppServices::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_host_platform(HostPlatformValue::MacOs)
-            .with_install_scan_roots(Some(vec![product_root.clone()])),
+            .with_install_scan_roots(Some(vec![product_root.clone()]))
+            .build()
+            .expect("runtime"),
     );
 
     let stable = app.stable();

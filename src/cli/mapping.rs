@@ -108,8 +108,10 @@ target_account = "FileAccount"
 "#,
         )
         .expect("write mapping file");
-        let runtime =
-            AppRuntime::new().with_relative_path_base(Some(temp_dir.path().to_path_buf()));
+        let runtime = AppRuntime::builder()
+            .with_relative_path_base(Some(temp_dir.path().to_path_buf()))
+            .build()
+            .expect("runtime");
 
         let mappings = resolve_apply_mappings(
             ApplyMappingArgs {

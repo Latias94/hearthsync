@@ -36,7 +36,10 @@ fn external_package_service_analyzes_relative_source_against_runtime_base() {
     let package_root = create_minimal_external_package_source(source.path());
 
     let service = ExternalPackageService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(source.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(source.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let analysis = service
         .analyze(AnalyzeExternalPackageAppRequest {
@@ -269,9 +272,11 @@ fn external_package_service_create_bundle_uses_runtime_platform_and_output_dir()
     let package_root = create_minimal_external_package_source(source.path());
 
     let service = ExternalPackageService::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_host_platform(HostPlatformValue::MacOs)
-            .with_default_bundle_output_dir(Some(output.path().to_path_buf())),
+            .with_default_bundle_output_dir(Some(output.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let prepared = service
         .create_bundle(CreateExternalPackageBundleAppRequest {
@@ -312,9 +317,11 @@ fn external_package_service_create_bundle_resolves_relative_runtime_output_dir()
     let package_root = create_minimal_external_package_source(source.path());
 
     let service = ExternalPackageService::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_relative_path_base(Some(output_base.path().to_path_buf()))
-            .with_default_bundle_output_dir(Some(PathBuf::from("exports"))),
+            .with_default_bundle_output_dir(Some(PathBuf::from("exports")))
+            .build()
+            .expect("runtime"),
     );
     let prepared = service
         .create_bundle(CreateExternalPackageBundleAppRequest {
@@ -340,25 +347,9 @@ fn external_package_service_create_bundle_resolves_relative_runtime_output_dir()
 
 #[test]
 fn external_package_service_create_bundle_rejects_relative_runtime_output_without_base() {
-    let source = tempdir().expect("source temp dir");
-    let package_root = create_minimal_external_package_source(source.path());
-
-    let service = ExternalPackageService::with_runtime(
-        AppRuntime::new().with_default_bundle_output_dir(Some(PathBuf::from("exports"))),
-    );
-    let error = service
-        .create_bundle(CreateExternalPackageBundleAppRequest {
-            source_path: package_root,
-            source_flavor: WowFlavorValue::Retail,
-            source_platform: Some(HostPlatformValue::Windows),
-            supported_targets: vec![WowFlavorValue::Retail],
-            output_path: None,
-            package_id: None,
-            package_name: None,
-            created_by: None,
-            description: None,
-            apply_defaults: None,
-        })
+    let error = AppRuntime::builder()
+        .with_default_bundle_output_dir(Some(PathBuf::from("exports")))
+        .build()
         .expect_err("relative runtime output without base should fail");
 
     assert!(error.to_string().contains("relative path base"));

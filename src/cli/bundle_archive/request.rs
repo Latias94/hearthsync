@@ -75,8 +75,10 @@ mod tests {
             example_manifest().expect("example manifest"),
         )
         .expect("write manifest");
-        let runtime =
-            AppRuntime::new().with_relative_path_base(Some(temp_dir.path().to_path_buf()));
+        let runtime = AppRuntime::builder()
+            .with_relative_path_base(Some(temp_dir.path().to_path_buf()))
+            .build()
+            .expect("runtime");
 
         let request = build_pack_bundle_request(
             sample_installation(),

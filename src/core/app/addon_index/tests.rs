@@ -153,7 +153,10 @@ source = { kind = "local_archive", path = "WeakAuras.zip" }
     .expect("write index");
 
     let service = AddonIndexService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(index_dir.clone())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(index_dir.clone()))
+            .build()
+            .expect("runtime"),
     );
     let inspection = service
         .inspect(InspectAddonIndexRequest {

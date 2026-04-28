@@ -20,11 +20,13 @@ fn stable_app_services_share_runtime_with_first_wave_gui_services() {
     let scan_root = temp.path().join("scan-root");
     let backup_dir = temp.path().join("backups");
     let bundle_dir = temp.path().join("bundles");
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
         .with_install_scan_roots(Some(vec![scan_root.clone()]))
         .with_default_backup_dir(Some(backup_dir.clone()))
-        .with_default_bundle_output_dir(Some(bundle_dir.clone()));
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
 
     let services = StableAppServices::with_runtime(runtime);
 
@@ -110,28 +112,25 @@ fn stable_app_services_expose_runtime_capabilities_as_app_owned_value() {
 
 #[test]
 fn stable_app_services_expose_runtime_diagnostics_as_app_owned_value() {
-    let runtime = AppRuntime::new()
+    let temp = tempdir().expect("temp dir");
+    let scan_root = temp.path().join("wow");
+    let backup_dir = temp.path().join("backups");
+    let bundle_dir = temp.path().join("bundles");
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
-        .with_install_scan_roots(Some(vec![Path::new("/wow").to_path_buf()]))
-        .with_default_backup_dir(Some(Path::new("/backups").to_path_buf()))
-        .with_default_bundle_output_dir(Some(Path::new("/bundles").to_path_buf()));
+        .with_install_scan_roots(Some(vec![scan_root.clone()]))
+        .with_default_backup_dir(Some(backup_dir.clone()))
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
     let services = StableAppServices::with_runtime(runtime);
 
     let diagnostics = services.runtime_diagnostics();
 
     assert_eq!(diagnostics.host_platform, HostPlatformValue::MacOs);
-    assert_eq!(
-        diagnostics.install_scan_roots,
-        Some(vec![Path::new("/wow").to_path_buf()])
-    );
-    assert_eq!(
-        diagnostics.default_backup_dir,
-        Some(Path::new("/backups").to_path_buf())
-    );
-    assert_eq!(
-        diagnostics.default_bundle_output_dir,
-        Some(Path::new("/bundles").to_path_buf())
-    );
+    assert_eq!(diagnostics.install_scan_roots, Some(vec![scan_root]));
+    assert_eq!(diagnostics.default_backup_dir, Some(backup_dir));
+    assert_eq!(diagnostics.default_bundle_output_dir, Some(bundle_dir));
     assert_eq!(diagnostics.selected_installation, None);
     assert_eq!(diagnostics.addon_state_paths, None);
     assert_eq!(
@@ -206,9 +205,11 @@ fn stable_app_services_direct_installation_entrypoints_use_shared_runtime() {
     .expect("config");
 
     let services = StableAppServices::with_runtime(
-        AppRuntime::new()
+        AppRuntime::builder()
             .with_host_platform(HostPlatformValue::MacOs)
-            .with_install_scan_roots(Some(vec![product_root.clone()])),
+            .with_install_scan_roots(Some(vec![product_root.clone()]))
+            .build()
+            .expect("runtime"),
     );
 
     let scanned = services.scan_installations().expect("scan installations");

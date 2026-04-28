@@ -44,7 +44,10 @@ fn config_service_inspects_relative_source_against_runtime_base() {
     let package_root = create_minimal_config_source(temp.path());
 
     let service = ConfigService::with_external_packages(ExternalPackageService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(temp.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     ));
     let result = service
         .inspect(InspectConfigAppRequest {

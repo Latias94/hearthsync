@@ -39,7 +39,9 @@ use crate::core::manifest::{CharacterMappingMode, ResourceApplyPolicy};
 
 #[test]
 fn addon_family_requests_apply_runtime_backup_defaults() {
-    let runtime = AppRuntime::new().with_default_backup_dir(Some(PathBuf::from("runtime-backups")));
+    let base = std::env::current_dir().expect("cwd");
+    let backup_dir = base.join("runtime-backups");
+    let runtime = runtime_with_default_backup_dir(backup_dir.clone());
 
     let install = InstallAddonAppRequest {
         installation: sample_installation(),
@@ -90,35 +92,19 @@ fn addon_family_requests_apply_runtime_backup_defaults() {
     }
     .apply_runtime_defaults(&runtime);
 
-    assert_eq!(
-        install.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
-    assert_eq!(
-        update.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
-    assert_eq!(
-        remove.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
-    assert_eq!(
-        index_install.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
-    assert_eq!(
-        index_update.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
-    assert_eq!(
-        lock_apply.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
+    assert_eq!(install.backup_output_path, Some(backup_dir.clone()));
+    assert_eq!(update.backup_output_path, Some(backup_dir.clone()));
+    assert_eq!(remove.backup_output_path, Some(backup_dir.clone()));
+    assert_eq!(index_install.backup_output_path, Some(backup_dir.clone()));
+    assert_eq!(index_update.backup_output_path, Some(backup_dir.clone()));
+    assert_eq!(lock_apply.backup_output_path, Some(backup_dir));
 }
 
 #[test]
 fn backup_requests_apply_runtime_defaults() {
-    let runtime = AppRuntime::new().with_default_backup_dir(Some(PathBuf::from("runtime-backups")));
+    let base = std::env::current_dir().expect("cwd");
+    let backup_dir = base.join("runtime-backups");
+    let runtime = runtime_with_default_backup_dir(backup_dir.clone());
 
     let list = ListBackupsRequest { backup_dir: None }.apply_runtime_defaults(&runtime);
     let create = CreateBackupAppRequest {
@@ -136,16 +122,17 @@ fn backup_requests_apply_runtime_defaults() {
     }
     .apply_runtime_defaults(&runtime);
 
-    assert_eq!(list.backup_dir, Some(PathBuf::from("runtime-backups")));
-    assert_eq!(create.output_path, Some(PathBuf::from("runtime-backups")));
-    assert_eq!(restore.backup_dir, Some(PathBuf::from("runtime-backups")));
+    assert_eq!(list.backup_dir, Some(backup_dir.clone()));
+    assert_eq!(create.output_path, Some(backup_dir.clone()));
+    assert_eq!(restore.backup_dir, Some(backup_dir));
 }
 
 #[test]
 fn bundle_requests_apply_runtime_defaults() {
-    let runtime = AppRuntime::new()
-        .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
-        .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+    let base = std::env::current_dir().expect("cwd");
+    let backup_dir = base.join("runtime-backups");
+    let bundle_dir = base.join("runtime-bundles");
+    let runtime = runtime_with_default_dirs(backup_dir.clone(), bundle_dir.clone());
 
     let pack = PackBundleAppRequest {
         installation: sample_installation(),
@@ -170,23 +157,22 @@ fn bundle_requests_apply_runtime_defaults() {
     }
     .apply_runtime_defaults(&runtime);
 
-    assert_eq!(pack.output_path, Some(PathBuf::from("runtime-bundles")));
-    assert_eq!(
-        apply.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
-    assert_eq!(
-        addon_lock.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
+    assert_eq!(pack.output_path, Some(bundle_dir));
+    assert_eq!(apply.backup_output_path, Some(backup_dir.clone()));
+    assert_eq!(addon_lock.backup_output_path, Some(backup_dir));
 }
 
 #[test]
 fn external_package_requests_apply_runtime_defaults() {
-    let runtime = AppRuntime::new()
+    let base = std::env::current_dir().expect("cwd");
+    let backup_dir = base.join("runtime-backups");
+    let bundle_dir = base.join("runtime-bundles");
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
-        .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
-        .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+        .with_default_backup_dir(Some(backup_dir.clone()))
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
 
     let bundle_request = sample_external_package_bundle_request().apply_runtime_defaults(&runtime);
     let plan_request = PlanExternalPackageApplyAppRequest {
@@ -208,30 +194,26 @@ fn external_package_requests_apply_runtime_defaults() {
         bundle_request.source_platform,
         Some(HostPlatformValue::MacOs)
     );
-    assert_eq!(
-        bundle_request.output_path,
-        Some(PathBuf::from("runtime-bundles"))
-    );
+    assert_eq!(bundle_request.output_path, Some(bundle_dir.clone()));
     assert_eq!(
         plan_request.external_package.source_platform,
         Some(HostPlatformValue::MacOs)
     );
-    assert_eq!(
-        apply_request.external_package.output_path,
-        Some(PathBuf::from("runtime-bundles"))
-    );
-    assert_eq!(
-        apply_request.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
+    assert_eq!(apply_request.external_package.output_path, Some(bundle_dir));
+    assert_eq!(apply_request.backup_output_path, Some(backup_dir));
 }
 
 #[test]
 fn config_requests_apply_runtime_defaults() {
-    let runtime = AppRuntime::new()
+    let base = std::env::current_dir().expect("cwd");
+    let backup_dir = base.join("runtime-backups");
+    let bundle_dir = base.join("runtime-bundles");
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
-        .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
-        .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+        .with_default_backup_dir(Some(backup_dir.clone()))
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
 
     let inspect = InspectConfigAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
@@ -257,32 +239,25 @@ fn config_requests_apply_runtime_defaults() {
         config_package.source_platform,
         Some(HostPlatformValue::MacOs)
     );
-    assert_eq!(
-        config_package.output_path,
-        Some(PathBuf::from("runtime-bundles"))
-    );
+    assert_eq!(config_package.output_path, Some(bundle_dir.clone()));
     assert_eq!(
         plan_request.config_package.source_platform,
         Some(HostPlatformValue::MacOs)
     );
-    assert_eq!(
-        apply_request.config_package.output_path,
-        Some(PathBuf::from("runtime-bundles"))
-    );
-    assert_eq!(
-        apply_request.backup_output_path,
-        Some(PathBuf::from("runtime-backups"))
-    );
+    assert_eq!(apply_request.config_package.output_path, Some(bundle_dir));
+    assert_eq!(apply_request.backup_output_path, Some(backup_dir));
 }
 
 #[test]
 fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
         .with_relative_path_base(Some(base.clone()))
         .with_default_backup_dir(Some(PathBuf::from("runtime-backups")))
-        .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")));
+        .with_default_bundle_output_dir(Some(PathBuf::from("runtime-bundles")))
+        .build()
+        .expect("runtime");
 
     let install = InstallAddonAppRequest {
         installation: sample_installation(),
@@ -321,7 +296,7 @@ fn runtime_backed_request_helpers_compose_defaults_and_domain_projection() {
 fn thin_installation_requests_project_domain_inputs() {
     let installation = sample_installation();
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
     let domain_installation = ListAddonsRequest {
         installation: installation.clone(),
     }
@@ -369,7 +344,7 @@ fn thin_installation_requests_project_domain_inputs() {
 #[test]
 fn apply_addon_lock_request_resolves_relative_lock_and_source_overrides() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
 
     let domain = ApplyAddonLockAppRequest {
         installation: sample_installation(),
@@ -441,7 +416,7 @@ fn addon_policy_requests_project_domain_inputs() {
 #[test]
 fn adopt_addons_request_resolves_relative_archive_output() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
 
     let domain = AdoptAddonsAppRequest {
         installation: sample_installation(),
@@ -462,7 +437,7 @@ fn adopt_addons_request_resolves_relative_archive_output() {
 #[test]
 fn apply_bundle_request_converts_app_owned_apply_mappings() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
 
     let domain: DomainUnpackBundleRequest = ApplyBundleAppRequest {
         bundle_path: PathBuf::from("bundle.zip"),
@@ -517,7 +492,7 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
 #[test]
 fn create_external_package_request_converts_app_owned_apply_defaults() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
 
     let domain: DomainCreateExternalPackageBundleRequest = CreateExternalPackageBundleAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
@@ -558,7 +533,7 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
 #[test]
 fn pack_bundle_request_converts_app_owned_manifest() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
 
     let domain: DomainPackBundleRequest = PackBundleAppRequest {
         installation: sample_installation(),
@@ -588,7 +563,7 @@ fn pack_bundle_request_converts_app_owned_manifest() {
 #[test]
 fn install_addon_request_converts_app_owned_metadata() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
 
     let domain: DomainInstallAddonRequest = InstallAddonAppRequest {
         installation: sample_installation(),
@@ -647,7 +622,7 @@ fn relink_addon_request_projects_domain_inputs() {
 #[test]
 fn relink_addon_index_request_projects_domain_inputs() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
     let domain: DomainAddonIndexRelinkRequest = RelinkAddonIndexAppRequest {
         installation: sample_installation(),
         index_path: PathBuf::from("addons.index.toml"),
@@ -667,7 +642,7 @@ fn relink_addon_index_request_projects_domain_inputs() {
 #[test]
 fn attach_addon_index_request_projects_domain_inputs() {
     let base = std::env::current_dir().expect("cwd");
-    let runtime = AppRuntime::new().with_relative_path_base(Some(base.clone()));
+    let runtime = runtime_with_relative_path_base(base.clone());
     let domain: DomainAddonIndexAttachRequest = AttachAddonIndexAppRequest {
         installation: sample_installation(),
         index_path: PathBuf::from("addons.index.toml"),
@@ -706,6 +681,31 @@ fn addon_policy_request_converts_file_id_pin() {
         AddonPolicyPinValue::from_domain(DomainAddonPolicyPin::FileId { value: 123 }),
         AddonPolicyPinValue::FileId { value: 123 }
     );
+}
+
+fn runtime_with_relative_path_base(base: PathBuf) -> AppRuntime {
+    AppRuntime::builder()
+        .with_relative_path_base(Some(base))
+        .build()
+        .expect("runtime")
+}
+
+fn runtime_with_default_backup_dir(default_backup_dir: PathBuf) -> AppRuntime {
+    AppRuntime::builder()
+        .with_default_backup_dir(Some(default_backup_dir))
+        .build()
+        .expect("runtime")
+}
+
+fn runtime_with_default_dirs(
+    default_backup_dir: PathBuf,
+    default_bundle_output_dir: PathBuf,
+) -> AppRuntime {
+    AppRuntime::builder()
+        .with_default_backup_dir(Some(default_backup_dir))
+        .with_default_bundle_output_dir(Some(default_bundle_output_dir))
+        .build()
+        .expect("runtime")
 }
 
 fn sample_installation() -> ResolvedInstallationValue {

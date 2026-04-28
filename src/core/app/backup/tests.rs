@@ -79,7 +79,10 @@ fn backup_service_list_resolves_relative_dir_against_runtime_base() {
     fs::create_dir_all(&backup_dir).expect("backup dir");
 
     let service = BackupService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(temp.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let catalog = service
         .list(ListBackupsRequest {
@@ -106,7 +109,10 @@ fn backup_service_create_resolves_relative_output_against_runtime_base() {
     .expect("write toc");
 
     let service = BackupService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(temp.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(temp.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let created = service
         .create(CreateBackupAppRequest {
@@ -190,13 +196,16 @@ fn backup_service_restore_resolves_relative_archive_against_runtime_base() {
     let backup_file_name =
         PathBuf::from(backup.archive_path.file_name().expect("backup file name"));
     let service = BackupService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(
-            backup
-                .archive_path
-                .parent()
-                .expect("backup parent")
-                .to_path_buf(),
-        )),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(
+                backup
+                    .archive_path
+                    .parent()
+                    .expect("backup parent")
+                    .to_path_buf(),
+            ))
+            .build()
+            .expect("runtime"),
     );
     let restored = service
         .restore(RestoreBackupAppRequest {
@@ -295,7 +304,10 @@ fn backup_service_uses_runtime_default_backup_dir_for_create_list_and_restore() 
     .expect("write toc");
 
     let service = BackupService::with_runtime(
-        AppRuntime::new().with_default_backup_dir(Some(backup_dir.clone())),
+        AppRuntime::builder()
+            .with_default_backup_dir(Some(backup_dir.clone()))
+            .build()
+            .expect("runtime"),
     );
     let created = service
         .create(CreateBackupAppRequest {

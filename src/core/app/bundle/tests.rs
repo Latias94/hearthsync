@@ -70,7 +70,10 @@ fn bundle_service_inspects_relative_bundle_against_runtime_base() {
         .expect("pack bundle");
 
     let service = BundleService::with_runtime(
-        AppRuntime::new().with_relative_path_base(Some(source.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_relative_path_base(Some(source.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let inspection = service
         .inspect(InspectBundleRequest {
@@ -142,7 +145,10 @@ fn bundle_service_pack_uses_runtime_default_output_dir() {
     let source_installation = create_bundle_fixture_installation(source.path(), true);
 
     let service = BundleService::with_runtime(
-        AppRuntime::new().with_default_bundle_output_dir(Some(output.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_default_bundle_output_dir(Some(output.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     let created = service
         .pack(PackBundleAppRequest {
@@ -167,7 +173,10 @@ fn bundle_service_apply_uses_runtime_default_backup_dir() {
     let bundle_path = source.path().join("fixture.bundle.zip");
 
     let service = BundleService::with_runtime(
-        AppRuntime::new().with_default_backup_dir(Some(backup.path().to_path_buf())),
+        AppRuntime::builder()
+            .with_default_backup_dir(Some(backup.path().to_path_buf()))
+            .build()
+            .expect("runtime"),
     );
     service
         .pack(PackBundleAppRequest {

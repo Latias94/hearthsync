@@ -13,13 +13,16 @@ use crate::core::app::{
 
 #[test]
 fn runtime_default_helpers_preserve_explicit_paths_and_fill_missing_ones() {
-    let backup_dir = PathBuf::from("backups");
-    let bundle_dir = PathBuf::from("bundles");
-    let explicit_backup = PathBuf::from("custom-backups");
-    let explicit_bundle = PathBuf::from("custom-bundles");
-    let runtime = AppRuntime::new()
+    let temp = tempdir().expect("temp dir");
+    let backup_dir = temp.path().join("backups");
+    let bundle_dir = temp.path().join("bundles");
+    let explicit_backup = temp.path().join("custom-backups");
+    let explicit_bundle = temp.path().join("custom-bundles");
+    let runtime = AppRuntime::builder()
         .with_default_backup_dir(Some(backup_dir.clone()))
-        .with_default_bundle_output_dir(Some(bundle_dir.clone()));
+        .with_default_bundle_output_dir(Some(bundle_dir.clone()))
+        .build()
+        .expect("runtime");
 
     assert_eq!(
         runtime.backup_output_or_default(None),
@@ -102,9 +105,11 @@ fn runtime_scan_installations_uses_configured_roots_and_host_platform() {
     fs::create_dir_all(flavor_root.join("Interface").join("AddOns")).expect("addons dir");
     fs::create_dir_all(flavor_root.join("WTF")).expect("wtf dir");
 
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
-        .with_install_scan_roots(Some(vec![product_root.clone()]));
+        .with_install_scan_roots(Some(vec![product_root.clone()]))
+        .build()
+        .expect("runtime");
     let installations = runtime.scan_installations().expect("scan installations");
 
     assert_eq!(installations.len(), 1);
