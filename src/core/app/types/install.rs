@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{
     DetectedFlavorInstallation, HealthStatus as DomainHealthStatus,
     HostPlatform as DomainHostPlatform, WowFlavor as DomainWowFlavor,
@@ -139,8 +140,9 @@ impl ResolvedInstallationValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DetectedFlavorInstallation {
-        DetectedFlavorInstallation {
+    pub(crate) fn into_domain(self) -> AppResult<DetectedFlavorInstallation> {
+        self.validate()?;
+        Ok(DetectedFlavorInstallation {
             platform: self.platform.into_domain(),
             flavor: self.flavor.into_domain(),
             product_root: self.product_root,
@@ -149,6 +151,28 @@ impl ResolvedInstallationValue {
             addon_dir: self.addon_dir,
             wtf_dir: self.wtf_dir,
             fonts_dir: self.fonts_dir,
-        }
+        })
     }
+
+    fn validate(&self) -> AppResult<()> {
+        validate_absolute_installation_path("product root", &self.product_root)?;
+        validate_absolute_installation_path("flavor root", &self.flavor_root)?;
+        validate_absolute_installation_path("interface directory", &self.interface_dir)?;
+        validate_absolute_installation_path("addon directory", &self.addon_dir)?;
+        validate_absolute_installation_path("WTF directory", &self.wtf_dir)?;
+        validate_absolute_installation_path("fonts directory", &self.fonts_dir)?;
+
+        Ok(())
+    }
+}
+
+fn validate_absolute_installation_path(description: &str, path: &Path) -> AppResult<()> {
+    if path.is_absolute() {
+        return Ok(());
+    }
+
+    Err(AppError::Validation(format!(
+        "resolved installation {description} must be absolute: {}",
+        path.display()
+    )))
 }

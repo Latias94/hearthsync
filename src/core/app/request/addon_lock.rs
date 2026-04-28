@@ -25,7 +25,7 @@ impl InspectAddonLockRequest {
         DetectedFlavorInstallation,
         crate::core::addon::AddonStatePaths,
     )> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
         Ok((installation, state_paths))
     }
@@ -44,7 +44,7 @@ impl WriteAddonLockRequest {
         DetectedFlavorInstallation,
         crate::core::addon::AddonStatePaths,
     )> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
         Ok((installation, state_paths))
     }
@@ -80,7 +80,7 @@ impl VerifyAddonLockRequest {
         crate::core::addon::AddonStatePaths,
         Option<PathBuf>,
     )> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
         Ok((
             installation,
@@ -105,7 +105,7 @@ impl PlanAddonLockSyncRequest {
         crate::core::addon::AddonStatePaths,
         Option<PathBuf>,
     )> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
         Ok((
             installation,
@@ -159,7 +159,7 @@ impl ApplyAddonLockAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonLockApplyRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            let installation = request.installation.into_domain();
+            let installation = request.installation.into_domain()?;
             let state_paths = runtime.addon_state_paths(&installation)?;
 
             Ok(DomainAddonLockApplyRequest {

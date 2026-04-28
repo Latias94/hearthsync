@@ -22,12 +22,12 @@ pub struct SearchAddonsRequest {
 }
 
 impl SearchAddonsRequest {
-    pub(crate) fn into_domain_request(self) -> DomainSearchAddonRequest {
-        DomainSearchAddonRequest {
-            installation: self.installation.into_domain(),
+    pub(crate) fn into_domain_request(self) -> AppResult<DomainSearchAddonRequest> {
+        Ok(DomainSearchAddonRequest {
+            installation: self.installation.into_domain()?,
             query: self.query,
             limit: self.limit,
-        }
+        })
     }
 }
 
@@ -37,7 +37,7 @@ pub struct ListAddonsRequest {
 }
 
 impl ListAddonsRequest {
-    pub(crate) fn into_domain_installation(self) -> DetectedFlavorInstallation {
+    pub(crate) fn into_domain_installation(self) -> AppResult<DetectedFlavorInstallation> {
         self.installation.into_domain()
     }
 }
@@ -56,7 +56,7 @@ impl AdoptAddonsAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainAdoptAddonsRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainAdoptAddonsRequest {
@@ -87,7 +87,7 @@ impl RelinkAddonAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainRelinkAddonRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainRelinkAddonRequest {
@@ -123,7 +123,7 @@ impl InstallAddonAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainInstallAddonRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            let installation = request.installation.into_domain();
+            let installation = request.installation.into_domain()?;
             let state_paths = runtime.addon_state_paths(&installation)?;
 
             Ok(DomainInstallAddonRequest {
@@ -179,7 +179,7 @@ impl UpdateAddonAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainUpdateAddonRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            let installation = request.installation.into_domain();
+            let installation = request.installation.into_domain()?;
             let state_paths = runtime.addon_state_paths(&installation)?;
 
             Ok(DomainUpdateAddonRequest {
@@ -217,7 +217,7 @@ impl RemoveAddonAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainRemoveAddonRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            let installation = request.installation.into_domain();
+            let installation = request.installation.into_domain()?;
             let state_paths = runtime.addon_state_paths(&installation)?;
 
             Ok(DomainRemoveAddonRequest {

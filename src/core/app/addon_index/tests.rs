@@ -799,10 +799,14 @@ fn addon_index_service_update_with_callbacks_uses_plain_closures() {
         )],
     );
     let index_path = write_index(temp.path(), &updated_archive_path);
+    let domain_installation = installation
+        .clone()
+        .into_domain()
+        .expect("resolved installation");
 
     install_addon(InstallAddonRequest {
-        state_paths: addon_state_paths(&installation.clone().into_domain()),
-        installation: installation.clone().into_domain(),
+        state_paths: addon_state_paths(&domain_installation),
+        installation: domain_installation,
         source: installed_archive_path.display().to_string(),
         dry_run: false,
         backup_output_path: Some(temp.path().join("backups")),

@@ -20,7 +20,7 @@ impl InspectAddonPolicyRequest {
         DetectedFlavorInstallation,
         crate::core::addon::AddonStatePaths,
     )> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
         Ok((installation, state_paths))
     }
@@ -52,7 +52,7 @@ impl SetAddonPolicyAppRequest {
             }
             None => (None, None),
         };
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainSetAddonPolicyRequest {
@@ -82,7 +82,7 @@ impl RemoveAddonPolicyAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainRemoveAddonPolicyRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainRemoveAddonPolicyRequest {

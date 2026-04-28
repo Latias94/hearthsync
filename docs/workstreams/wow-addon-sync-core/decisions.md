@@ -1471,3 +1471,30 @@ Specifically:
   be replaced with unresolved or inconsistent values.
 - Tests and fixtures now exercise the same fallible runtime construction path as production for
   path-bearing and policy-bearing settings.
+
+## ADR-059: Resolved Installation DTOs Validate Before Core Projection
+
+Accepted on 2026-04-28
+
+### Decision
+
+App-owned resolved installation values must be validated before they are projected back into core
+installation structs.
+
+Specifically:
+
+- `ResolvedInstallationValue::into_domain()` is fallible.
+- Every filesystem path inside a resolved installation DTO must be absolute before app services
+  pass it to addon, bundle, backup, config, or policy core code.
+- CLI callers normally receive these DTOs from `resolve_installation`, while future GUI callers can
+  still deserialize or construct them, but app services fail closed if the DTO contains relative
+  paths.
+
+### Consequences
+
+- A frontend cannot bypass runtime input-path resolution by constructing a relative
+  `ResolvedInstallationValue`.
+- Core services continue to receive deterministic installation trees instead of inheriting ambient
+  process cwd from app-layer DTOs.
+- Request projection methods now surface invalid installation DTOs as app validation errors before
+  any filesystem mutation is planned.

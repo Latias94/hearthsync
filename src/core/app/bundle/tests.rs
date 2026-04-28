@@ -266,7 +266,9 @@ fn bundle_service_addon_lock_shortcuts_use_runtime_addon_state_storage() {
     assert_eq!(inventory.tracked_package_count, 1);
     assert!(inventory.untracked_addons.is_empty());
 
-    let target_domain_installation = target_installation.into_domain();
+    let target_domain_installation = target_installation
+        .into_domain()
+        .expect("resolved installation");
     let sidecar_paths = AddonStatePaths::for_installation(
         crate::core::addon::AddonStateStorageKind::Sidecar,
         &target_domain_installation,

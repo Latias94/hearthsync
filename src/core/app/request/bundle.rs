@@ -48,7 +48,7 @@ impl PackBundleAppRequest {
     ) -> AppResult<DomainPackBundleRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
             Ok(DomainPackBundleRequest {
-                installation: request.installation.into_domain(),
+                installation: request.installation.into_domain()?,
                 addon_state_storage_kind: runtime.addon_state_storage_kind(),
                 manifest: request.manifest.into_domain(),
                 output_path: request.output_path,
@@ -80,7 +80,7 @@ impl PlanBundleApplyRequest {
     )> {
         Ok((
             resolve_bundle_path(runtime, self.bundle_path)?,
-            self.installation.into_domain(),
+            self.installation.into_domain()?,
             self.apply_mappings.into_domain(),
         ))
     }
@@ -110,7 +110,7 @@ impl ApplyBundleAppRequest {
         self.into_domain_with_runtime_defaults(runtime, |request| {
             Ok(DomainUnpackBundleRequest {
                 bundle_path: resolve_bundle_path(runtime, request.bundle_path)?,
-                installation: request.installation.into_domain(),
+                installation: request.installation.into_domain()?,
                 dry_run: request.dry_run,
                 backup_output_path: resolve_bundle_backup_output_path(
                     runtime,
@@ -135,7 +135,7 @@ impl PlanBundleAddonLockRequest {
     ) -> AppResult<(PathBuf, DetectedFlavorInstallation)> {
         Ok((
             resolve_bundle_path(runtime, self.bundle_path)?,
-            self.installation.into_domain(),
+            self.installation.into_domain()?,
         ))
     }
 }
@@ -163,7 +163,7 @@ impl ApplyBundleAddonLockAppRequest {
         self.into_domain_with_runtime_defaults(runtime, |request| {
             Ok(DomainBundleAddonLockApplyRequest {
                 bundle_path: resolve_bundle_path(runtime, request.bundle_path)?,
-                installation: request.installation.into_domain(),
+                installation: request.installation.into_domain()?,
                 addon_state_storage_kind: runtime.addon_state_storage_kind(),
                 backup_output_path: resolve_bundle_backup_output_path(
                     runtime,

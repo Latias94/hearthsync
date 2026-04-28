@@ -39,7 +39,7 @@ impl AttachAddonIndexAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonIndexAttachRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainAddonIndexAttachRequest {
@@ -65,7 +65,7 @@ impl SuggestAddonIndexRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonIndexSuggestionRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainAddonIndexSuggestionRequest {
@@ -92,7 +92,7 @@ impl ScaffoldAddonIndexRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonIndexScaffoldRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainAddonIndexScaffoldRequest {
@@ -130,7 +130,7 @@ impl InstallAddonIndexAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonIndexInstallRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            let installation = request.installation.into_domain();
+            let installation = request.installation.into_domain()?;
             let state_paths = runtime.addon_state_paths(&installation)?;
 
             Ok(DomainAddonIndexInstallRequest {
@@ -171,7 +171,7 @@ impl UpdateAddonIndexAppRequest {
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonIndexUpdateRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
-            let installation = request.installation.into_domain();
+            let installation = request.installation.into_domain()?;
             let state_paths = runtime.addon_state_paths(&installation)?;
 
             Ok(DomainAddonIndexUpdateRequest {
@@ -203,7 +203,7 @@ impl RelinkAddonIndexAppRequest {
         self,
         runtime: &AppRuntime,
     ) -> AppResult<DomainAddonIndexRelinkRequest> {
-        let installation = self.installation.into_domain();
+        let installation = self.installation.into_domain()?;
         let state_paths = runtime.addon_state_paths(&installation)?;
 
         Ok(DomainAddonIndexRelinkRequest {

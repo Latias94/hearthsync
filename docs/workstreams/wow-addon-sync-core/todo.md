@@ -460,6 +460,9 @@ enough that these rules live in one place.
   were removed, so CLI, future GUI code, and tests all use the fallible builder path for scan
   roots, runtime base, default output directories, host platform, addon-state storage, and helper
   policy.
+  Current progress: resolved installation DTOs now validate before core projection. App services
+  reject relative installation tree paths before addon, bundle, backup, config, or policy code can
+  plan reads or writes against ambient cwd.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

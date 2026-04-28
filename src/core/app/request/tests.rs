@@ -300,7 +300,8 @@ fn thin_installation_requests_project_domain_inputs() {
     let domain_installation = ListAddonsRequest {
         installation: installation.clone(),
     }
-    .into_domain_installation();
+    .into_domain_installation()
+    .expect("list request");
     let (lock_installation, _lock_state_paths, lock_path) = PlanAddonLockSyncRequest {
         installation: installation.clone(),
         lock_path: Some(PathBuf::from("lock.toml")),
@@ -321,20 +322,21 @@ fn thin_installation_requests_project_domain_inputs() {
     }
     .into_domain_inputs(&runtime)
     .expect("bundle request");
+    let expected_installation = sample_installation();
 
     assert_eq!(
         domain_installation.product_root,
-        PathBuf::from("World of Warcraft")
+        expected_installation.product_root
     );
     assert_eq!(
         lock_installation.flavor_root,
-        PathBuf::from("World of Warcraft/_retail_")
+        expected_installation.flavor_root
     );
     assert_eq!(lock_path, Some(base.join("lock.toml")));
     assert_eq!(bundle_path, base.join("bundle.zip"));
     assert_eq!(
         bundle_installation.addon_dir,
-        PathBuf::from("World of Warcraft/_retail_/Interface/AddOns")
+        expected_installation.addon_dir
     );
     assert_eq!(apply_mappings.target_account.as_deref(), Some("AccountA"));
     assert_eq!(apply_mappings.target_server.as_deref(), Some("Illidan"));
@@ -398,7 +400,7 @@ fn addon_policy_requests_project_domain_inputs() {
 
     assert_eq!(
         inspection_installation.product_root,
-        PathBuf::from("World of Warcraft")
+        sample_installation().product_root
     );
     assert_eq!(set_request.package, "WeakAuras");
     assert_eq!(set_request.ignored, Some(true));
@@ -615,7 +617,7 @@ fn relink_addon_request_projects_domain_inputs() {
     assert!(domain.dry_run);
     assert_eq!(
         domain.installation.addon_dir,
-        PathBuf::from("World of Warcraft/_retail_/Interface/AddOns")
+        sample_installation().addon_dir
     );
 }
 
@@ -709,15 +711,21 @@ fn runtime_with_default_dirs(
 }
 
 fn sample_installation() -> ResolvedInstallationValue {
+    let product_root = std::env::current_dir()
+        .expect("cwd")
+        .join("World of Warcraft");
+    let flavor_root = product_root.join("_retail_");
+    let interface_dir = flavor_root.join("Interface");
+
     ResolvedInstallationValue {
         platform: HostPlatformValue::Windows,
         flavor: WowFlavorValue::Retail,
-        product_root: PathBuf::from("World of Warcraft"),
-        flavor_root: PathBuf::from("World of Warcraft/_retail_"),
-        interface_dir: PathBuf::from("World of Warcraft/_retail_/Interface"),
-        addon_dir: PathBuf::from("World of Warcraft/_retail_/Interface/AddOns"),
-        wtf_dir: PathBuf::from("World of Warcraft/_retail_/WTF"),
-        fonts_dir: PathBuf::from("World of Warcraft/_retail_/Fonts"),
+        product_root,
+        flavor_root: flavor_root.clone(),
+        interface_dir: interface_dir.clone(),
+        addon_dir: interface_dir.join("AddOns"),
+        wtf_dir: flavor_root.join("WTF"),
+        fonts_dir: flavor_root.join("Fonts"),
     }
 }
 

@@ -313,6 +313,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - runtime policy is now immutable after build: post-build `AppRuntime` mutators were removed, so
   CLI, future GUI code, and tests all use the fallible builder path for scan roots, runtime base,
   default output directories, host platform, addon-state storage, and helper policy.
+- resolved installation DTOs now validate before core projection: app services reject relative
+  installation tree paths before addon, bundle, backup, config, or policy code can plan reads or
+  writes against ambient cwd.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

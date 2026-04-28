@@ -39,7 +39,7 @@ impl AddonService {
     ) -> AppResult<AddonSearchCatalogResult> {
         let results = search_addons_with_provider(
             self.runtime.addon_provider(),
-            request.into_domain_request(),
+            request.into_domain_request()?,
         )?;
         Ok(AddonSearchCatalogResult::from_domain_with_provider(
             results,
@@ -48,7 +48,7 @@ impl AddonService {
     }
 
     pub(super) fn list(&self, request: ListAddonsRequest) -> AppResult<AddonInventoryResult> {
-        let installation = request.into_domain_installation();
+        let installation = request.into_domain_installation()?;
         let state_paths = self.runtime.addon_state_paths(&installation)?;
         let inventory = list_addons(&installation, &state_paths)?;
         Ok(AddonInventoryResult::from_domain_with_provider(
@@ -171,7 +171,7 @@ impl AddonService {
         TCancel: CancellationToken,
         TProgress: TaskProgressSink,
     {
-        let installation = request.installation.clone().into_domain();
+        let installation = request.installation.clone().into_domain()?;
         let state_paths = self.runtime.addon_state_paths(&installation)?;
         validate_addon_update_dependency_policy_support(
             self.runtime.addon_provider(),

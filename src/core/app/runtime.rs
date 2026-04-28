@@ -281,7 +281,7 @@ impl AppRuntime {
         &self,
         installation: &ResolvedInstallationValue,
     ) -> AppResult<AddonStatePathsValue> {
-        self.addon_state_paths(&installation.clone().into_domain())
+        self.addon_state_paths(&installation.clone().into_domain()?)
             .map(AddonStatePathsValue::from_domain)
     }
 

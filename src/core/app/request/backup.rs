@@ -55,7 +55,7 @@ impl CreateBackupAppRequest {
     ) -> AppResult<DomainBackupRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
             Ok(DomainBackupRequest {
-                installation: request.installation.into_domain(),
+                installation: request.installation.into_domain()?,
                 output_path: resolve_optional_app_output_path(
                     runtime,
                     request.output_path,
@@ -90,7 +90,7 @@ impl RestoreBackupAppRequest {
     ) -> AppResult<DomainRestoreBackupRequest> {
         self.into_domain_with_runtime_defaults(runtime, |request| {
             Ok(DomainRestoreBackupRequest {
-                installation: request.installation.into_domain(),
+                installation: request.installation.into_domain()?,
                 archive_path: resolve_optional_backup_path(
                     runtime,
                     request.archive_path,
