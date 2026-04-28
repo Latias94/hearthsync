@@ -80,9 +80,11 @@ fn stable_app_services_share_runtime_with_first_wave_gui_services() {
 
 #[test]
 fn stable_app_services_expose_runtime_capabilities_as_app_owned_value() {
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
-        .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal);
+        .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal)
+        .build()
+        .expect("runtime");
     let services = StableAppServices::with_runtime(runtime);
 
     assert_eq!(

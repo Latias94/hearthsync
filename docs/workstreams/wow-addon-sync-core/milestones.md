@@ -310,9 +310,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - runtime construction now has a fallible `AppRuntimeBuilder` for path-bearing production
   assembly, so addon provider options, scan roots, and default output directories normalize after
   the relative-path base is known instead of depending on constructor call order.
-- runtime-owned path policy is now immutable after build: path-bearing `AppRuntime` mutators were
-  removed, so CLI, future GUI code, and tests all use the fallible builder path for scan roots,
-  runtime base, and default output directories.
+- runtime policy is now immutable after build: post-build `AppRuntime` mutators were removed, so
+  CLI, future GUI code, and tests all use the fallible builder path for scan roots, runtime base,
+  default output directories, host platform, addon-state storage, and helper policy.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

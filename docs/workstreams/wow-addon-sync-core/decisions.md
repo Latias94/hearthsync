@@ -1445,29 +1445,29 @@ Specifically:
 - Runtime diagnostics for builder-created runtimes report normalized path policy.
 - Runtime-owned paths now have one normalized representation after `build()`.
 
-## ADR-058: Runtime-Owned Path Policy Is Immutable After Build
+## ADR-058: Runtime Policy Is Immutable After Build
 
 Accepted on 2026-04-28
 
 ### Decision
 
-`AppRuntime` must not expose post-build mutators for runtime-owned filesystem path policy.
+`AppRuntime` must be a read-only runtime policy snapshot after construction.
 
 Specifically:
 
 - `install_scan_roots`, `relative_path_base`, `default_backup_dir`, and
   `default_bundle_output_dir` can only be set on `AppRuntimeBuilder`.
+- `host_platform`, `addon_state_storage_kind`, and `external_helper_policy` can only be set on
+  `AppRuntimeBuilder`.
 - `AppRuntimeBuilder::build()` remains the only place that can validate the runtime base and
   normalize relative runtime-owned paths.
 - `AppRuntime` keeps read-only accessors plus request-time input/output resolution helpers.
-- Non-path runtime toggles can still use simple runtime mutators when they do not affect path
-  normalization invariants.
 
 ### Consequences
 
 - Future CLI and GUI assembly cannot accidentally bypass builder normalization by modifying a
   built runtime.
-- Runtime diagnostics are more trustworthy because runtime-owned path policy is already normalized
-  and cannot be replaced with unresolved relative values.
+- Runtime diagnostics are more trustworthy because runtime policy is already normalized and cannot
+  be replaced with unresolved or inconsistent values.
 - Tests and fixtures now exercise the same fallible runtime construction path as production for
-  path-bearing settings.
+  path-bearing and policy-bearing settings.

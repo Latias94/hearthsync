@@ -211,8 +211,10 @@ fn bundle_service_addon_lock_shortcuts_use_runtime_addon_state_storage() {
     let target_installation = create_bundle_fixture_installation(target.path(), false);
     let archive_path = source.path().join("WeakAuras.zip");
     let bundle_path = source.path().join("tracked.bundle.zip");
-    let runtime = AppRuntime::new()
-        .with_addon_state_storage_kind(crate::core::addon::AddonStateStorageKind::Sidecar);
+    let runtime = AppRuntime::builder()
+        .with_addon_state_storage_kind(crate::core::addon::AddonStateStorageKind::Sidecar)
+        .build()
+        .expect("runtime");
 
     create_addon_archive(
         &archive_path,

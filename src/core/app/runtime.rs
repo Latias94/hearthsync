@@ -212,14 +212,6 @@ impl AppRuntime {
         self.addon_provider.as_ref()
     }
 
-    pub fn with_addon_state_storage_kind(
-        mut self,
-        addon_state_storage_kind: AddonStateStorageKind,
-    ) -> Self {
-        self.addon_state_storage_kind = addon_state_storage_kind;
-        self
-    }
-
     pub fn addon_state_storage_kind(&self) -> AddonStateStorageKind {
         self.addon_state_storage_kind
     }
@@ -229,14 +221,6 @@ impl AppRuntime {
         installation: &DetectedFlavorInstallation,
     ) -> AppResult<AddonStatePaths> {
         AddonStatePaths::for_installation(self.addon_state_storage_kind, installation)
-    }
-
-    pub fn with_external_helper_policy(
-        mut self,
-        external_helper_policy: ExternalHelperPolicyValue,
-    ) -> Self {
-        self.external_helper_policy = external_helper_policy;
-        self
     }
 
     pub fn capabilities(&self) -> AppRuntimeCapabilitiesValue {
@@ -322,11 +306,6 @@ impl AppRuntime {
             availability,
             active_strategy: HelperStrategyValue::NativeRust,
         }
-    }
-
-    pub fn with_host_platform(mut self, host_platform: HostPlatformValue) -> Self {
-        self.host_platform = host_platform;
-        self
     }
 
     pub fn host_platform(&self) -> HostPlatformValue {

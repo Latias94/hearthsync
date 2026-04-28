@@ -67,7 +67,10 @@ fn runtime_defaults_addon_state_storage_to_appdata() {
 fn runtime_can_override_addon_state_storage_to_sidecar() {
     let temp = tempdir().expect("temp dir");
     let installation = sample_installation(temp.path());
-    let runtime = AppRuntime::new().with_addon_state_storage_kind(AddonStateStorageKind::Sidecar);
+    let runtime = AppRuntime::builder()
+        .with_addon_state_storage_kind(AddonStateStorageKind::Sidecar)
+        .build()
+        .expect("runtime");
     let state_paths = runtime
         .addon_state_paths(&installation)
         .expect("addon state paths");
@@ -84,7 +87,10 @@ fn runtime_can_override_addon_state_storage_to_sidecar() {
 
 #[test]
 fn runtime_source_platform_or_host_uses_explicit_platform_before_host_default() {
-    let runtime = AppRuntime::new().with_host_platform(HostPlatformValue::MacOs);
+    let runtime = AppRuntime::builder()
+        .with_host_platform(HostPlatformValue::MacOs)
+        .build()
+        .expect("runtime");
 
     assert_eq!(
         runtime.source_platform_or_host(None),
@@ -258,8 +264,10 @@ fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_s
 
 #[test]
 fn runtime_capabilities_report_unavailable_external_helper_when_preferred() {
-    let runtime =
-        AppRuntime::new().with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal);
+    let runtime = AppRuntime::builder()
+        .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal)
+        .build()
+        .expect("runtime");
 
     assert_eq!(
         runtime.external_helper_policy(),
@@ -278,7 +286,10 @@ fn runtime_capabilities_report_unavailable_external_helper_when_preferred() {
 
 #[test]
 fn runtime_capabilities_project_sidecar_addon_management_backend() {
-    let runtime = AppRuntime::new().with_addon_state_storage_kind(AddonStateStorageKind::Sidecar);
+    let runtime = AppRuntime::builder()
+        .with_addon_state_storage_kind(AddonStateStorageKind::Sidecar)
+        .build()
+        .expect("runtime");
 
     assert_eq!(
         runtime.addon_management_capabilities(),

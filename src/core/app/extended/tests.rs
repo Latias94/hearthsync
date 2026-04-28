@@ -100,9 +100,11 @@ fn extended_app_services_exposes_first_wave_stable_services() {
 
 #[test]
 fn extended_app_services_exposes_runtime_capabilities_as_app_owned_value() {
-    let runtime = AppRuntime::new()
+    let runtime = AppRuntime::builder()
         .with_host_platform(HostPlatformValue::MacOs)
-        .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal);
+        .with_external_helper_policy(ExternalHelperPolicyValue::PreferExternal)
+        .build()
+        .expect("runtime");
     let app = ExtendedAppServices::with_runtime(runtime);
 
     assert_eq!(

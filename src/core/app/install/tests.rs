@@ -90,7 +90,10 @@ fn installation_service_inspect_and_resolve_use_runtime_host_platform() {
     .expect("config");
 
     let service = InstallationService::with_runtime(
-        AppRuntime::new().with_host_platform(HostPlatformValue::MacOs),
+        AppRuntime::builder()
+            .with_host_platform(HostPlatformValue::MacOs)
+            .build()
+            .expect("runtime"),
     );
     let inspection = service
         .inspect(InspectInstallationRequest {
