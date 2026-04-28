@@ -12,10 +12,12 @@ use super::storage::{
 use crate::core::addon::{
     AddonPackageMetadata, AddonProvider, AddonRegistry, AddonSourceRef, AddonStatePaths,
     DefaultAddonProvider, InstallAddonExecutionPlan, InstallPreparedAddonRequest,
-    PreparedAddonPackage, TrackedAddonPackage, UpdatePreparedPackagesWithDependenciesRequest,
-    UpdatedAddonPackageResult, collect_missing_dependency_prepared_packages,
-    ensure_relink_addon_directories_match, execute_install_plan_task, list_addons, load_registry,
-    no_tracked_packages_error, policy::AddonUpdatePolicySnapshot, prepare_install_prepared_addon,
+    MissingDependencyCollectionRequest, MissingDependencyCollectionState,
+    PreparePackageFromSourceRefTaskRequest, PreparePackageTaskContext, PreparedAddonPackage,
+    TrackedAddonPackage, UpdatePreparedPackagesWithDependenciesRequest, UpdatedAddonPackageResult,
+    collect_missing_dependency_prepared_packages, ensure_relink_addon_directories_match,
+    execute_install_plan_task, list_addons, load_registry, no_tracked_packages_error,
+    policy::AddonUpdatePolicySnapshot, prepare_install_prepared_addon,
     prepare_package_from_source_ref_task_with_provider, preview_installed_dependency_packages,
     provider::AddonSourceResolutionPolicy, relink_source_changed, relink_timestamp,
     rollback_or_report_addon_error, save_registry, select_single_tracked_package,
@@ -691,12 +693,16 @@ where
             };
         let prepared = match prepare_package_from_source_ref_task_with_provider(
             provider,
-            &resolved_source,
-            Some(request.installation.flavor),
-            request.installation.platform,
-            cancellation,
-            TaskKind::AddonIndexAttach,
-            TaskPhase::Preparing,
+            PreparePackageFromSourceRefTaskRequest::new(
+                &resolved_source,
+                PreparePackageTaskContext::new(
+                    Some(request.installation.flavor),
+                    request.installation.platform,
+                    cancellation,
+                    TaskKind::AddonIndexAttach,
+                    TaskPhase::Preparing,
+                ),
+            ),
             progress,
         ) {
             Ok(prepared) => prepared,
@@ -738,16 +744,16 @@ where
         }
 
         let package_result_index = packages.len();
-        packages.push(ready_attach_result(
-            package.clone(),
-            &tracked_package.package_id,
-            match_strategy.clone(),
-            tracked_package.source.clone(),
-            prepared.source.clone(),
+        packages.push(ready_attach_result(ReadyAttachResultRequest {
+            package: package.clone(),
+            tracked_package_id: &tracked_package.package_id,
+            match_strategy: match_strategy.clone(),
+            previous_source: tracked_package.source.clone(),
+            source: prepared.source.clone(),
             source_changed,
             metadata_changed,
-            false,
-        ));
+            applied: false,
+        }));
         changes.push(IndexAttachChange {
             package_result_index,
             package,
@@ -801,12 +807,16 @@ where
     let resolved_source = resolve_index_package_source(&request.index_path, &package.source)?;
     let prepared = prepare_package_from_source_ref_task_with_provider(
         provider,
-        &resolved_source,
-        Some(request.installation.flavor),
-        request.installation.platform,
-        cancellation,
-        TaskKind::AddonIndexRelink,
-        TaskPhase::Preparing,
+        PreparePackageFromSourceRefTaskRequest::new(
+            &resolved_source,
+            PreparePackageTaskContext::new(
+                Some(request.installation.flavor),
+                request.installation.platform,
+                cancellation,
+                TaskKind::AddonIndexRelink,
+                TaskPhase::Preparing,
+            ),
+        ),
         progress,
     )?;
 
@@ -886,12 +896,16 @@ where
     let resolved_source = resolve_index_package_source(&request.index_path, &package.source)?;
     let prepared = prepare_package_from_source_ref_task_with_provider(
         provider,
-        &resolved_source,
-        Some(request.installation.flavor),
-        request.installation.platform,
-        cancellation,
-        TaskKind::AddonIndexInstall,
-        TaskPhase::Preparing,
+        PreparePackageFromSourceRefTaskRequest::new(
+            &resolved_source,
+            PreparePackageTaskContext::new(
+                Some(request.installation.flavor),
+                request.installation.platform,
+                cancellation,
+                TaskKind::AddonIndexInstall,
+                TaskPhase::Preparing,
+            ),
+        ),
         progress,
     )?;
     let install_plan = prepare_install_prepared_addon(InstallPreparedAddonRequest {
@@ -971,21 +985,22 @@ fn execute_index_attach_plan(plan: IndexAttachPlan) -> AppResult<AddonIndexAttac
 fn index_attach_result(mut plan: IndexAttachPlan, applied: bool) -> AddonIndexAttachResult {
     if applied {
         for change in &plan.changes {
-            plan.packages[change.package_result_index] = ready_attach_result(
-                change.package.clone(),
-                &change.tracked_package.package_id,
-                change.match_strategy.clone(),
-                change.tracked_package.source.clone(),
-                change.next_source.clone(),
-                change.source_changed,
-                change.metadata_changed,
-                true,
-            );
+            plan.packages[change.package_result_index] =
+                ready_attach_result(ReadyAttachResultRequest {
+                    package: change.package.clone(),
+                    tracked_package_id: &change.tracked_package.package_id,
+                    match_strategy: change.match_strategy.clone(),
+                    previous_source: change.tracked_package.source.clone(),
+                    source: change.next_source.clone(),
+                    source_changed: change.source_changed,
+                    metadata_changed: change.metadata_changed,
+                    applied: true,
+                });
         }
     }
 
     let change_package_count = plan.changes.len();
-    let attached_package_count = applied.then_some(change_package_count).unwrap_or(0);
+    let attached_package_count = if applied { change_package_count } else { 0 };
     let already_attached_package_count = plan
         .packages
         .iter()
@@ -1037,16 +1052,28 @@ fn attach_status_is_blocking(status: &AddonIndexAttachPackageStatus) -> bool {
     )
 }
 
-fn ready_attach_result(
+struct ReadyAttachResultRequest<'a> {
     package: AddonIndexPackage,
-    tracked_package_id: &str,
+    tracked_package_id: &'a str,
     match_strategy: AddonIndexTrackedMatchStrategy,
     previous_source: AddonSourceRef,
     source: AddonSourceRef,
     source_changed: bool,
     metadata_changed: bool,
     applied: bool,
-) -> AddonIndexAttachPackageResult {
+}
+
+fn ready_attach_result(request: ReadyAttachResultRequest<'_>) -> AddonIndexAttachPackageResult {
+    let ReadyAttachResultRequest {
+        package,
+        tracked_package_id,
+        match_strategy,
+        previous_source,
+        source,
+        source_changed,
+        metadata_changed,
+        applied,
+    } = request;
     let status = if applied {
         AddonIndexAttachPackageStatus::Attached
     } else {
@@ -1278,12 +1305,16 @@ where
         let resolved_source = resolve_index_package_source(&request.index_path, &package.source)?;
         let mut prepared = prepare_package_from_source_ref_task_with_provider(
             provider,
-            &resolved_source,
-            Some(request.installation.flavor),
-            request.installation.platform,
-            cancellation,
-            TaskKind::AddonIndexUpdate,
-            TaskPhase::Preparing,
+            PreparePackageFromSourceRefTaskRequest::new(
+                &resolved_source,
+                PreparePackageTaskContext::new(
+                    Some(request.installation.flavor),
+                    request.installation.platform,
+                    cancellation,
+                    TaskKind::AddonIndexUpdate,
+                    TaskPhase::Preparing,
+                ),
+            ),
             progress,
         )?;
         prepared.metadata = Some(metadata_from_index_package(&index, package));
@@ -1314,14 +1345,18 @@ where
             }
             collect_missing_dependency_prepared_packages(
                 provider,
-                &resolved_source,
-                AddonSourceResolutionPolicy::default(),
-                &request.installation,
-                &registry,
-                &matched_packages,
-                &mut dependency_prepared_packages,
-                &mut planned_dependency_keys,
-                TaskKind::AddonIndexUpdate,
+                MissingDependencyCollectionRequest {
+                    source: &resolved_source,
+                    resolution_policy: AddonSourceResolutionPolicy::default(),
+                    installation: &request.installation,
+                    registry: &registry,
+                    selected_packages: &matched_packages,
+                    task_kind: TaskKind::AddonIndexUpdate,
+                },
+                &mut MissingDependencyCollectionState {
+                    prepared_packages: &mut dependency_prepared_packages,
+                    planned_keys: &mut planned_dependency_keys,
+                },
                 cancellation,
                 progress,
             )?;

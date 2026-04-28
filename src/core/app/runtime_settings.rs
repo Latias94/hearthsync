@@ -247,7 +247,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService::default();
+        let service = RuntimeSettingsService;
 
         let mutation = service
             .set(SetRuntimeSettingsAppRequest {
@@ -279,7 +279,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService::default();
+        let service = RuntimeSettingsService;
 
         service
             .set(SetRuntimeSettingsAppRequest {
@@ -307,7 +307,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService::default();
+        let service = RuntimeSettingsService;
 
         let error = service
             .set(SetRuntimeSettingsAppRequest {
@@ -328,7 +328,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService::default();
+        let service = RuntimeSettingsService;
 
         let error = service
             .set(SetRuntimeSettingsAppRequest {
@@ -349,7 +349,7 @@ mod tests {
         let temp = tempdir().expect("temp dir");
         let settings_path = temp.path().join("settings").join("runtime.toml");
         let _guard = runtime_settings_path_guard(&settings_path);
-        let service = RuntimeSettingsService::default();
+        let service = RuntimeSettingsService;
         std::fs::create_dir_all(settings_path.parent().expect("settings dir"))
             .expect("create settings dir");
         std::fs::write(&settings_path, "addon_cache_dir = [").expect("write invalid settings");

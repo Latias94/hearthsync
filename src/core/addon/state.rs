@@ -7,17 +7,12 @@ use crate::core::error::AppResult;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform};
 use crate::core::platform_dirs::app_data_subdir;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AddonStateStorageKind {
+    #[default]
     AppData,
     Sidecar,
-}
-
-impl Default for AddonStateStorageKind {
-    fn default() -> Self {
-        Self::AppData
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

@@ -863,9 +863,12 @@ place.
   collected `TaskRun<T>` methods remain convenience wrappers. GUI callers can now stream
   `TaskProgressEvent` payloads and provide cancellation without reaching into internal service
   callback methods or `core::task` runners.
-- [ ] turn clippy into an actionable refactor gate
-  Target: `cargo clippy --all-targets -- -D warnings` passes, or any remaining warnings are narrow,
-  intentional, and documented.
+- [x] turn clippy into an actionable refactor gate
+  Completed: `cargo clippy --all-targets -- -D warnings` now passes without blanket allows. The
+  cleanup removed mechanical warnings and converted the meaningful long-argument pressure into
+  context/request objects for dependency collection, package preparation, lock-source preparation,
+  addon mutation execution, bundle plan assembly, index attach result creation, and task byte
+  progress payloads.
 
 Exit criteria:
 

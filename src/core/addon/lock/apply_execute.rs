@@ -3,8 +3,8 @@ use super::apply_model::{
 };
 use super::storage::now_rfc3339;
 use crate::core::addon::{
-    AddonStatePaths, install_prepared_package_task, load_registry, remove_selected_packages_task,
-    save_registry, update_prepared_packages_task,
+    AddonStatePaths, UpdatePreparedPackagesTaskRequest, install_prepared_package_task,
+    load_registry, remove_selected_packages_task, save_registry, update_prepared_packages_task,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -41,10 +41,12 @@ where
         update_prepared_packages_task(
             installation,
             state_paths,
-            registry,
-            prepared.update_current_packages,
-            prepared.update_prepared_packages,
-            TaskKind::AddonLockApply,
+            UpdatePreparedPackagesTaskRequest {
+                registry,
+                selected_packages: prepared.update_current_packages,
+                prepared_packages: prepared.update_prepared_packages,
+                task: TaskKind::AddonLockApply,
+            },
             cancellation,
             progress,
         )?;

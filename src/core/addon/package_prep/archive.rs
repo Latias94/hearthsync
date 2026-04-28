@@ -301,11 +301,10 @@ fn match_addon_root(
     for (index, root) in roots.iter().enumerate() {
         match addon_root_prefix_match_kind(segments, &root.archive_root, target_platform) {
             Some(AddonRootPrefixMatchKind::Exact) => return Some(index),
-            Some(AddonRootPrefixMatchKind::CaseInsensitive) => {
-                if case_insensitive_match.is_none() {
-                    case_insensitive_match = Some(index);
-                }
+            Some(AddonRootPrefixMatchKind::CaseInsensitive) if case_insensitive_match.is_none() => {
+                case_insensitive_match = Some(index);
             }
+            Some(AddonRootPrefixMatchKind::CaseInsensitive) => {}
             None => {}
         }
     }

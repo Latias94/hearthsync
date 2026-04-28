@@ -30,9 +30,9 @@ pub(crate) fn scan_installations_with_roots(
             continue;
         }
 
-        for flavor in detect_flavors(&product_root) {
+        for flavor in detect_flavors(product_root) {
             let installation = build_installation_for_platform(
-                &product_root,
+                product_root,
                 &product_root.join(flavor.folder_name()),
                 flavor,
                 host_platform,
@@ -171,16 +171,15 @@ fn resolve_detected_installation(
     flavor: WowFlavor,
     host_platform: HostPlatform,
 ) -> AppResult<DetectedFlavorInstallation> {
-    let flavor_root = if requested_path
+    let requested_is_flavor_root = requested_path
         .file_name()
         .and_then(|name| name.to_str())
         .and_then(WowFlavor::from_folder_name)
-        == Some(flavor)
-    {
-        requested_path.to_path_buf()
-    } else if has_wow_structure(requested_path)
-        && !requested_path.join(flavor.folder_name()).exists()
-    {
+        == Some(flavor);
+    let requested_is_flat_flavor_root =
+        has_wow_structure(requested_path) && !requested_path.join(flavor.folder_name()).exists();
+
+    let flavor_root = if requested_is_flavor_root || requested_is_flat_flavor_root {
         requested_path.to_path_buf()
     } else {
         product_root.join(flavor.folder_name())

@@ -75,19 +75,17 @@ impl PortableArchivePathSet {
         }
 
         let key = platform_path_collision_key(path, HostPlatform::Windows);
-        if !is_directory {
-            if let Some(descendant) = self.descendants_by_ancestor.get(&key) {
-                let kind = if Path::new(&descendant.archive_path).starts_with(path) {
-                    PortableArchivePathIssueKind::ExactPrefixConflict
-                } else {
-                    PortableArchivePathIssueKind::CaseInsensitivePrefixConflict
-                };
-                return Err(PortableArchivePathIssue {
-                    previous: current.archive_path,
-                    current: descendant.archive_path.clone(),
-                    kind,
-                });
-            }
+        if !is_directory && let Some(descendant) = self.descendants_by_ancestor.get(&key) {
+            let kind = if Path::new(&descendant.archive_path).starts_with(path) {
+                PortableArchivePathIssueKind::ExactPrefixConflict
+            } else {
+                PortableArchivePathIssueKind::CaseInsensitivePrefixConflict
+            };
+            return Err(PortableArchivePathIssue {
+                previous: current.archive_path,
+                current: descendant.archive_path.clone(),
+                kind,
+            });
         }
 
         if let Some(previous) = self.seen_paths.get(&key) {

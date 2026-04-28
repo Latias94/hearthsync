@@ -11,18 +11,17 @@ use serde::Serialize;
 
 pub(super) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRuntime> {
     let persisted_settings = load_persisted_runtime_settings_value()?.unwrap_or_default();
-    let mut provider_options = AddonProviderOptionsValue::default();
-    provider_options.download_cache_dir = persisted_settings.addon_cache_dir.clone();
-    if let Some(policy) = persisted_settings.http_no_validator_cache_policy.clone() {
-        provider_options.http_no_validator_cache_policy = policy;
-    }
-    provider_options.download_cache_dir = options
-        .addon_cache_dir
-        .clone()
-        .or(provider_options.download_cache_dir);
-    if let Some(policy) = options.http_no_validator_cache_policy() {
-        provider_options.http_no_validator_cache_policy = policy;
-    }
+    let provider_options = AddonProviderOptionsValue {
+        download_cache_dir: options
+            .addon_cache_dir
+            .clone()
+            .or(persisted_settings.addon_cache_dir.clone()),
+        http_no_validator_cache_policy: options
+            .http_no_validator_cache_policy()
+            .or(persisted_settings.http_no_validator_cache_policy.clone())
+            .unwrap_or_default(),
+        ..AddonProviderOptionsValue::default()
+    };
 
     let mut runtime = AppRuntime::with_addon_provider_options(provider_options);
 

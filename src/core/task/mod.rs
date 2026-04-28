@@ -118,6 +118,52 @@ pub struct TaskProgressEvent {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TaskByteProgress {
+    pub code: TaskProgressCode,
+    pub bytes_current: u64,
+    pub bytes_total: Option<u64>,
+    pub bytes_per_second: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct TaskProgressPayload {
+    code: Option<TaskProgressCode>,
+    current: Option<usize>,
+    total: Option<usize>,
+    bytes_current: Option<u64>,
+    bytes_total: Option<u64>,
+    bytes_per_second: Option<u64>,
+}
+
+impl TaskProgressPayload {
+    fn phase(phase: TaskPhase) -> Self {
+        Self {
+            code: Some(TaskProgressCode::for_phase(phase)),
+            ..Self::default()
+        }
+    }
+
+    fn step(code: TaskProgressCode, current: usize, total: usize) -> Self {
+        Self {
+            code: Some(code),
+            current: Some(current),
+            total: Some(total),
+            ..Self::default()
+        }
+    }
+
+    fn byte(progress: TaskByteProgress) -> Self {
+        Self {
+            code: Some(progress.code),
+            bytes_current: Some(progress.bytes_current),
+            bytes_total: progress.bytes_total,
+            bytes_per_second: progress.bytes_per_second,
+            ..Self::default()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TaskRun<T> {
     pub task_id: String,
@@ -286,12 +332,7 @@ pub fn emit_task_progress(
         sink,
         task,
         phase,
-        Some(TaskProgressCode::for_phase(phase)),
-        None,
-        None,
-        None,
-        None,
-        None,
+        TaskProgressPayload::phase(phase),
         message,
     );
 }
@@ -309,12 +350,7 @@ pub fn emit_task_step_progress(
         sink,
         task,
         phase,
-        Some(code),
-        Some(current),
-        Some(total),
-        None,
-        None,
-        None,
+        TaskProgressPayload::step(code, current, total),
         message,
     );
 }
@@ -323,22 +359,14 @@ pub fn emit_task_byte_progress(
     sink: &mut impl TaskProgressSink,
     task: TaskKind,
     phase: TaskPhase,
-    code: TaskProgressCode,
-    bytes_current: u64,
-    bytes_total: Option<u64>,
-    bytes_per_second: Option<u64>,
+    byte_progress: TaskByteProgress,
     message: impl Into<String>,
 ) {
     push_task_progress_event(
         sink,
         task,
         phase,
-        Some(code),
-        None,
-        None,
-        Some(bytes_current),
-        bytes_total,
-        bytes_per_second,
+        TaskProgressPayload::byte(byte_progress),
         message,
     );
 }
@@ -375,24 +403,19 @@ fn push_task_progress_event(
     sink: &mut impl TaskProgressSink,
     task: TaskKind,
     phase: TaskPhase,
-    code: Option<TaskProgressCode>,
-    current: Option<usize>,
-    total: Option<usize>,
-    bytes_current: Option<u64>,
-    bytes_total: Option<u64>,
-    bytes_per_second: Option<u64>,
+    payload: TaskProgressPayload,
     message: impl Into<String>,
 ) {
     sink.push(TaskProgressEvent {
         task_id: None,
         task,
         phase,
-        code,
-        current,
-        total,
-        bytes_current,
-        bytes_total,
-        bytes_per_second,
+        code: payload.code,
+        current: payload.current,
+        total: payload.total,
+        bytes_current: payload.bytes_current,
+        bytes_total: payload.bytes_total,
+        bytes_per_second: payload.bytes_per_second,
         message: message.into(),
     });
 }
@@ -402,7 +425,7 @@ mod tests {
     use std::cell::{Cell, RefCell};
 
     use super::{
-        AppError, TaskKind, TaskPhase, TaskProgressCode, emit_task_byte_progress,
+        AppError, TaskByteProgress, TaskKind, TaskPhase, TaskProgressCode, emit_task_byte_progress,
         emit_task_progress, emit_task_step_progress, ensure_task_not_cancelled,
         run_task_with_callbacks, run_task_with_collected_progress,
     };
@@ -516,10 +539,12 @@ mod tests {
                 progress,
                 TaskKind::AddonUpdate,
                 TaskPhase::Executing,
-                TaskProgressCode::Executing,
-                512,
-                Some(1024),
-                Some(256),
+                TaskByteProgress {
+                    code: TaskProgressCode::Executing,
+                    bytes_current: 512,
+                    bytes_total: Some(1024),
+                    bytes_per_second: Some(256),
+                },
                 "Downloading addon archive",
             );
             Ok::<_, AppError>(())

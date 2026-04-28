@@ -149,13 +149,13 @@ fn build_changed_action(
         .iter()
         .map(|change| format!("{} differs", change.field))
         .collect::<Vec<_>>();
-    if let Some(missing) = inputs.missing_map.get(&package.comparison_key) {
-        if !missing.is_empty() {
-            reasons.push(format!(
-                "tracked addon directories are missing: {}",
-                missing.join(", ")
-            ));
-        }
+    if let Some(missing) = inputs.missing_map.get(&package.comparison_key)
+        && !missing.is_empty()
+    {
+        reasons.push(format!(
+            "tracked addon directories are missing: {}",
+            missing.join(", ")
+        ));
     }
     let blocked_reasons = if kind == AddonLockSyncActionKind::Update {
         preflight_expected_source(

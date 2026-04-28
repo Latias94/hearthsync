@@ -47,6 +47,13 @@ pub(crate) struct UpdatePreparedPackagesWithDependenciesRequest {
     pub(crate) task: TaskKind,
 }
 
+pub(crate) struct UpdatePreparedPackagesTaskRequest {
+    pub(crate) registry: AddonRegistry,
+    pub(crate) selected_packages: Vec<TrackedAddonPackage>,
+    pub(crate) prepared_packages: Vec<PreparedAddonPackage>,
+    pub(crate) task: TaskKind,
+}
+
 trait AddonMutationObserver {
     fn before_step(&mut self, _step: AddonMutationStep<'_>) -> AppResult<()> {
         Ok(())
@@ -203,10 +210,7 @@ fn apply_install_prepared_package_with_observer(
 pub(crate) fn update_prepared_packages_task<TCancel, TProgress>(
     installation: &DetectedFlavorInstallation,
     state_paths: &AddonStatePaths,
-    registry: AddonRegistry,
-    selected_packages: Vec<TrackedAddonPackage>,
-    prepared_packages: Vec<PreparedAddonPackage>,
-    task: TaskKind,
+    request: UpdatePreparedPackagesTaskRequest,
     cancellation: &TCancel,
     progress: &mut TProgress,
 ) -> AppResult<(Vec<TrackedAddonPackage>, usize)>
@@ -214,6 +218,12 @@ where
     TCancel: CancellationToken,
     TProgress: TaskProgressSink,
 {
+    let UpdatePreparedPackagesTaskRequest {
+        registry,
+        selected_packages,
+        prepared_packages,
+        task,
+    } = request;
     let mut observer =
         TaskAddonMutationObserver::new(task, MutationProgressMode::Update, cancellation, progress);
     update_prepared_packages_with_observer(

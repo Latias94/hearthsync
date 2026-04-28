@@ -710,7 +710,7 @@ fn restore_execution_progress(
 }
 
 fn should_emit_restore_entry_progress(current: usize, total: usize) -> bool {
-    current <= 3 || current == total || total <= 25 || current % 25 == 0
+    current <= 3 || current == total || total <= 25 || current.is_multiple_of(25)
 }
 
 fn zip_file_options() -> SimpleFileOptions {

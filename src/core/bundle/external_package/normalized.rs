@@ -54,9 +54,9 @@ pub(super) fn build_external_package_entry_source_map(
         .collect())
 }
 
-fn collect_unique_normalized_entries<'a>(
-    analysis: &'a ExternalPackageAnalysis,
-) -> AppResult<BTreeMap<String, &'a ExternalPackageEntry>> {
+fn collect_unique_normalized_entries(
+    analysis: &ExternalPackageAnalysis,
+) -> AppResult<BTreeMap<String, &ExternalPackageEntry>> {
     let mut unique_entries = BTreeMap::new();
     for entry in &analysis.entries {
         if unique_entries

@@ -12,15 +12,16 @@ use crate::core::task::{
 use super::registry::registry_path;
 use super::{
     AddonPackageMetadata, AddonProvider, AddonRegistry, AddonStatePaths, DefaultAddonProvider,
-    InstallAddonRequest, InstalledAddonPackageResult, PreparedAddonPackage, RemoveAddonRequest,
-    RemovedAddonPackageResult, TrackedAddonPackage, UpdateAddonRequest,
+    InstallAddonRequest, InstalledAddonPackageResult, MissingDependencyCollectionRequest,
+    MissingDependencyCollectionState, PreparePackageFromSourceInputTaskRequest,
+    PreparePackageFromSourceRefTaskRequest, PreparePackageTaskContext, PreparedAddonPackage,
+    RemoveAddonRequest, RemovedAddonPackageResult, TrackedAddonPackage, UpdateAddonRequest,
     UpdatePreparedPackagesWithDependenciesRequest, UpdatedAddonPackageResult,
     collect_missing_dependency_prepared_packages, install_prepared_package_task, load_registry,
     no_tracked_packages_error, policy::AddonUpdatePolicySnapshot,
     prepare_package_from_source_input_task_with_provider,
-    prepare_package_from_source_ref_task_with_provider_and_policy,
-    preview_installed_dependency_packages, remove_selected_packages_task,
-    rollback_or_report_addon_error, select_tracked_packages,
+    prepare_package_from_source_ref_task_with_provider, preview_installed_dependency_packages,
+    remove_selected_packages_task, rollback_or_report_addon_error, select_tracked_packages,
     update_prepared_packages_with_dependencies_task,
 };
 
@@ -374,12 +375,16 @@ where
 {
     let prepared = prepare_package_from_source_input_task_with_provider(
         provider,
-        &request.source,
-        Some(request.installation.flavor),
-        request.installation.platform,
-        cancellation,
-        TaskKind::AddonInstall,
-        TaskPhase::Preparing,
+        PreparePackageFromSourceInputTaskRequest {
+            source: &request.source,
+            context: PreparePackageTaskContext::new(
+                Some(request.installation.flavor),
+                request.installation.platform,
+                cancellation,
+                TaskKind::AddonInstall,
+                TaskPhase::Preparing,
+            ),
+        },
         progress,
     )?;
     prepare_install_prepared_addon(InstallPreparedAddonRequest {
@@ -552,15 +557,19 @@ where
     let mut planned_dependency_keys = BTreeSet::new();
     for package in &selected_packages {
         let package_policy = policies.provider_update_policy(package)?;
-        let mut prepared = prepare_package_from_source_ref_task_with_provider_and_policy(
+        let mut prepared = prepare_package_from_source_ref_task_with_provider(
             provider,
-            &package_policy.effective_source,
-            package_policy.resolution_policy,
-            Some(request.installation.flavor),
-            request.installation.platform,
-            cancellation,
-            TaskKind::AddonUpdate,
-            TaskPhase::Preparing,
+            PreparePackageFromSourceRefTaskRequest::new(
+                &package_policy.effective_source,
+                PreparePackageTaskContext::new(
+                    Some(request.installation.flavor),
+                    request.installation.platform,
+                    cancellation,
+                    TaskKind::AddonUpdate,
+                    TaskPhase::Preparing,
+                ),
+            )
+            .with_resolution_policy(package_policy.resolution_policy),
             progress,
         )?;
         prepared.package_id = package.package_id.clone();
@@ -569,14 +578,18 @@ where
         if package_policy.install_dependencies {
             collect_missing_dependency_prepared_packages(
                 provider,
-                &package_policy.effective_source,
-                package_policy.resolution_policy,
-                &request.installation,
-                &registry,
-                &selected_packages,
-                &mut dependency_prepared_packages,
-                &mut planned_dependency_keys,
-                TaskKind::AddonUpdate,
+                MissingDependencyCollectionRequest {
+                    source: &package_policy.effective_source,
+                    resolution_policy: package_policy.resolution_policy,
+                    installation: &request.installation,
+                    registry: &registry,
+                    selected_packages: &selected_packages,
+                    task_kind: TaskKind::AddonUpdate,
+                },
+                &mut MissingDependencyCollectionState {
+                    prepared_packages: &mut dependency_prepared_packages,
+                    planned_keys: &mut planned_dependency_keys,
+                },
                 cancellation,
                 progress,
             )?;

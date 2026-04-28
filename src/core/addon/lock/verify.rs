@@ -129,9 +129,9 @@ pub(super) fn compare_lock_snapshots(
     })
 }
 
-fn snapshot_map<'a>(
-    packages: &'a [AddonLockPackageSnapshot],
-) -> AppResult<std::collections::BTreeMap<String, &'a AddonLockPackageSnapshot>> {
+fn snapshot_map(
+    packages: &[AddonLockPackageSnapshot],
+) -> AppResult<std::collections::BTreeMap<String, &AddonLockPackageSnapshot>> {
     let mut map = std::collections::BTreeMap::new();
     for package in packages {
         if map

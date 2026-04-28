@@ -275,7 +275,7 @@ impl HttpNoValidatorCachePolicyValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddonProviderOptionsValue {
     #[serde(default)]
     pub download_cache_dir: Option<PathBuf>,
@@ -283,16 +283,6 @@ pub struct AddonProviderOptionsValue {
     pub retry_policy: AddonProviderRetryPolicyValue,
     #[serde(default)]
     pub http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue,
-}
-
-impl Default for AddonProviderOptionsValue {
-    fn default() -> Self {
-        Self {
-            download_cache_dir: None,
-            retry_policy: AddonProviderRetryPolicyValue::default(),
-            http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::default(),
-        }
-    }
 }
 
 impl AddonProviderOptionsValue {

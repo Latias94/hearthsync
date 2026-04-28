@@ -803,7 +803,7 @@ source identity or requiring operators to hand-build the registry first.
 
 ### Status
 
-Planned
+Completed on 2026-04-28
 
 ### Goal
 
@@ -863,3 +863,6 @@ contracts for the future `egui` frontend.
   and stable/extended services now expose public `*_live` entrypoints for long-running operations.
   These entrypoints reuse the same cancellation polling and `TaskProgressEvent` stream as the
   existing callback runner, while `TaskRun<T>` remains the collected-progress convenience result.
+- sixth progress is also complete: `cargo clippy --all-targets -- -D warnings` now passes. The
+  cleanup kept mechanical style fixes separate from real boundary fixes, and the meaningful
+  long-argument warnings now use request/context payloads instead of broad lint suppression.

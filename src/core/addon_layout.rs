@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn discovers_roots_from_any_toc_file_name() {
-        let entries = vec![
+        let entries = [
             vec!["DBM-Core".to_string(), "DBM-Core_Mainline.toc".to_string()],
             vec!["DBM-Core".to_string(), "Core.lua".to_string()],
             vec!["WeakAuras".to_string(), "WeakAuras.toc".to_string()],
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn ignores_nested_roots_when_an_ancestor_already_has_a_toc() {
-        let entries = vec![
+        let entries = [
             vec!["Addon".to_string(), "Addon.toc".to_string()],
             vec![
                 "Addon".to_string(),
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn ignores_case_distinct_nested_roots_on_windows_like_platforms() {
-        let entries = vec![
+        let entries = [
             vec!["Addon".to_string(), "Addon.toc".to_string()],
             vec![
                 "addon".to_string(),
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn preserves_case_distinct_nested_roots_on_linux() {
-        let entries = vec![
+        let entries = [
             vec!["Addon".to_string(), "Addon.toc".to_string()],
             vec![
                 "addon".to_string(),
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn matches_toc_extension_case_insensitively() {
-        let entries = vec![vec!["Questie".to_string(), "Questie.TOC".to_string()]];
+        let entries = [vec!["Questie".to_string(), "Questie.TOC".to_string()]];
 
         let roots = discover_addon_roots_from_entry_segments(
             entries.iter().map(|segments| segments.as_slice()),

@@ -2,7 +2,9 @@ use super::apply_model::{
     MetadataOnlyAddonLockAction, PreparedAddonLockApply, metadata_from_lock_package,
 };
 use super::plan::AddonLockPlanContext;
-use super::source_resolution::prepare_expected_lock_package_with_provider;
+use super::source_resolution::{
+    PrepareExpectedLockPackageRequest, prepare_expected_lock_package_with_provider,
+};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -53,15 +55,17 @@ where
                 })?;
                 let mut prepared = prepare_expected_lock_package_with_provider(
                     provider,
-                    expected,
-                    source_overrides
-                        .get(&action.action.comparison_key)
-                        .map(PathBuf::as_path),
-                    installation.flavor,
-                    installation.platform,
-                    cancellation,
-                    TaskKind::AddonLockApply,
-                    TaskPhase::Planning,
+                    PrepareExpectedLockPackageRequest {
+                        expected,
+                        source_override_path: source_overrides
+                            .get(&action.action.comparison_key)
+                            .map(PathBuf::as_path),
+                        target_flavor: installation.flavor,
+                        target_platform: installation.platform,
+                        cancellation,
+                        task: TaskKind::AddonLockApply,
+                        phase: TaskPhase::Planning,
+                    },
                     progress,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);
@@ -76,15 +80,17 @@ where
                 })?;
                 let mut prepared = prepare_expected_lock_package_with_provider(
                     provider,
-                    expected,
-                    source_overrides
-                        .get(&action.action.comparison_key)
-                        .map(PathBuf::as_path),
-                    installation.flavor,
-                    installation.platform,
-                    cancellation,
-                    TaskKind::AddonLockApply,
-                    TaskPhase::Planning,
+                    PrepareExpectedLockPackageRequest {
+                        expected,
+                        source_override_path: source_overrides
+                            .get(&action.action.comparison_key)
+                            .map(PathBuf::as_path),
+                        target_flavor: installation.flavor,
+                        target_platform: installation.platform,
+                        cancellation,
+                        task: TaskKind::AddonLockApply,
+                        phase: TaskPhase::Planning,
+                    },
                     progress,
                 )?;
                 prepared.metadata = metadata_from_lock_package(expected);

@@ -5,11 +5,13 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::core::addon::{
+    PreparePackageFromSourceRefTaskRequest, PreparePackageTaskContext,
     prepare_package_from_archive_with_source, prepare_package_from_source_ref_task_with_provider,
 };
 use crate::core::archive_path::{join_segments, safe_zip_segments_under};
 use crate::core::error::{AppError, AppResult};
-use crate::core::task::{TaskKind, TaskPhase, TaskProgressSink};
+use crate::core::install::{HostPlatform, WowFlavor};
+use crate::core::task::{CancellationToken, TaskKind, TaskPhase, TaskProgressSink};
 
 use super::{AddonLockPackage, AddonLockSourceOverride};
 
@@ -97,32 +99,43 @@ fn safe_sidecar_source_segments(path: &str) -> AppResult<Vec<&str>> {
     safe_zip_segments_under(path, "sources", "addon lock source path")
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct PrepareExpectedLockPackageRequest<'a> {
+    pub(super) expected: &'a AddonLockPackage,
+    pub(super) source_override_path: Option<&'a Path>,
+    pub(super) target_flavor: WowFlavor,
+    pub(super) target_platform: HostPlatform,
+    pub(super) cancellation: &'a dyn CancellationToken,
+    pub(super) task: TaskKind,
+    pub(super) phase: TaskPhase,
+}
+
 pub(super) fn prepare_expected_lock_package_with_provider<P>(
     provider: &P,
-    expected: &AddonLockPackage,
-    source_override_path: Option<&Path>,
-    target_flavor: crate::core::install::WowFlavor,
-    target_platform: crate::core::install::HostPlatform,
-    cancellation: &dyn crate::core::task::CancellationToken,
-    task: TaskKind,
-    phase: TaskPhase,
+    request: PrepareExpectedLockPackageRequest<'_>,
     progress: &mut impl TaskProgressSink,
 ) -> AppResult<crate::core::addon::PreparedAddonPackage>
 where
     P: crate::core::addon::AddonProvider + ?Sized,
 {
-    match source_override_path {
-        Some(path) => {
-            prepare_package_from_archive_with_source(expected.source.clone(), path, target_platform)
-        }
+    match request.source_override_path {
+        Some(path) => prepare_package_from_archive_with_source(
+            request.expected.source.clone(),
+            path,
+            request.target_platform,
+        ),
         None => prepare_package_from_source_ref_task_with_provider(
             provider,
-            &expected.source,
-            Some(target_flavor),
-            target_platform,
-            cancellation,
-            task,
-            phase,
+            PreparePackageFromSourceRefTaskRequest::new(
+                &request.expected.source,
+                PreparePackageTaskContext::new(
+                    Some(request.target_flavor),
+                    request.target_platform,
+                    request.cancellation,
+                    request.task,
+                    request.phase,
+                ),
+            ),
             progress,
         ),
     }

@@ -679,11 +679,11 @@ fn visit_direct_table_entries(
                 index = literal.full_end;
                 continue;
             }
-            if bytes[value_start] == b'{' {
-                if let Some(table_end) = find_matching_brace(bytes, value_start) {
-                    index = table_end + 1;
-                    continue;
-                }
+            if bytes[value_start] == b'{'
+                && let Some(table_end) = find_matching_brace(bytes, value_start)
+            {
+                index = table_end + 1;
+                continue;
             }
         }
 
@@ -813,17 +813,17 @@ fn collect_direct_table_replacements(
             continue;
         }
 
-        if &content[key.name_start..key.name_end] == table_name {
-            if let Some(table_end) = find_matching_brace(bytes, value_start) {
-                collect_direct_child_table_replacements(
-                    content,
-                    value_start + 1,
-                    table_end,
-                    rewrite_values,
-                    rewrites,
-                    replacements,
-                );
-            }
+        if &content[key.name_start..key.name_end] == table_name
+            && let Some(table_end) = find_matching_brace(bytes, value_start)
+        {
+            collect_direct_child_table_replacements(
+                content,
+                value_start + 1,
+                table_end,
+                rewrite_values,
+                rewrites,
+                replacements,
+            );
         }
 
         index = key.full_end.max(index + 1);
@@ -990,10 +990,10 @@ fn apply_range_replacements(content: &str, mut replacements: Vec<TextRangeReplac
             continue;
         }
 
-        if let Some(previous) = filtered.last() {
-            if replacement.end > previous.start {
-                continue;
-            }
+        if let Some(previous) = filtered.last()
+            && replacement.end > previous.start
+        {
+            continue;
         }
 
         filtered.push(replacement);

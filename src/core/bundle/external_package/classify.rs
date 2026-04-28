@@ -329,11 +329,10 @@ fn find_addon_root<'a>(
     for root in addon_roots {
         match addon_root_prefix_match_kind(segments, root, HostPlatform::Windows) {
             Some(AddonRootPrefixMatchKind::Exact) => return Some(root.as_slice()),
-            Some(AddonRootPrefixMatchKind::CaseInsensitive) => {
-                if case_insensitive_match.is_none() {
-                    case_insensitive_match = Some(root.as_slice());
-                }
+            Some(AddonRootPrefixMatchKind::CaseInsensitive) if case_insensitive_match.is_none() => {
+                case_insensitive_match = Some(root.as_slice());
             }
+            Some(AddonRootPrefixMatchKind::CaseInsensitive) => {}
             None => {}
         }
     }

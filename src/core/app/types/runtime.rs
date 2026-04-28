@@ -8,29 +8,19 @@ use super::addon::{
 };
 use super::install::{HostPlatformValue, ResolvedInstallationValue};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HelperStrategyValue {
+    #[default]
     NativeRust,
 }
 
-impl Default for HelperStrategyValue {
-    fn default() -> Self {
-        Self::NativeRust
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExternalHelperPolicyValue {
+    #[default]
     NativeOnly,
     PreferExternal,
-}
-
-impl Default for ExternalHelperPolicyValue {
-    fn default() -> Self {
-        Self::NativeOnly
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

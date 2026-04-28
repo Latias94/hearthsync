@@ -2,7 +2,7 @@
 
 ## Status
 
-Active review record for the pre-GUI fearless-refactor phase.
+Completed review record for the pre-GUI fearless-refactor phase.
 
 This review stays inside `docs/workstreams/wow-addon-sync-core` instead of creating a new top-level
 workstream. The findings affect shared addon mutation, index update, provider acquisition, config
@@ -12,12 +12,14 @@ core architecture source of truth.
 ## Verification Snapshot
 
 - `cargo fmt -- --check` passes.
-- `cargo nextest run` passes with 569 tests.
-- `cargo clippy --all-targets -- -D warnings` fails with existing warnings promoted to errors.
+- `cargo nextest run` passes with 573 tests.
+- `cargo clippy --all-targets -- -D warnings` passes.
 
-The failing clippy run is not a functional build failure, but it is a useful signal: several
-`too_many_arguments` diagnostics point at real boundary pressure in addon dependency collection,
-package preparation, provider cache repair, mutation execution, and task progress helpers.
+The original failing clippy run was used as a refactor signal rather than suppressed. Mechanical
+warnings were fixed directly, and meaningful `too_many_arguments` diagnostics were converted into
+request/context objects across addon dependency collection, package preparation, mutation
+execution, lock-source preparation, task progress, index attach result creation, and bundle plan
+assembly.
 
 ## Current Architecture Read
 
@@ -239,6 +241,10 @@ Implementation direction:
 
 Turn clippy into a practical refactor guardrail.
 
+Completed: `cargo clippy --all-targets -- -D warnings` now passes. Mechanical warnings were
+removed directly, and argument-heavy helpers now carry explicit request/context objects instead of
+implicit parallel parameter lists.
+
 Implementation direction:
 
 - fix mechanical warnings directly
@@ -259,5 +265,5 @@ Implementation direction:
   mutation phase with a richer transaction object?
 - Should the first GUI task contract be callback-based only, or should it expose a channel/stream
   abstraction that maps naturally into `egui` polling?
-- Should clippy cleanup be completed before provider decomposition, or should decomposition absorb
-  the meaningful argument-list warnings first?
+- Clippy cleanup has now completed after provider decomposition, with the remaining meaningful
+  argument-list warnings absorbed into focused request/context objects.

@@ -233,7 +233,7 @@ where
     }
 }
 
-fn build_bundle_apply_plan(
+struct BundleApplyPlanParts {
     plan_path: PathBuf,
     target_flavor_root: PathBuf,
     discovered_accounts: Vec<LocalWowAccount>,
@@ -242,7 +242,20 @@ fn build_bundle_apply_plan(
     operations: Vec<ApplyOperation>,
     summary: ApplyPlanSummary,
     manifest: BundleManifest,
-) -> BundleApplyPlan {
+}
+
+fn build_bundle_apply_plan(parts: BundleApplyPlanParts) -> BundleApplyPlan {
+    let BundleApplyPlanParts {
+        plan_path,
+        target_flavor_root,
+        discovered_accounts,
+        selected_target_accounts,
+        character_mappings,
+        operations,
+        summary,
+        manifest,
+    } = parts;
+
     BundleApplyPlan {
         bundle_path: plan_path,
         target_flavor_root,
@@ -295,7 +308,7 @@ impl ResolvedPreviewApply {
             .map(ApplyOperation::from)
             .collect::<Vec<_>>();
         let summary = ApplyPlanSummary::from_operations(&operations);
-        let plan = build_bundle_apply_plan(
+        let plan = build_bundle_apply_plan(BundleApplyPlanParts {
             plan_path,
             target_flavor_root,
             discovered_accounts,
@@ -304,7 +317,7 @@ impl ResolvedPreviewApply {
             operations,
             summary,
             manifest,
-        );
+        });
 
         Self {
             plan,

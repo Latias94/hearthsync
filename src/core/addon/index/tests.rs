@@ -2908,11 +2908,7 @@ fn assert_addon_index_task_progress(
     assert_eq!(phases.first(), Some(&(task, TaskPhase::Preparing)));
     assert_eq!(phases.last(), Some(&(task, TaskPhase::Completed)));
     assert!(phases.contains(&(task, TaskPhase::BackingUp)));
-    assert!(
-        phases
-            .iter()
-            .any(|phase| *phase == (task, TaskPhase::Executing))
-    );
+    assert!(phases.contains(&(task, TaskPhase::Executing)));
     assert!(events.iter().any(|event| {
         event.task == task
             && event.phase == TaskPhase::Executing

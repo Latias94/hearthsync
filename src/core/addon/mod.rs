@@ -45,6 +45,7 @@ use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
 pub(crate) use self::dependency::{
+    MissingDependencyCollectionRequest, MissingDependencyCollectionState,
     collect_missing_dependency_prepared_packages, preview_installed_dependency_packages,
     validate_addon_update_dependency_policy_support, validate_dependency_resolution_support,
 };
@@ -54,14 +55,15 @@ pub(crate) use self::execution::{
     update_addons_task_with_provider,
 };
 pub(crate) use self::mutation::{
-    UpdatePreparedPackagesWithDependenciesRequest, install_prepared_package_task,
-    remove_selected_packages_task, rollback_or_report_addon_error, update_prepared_packages_task,
-    update_prepared_packages_with_dependencies_task,
+    UpdatePreparedPackagesTaskRequest, UpdatePreparedPackagesWithDependenciesRequest,
+    install_prepared_package_task, remove_selected_packages_task, rollback_or_report_addon_error,
+    update_prepared_packages_task, update_prepared_packages_with_dependencies_task,
 };
 pub(crate) use self::package_prep::{
-    prepare_package_from_archive_with_source, prepare_package_from_source_input_task_with_provider,
+    PreparePackageFromSourceInputTaskRequest, PreparePackageFromSourceRefTaskRequest,
+    PreparePackageTaskContext, prepare_package_from_archive_with_source,
+    prepare_package_from_source_input_task_with_provider,
     prepare_package_from_source_ref_task_with_provider,
-    prepare_package_from_source_ref_task_with_provider_and_policy,
 };
 pub(crate) use self::provider::canonicalize_local_archive_path;
 pub(crate) use self::registry::{load_registry, save_registry};

@@ -9,9 +9,10 @@ use super::provider::{
     AddonDependencyResolutionStrategy, AddonSourceResolutionPolicy, ResolveAddonDependenciesRequest,
 };
 use super::{
-    AddonProvider, AddonProviderContext, AddonRegistry, AddonSourceRef, PreparedAddonPackage,
-    TrackedAddonPackage, load_registry,
-    prepare_package_from_source_ref_task_with_provider_and_policy, select_tracked_packages,
+    AddonProvider, AddonProviderContext, AddonRegistry, AddonSourceRef,
+    PreparePackageFromSourceRefTaskRequest, PreparePackageTaskContext, PreparedAddonPackage,
+    TrackedAddonPackage, load_registry, prepare_package_from_source_ref_task_with_provider,
+    select_tracked_packages,
 };
 use crate::core::error::AppError;
 
@@ -35,28 +36,38 @@ pub(crate) fn preview_installed_dependency_packages(
         .collect()
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct MissingDependencyCollectionRequest<'a> {
+    pub(crate) source: &'a AddonSourceRef,
+    pub(crate) resolution_policy: AddonSourceResolutionPolicy,
+    pub(crate) installation: &'a DetectedFlavorInstallation,
+    pub(crate) registry: &'a AddonRegistry,
+    pub(crate) selected_packages: &'a [TrackedAddonPackage],
+    pub(crate) task_kind: TaskKind,
+}
+
+pub(crate) struct MissingDependencyCollectionState<'a> {
+    pub(crate) prepared_packages: &'a mut Vec<PreparedAddonPackage>,
+    pub(crate) planned_keys: &'a mut BTreeSet<String>,
+}
+
 pub(crate) fn collect_missing_dependency_prepared_packages<P>(
     provider: &P,
-    source: &AddonSourceRef,
-    resolution_policy: AddonSourceResolutionPolicy,
-    installation: &DetectedFlavorInstallation,
-    registry: &AddonRegistry,
-    selected_packages: &[TrackedAddonPackage],
-    dependency_prepared_packages: &mut Vec<PreparedAddonPackage>,
-    planned_dependency_keys: &mut BTreeSet<String>,
-    task_kind: TaskKind,
+    request: MissingDependencyCollectionRequest<'_>,
+    state: &mut MissingDependencyCollectionState<'_>,
     cancellation: &dyn CancellationToken,
     progress: &mut impl TaskProgressSink,
 ) -> AppResult<()>
 where
     P: AddonProvider + ?Sized,
 {
+    let source = request.source;
     let expected_strategy = validate_dependency_resolution_support(provider, source)?;
 
     let dependencies = provider.resolve_addon_dependencies(ResolveAddonDependenciesRequest {
         source,
-        context: AddonProviderContext::new(Some(installation.flavor), Some(cancellation))
-            .with_resolution_policy(resolution_policy),
+        context: AddonProviderContext::new(Some(request.installation.flavor), Some(cancellation))
+            .with_resolution_policy(request.resolution_policy),
     })?;
 
     if dependencies.strategy != expected_strategy {
@@ -74,14 +85,16 @@ where
 
     for dependency_source in dependency_sources {
         let dependency_key = dependency_identity_key(&dependency_source);
-        if !planned_dependency_keys.insert(dependency_key) {
+        if !state.planned_keys.insert(dependency_key) {
             continue;
         }
         if source_satisfies_dependency(source, &dependency_source)
-            || selected_packages
+            || request
+                .selected_packages
                 .iter()
                 .any(|package| source_satisfies_dependency(&package.source, &dependency_source))
-            || registry
+            || request
+                .registry
                 .packages
                 .iter()
                 .any(|package| source_satisfies_dependency(&package.source, &dependency_source))
@@ -91,30 +104,31 @@ where
 
         collect_missing_dependency_prepared_packages(
             provider,
-            &dependency_source,
-            resolution_policy,
-            installation,
-            registry,
-            selected_packages,
-            dependency_prepared_packages,
-            planned_dependency_keys,
-            task_kind,
+            MissingDependencyCollectionRequest {
+                source: &dependency_source,
+                ..request
+            },
+            state,
             cancellation,
             progress,
         )?;
 
-        let prepared_dependency = prepare_package_from_source_ref_task_with_provider_and_policy(
+        let prepared_dependency = prepare_package_from_source_ref_task_with_provider(
             provider,
-            &dependency_source,
-            resolution_policy,
-            Some(installation.flavor),
-            installation.platform,
-            cancellation,
-            task_kind,
-            TaskPhase::Preparing,
+            PreparePackageFromSourceRefTaskRequest::new(
+                &dependency_source,
+                PreparePackageTaskContext::new(
+                    Some(request.installation.flavor),
+                    request.installation.platform,
+                    cancellation,
+                    request.task_kind,
+                    TaskPhase::Preparing,
+                ),
+            )
+            .with_resolution_policy(request.resolution_policy),
             progress,
         )?;
-        dependency_prepared_packages.push(prepared_dependency);
+        state.prepared_packages.push(prepared_dependency);
     }
 
     Ok(())

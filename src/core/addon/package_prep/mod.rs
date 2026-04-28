@@ -15,7 +15,7 @@ use super::{AddonSourceRef, PreparedAddonDirectory, PreparedAddonPackage, Tracke
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{
-    CancellationToken, TaskKind, TaskPhase, TaskProgressCode, TaskProgressSink,
+    CancellationToken, TaskByteProgress, TaskKind, TaskPhase, TaskProgressCode, TaskProgressSink,
     emit_task_byte_progress,
 };
 
@@ -48,14 +48,65 @@ where
     )
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct PreparePackageTaskContext<'a> {
+    pub(crate) target_flavor: Option<WowFlavor>,
+    pub(crate) target_platform: HostPlatform,
+    pub(crate) cancellation: &'a dyn CancellationToken,
+    pub(crate) task: TaskKind,
+    pub(crate) phase: TaskPhase,
+}
+
+impl<'a> PreparePackageTaskContext<'a> {
+    pub(crate) fn new(
+        target_flavor: Option<WowFlavor>,
+        target_platform: HostPlatform,
+        cancellation: &'a dyn CancellationToken,
+        task: TaskKind,
+        phase: TaskPhase,
+    ) -> Self {
+        Self {
+            target_flavor,
+            target_platform,
+            cancellation,
+            task,
+            phase,
+        }
+    }
+}
+
+pub(crate) struct PreparePackageFromSourceInputTaskRequest<'a> {
+    pub(crate) source: &'a str,
+    pub(crate) context: PreparePackageTaskContext<'a>,
+}
+
+pub(crate) struct PreparePackageFromSourceRefTaskRequest<'a> {
+    pub(crate) source: &'a AddonSourceRef,
+    pub(crate) resolution_policy: AddonSourceResolutionPolicy,
+    pub(crate) context: PreparePackageTaskContext<'a>,
+}
+
+impl<'a> PreparePackageFromSourceRefTaskRequest<'a> {
+    pub(crate) fn new(source: &'a AddonSourceRef, context: PreparePackageTaskContext<'a>) -> Self {
+        Self {
+            source,
+            resolution_policy: AddonSourceResolutionPolicy::default(),
+            context,
+        }
+    }
+
+    pub(crate) fn with_resolution_policy(
+        mut self,
+        resolution_policy: AddonSourceResolutionPolicy,
+    ) -> Self {
+        self.resolution_policy = resolution_policy;
+        self
+    }
+}
+
 pub(crate) fn prepare_package_from_source_input_task_with_provider<P, TProgress>(
     provider: &P,
-    source: &str,
-    target_flavor: Option<WowFlavor>,
-    target_platform: HostPlatform,
-    cancellation: &dyn CancellationToken,
-    task: TaskKind,
-    phase: TaskPhase,
+    request: PreparePackageFromSourceInputTaskRequest<'_>,
     progress: &mut TProgress,
 ) -> AppResult<PreparedAddonPackage>
 where
@@ -63,57 +114,26 @@ where
     TProgress: TaskProgressSink,
 {
     let stage_dir = tempdir()?;
-    let download_progress = TaskAddonDownloadProgressObserver::new(task, phase, progress);
+    let context = request.context;
+    let download_progress =
+        TaskAddonDownloadProgressObserver::new(context.task, context.phase, progress);
     let materialized = provider.materialize_source_input(MaterializeSourceInputRequest {
-        source,
+        source: request.source,
         stage_root: stage_dir.path(),
-        context: AddonProviderContext::new(target_flavor, Some(cancellation))
+        context: AddonProviderContext::new(context.target_flavor, Some(context.cancellation))
             .with_download_progress(Some(&download_progress)),
     })?;
     prepare_package_from_archive(
         materialized.source_ref,
         &materialized.archive_path,
-        target_platform,
+        context.target_platform,
         stage_dir,
     )
 }
 
 pub(crate) fn prepare_package_from_source_ref_task_with_provider<P, TProgress>(
     provider: &P,
-    source: &AddonSourceRef,
-    target_flavor: Option<WowFlavor>,
-    target_platform: HostPlatform,
-    cancellation: &dyn CancellationToken,
-    task: TaskKind,
-    phase: TaskPhase,
-    progress: &mut TProgress,
-) -> AppResult<PreparedAddonPackage>
-where
-    P: AddonProvider + ?Sized,
-    TProgress: TaskProgressSink,
-{
-    prepare_package_from_source_ref_task_with_provider_and_policy(
-        provider,
-        source,
-        AddonSourceResolutionPolicy::default(),
-        target_flavor,
-        target_platform,
-        cancellation,
-        task,
-        phase,
-        progress,
-    )
-}
-
-pub(crate) fn prepare_package_from_source_ref_task_with_provider_and_policy<P, TProgress>(
-    provider: &P,
-    source: &AddonSourceRef,
-    resolution_policy: AddonSourceResolutionPolicy,
-    target_flavor: Option<WowFlavor>,
-    target_platform: HostPlatform,
-    cancellation: &dyn CancellationToken,
-    task: TaskKind,
-    phase: TaskPhase,
+    request: PreparePackageFromSourceRefTaskRequest<'_>,
     progress: &mut TProgress,
 ) -> AppResult<PreparedAddonPackage>
 where
@@ -121,18 +141,20 @@ where
     TProgress: TaskProgressSink,
 {
     let stage_dir = tempdir()?;
-    let download_progress = TaskAddonDownloadProgressObserver::new(task, phase, progress);
+    let context = request.context;
+    let download_progress =
+        TaskAddonDownloadProgressObserver::new(context.task, context.phase, progress);
     let materialized = provider.materialize_source_ref(MaterializeSourceRefRequest {
-        source,
+        source: request.source,
         stage_root: stage_dir.path(),
-        context: AddonProviderContext::new(target_flavor, Some(cancellation))
-            .with_resolution_policy(resolution_policy)
+        context: AddonProviderContext::new(context.target_flavor, Some(context.cancellation))
+            .with_resolution_policy(request.resolution_policy)
             .with_download_progress(Some(&download_progress)),
     })?;
     prepare_package_from_archive(
         materialized.source_ref,
         &materialized.archive_path,
-        target_platform,
+        context.target_platform,
         stage_dir,
     )
 }
@@ -207,10 +229,12 @@ where
             &mut **progress,
             self.task,
             self.phase,
-            TaskProgressCode::DownloadArchive,
-            bytes_current,
-            bytes_total,
-            bytes_per_second,
+            TaskByteProgress {
+                code: TaskProgressCode::DownloadArchive,
+                bytes_current,
+                bytes_total,
+                bytes_per_second,
+            },
             download_progress_message(archive_name, bytes_current, bytes_total, bytes_per_second),
         );
     }
