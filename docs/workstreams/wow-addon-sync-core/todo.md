@@ -849,10 +849,14 @@ place.
   concrete app-owned DTOs with config-named nested entry, summary, warning, and source-kind types.
   `ConfigService` still reuses the external-package engine internally, but it projects the results
   at the app boundary so CLI and future GUI callers do not consume external-package result aliases.
-- [ ] decompose addon provider responsibilities into cache, materialization, validation, and
+- [x] decompose addon provider responsibilities into cache, materialization, validation, and
   source-adapter modules
-  Target: provider cache/freshness changes and new source adapters can evolve without expanding one
-  multi-responsibility module.
+  Completed: `src/core/addon/provider/mod.rs` now keeps the provider contract and default-provider
+  composition, while cache maintenance, source materialization, remote validator construction,
+  source identity helpers, and provider-adapter policy/search/dependency logic live in focused
+  sibling modules. Provider cache/freshness changes and new source adapters no longer expand one
+  multi-responsibility module. The provider-local clippy findings from the review are also cleared;
+  remaining clippy work is outside the provider slice.
 - [ ] promote one app-owned live task contract for cancellation and progress streaming
   Target: CLI collected-progress helpers and future `egui` live progress both consume the same
   stable task semantics.

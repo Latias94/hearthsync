@@ -1785,9 +1785,11 @@ fn default_addon_provider_forwards_download_progress_to_observer() {
         }
     }
 
+    type ProgressEvent = (String, String, u64, Option<u64>, Option<u64>);
+
     #[derive(Default)]
     struct FakeObserver {
-        seen: RefCell<Vec<(String, String, u64, Option<u64>, Option<u64>)>>,
+        seen: RefCell<Vec<ProgressEvent>>,
     }
 
     impl AddonDownloadProgressObserver for FakeObserver {

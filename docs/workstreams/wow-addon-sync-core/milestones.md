@@ -850,3 +850,12 @@ contracts for the future `egui` frontend.
   aliases at the app boundary. The config service still delegates to the shared import engine, but
   it now projects concrete config-owned inspection, plan, apply, warning, summary, and source-kind
   DTOs for CLI and future GUI callers.
+- fourth progress is also in place: addon provider internals are split into focused modules:
+  `cache.rs` owns cache metadata, purge/repair, freshness, and cache-local download utilities;
+  `materialize.rs` owns source materialization; `validation.rs` owns remote validator/checksum
+  construction; `source.rs` owns source identity helpers; and `source_adapter.rs` owns
+  provider-adapter search, dependency, and release-policy glue. `mod.rs` now stays centered on the
+  provider trait, request/result contracts, options, retry wrapper, and default-provider
+  composition. Provider-local clippy findings were reduced out of the remaining baseline; the
+  follow-up clippy milestone is now concentrated in addon mutation/package-prep, task progress,
+  bundle/install/lua helpers, and tests.

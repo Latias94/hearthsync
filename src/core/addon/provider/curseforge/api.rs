@@ -82,7 +82,7 @@ pub(super) fn search_curseforge_mods_with_client(
 }
 
 fn parse_positive_usize(value: usize) -> usize {
-    value.max(1).min(50)
+    value.clamp(1, 50)
 }
 
 fn find_curseforge_wow_game_id(client: &impl HttpClient) -> AppResult<u32> {
