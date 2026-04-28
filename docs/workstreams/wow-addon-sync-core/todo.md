@@ -327,6 +327,9 @@ enough that these rules live in one place.
   Current progress: bundle addon-source archive names and embedded addon-index metadata file names
   now use case-insensitive uniqueness checks before zip output, so Windows/default-macOS bundles do
   not rely on the lower-level archive writer to catch metadata name collisions late.
+  Current progress: addon-index package IDs are now validated with the same case-insensitive
+  semantics used by index package lookup, so curated indexes cannot define ambiguous IDs such as
+  `Details` and `details`.
   Current progress: installation path normalization now preserves Windows verbatim UNC roots when
   trimming `\\?\` prefixes, so `\\?\UNC\server\share\...` remains an absolute UNC path instead of
   degrading into a relative-looking `UNC\server\share\...` path.

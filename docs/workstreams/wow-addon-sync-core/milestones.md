@@ -344,6 +344,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle addon-source archive names and embedded addon-index metadata file names now also use
   case-insensitive uniqueness checks before zip output, so Windows/default-macOS bundles fail or
   suffix deterministically without relying on late archive-writer collision detection
+- addon-index package IDs are now also validated with the same case-insensitive semantics used by
+  index package lookup, so curated indexes cannot define ambiguous IDs such as `Details` and
+  `details`
 - external-package staging materialization now also reuses the shared
   `core::bundle::entry_layout` classifier for normalized bundle-style paths, so addon/WTF/fonts/
   interface root dispatch no longer lives in a second parallel match tree when building a

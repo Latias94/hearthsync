@@ -113,16 +113,16 @@ fn validate_addon_index(index: &AddonIndex) -> AppResult<()> {
         ));
     }
 
-    let mut ids = Vec::new();
+    let mut ids = BTreeSet::new();
     for package in &index.packages {
         validate_index_package(package)?;
-        if ids.iter().any(|id| id == &package.id) {
+        let normalized_id = package.id.trim().to_ascii_lowercase();
+        if !ids.insert(normalized_id) {
             return Err(AppError::Validation(format!(
                 "duplicate addon index package id: {}",
                 package.id
             )));
         }
-        ids.push(package.id.clone());
     }
 
     Ok(())

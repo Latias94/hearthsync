@@ -150,6 +150,43 @@ supported_flavors = ["retail"]
 }
 
 #[test]
+fn inspect_addon_index_rejects_case_insensitive_duplicate_package_ids() {
+    let temp = tempdir().expect("temp dir");
+    let index_path = temp.path().join("index.toml");
+    fs::write(
+        &index_path,
+        r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "Details"
+name = "Details"
+version = "1.0.0"
+source = { kind = "http_archive", url = "https://example.invalid/details.zip" }
+supported_flavors = ["retail"]
+
+[[packages]]
+id = "details"
+name = "Details Copy"
+version = "1.0.0"
+source = { kind = "http_archive", url = "https://example.invalid/details-copy.zip" }
+supported_flavors = ["retail"]
+"#,
+    )
+    .expect("write index");
+
+    let error = inspect_addon_index(&index_path).expect_err("duplicate package id should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(
+        error
+            .to_string()
+            .contains("duplicate addon index package id")
+    );
+}
+
+#[test]
 fn inspect_addon_index_summarizes_exact_identity_hint_coverage() {
     let temp = tempdir().expect("temp dir");
     let index_path = temp.path().join("index.toml");
