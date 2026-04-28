@@ -789,6 +789,28 @@ fn preview_lua_bytes_rewrite_rewrites_realistic_rurutiasuite_utf8_fixture() {
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_rewrites_bigwigs_profile_keys_without_notes_identity() {
+    let payload = load_text_fixture_bytes("bigwigs_profilekeys_utf8.lua");
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/BigWigs.lua"),
+        &payload,
+        &[localized_profile_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview")
+    .expect("rewritten bytes");
+
+    let rewritten_text = String::from_utf8(rewritten).expect("utf8 fixture should remain utf8");
+    assert!(rewritten_text.contains(r#"["暮光花雨 - 白银之手"] = "Default""#));
+    assert!(rewritten_text.contains(r#"["萌萌奶露 - 萨尔"] = "Default""#));
+    assert!(rewritten_text.contains("露露缇娅 - 迅捷微风 的团队提醒说明不应改写"));
+    assert!(!rewritten_text.contains(r#"["露露缇娅 - 迅捷微风"] = "Default""#));
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_rewrites_realistic_ndui_bags_utf8_fixture() {
     let payload = load_text_fixture_bytes("ndui_bags_realistic_utf8.lua");
     let rewritten = preview_lua_bytes_rewrite(
@@ -922,6 +944,23 @@ fn preview_lua_bytes_rewrite_rewrites_rarity_profile_keys_without_account_statis
     assert!(!rewritten_text.contains(r#"["焱天狼 - 贫瘠之地"] = "Default""#));
     assert!(!rewritten_text.contains(r#"["playerName"] = "暮光花雨""#));
     assert!(!rewritten_text.contains(r#"["server"] = "白银之手""#));
+}
+
+#[test]
+fn preview_lua_bytes_rewrite_rejects_realistic_baganator_recent_character_cache() {
+    let payload = load_text_fixture_bytes("baganator_recent_characters_utf8.lua");
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Baganator.lua"),
+        &payload,
+        &[localized_profile_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview");
+
+    assert!(rewritten.is_none());
 }
 
 #[test]

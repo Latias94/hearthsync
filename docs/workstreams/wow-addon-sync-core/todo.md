@@ -733,6 +733,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current progress: UTF-8 payloads no longer fall through to byte rewriting after a scoped text
   rewrite misses, so known-file identity rules cannot accidentally revive broad quoted-string
   replacement on ordinary UTF-8 SavedVariables text.
+  Current progress: fixture breadth now also covers a realistic BigWigs-style profile-key payload
+  where `profileKeys` should migrate but descriptive boss/profile notes must remain untouched, plus
+  a realistic Baganator-style recent-character cache that stays fail-closed instead of rewriting
+  history strings that merely look like character identities.
   Remaining gap: new addon-specific identity-key containers still require explicit evidence before
   they should join the shared container allowlist.
   Remaining gap: fixture breadth is still limited. More addon-specific SavedVariables shapes and
