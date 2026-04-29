@@ -1688,3 +1688,33 @@ Specifically:
   AddOns planning on Windows and default macOS targets.
 - Future authoring tools and GUI editors can treat index validation as the canonical gate for
   exact addon-directory hint quality instead of duplicating path checks.
+
+## ADR-067: Addon Index Source Metadata Validates before Provider Use
+
+Accepted on 2026-04-29
+
+### Decision
+
+Addon index package source and metadata fields must reject meaningless values before provider
+materialization, registry metadata writes, attach, install, update, or relink logic trusts them.
+
+Specifically:
+
+- Local archive source paths must not be empty; relative paths remain allowed and still resolve
+  relative to the index file.
+- HTTP archive sources must carry a non-empty `http://` or `https://` URL.
+- CurseForge mod and file ids must be greater than zero, both for direct `curseforge:` input
+  parsing and for index TOML source refs.
+- GitHub release sources must carry non-empty owner and repo fields; optional tag and asset-name
+  fields must be non-empty when present.
+- Optional package metadata fields `source_url`, `website_url`, and `sha256` may be absent, but
+  must not be blank when present.
+
+### Consequences
+
+- Curated indexes cannot defer clearly invalid provider source refs into later network or registry
+  mutation paths.
+- Installing or attaching from an index cannot persist blank metadata fields that look present but
+  carry no usable operator information.
+- Future GUI editors can validate index package source forms through the same core gate that CLI
+  `addon index validate` and runtime flows use.

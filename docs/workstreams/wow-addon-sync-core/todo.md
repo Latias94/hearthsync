@@ -481,6 +481,10 @@ enough that these rules live in one place.
   unique addon directory segments, so curator indexes cannot carry blank, path-shaped,
   Windows-reserved, or Windows/default-macOS-ambiguous `addon_directories` values into preflight
   matching.
+  Current progress: addon-index package sources now also fail closed on empty local paths, invalid
+  HTTP archive URL schemes, zero CurseForge ids, blank GitHub owner/repo/tag/asset fields, and
+  blank optional source metadata before those values reach provider materialization or registry
+  metadata writes.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

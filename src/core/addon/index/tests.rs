@@ -239,6 +239,96 @@ supported_flavors = ["retail"]
 }
 
 #[test]
+fn inspect_addon_index_rejects_invalid_source_refs() {
+    for (source_toml, expected_message) in [
+        (
+            r#"{ kind = "local_archive", path = "" }"#,
+            "local archive source path",
+        ),
+        (
+            r#"{ kind = "http_archive", url = "" }"#,
+            "HTTP archive source URL",
+        ),
+        (
+            r#"{ kind = "http_archive", url = "ftp://example.invalid/details.zip" }"#,
+            "HTTP archive source URL",
+        ),
+        (
+            r#"{ kind = "curseforge_mod", mod_id = 0 }"#,
+            "CurseForge mod id",
+        ),
+        (
+            r#"{ kind = "curseforge_mod", mod_id = 12345, file_id = 0 }"#,
+            "CurseForge file id",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "", repo = "details" }"#,
+            "GitHub owner",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "owner", repo = " " }"#,
+            "GitHub repo",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "owner", repo = "details", tag = "" }"#,
+            "GitHub tag",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "owner", repo = "details", asset_name = "" }"#,
+            "GitHub asset name",
+        ),
+    ] {
+        let temp = tempdir().expect("temp dir");
+        let index_path =
+            write_index_package(temp.path(), "details", "Details", "1.0.0", source_toml);
+
+        let error = inspect_addon_index(&index_path).expect_err("invalid source should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("invalid source"));
+        assert!(error.to_string().contains(expected_message));
+        assert!(error.to_string().contains("for package `details`"));
+    }
+}
+
+#[test]
+fn inspect_addon_index_rejects_blank_package_metadata_fields() {
+    for (field, field_toml) in [
+        ("source_url", r#"source_url = " ""#),
+        ("website_url", r#"website_url = """#),
+        ("sha256", r#"sha256 = " ""#),
+    ] {
+        let temp = tempdir().expect("temp dir");
+        let index_path = temp.path().join("index.toml");
+        fs::write(
+            &index_path,
+            format!(
+                r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "details"
+name = "Details"
+version = "1.0.0"
+source = {{ kind = "http_archive", url = "https://example.invalid/details.zip" }}
+supported_flavors = ["retail"]
+{field_toml}
+"#
+            ),
+        )
+        .expect("write index");
+
+        let error = inspect_addon_index(&index_path).expect_err("blank metadata should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains(&format!("`{field}`")));
+        assert!(error.to_string().contains("must not be blank"));
+        assert!(error.to_string().contains("for package `details`"));
+    }
+}
+
+#[test]
 fn inspect_addon_index_rejects_case_insensitive_duplicate_package_ids() {
     let temp = tempdir().expect("temp dir");
     let index_path = temp.path().join("index.toml");

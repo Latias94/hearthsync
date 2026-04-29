@@ -63,7 +63,12 @@ pub(super) fn parse_github_source(source: &str) -> AppResult<Option<AddonSourceR
 }
 
 fn parse_positive_u32(value: &str, message: &str) -> AppResult<u32> {
-    value
+    let parsed = value
         .parse::<u32>()
-        .map_err(|_| AppError::Validation(message.to_string()))
+        .map_err(|_| AppError::Validation(message.to_string()))?;
+    if parsed == 0 {
+        return Err(AppError::Validation(message.to_string()));
+    }
+
+    Ok(parsed)
 }

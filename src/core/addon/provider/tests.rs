@@ -151,6 +151,20 @@ fn parse_curseforge_source_without_file() {
 }
 
 #[test]
+fn parse_curseforge_source_rejects_zero_ids() {
+    for source in ["curseforge:0", "curseforge:12345@0"] {
+        let error = parse_curseforge_source(source).expect_err("zero ids should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("CurseForge source must look like")
+        );
+    }
+}
+
+#[test]
 fn parse_github_source_with_tag_and_asset() {
     let source = parse_github_source("github:owner/repo@v1.2.3#addon.zip")
         .expect("parse")

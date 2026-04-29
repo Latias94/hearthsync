@@ -333,6 +333,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon-index directory hints now validate as portable, case-insensitively unique addon directory
   segments, so exact `addon_directories` hints cannot be blank, path-shaped, Windows-reserved, or
   ambiguous on Windows/default-macOS targets.
+- addon-index package sources and optional source metadata now reject empty local paths, invalid
+  HTTP archive URL schemes, zero CurseForge ids, blank GitHub owner/repo/tag/asset fields, and
+  blank source metadata before provider materialization or registry writes can trust them.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead
