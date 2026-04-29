@@ -824,7 +824,7 @@ fn sample_manifest() -> BundleManifestValue {
                 target_hint: Some("Main".to_string()),
             }],
             fonts: true,
-            interface_assets: vec!["Interface/Buttons".to_string()],
+            interface_assets: vec!["Buttons".to_string()],
             addon_lock: false,
             addon_indexes: Vec::new(),
         },

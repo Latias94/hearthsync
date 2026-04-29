@@ -463,7 +463,7 @@ fn valid_bundle_manifest_value() -> BundleManifestValue {
                 target_hint: Some("Main".to_string()),
             }],
             fonts: true,
-            interface_assets: vec!["Interface/Buttons".to_string()],
+            interface_assets: vec!["Buttons".to_string()],
             addon_lock: true,
             addon_indexes: vec!["metadata/addons/index.toml".to_string()],
         },

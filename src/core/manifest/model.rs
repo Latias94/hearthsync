@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};
 
@@ -32,6 +33,11 @@ impl BundleManifest {
                 "package.name must not be empty".to_string(),
             ));
         }
+        if self.package.created_by.trim().is_empty() {
+            return Err(AppError::Validation(
+                "package.created_by must not be empty".to_string(),
+            ));
+        }
 
         if self.resources.addons.is_empty()
             && !self.resources.wtf_common
@@ -45,6 +51,31 @@ impl BundleManifest {
                 "resources must include at least one addon, config group, font, or interface asset"
                     .to_string(),
             ));
+        }
+
+        for addon in &self.resources.addons {
+            validate_manifest_plain_name("resources.addons", addon)?;
+        }
+
+        for character in &self.resources.wtf_characters {
+            if let Some(source_account) = character.source_account.as_deref() {
+                validate_manifest_plain_name(
+                    "resources.wtf_characters.source_account",
+                    source_account,
+                )?;
+            }
+            validate_manifest_plain_name(
+                "resources.wtf_characters.source_server",
+                &character.source_server,
+            )?;
+            validate_manifest_plain_name(
+                "resources.wtf_characters.source_character",
+                &character.source_character,
+            )?;
+        }
+
+        for interface_asset in &self.resources.interface_assets {
+            validate_manifest_plain_name("resources.interface_assets", interface_asset)?;
         }
 
         for addon_index in &self.resources.addon_indexes {
@@ -72,6 +103,10 @@ impl BundleManifest {
 
         Ok(())
     }
+}
+
+fn validate_manifest_plain_name(field: &str, value: &str) -> AppResult<()> {
+    validate_portable_path_segment(value, field)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

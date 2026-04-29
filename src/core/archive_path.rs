@@ -56,7 +56,8 @@ fn is_safe_archive_segment(segment: &str) -> bool {
         && segment != ".."
         && !segment.ends_with([' ', '.'])
         && !segment.chars().any(|char| {
-            char.is_control() || matches!(char, '<' | '>' | ':' | '"' | '|' | '?' | '*' | '\\')
+            char.is_control()
+                || matches!(char, '<' | '>' | ':' | '"' | '|' | '?' | '*' | '/' | '\\')
         })
         && !is_windows_reserved_device_name(segment)
 }
@@ -278,6 +279,16 @@ mod tests {
                 .expect_err("trailing space or dot should fail");
 
             assert!(error.to_string().contains("invalid addon name"));
+        }
+    }
+
+    #[test]
+    fn validate_portable_path_segment_rejects_path_separators() {
+        for segment in ["Interface/Buttons", r"Interface\Buttons"] {
+            let error = validate_portable_path_segment(segment, "interface asset")
+                .expect_err("path separators should fail");
+
+            assert!(error.to_string().contains("invalid interface asset name"));
         }
     }
 

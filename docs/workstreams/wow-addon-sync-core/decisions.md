@@ -1607,3 +1607,30 @@ Specifically:
   multi-character bundles, while the app boundary owns context-free path-segment validity.
 - Existing CLI override semantics remain intact: `--all-accounts` can still override selection
   behavior, but any explicitly provided identity string must be portable.
+
+## ADR-064: Bundle Manifest Resource Fields Validate Portable Segments
+
+Accepted on 2026-04-29
+
+### Decision
+
+`BundleManifest::validate()` must own context-free validation for resource identifiers that become
+cross-platform filesystem path segments.
+
+Specifically:
+
+- `package.created_by` must be non-empty, matching the existing non-empty `package.id` and
+  `package.name` contract.
+- `resources.addons` entries must be portable addon directory names.
+- `resources.wtf_characters` source account, server, and character fields must be portable WTF
+  identity segments when present.
+- `resources.interface_assets` entries must be portable interface asset root names.
+
+### Consequences
+
+- App-owned pack manifests, first-party bundle archives, and external-package generated manifests
+  now share the same resource identity validation through the manifest contract.
+- Invalid resource declarations fail before packing or apply planning can turn them into live WoW
+  paths.
+- Deeper pack/apply code can keep defensive path checks, but manifest validity no longer depends
+  on reaching those later code paths.
