@@ -22,8 +22,8 @@ use crate::core::install::DetectedFlavorInstallation;
 pub(crate) use self::apply::apply_addon_lock_sync_task_with_provider;
 pub use self::apply::{apply_addon_lock_sync, apply_addon_lock_sync_task};
 pub use self::plan::{plan_addon_lock_sync, plan_addon_lock_sync_with_source_overrides};
-pub(crate) use self::storage::sync_addon_lock_from_registry;
 pub use self::storage::{inspect_addon_lock, lock_path, write_addon_lock};
+pub(crate) use self::storage::{read_addon_lock, sync_addon_lock_from_registry};
 pub use self::verify::{diff_addon_locks, verify_addon_lock};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

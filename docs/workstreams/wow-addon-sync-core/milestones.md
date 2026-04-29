@@ -347,7 +347,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   and rejects blank stored metadata fields or supported-flavor entries.
 - addon-lock files now fail closed at read time on invalid source refs, relative local archive
   refs, blank package metadata/timestamps, invalid content hashes, non-portable addon directory
-  names, and case-insensitive addon-directory ownership conflicts.
+  names, and case-insensitive addon-directory ownership conflicts; bundle addon-lock embedding now
+  reuses the same validated loader and validates generated locks before persistence.
 - embedded bundle addon source indexes now fail closed before source extraction on blank or
   duplicate comparison keys, invalid source paths, invalid content hashes, and non-portable addon
   directory declarations.

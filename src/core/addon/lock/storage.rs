@@ -130,7 +130,7 @@ fn build_lock_package(
     })
 }
 
-pub(super) fn read_addon_lock(path: &Path) -> AppResult<AddonLock> {
+pub(crate) fn read_addon_lock(path: &Path) -> AppResult<AddonLock> {
     let content = fs::read_to_string(path)?;
     let lock = toml::from_str::<AddonLock>(&content)?;
     validate_addon_lock(&lock)?;
@@ -273,6 +273,7 @@ fn normalize_relative_path(path: &Path, base: &Path) -> AppResult<String> {
 }
 
 fn write_addon_lock_file(path: &Path, lock: &AddonLock) -> AppResult<()> {
+    validate_addon_lock(lock)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }

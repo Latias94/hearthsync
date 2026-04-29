@@ -1915,3 +1915,26 @@ Specifically:
 - Future GUI file-open and bundle-inspection flows can trust the shared loader contract instead of
   remembering to call `validate()` after every read.
 - Bundle archive inspection and apply planning now fail at the same manifest-read boundary.
+
+## ADR-075: Bundle Addon-Lock Embedding Reuses the Canonical Lock Contract
+
+Accepted on 2026-04-29
+
+### Decision
+
+The bundle pack path must reuse the same addon-lock read/write validation contract as standalone
+addon-lock commands.
+
+Specifically:
+
+- Addon-lock writes validate the generated lock immediately before atomic persistence.
+- `read_addon_lock()` is crate-visible as the canonical validated loader for addon-lock TOML.
+- Bundle pack's generated-lock reader delegates to `read_addon_lock()` instead of reparsing TOML
+  directly.
+
+### Consequences
+
+- Bundle addon-lock embedding cannot consume a parsed-but-invalid generated lock if the file is
+  corrupted or a future generation path creates an invalid value.
+- Standalone addon-lock workflows and bundle pack workflows share one lock-file contract.
+- Future GUI export flows do not need a separate addon-lock validation path for bundle embedding.
