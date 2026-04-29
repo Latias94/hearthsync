@@ -1060,7 +1060,8 @@ the resulting DTOs as stable product state.
   version-type/file-selection/file-metadata tests in `provider::curseforge::select`,
   search-result projection tests in `provider::curseforge`, source parser tests in
   `provider::parse`, source-reference serialization compatibility tests in `provider::source`,
-  source materialization boundary tests in `provider::materialize`, cache helper tests in
+  source materialization boundary tests in `provider::materialize`, source adaptation and
+  dependency-resolution tests in `provider::source_adapter`, cache helper tests in
   `provider::cache`, HTTP default tests in `provider::http`, provider capability/retry tests in
   `provider`, and cross-module provider orchestration tests remain in `provider::tests`
 - the next provider-side candidate is continuing to drain remaining default-provider test helpers

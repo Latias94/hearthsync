@@ -86,3 +86,123 @@ pub(super) fn curseforge_release_type_limit(
         None => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+
+    use super::super::AddonDependencyResolutionStrategy;
+    use super::super::http::{
+        HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse, HttpRequest,
+        HttpResponse,
+    };
+    use super::super::test_support::{curseforge_api_key_guard, standard_curseforge_api_key_guard};
+    use super::*;
+    use crate::core::task::CancellationToken;
+
+    #[test]
+    fn resolve_source_dependencies_returns_required_curseforge_dependencies() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request.clone());
+                match request.url.as_str() {
+                    "https://api.curseforge.com/v1/mods/42/files/777" => Ok(HttpResponse {
+                        status_code: 200,
+                        body: r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1,"dependencies":[{"modId":99,"relationType":3},{"modId":99,"relationType":3},{"modId":100,"relationType":2},{"modId":101,"relationType":9},{"modId":42,"relationType":3}]}}"#.to_string(),
+                    }),
+                    _ => Err(AppError::Validation(format!(
+                        "unexpected request url: {}",
+                        request.url
+                    ))),
+                }
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                panic!("download_to_path should not be called in this test")
+            }
+        }
+
+        let _guard = curseforge_api_key_guard("test-api-key");
+        let http_client = FakeHttpClient::default();
+        let dependencies = resolve_source_dependencies_impl(
+            &http_client,
+            &AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: Some(777),
+            },
+            AddonProviderContext::default(),
+        )
+        .expect("resolve dependencies");
+
+        assert_eq!(
+            dependencies.strategy,
+            AddonDependencyResolutionStrategy::MissingRequiredOnly
+        );
+        assert_eq!(
+            dependencies.dependencies,
+            vec![AddonSourceRef::CurseForgeMod {
+                mod_id: 99,
+                file_id: None,
+            }]
+        );
+        assert_eq!(http_client.requests.borrow().len(), 1);
+    }
+
+    #[test]
+    fn resolve_source_dependencies_accepts_standard_curseforge_api_key_env() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                assert!(
+                    request
+                        .headers
+                        .iter()
+                        .any(|header| header.name == "x-api-key" && header.value == "standard-key")
+                );
+                self.requests.borrow_mut().push(request.clone());
+                Ok(HttpResponse {
+                    status_code: 200,
+                    body: r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}}"#.to_string(),
+                })
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                panic!("download_to_path should not be called in this test")
+            }
+        }
+
+        let _guard = standard_curseforge_api_key_guard("standard-key");
+        let http_client = FakeHttpClient::default();
+        let dependencies = resolve_source_dependencies_impl(
+            &http_client,
+            &AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: Some(777),
+            },
+            AddonProviderContext::default(),
+        )
+        .expect("resolve dependencies with standard env");
+
+        assert!(dependencies.dependencies.is_empty());
+        assert_eq!(http_client.requests.borrow().len(), 1);
+    }
+}
