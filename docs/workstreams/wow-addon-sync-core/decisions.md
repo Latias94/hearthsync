@@ -1804,3 +1804,30 @@ Specifically:
 - Pin validation is now enforced both on mutation requests and on stored state loaded from disk.
 - Future addon-policy UI work can treat the core policy storage contract as the canonical gate
   instead of duplicating pin and row-validity rules.
+
+## ADR-071: Runtime Settings Validate Persisted Provider Policy
+
+Accepted on 2026-04-29
+
+### Decision
+
+Runtime settings must reject invalid persisted provider policy at the app settings boundary, not
+only later during CLI runtime construction.
+
+Specifically:
+
+- Persisted `addon_cache_dir` values must be absolute after settings are loaded from disk.
+- `settings set --addon-cache-dir` may still accept relative input only when the runtime has a
+  relative-path base; the stored value remains absolute.
+- Persisted HTTP no-validator cache policy must pass the same app/provider option validation as
+  runtime construction, including rejecting zero-second reuse windows.
+- Settings writes must run the same validation before atomic persistence.
+
+### Consequences
+
+- `settings inspect`, CLI startup, and future GUI settings screens now share one semantic
+  settings-file contract.
+- GUI callers cannot persist a zero-second cache policy that only fails later when a runtime is
+  built for addon operations.
+- CLI-specific persisted-path checks can remain defensive, but the core app settings service is
+  now the canonical owner of settings-file validity.

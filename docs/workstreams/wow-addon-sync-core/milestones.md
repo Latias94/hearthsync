@@ -319,6 +319,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon provider options now validate before runtime provider construction: zero retry attempts and
   zero-second HTTP no-validator reuse windows are rejected at the app/runtime boundary instead of
   being silently or ambiguously interpreted inside provider execution.
+- runtime settings files now validate the same provider policy before inspect or persistence:
+  persisted addon cache directories must be absolute, and zero-second HTTP no-validator reuse
+  windows fail before future GUI settings screens can save them.
 - bundle manifests now validate at both relevant boundaries: app-owned pack manifests fail before
   core request construction, and embedded bundle manifests fail during apply planning even when an
   operator bypasses `inspect_bundle`.

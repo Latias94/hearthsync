@@ -466,6 +466,9 @@ enough that these rules live in one place.
   Current progress: addon provider options now validate before runtime provider construction.
   Zero-attempt retry policies and zero-second HTTP no-validator reuse windows fail at the
   app/runtime boundary instead of being silently or ambiguously interpreted by provider execution.
+  Current progress: runtime settings files now validate that persisted addon cache directories are
+  absolute and persisted HTTP no-validator cache policy is semantically valid before inspect or
+  persistence, so future GUI settings screens cannot save provider policy that only fails later.
   Current progress: bundle manifests now validate at app and apply boundaries. App-owned pack
   manifests fail before core request construction, and embedded bundle manifests fail during apply
   planning even when callers bypass bundle inspection.

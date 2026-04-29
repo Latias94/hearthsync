@@ -111,6 +111,12 @@ pub(crate) fn load_persisted_runtime_settings_value() -> AppResult<Option<Runtim
             settings_path.display()
         ))
     })?;
+    validate_runtime_settings_value(&settings).map_err(|error| {
+        AppError::Validation(format!(
+            "invalid runtime settings file `{}`: {error}",
+            settings_path.display()
+        ))
+    })?;
     Ok(Some(settings))
 }
 
@@ -124,6 +130,7 @@ fn save_persisted_runtime_settings_value(settings: &RuntimeSettingsValue) -> App
         return Ok(false);
     }
 
+    validate_runtime_settings_value(settings)?;
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -172,6 +179,23 @@ fn validate_set_runtime_settings_request(request: &SetRuntimeSettingsAppRequest)
         return Err(AppError::Validation(
             "settings mutation must change at least one field".to_string(),
         ));
+    }
+
+    Ok(())
+}
+
+fn validate_runtime_settings_value(settings: &RuntimeSettingsValue) -> AppResult<()> {
+    if let Some(path) = &settings.addon_cache_dir
+        && !path.is_absolute()
+    {
+        return Err(AppError::Validation(format!(
+            "persisted addon cache directory must be absolute: {}",
+            path.display()
+        )));
+    }
+
+    if let Some(policy) = &settings.http_no_validator_cache_policy {
+        policy.clone().into_domain()?;
     }
 
     Ok(())
@@ -427,5 +451,72 @@ mod tests {
             }
             other => panic!("expected validation error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn runtime_settings_service_rejects_invalid_persisted_setting_contracts() {
+        for (case_name, content, expected_message) in [
+            (
+                "relative cache dir",
+                "addon_cache_dir = \"cache\"",
+                "persisted addon cache directory must be absolute",
+            ),
+            (
+                "zero no-validator window",
+                "[http_no_validator_cache_policy]\nmode = \"reuse_within_window\"\nmax_age_secs = 0\n",
+                "HTTP no-validator cache window must be greater than zero seconds",
+            ),
+        ] {
+            let temp = tempdir().expect("temp dir");
+            let settings_path = temp.path().join("settings").join("runtime.toml");
+            let _guard = runtime_settings_path_guard(&settings_path);
+            let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
+            std::fs::create_dir_all(settings_path.parent().expect("settings dir"))
+                .expect("create settings dir");
+            std::fs::write(&settings_path, content).expect("write settings");
+
+            let error = service.inspect().expect_err(case_name);
+
+            match error {
+                AppError::Validation(message) => {
+                    assert!(message.contains("invalid runtime settings file"));
+                    assert!(message.contains(&settings_path.display().to_string()));
+                    assert!(
+                        message.contains(expected_message),
+                        "{case_name}: expected `{expected_message}`, got `{message}`"
+                    );
+                }
+                other => panic!("expected validation error, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn runtime_settings_service_rejects_invalid_http_cache_policy_mutation() {
+        let temp = tempdir().expect("temp dir");
+        let settings_path = temp.path().join("settings").join("runtime.toml");
+        let _guard = runtime_settings_path_guard(&settings_path);
+        let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
+
+        let error = service
+            .set(SetRuntimeSettingsAppRequest {
+                addon_state_storage: None,
+                clear_addon_state_storage: false,
+                addon_cache_dir: None,
+                clear_addon_cache_dir: false,
+                http_no_validator_cache_policy: Some(
+                    HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 0 },
+                ),
+                clear_http_no_validator_cache_policy: false,
+            })
+            .expect_err("zero cache window should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("HTTP no-validator cache window must be greater than zero seconds")
+        );
+        assert!(!settings_path.exists());
     }
 }
