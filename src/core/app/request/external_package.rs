@@ -115,7 +115,7 @@ impl PlanExternalPackageApplyAppRequest {
                     .external_package
                     .into_domain_request_after_defaults(runtime)?,
                 installation: request.installation.into_domain()?,
-                apply_mappings: request.apply_mappings.into_domain(),
+                apply_mappings: request.apply_mappings.into_domain()?,
             })
         })
     }
@@ -155,7 +155,7 @@ impl ApplyExternalPackageAppRequest {
                     request.backup_output_path,
                     "external package backup output directory",
                 )?,
-                apply_mappings: request.apply_mappings.into_domain(),
+                apply_mappings: request.apply_mappings.into_domain()?,
             })
         })
     }

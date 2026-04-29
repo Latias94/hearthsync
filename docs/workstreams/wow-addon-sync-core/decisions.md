@@ -1581,3 +1581,29 @@ Specifically:
   plan/apply entrypoints.
 - Core packing keeps its defensive manifest validation, but app and apply boundaries now enforce
   the same manifest contract explicitly.
+
+## ADR-063: Bundle Apply Mappings Validate Portable Identity Segments
+
+Accepted on 2026-04-29
+
+### Decision
+
+App-owned bundle apply mappings must validate explicit account, server, and character identity
+segments before they are projected into core apply mappings.
+
+Specifically:
+
+- `BundleApplyMappingsValue::into_domain()` is fallible.
+- Global `target_account`, `target_server`, and `target_character` values validate when present.
+- Every `selected_accounts` entry validates as a portable account segment.
+- Every per-character override validates its optional source/target account and required
+  source/target server and character segments.
+
+### Consequences
+
+- Future GUI callers and mapping-file users cannot carry invalid WTF path segments into bundle,
+  external-package, or config apply planning.
+- Core mapping resolution can keep context-sensitive checks for single-character versus
+  multi-character bundles, while the app boundary owns context-free path-segment validity.
+- Existing CLI override semantics remain intact: `--all-accounts` can still override selection
+  behavior, but any explicitly provided identity string must be portable.

@@ -492,6 +492,27 @@ fn apply_bundle_request_converts_app_owned_apply_mappings() {
 }
 
 #[test]
+fn apply_bundle_request_rejects_invalid_app_apply_mappings() {
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = runtime_with_relative_path_base(base);
+
+    let error = ApplyBundleAppRequest {
+        bundle_path: PathBuf::from("bundle.zip"),
+        installation: sample_installation(),
+        dry_run: true,
+        backup_output_path: None,
+        apply_mappings: BundleApplyMappingsValue {
+            target_account: Some("Invalid*Account".to_string()),
+            ..BundleApplyMappingsValue::default()
+        },
+    }
+    .into_domain_request(&runtime)
+    .expect_err("invalid app apply mappings should fail closed");
+
+    assert!(error.to_string().contains("invalid target account name"));
+}
+
+#[test]
 fn create_external_package_request_converts_app_owned_apply_defaults() {
     let base = std::env::current_dir().expect("cwd");
     let runtime = runtime_with_relative_path_base(base.clone());

@@ -89,7 +89,7 @@ impl PlanBundleApplyRequest {
         Ok((
             resolve_bundle_path(runtime, self.bundle_path)?,
             self.installation.into_domain()?,
-            self.apply_mappings.into_domain(),
+            self.apply_mappings.into_domain()?,
         ))
     }
 }
@@ -124,7 +124,7 @@ impl ApplyBundleAppRequest {
                     runtime,
                     request.backup_output_path,
                 )?,
-                apply_mappings: request.apply_mappings.into_domain(),
+                apply_mappings: request.apply_mappings.into_domain()?,
             })
         })
     }

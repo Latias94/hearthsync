@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::bundle::{
     ApplyAction as DomainApplyAction, ApplyGroup as DomainApplyGroup,
     BundleApplyMappings as DomainBundleApplyMappings,
@@ -220,15 +221,31 @@ impl BundleCharacterMappingOverrideValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainCharacterMappingOverride {
-        DomainCharacterMappingOverride {
-            source_account: self.source_account,
-            source_server: self.source_server,
-            source_character: self.source_character,
-            target_account: self.target_account,
-            target_server: self.target_server,
-            target_character: self.target_character,
-        }
+    pub(crate) fn into_domain(self) -> AppResult<DomainCharacterMappingOverride> {
+        let Self {
+            source_account,
+            source_server,
+            source_character,
+            target_account,
+            target_server,
+            target_character,
+        } = self;
+
+        validate_optional_plain_name("source account", source_account.as_deref())?;
+        validate_plain_name("source server", &source_server)?;
+        validate_plain_name("source character", &source_character)?;
+        validate_optional_plain_name("target account", target_account.as_deref())?;
+        validate_plain_name("target server", &target_server)?;
+        validate_plain_name("target character", &target_character)?;
+
+        Ok(DomainCharacterMappingOverride {
+            source_account,
+            source_server,
+            source_character,
+            target_account,
+            target_server,
+            target_character,
+        })
     }
 }
 
@@ -257,19 +274,48 @@ impl BundleApplyMappingsValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainBundleApplyMappings {
-        DomainBundleApplyMappings {
-            target_account: self.target_account,
-            target_server: self.target_server,
-            target_character: self.target_character,
-            selected_accounts: self.selected_accounts,
-            all_accounts: self.all_accounts,
-            characters: map_owned_vec(
-                self.characters,
-                BundleCharacterMappingOverrideValue::into_domain,
-            ),
+    pub(crate) fn into_domain(self) -> AppResult<DomainBundleApplyMappings> {
+        let Self {
+            target_account,
+            target_server,
+            target_character,
+            selected_accounts,
+            all_accounts,
+            characters,
+        } = self;
+
+        validate_optional_plain_name("target account", target_account.as_deref())?;
+        validate_optional_plain_name("target server", target_server.as_deref())?;
+        validate_optional_plain_name("target character", target_character.as_deref())?;
+        for selected_account in &selected_accounts {
+            validate_plain_name("selected account", selected_account)?;
         }
+        let characters = characters
+            .into_iter()
+            .map(BundleCharacterMappingOverrideValue::into_domain)
+            .collect::<AppResult<Vec<_>>>()?;
+
+        Ok(DomainBundleApplyMappings {
+            target_account,
+            target_server,
+            target_character,
+            selected_accounts,
+            all_accounts,
+            characters,
+        })
     }
+}
+
+fn validate_optional_plain_name(kind: &str, value: Option<&str>) -> AppResult<()> {
+    if let Some(value) = value {
+        validate_plain_name(kind, value)?;
+    }
+
+    Ok(())
+}
+
+fn validate_plain_name(kind: &str, value: &str) -> AppResult<()> {
+    validate_portable_path_segment(value, kind)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

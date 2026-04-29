@@ -325,9 +325,52 @@ fn bundle_apply_mappings_value_roundtrips_domain_shape() {
         }],
     };
 
-    let domain = value.clone().into_domain();
+    let domain = value.clone().into_domain().expect("apply mappings");
 
     assert_eq!(BundleApplyMappingsValue::from_domain(domain), value);
+}
+
+#[test]
+fn bundle_apply_mappings_value_rejects_invalid_target_identity() {
+    let error = BundleApplyMappingsValue {
+        target_account: Some("AccountA ".to_string()),
+        ..BundleApplyMappingsValue::default()
+    }
+    .into_domain()
+    .expect_err("invalid target account should fail closed");
+
+    assert!(error.to_string().contains("invalid target account name"));
+}
+
+#[test]
+fn bundle_apply_mappings_value_rejects_invalid_selected_account() {
+    let error = BundleApplyMappingsValue {
+        selected_accounts: vec!["CON".to_string()],
+        ..BundleApplyMappingsValue::default()
+    }
+    .into_domain()
+    .expect_err("invalid selected account should fail closed");
+
+    assert!(error.to_string().contains("invalid selected account name"));
+}
+
+#[test]
+fn bundle_apply_mappings_value_rejects_invalid_character_override() {
+    let error = BundleApplyMappingsValue {
+        characters: vec![BundleCharacterMappingOverrideValue {
+            source_account: Some("SourceAccount".to_string()),
+            source_server: "Stormrage".to_string(),
+            source_character: "SourceMain".to_string(),
+            target_account: Some("TargetAccount".to_string()),
+            target_server: "Illidan".to_string(),
+            target_character: "Target*Main".to_string(),
+        }],
+        ..BundleApplyMappingsValue::default()
+    }
+    .into_domain()
+    .expect_err("invalid character override should fail closed");
+
+    assert!(error.to_string().contains("invalid target character name"));
 }
 
 #[test]

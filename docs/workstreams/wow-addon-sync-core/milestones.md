@@ -322,6 +322,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle manifests now validate at both relevant boundaries: app-owned pack manifests fail before
   core request construction, and embedded bundle manifests fail during apply planning even when an
   operator bypasses `inspect_bundle`.
+- bundle apply mappings now validate explicit account, server, and character identity segments at
+  the app boundary before bundle, external-package, or config apply planning can turn them into
+  WTF target paths.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead
