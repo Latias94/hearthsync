@@ -2272,7 +2272,7 @@ instead of accumulating in the default-provider integration test file.
 
 Specifically:
 
-- GitHub release and asset selection tests live in `provider::github`.
+- GitHub API fetch contract and release/asset selection tests live in `provider::github`.
 - CurseForge version-type, file-selection, and file-metadata validation tests live in
   `provider::curseforge::select`.
 - `provider::tests` remains focused on provider composition, HTTP/cache behavior, source

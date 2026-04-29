@@ -290,7 +290,81 @@ pub(super) struct GitHubReleaseAsset {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
+    use super::super::http::{
+        HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse, HttpResponse,
+    };
     use super::*;
+    use crate::core::task::CancellationToken;
+
+    #[test]
+    fn fetch_github_release_with_client_uses_http_port() {
+        let client = JsonResponseHttpClient::new(
+            r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#,
+        );
+        let release = fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3"))
+            .expect("release");
+
+        assert_eq!(release.assets.len(), 1);
+        let requests = client.requests.borrow();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/owner/repo/releases/tags/v1.2.3"
+        );
+        assert!(
+            requests[0]
+                .headers
+                .iter()
+                .any(|header| header.name == "Accept")
+        );
+        assert!(
+            requests[0]
+                .headers
+                .iter()
+                .any(|header| header.name == "User-Agent")
+        );
+        assert!(
+            requests[0]
+                .headers
+                .iter()
+                .any(|header| header.name == "X-GitHub-Api-Version")
+        );
+    }
+
+    #[test]
+    fn fetch_github_releases_with_client_uses_release_list_endpoint() {
+        let client = JsonResponseHttpClient::new(
+            r#"[{"tag_name":"v1.2.3","prerelease":true,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}]"#,
+        );
+        let releases =
+            fetch_github_releases_with_client(&client, "owner", "repo").expect("releases");
+
+        assert_eq!(releases.len(), 1);
+        let requests = client.requests.borrow();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/owner/repo/releases"
+        );
+    }
+
+    #[test]
+    fn fetch_github_release_with_client_rejects_invalid_release_contracts() {
+        let client = JsonResponseHttpClient::new(
+            r#"{"tag_name":" ","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#,
+        );
+
+        let error = fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3"))
+            .expect_err("invalid release");
+
+        assert!(
+            error
+                .to_string()
+                .contains("GitHub release tag name must not be empty")
+        );
+    }
 
     #[test]
     fn select_github_release_asset_requires_disambiguation() {
@@ -463,6 +537,39 @@ mod tests {
             size: None,
             digest: None,
             updated_at: None,
+        }
+    }
+
+    struct JsonResponseHttpClient<'a> {
+        body: &'a str,
+        requests: RefCell<Vec<HttpRequest>>,
+    }
+
+    impl<'a> JsonResponseHttpClient<'a> {
+        fn new(body: &'a str) -> Self {
+            Self {
+                body,
+                requests: RefCell::new(Vec::new()),
+            }
+        }
+    }
+
+    impl HttpClient for JsonResponseHttpClient<'_> {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            self.requests.borrow_mut().push(request);
+            Ok(HttpResponse {
+                status_code: 200,
+                body: self.body.to_string(),
+            })
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            panic!("download_to_path should not be called in this test")
         }
     }
 }
