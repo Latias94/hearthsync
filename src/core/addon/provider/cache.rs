@@ -902,25 +902,12 @@ mod tests {
     use tempfile::tempdir;
 
     use super::super::http::{HttpRequest, HttpResponse};
+    use super::super::test_support::{
+        NoopHttpClient, load_cached_archive_metadata_fixture, not_modified_download_response,
+        successful_download_response, write_cached_archive_metadata_fixture,
+    };
     use super::*;
     use crate::core::task::CancellationToken;
-
-    struct NoopHttpClient;
-
-    impl HttpClient for NoopHttpClient {
-        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
-            panic!("get should not be called in this test")
-        }
-
-        fn download_to_path(
-            &self,
-            _request: HttpDownloadRequest,
-            _cancellation: &dyn CancellationToken,
-            _observer: Option<&dyn HttpDownloadProgressObserver>,
-        ) -> AppResult<HttpDownloadResponse> {
-            panic!("download should not be called in this test")
-        }
-    }
 
     #[test]
     fn guess_archive_name_from_url_ignores_query_string_and_fragment() {
@@ -1339,34 +1326,5 @@ mod tests {
         )
         .expect("cache metadata");
         archive_path
-    }
-
-    fn load_cached_archive_metadata_fixture(archive_path: &Path) -> CachedArchiveMetadata {
-        let metadata_path = cached_archive_metadata_path(archive_path);
-        let metadata_bytes = std::fs::read(metadata_path).expect("cache metadata bytes");
-        serde_json::from_slice(&metadata_bytes).expect("cache metadata")
-    }
-
-    fn write_cached_archive_metadata_fixture(
-        archive_path: &Path,
-        metadata: &CachedArchiveMetadata,
-    ) {
-        let metadata_path = cached_archive_metadata_path(archive_path);
-        let metadata_bytes = serde_json::to_vec_pretty(metadata).expect("cache metadata json");
-        std::fs::write(metadata_path, metadata_bytes).expect("cache metadata write");
-    }
-
-    fn successful_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
-        HttpDownloadResponse {
-            status_code: 200,
-            headers,
-        }
-    }
-
-    fn not_modified_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
-        HttpDownloadResponse {
-            status_code: 304,
-            headers,
-        }
     }
 }

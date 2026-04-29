@@ -1,5 +1,64 @@
 use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
+
+use super::cache::{CachedArchiveMetadata, cached_archive_metadata_path};
+use super::http::{
+    HttpClient, HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse,
+    HttpHeader, HttpRequest, HttpResponse,
+};
+use crate::core::error::AppResult;
+use crate::core::task::CancellationToken;
+
+pub(super) struct NoopHttpClient;
+
+impl HttpClient for NoopHttpClient {
+    fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+        panic!("get should not be called in this test")
+    }
+
+    fn download_to_path(
+        &self,
+        _request: HttpDownloadRequest,
+        _cancellation: &dyn CancellationToken,
+        _observer: Option<&dyn HttpDownloadProgressObserver>,
+    ) -> AppResult<HttpDownloadResponse> {
+        panic!("download should not be called in this test")
+    }
+}
+
+pub(super) fn cached_metadata_path(archive_path: &Path) -> PathBuf {
+    cached_archive_metadata_path(archive_path)
+}
+
+pub(super) fn load_cached_archive_metadata_fixture(archive_path: &Path) -> CachedArchiveMetadata {
+    let metadata_path = cached_archive_metadata_path(archive_path);
+    let metadata_bytes = std::fs::read(metadata_path).expect("cache metadata bytes");
+    serde_json::from_slice(&metadata_bytes).expect("cache metadata")
+}
+
+pub(super) fn write_cached_archive_metadata_fixture(
+    archive_path: &Path,
+    metadata: &CachedArchiveMetadata,
+) {
+    let metadata_path = cached_archive_metadata_path(archive_path);
+    let metadata_bytes = serde_json::to_vec_pretty(metadata).expect("cache metadata json");
+    std::fs::write(metadata_path, metadata_bytes).expect("cache metadata write");
+}
+
+pub(super) fn successful_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
+    HttpDownloadResponse {
+        status_code: 200,
+        headers,
+    }
+}
+
+pub(super) fn not_modified_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
+    HttpDownloadResponse {
+        status_code: 304,
+        headers,
+    }
+}
 
 pub(super) fn curseforge_api_key_guard(value: &str) -> CurseForgeApiKeyGuard {
     curseforge_api_key_env_guard(Some(value), None)

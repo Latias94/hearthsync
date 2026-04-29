@@ -2284,6 +2284,8 @@ Specifically:
 - Cache helper and cache-management repair/purge contracts live in `provider::cache`, HTTP
   transport defaults live in `provider::http`, and default-provider composition/capability/retry
   declarations live in `provider`.
+- Shared provider test fixtures that are not owned by one provider behavior live in
+  `provider::test_support`.
 - `provider::tests` remains focused on HTTP/cache behavior, source cache orchestration, and other
   cross-module integration paths.
 

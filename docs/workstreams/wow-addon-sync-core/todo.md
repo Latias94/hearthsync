@@ -600,7 +600,8 @@ enough that these rules live in one place.
   source adaptation and dependency-resolution coverage moved into `provider::source_adapter`,
   cache helper and cache-management repair/purge coverage moved into `provider::cache`, HTTP
   default coverage moved into `provider::http`, provider composition/capability/retry coverage
-  moved into `provider`, and `provider::tests` is left for HTTP/cache orchestration.
+  moved into `provider`, shared provider test fixtures moved into `provider::test_support`, and
+  `provider::tests` is left for HTTP/cache orchestration.
 
 Exit criteria:
 

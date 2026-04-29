@@ -5,7 +5,11 @@ use super::http::{
     HttpClient, HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse,
     HttpHeader, HttpRequest, HttpResponse,
 };
-use super::test_support::curseforge_api_key_guard;
+use super::test_support::{
+    cached_metadata_path, curseforge_api_key_guard, load_cached_archive_metadata_fixture,
+    not_modified_download_response, successful_download_response,
+    write_cached_archive_metadata_fixture,
+};
 use super::{
     AddonProvider, AddonProviderContext, AddonSourceRef, DefaultAddonProvider,
     HttpNoValidatorCachePolicy,
@@ -466,7 +470,7 @@ fn default_addon_provider_reuses_download_cache_for_resolved_latest_github_relea
 
     assert_eq!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
-    assert!(super::cached_archive_metadata_path(&first.archive_path).is_file());
+    assert!(cached_metadata_path(&first.archive_path).is_file());
     assert_eq!(provider.http_client().requests.borrow().len(), 2);
     assert_eq!(provider.http_client().downloads.borrow().len(), 1);
 }
@@ -517,8 +521,7 @@ fn default_addon_provider_redownloads_cached_release_when_cache_metadata_is_miss
             context: AddonProviderContext::default(),
         })
         .expect("first materialize");
-    std::fs::remove_file(super::cached_archive_metadata_path(&first.archive_path))
-        .expect("remove cache sidecar");
+    std::fs::remove_file(cached_metadata_path(&first.archive_path)).expect("remove cache sidecar");
     let second = provider
         .materialize_source_ref(super::MaterializeSourceRefRequest {
             source: &source,
@@ -840,35 +843,4 @@ fn default_addon_provider_refreshes_latest_github_release_when_resolved_tag_chan
     assert!(second.archive_path.starts_with(&cache_dir));
     assert_eq!(provider.http_client().release_calls.get(), 2);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
-}
-
-fn load_cached_archive_metadata_fixture(
-    archive_path: &std::path::Path,
-) -> super::CachedArchiveMetadata {
-    let metadata_path = super::cached_archive_metadata_path(archive_path);
-    let metadata_bytes = std::fs::read(metadata_path).expect("cache metadata bytes");
-    serde_json::from_slice(&metadata_bytes).expect("cache metadata")
-}
-
-fn write_cached_archive_metadata_fixture(
-    archive_path: &std::path::Path,
-    metadata: &super::CachedArchiveMetadata,
-) {
-    let metadata_path = super::cached_archive_metadata_path(archive_path);
-    let metadata_bytes = serde_json::to_vec_pretty(metadata).expect("cache metadata json");
-    std::fs::write(metadata_path, metadata_bytes).expect("cache metadata write");
-}
-
-fn successful_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
-    HttpDownloadResponse {
-        status_code: 200,
-        headers,
-    }
-}
-
-fn not_modified_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
-    HttpDownloadResponse {
-        status_code: 304,
-        headers,
-    }
 }

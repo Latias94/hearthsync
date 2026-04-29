@@ -37,9 +37,6 @@ use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 use crate::core::task::CancellationToken;
 
-#[cfg(test)]
-use self::cache::{CachedArchiveMetadata, cached_archive_metadata_path};
-
 #[derive(Debug)]
 pub struct MaterializedAddonSource {
     pub source_ref: AddonSourceRef,

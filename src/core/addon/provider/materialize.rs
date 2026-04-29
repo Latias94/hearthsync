@@ -332,34 +332,18 @@ mod tests {
     use super::super::http::{
         HttpDownloadRequest, HttpDownloadResponse, HttpRequest, HttpResponse,
     };
+    use super::super::test_support::NoopHttpClient;
     use super::*;
 
     #[test]
     fn materialize_source_ref_rejects_relative_local_archive_source_refs() {
-        struct FakeHttpClient;
-
-        impl HttpClient for FakeHttpClient {
-            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
-                panic!("get should not be called in this test")
-            }
-
-            fn download_to_path(
-                &self,
-                _request: HttpDownloadRequest,
-                _cancellation: &dyn CancellationToken,
-                _observer: Option<&dyn HttpDownloadProgressObserver>,
-            ) -> AppResult<HttpDownloadResponse> {
-                panic!("download_to_path should not be called in this test")
-            }
-        }
-
         let temp = tempdir().expect("temp dir");
         let source = AddonSourceRef::LocalArchive {
             path: PathBuf::from("addons/WeakAuras.zip"),
         };
 
         let error = materialize_source_ref_impl(
-            &FakeHttpClient,
+            &NoopHttpClient,
             &source,
             temp.path(),
             AddonProviderContext::default(),
