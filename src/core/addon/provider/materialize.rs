@@ -328,6 +328,7 @@ mod tests {
 
     use tempfile::tempdir;
 
+    use super::super::AddonSourceResolutionPolicy;
     use super::super::http::{
         HttpDownloadRequest, HttpDownloadResponse, HttpRequest, HttpResponse,
     };
@@ -465,6 +466,76 @@ mod tests {
                     Some(512),
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn materialize_github_release_selects_prerelease_when_policy_allows_it() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+            downloads: RefCell<Vec<HttpDownloadRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request.clone());
+                if request.url.ends_with("/releases") {
+                    return Ok(HttpResponse {
+                        status_code: 200,
+                        body: r#"[{"tag_name":"v2.0.0-beta.1","prerelease":true,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v2.0.0-beta.1/addon.zip"}]},{"tag_name":"v1.9.9","prerelease":false,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.9.9/addon.zip"}]}]"#.to_string(),
+                    });
+                }
+                Err(AppError::Validation(format!(
+                    "unexpected request url: {}",
+                    request.url
+                )))
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.downloads.borrow_mut().push(request.clone());
+                std::fs::write(&request.destination, request.url.as_bytes()).expect("archive file");
+                Ok(HttpDownloadResponse {
+                    status_code: 200,
+                    headers: Vec::new(),
+                })
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::GitHubRelease {
+            owner: "owner".to_string(),
+            repo: "repo".to_string(),
+            tag: None,
+            asset_name: Some("addon.zip".to_string()),
+        };
+
+        let materialized = materialize_source_ref_impl(
+            &http_client,
+            &source,
+            temp.path(),
+            AddonProviderContext::default().with_resolution_policy(AddonSourceResolutionPolicy {
+                release_channel: None,
+                allow_prerelease: Some(true),
+            }),
+            &AddonProviderOptions::default(),
+        )
+        .expect("materialize prerelease github source");
+
+        assert_eq!(
+            http_client.requests.borrow()[0].url,
+            "https://api.github.com/repos/owner/repo/releases"
+        );
+        assert_eq!(http_client.downloads.borrow().len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(&materialized.archive_path).expect("downloaded archive"),
+            "https://example.com/releases/v2.0.0-beta.1/addon.zip"
         );
     }
 }

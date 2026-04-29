@@ -12,8 +12,8 @@ use super::http::{
 };
 use super::test_support::curseforge_api_key_guard;
 use super::{
-    AddonProvider, AddonProviderContext, AddonSourceRef, AddonSourceResolutionPolicy,
-    DefaultAddonProvider, HttpNoValidatorCachePolicy,
+    AddonProvider, AddonProviderContext, AddonSourceRef, DefaultAddonProvider,
+    HttpNoValidatorCachePolicy,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
@@ -929,74 +929,6 @@ fn default_addon_provider_reuses_download_cache_for_resolved_latest_github_relea
     assert!(super::cached_archive_metadata_path(&first.archive_path).is_file());
     assert_eq!(provider.http_client().requests.borrow().len(), 2);
     assert_eq!(provider.http_client().downloads.borrow().len(), 1);
-}
-
-#[test]
-fn default_addon_provider_selects_github_prerelease_when_policy_allows_it() {
-    #[derive(Default)]
-    struct FakeHttpClient {
-        requests: RefCell<Vec<HttpRequest>>,
-        downloads: RefCell<Vec<HttpDownloadRequest>>,
-    }
-
-    impl HttpClient for FakeHttpClient {
-        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
-            self.requests.borrow_mut().push(request.clone());
-            if request.url.ends_with("/releases") {
-                return Ok(HttpResponse {
-                    status_code: 200,
-                    body: r#"[{"tag_name":"v2.0.0-beta.1","prerelease":true,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v2.0.0-beta.1/addon.zip"}]},{"tag_name":"v1.9.9","prerelease":false,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.9.9/addon.zip"}]}]"#.to_string(),
-                });
-            }
-            Err(AppError::Validation(format!(
-                "unexpected request url: {}",
-                request.url
-            )))
-        }
-
-        fn download_to_path(
-            &self,
-            request: HttpDownloadRequest,
-            _cancellation: &dyn CancellationToken,
-            _observer: Option<&dyn HttpDownloadProgressObserver>,
-        ) -> AppResult<HttpDownloadResponse> {
-            self.downloads.borrow_mut().push(request.clone());
-            std::fs::write(&request.destination, request.url.as_bytes()).expect("archive file");
-            Ok(successful_download_response(Vec::new()))
-        }
-    }
-
-    let temp = tempdir().expect("temp dir");
-    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default());
-    let source = AddonSourceRef::GitHubRelease {
-        owner: "owner".to_string(),
-        repo: "repo".to_string(),
-        tag: None,
-        asset_name: Some("addon.zip".to_string()),
-    };
-
-    let materialized = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: temp.path(),
-            context: AddonProviderContext::default().with_resolution_policy(
-                AddonSourceResolutionPolicy {
-                    release_channel: None,
-                    allow_prerelease: Some(true),
-                },
-            ),
-        })
-        .expect("materialize prerelease github source");
-
-    assert_eq!(
-        provider.http_client().requests.borrow()[0].url,
-        "https://api.github.com/repos/owner/repo/releases"
-    );
-    assert_eq!(provider.http_client().downloads.borrow().len(), 1);
-    assert_eq!(
-        std::fs::read_to_string(&materialized.archive_path).expect("downloaded archive"),
-        "https://example.com/releases/v2.0.0-beta.1/addon.zip"
-    );
 }
 
 #[test]
