@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::path::Path;
 use tempfile::tempdir;
 
 use super::http::{
@@ -50,20 +51,7 @@ fn default_addon_provider_refreshes_download_cache_for_http_archives_when_policy
         url: "https://example.com/addon.zip".to_string(),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
@@ -103,20 +91,7 @@ fn default_addon_provider_reuses_download_cache_for_http_archives_within_no_vali
         url: "https://example.com/addon.zip".to_string(),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
@@ -159,24 +134,12 @@ fn default_addon_provider_redownloads_cached_http_archive_when_no_validator_cach
         url: "https://example.com/addon.zip".to_string(),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
+    let first = materialize_source(&provider, &source, temp.path(), "stage-a");
     let mut metadata = load_cached_archive_metadata_fixture(&first.archive_path);
     metadata.fetched_at_unix_timestamp = Some(0);
     write_cached_archive_metadata_fixture(&first.archive_path, &metadata);
 
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let second = materialize_source(&provider, &source, temp.path(), "stage-b");
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
@@ -219,24 +182,12 @@ fn default_addon_provider_redownloads_cached_http_archive_when_legacy_no_validat
         url: "https://example.com/addon.zip".to_string(),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
+    let first = materialize_source(&provider, &source, temp.path(), "stage-a");
     let mut metadata = load_cached_archive_metadata_fixture(&first.archive_path);
     metadata.fetched_at_unix_timestamp = None;
     write_cached_archive_metadata_fixture(&first.archive_path, &metadata);
 
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let second = materialize_source(&provider, &source, temp.path(), "stage-b");
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
@@ -296,20 +247,7 @@ fn default_addon_provider_reuses_download_cache_for_http_archives_when_condition
         url: "https://example.com/addon.zip".to_string(),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
@@ -377,20 +315,7 @@ fn default_addon_provider_redownloads_cached_http_archive_when_conditional_get_r
         url: "https://example.com/addon.zip".to_string(),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
@@ -453,20 +378,7 @@ fn default_addon_provider_reuses_download_cache_for_resolved_latest_github_relea
         asset_name: None,
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
@@ -514,21 +426,9 @@ fn default_addon_provider_redownloads_cached_release_when_cache_metadata_is_miss
         asset_name: None,
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
+    let first = materialize_source(&provider, &source, temp.path(), "stage-a");
     std::fs::remove_file(cached_metadata_path(&first.archive_path)).expect("remove cache sidecar");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let second = materialize_source(&provider, &source, temp.path(), "stage-b");
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
@@ -574,21 +474,9 @@ fn default_addon_provider_redownloads_cached_release_when_cached_archive_is_modi
         asset_name: None,
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
+    let first = materialize_source(&provider, &source, temp.path(), "stage-a");
     std::fs::write(&first.archive_path, b"corrupted-cache").expect("corrupt cache file");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let second = materialize_source(&provider, &source, temp.path(), "stage-b");
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
@@ -655,20 +543,7 @@ fn default_addon_provider_redownloads_cached_release_when_remote_asset_validator
         asset_name: Some("addon.zip".to_string()),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().release_calls.get(), 2);
@@ -742,20 +617,7 @@ fn default_addon_provider_redownloads_cached_curseforge_file_when_remote_validat
         file_id: Some(777),
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_eq!(first.archive_path, second.archive_path);
     assert_eq!(provider.http_client().file_calls.get(), 2);
@@ -823,24 +685,47 @@ fn default_addon_provider_refreshes_latest_github_release_when_resolved_tag_chan
         asset_name: None,
     };
 
-    let first = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-a"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("first materialize");
-    let second = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &source,
-            stage_root: &temp.path().join("stage-b"),
-            context: AddonProviderContext::default(),
-        })
-        .expect("second materialize");
+    let (first, second) = materialize_source_twice(&provider, &source, temp.path());
 
     assert_ne!(first.archive_path, second.archive_path);
     assert!(first.archive_path.starts_with(&cache_dir));
     assert!(second.archive_path.starts_with(&cache_dir));
     assert_eq!(provider.http_client().release_calls.get(), 2);
     assert_eq!(provider.http_client().downloads.borrow().len(), 2);
+}
+
+fn materialize_source_twice<H>(
+    provider: &DefaultAddonProvider<H>,
+    source: &AddonSourceRef,
+    stage_root: &Path,
+) -> (
+    super::MaterializedAddonSource,
+    super::MaterializedAddonSource,
+)
+where
+    H: HttpClient,
+{
+    (
+        materialize_source(provider, source, stage_root, "stage-a"),
+        materialize_source(provider, source, stage_root, "stage-b"),
+    )
+}
+
+fn materialize_source<H>(
+    provider: &DefaultAddonProvider<H>,
+    source: &AddonSourceRef,
+    stage_root: &Path,
+    stage_name: &str,
+) -> super::MaterializedAddonSource
+where
+    H: HttpClient,
+{
+    let stage_root = stage_root.join(stage_name);
+    provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source,
+            stage_root: &stage_root,
+            context: AddonProviderContext::default(),
+        })
+        .unwrap_or_else(|error| panic!("materialize {stage_name}: {error}"))
 }

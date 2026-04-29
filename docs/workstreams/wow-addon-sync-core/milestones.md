@@ -1066,5 +1066,5 @@ the resulting DTOs as stable product state.
   composition/capability/retry tests in `provider`, shared provider test fixtures in
   `provider::test_support`, and cross-module provider orchestration tests remain in
   `provider::tests`
-- the next provider-side candidate is continuing to drain remaining default-provider orchestration
-  helper repetition without moving true cross-module cache behavior out of `provider::tests`
+- remaining `provider::tests` orchestration coverage now shares narrow materialization helpers, so
+  each scenario keeps its HTTP fake and cache assertions visible without repeating stage setup
