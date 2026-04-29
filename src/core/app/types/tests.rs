@@ -91,9 +91,22 @@ fn resolved_installation_value_rejects_relative_paths() {
 fn addon_provider_retry_policy_value_roundtrips_domain_shape() {
     let value = AddonProviderRetryPolicyValue { max_attempts: 3 };
 
-    let domain = value.clone().into_domain();
+    let domain = value.clone().into_domain().expect("retry policy");
 
     assert_eq!(AddonProviderRetryPolicyValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_provider_retry_policy_value_rejects_zero_attempts() {
+    let error = AddonProviderRetryPolicyValue { max_attempts: 0 }
+        .into_domain()
+        .expect_err("zero retry attempts should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon provider retry policy max_attempts must be greater than zero")
+    );
 }
 
 #[test]
@@ -106,9 +119,25 @@ fn addon_provider_options_value_roundtrips_domain_shape() {
         },
     };
 
-    let domain = value.clone().into_domain();
+    let domain = value.clone().into_domain().expect("provider options");
 
     assert_eq!(AddonProviderOptionsValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_provider_options_value_rejects_invalid_retry_policy() {
+    let error = AddonProviderOptionsValue {
+        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 0 },
+        ..AddonProviderOptionsValue::default()
+    }
+    .into_domain()
+    .expect_err("invalid retry policy should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon provider retry policy max_attempts must be greater than zero")
+    );
 }
 
 #[test]

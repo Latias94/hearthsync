@@ -183,6 +183,21 @@ fn runtime_builder_rejects_relative_provider_cache_without_runtime_base() {
 }
 
 #[test]
+fn runtime_builder_rejects_zero_addon_provider_retry_attempts() {
+    let error = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
+        retry_policy: AddonProviderRetryPolicyValue { max_attempts: 0 },
+        ..AddonProviderOptionsValue::default()
+    })
+    .expect_err("zero retry attempts should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon provider retry policy max_attempts must be greater than zero")
+    );
+}
+
+#[test]
 fn runtime_builder_resolves_relative_runtime_paths_before_diagnostics() {
     let temp = tempdir().expect("temp dir");
     let runtime = AppRuntime::builder()

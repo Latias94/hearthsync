@@ -162,7 +162,8 @@ impl AppRuntimeBuilder {
                 )?;
                 (
                     Arc::new(
-                        DefaultAddonProvider::default().with_options(options.clone().into_domain()),
+                        DefaultAddonProvider::default()
+                            .with_options(options.clone().into_domain()?),
                     ) as SharedAddonProvider,
                     Some(options),
                 )

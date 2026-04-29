@@ -14,6 +14,7 @@ use crate::core::addon::{
     AddonStatePaths as DomainAddonStatePaths, AddonStateStorageKind as DomainAddonStateStorageKind,
     HttpNoValidatorCachePolicy as DomainHttpNoValidatorCachePolicy,
 };
+use crate::core::error::{AppError, AppResult};
 
 use super::runtime::ExternalHelperCapabilitiesValue;
 
@@ -235,10 +236,16 @@ impl AddonProviderRetryPolicyValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainAddonProviderRetryPolicy {
-        DomainAddonProviderRetryPolicy {
-            max_attempts: self.max_attempts,
+    pub(crate) fn into_domain(self) -> AppResult<DomainAddonProviderRetryPolicy> {
+        if self.max_attempts == 0 {
+            return Err(AppError::Validation(
+                "addon provider retry policy max_attempts must be greater than zero".to_string(),
+            ));
         }
+
+        Ok(DomainAddonProviderRetryPolicy {
+            max_attempts: self.max_attempts,
+        })
     }
 }
 
@@ -297,11 +304,11 @@ impl AddonProviderOptionsValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainAddonProviderOptions {
-        DomainAddonProviderOptions {
+    pub(crate) fn into_domain(self) -> AppResult<DomainAddonProviderOptions> {
+        Ok(DomainAddonProviderOptions {
             download_cache_dir: self.download_cache_dir,
-            retry_policy: self.retry_policy.into_domain(),
+            retry_policy: self.retry_policy.into_domain()?,
             http_no_validator_cache_policy: self.http_no_validator_cache_policy.into_domain(),
-        }
+        })
     }
 }

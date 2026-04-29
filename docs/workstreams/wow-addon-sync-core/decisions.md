@@ -1524,3 +1524,29 @@ Specifically:
 - CLI behavior stays stable for `--output exports` next to a manifest loaded from a subdirectory.
 - Core packing keeps its deterministic default placement behavior, but the stable app boundary no
   longer relies on core to interpret frontend-provided relative output paths.
+
+## ADR-061: Addon Provider Options Validate Before Provider Construction
+
+Accepted on 2026-04-29
+
+### Decision
+
+App-owned addon provider options must be validated before `AppRuntimeBuilder` constructs the
+default addon provider.
+
+Specifically:
+
+- `AddonProviderRetryPolicyValue::into_domain()` is fallible.
+- `AddonProviderOptionsValue::into_domain()` is fallible because it owns nested retry-policy
+  projection.
+- `max_attempts` must be greater than zero. The app/runtime boundary rejects zero instead of
+  relying on the provider's internal `max(1)` execution guard.
+
+### Consequences
+
+- Future GUI callers cannot build a runtime whose displayed retry policy says zero attempts while
+  the provider silently performs one attempt.
+- Provider internals can keep defensive guards, but frontend/runtime configuration semantics stay
+  explicit and validation-driven.
+- Runtime construction remains the single fallible step for path-bearing and provider-policy
+  settings.
