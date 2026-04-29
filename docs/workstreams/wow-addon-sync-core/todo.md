@@ -598,9 +598,10 @@ enough that these rules live in one place.
   moved into `provider::parse`, source-reference serialization compatibility coverage moved into
   `provider::source`, source materialization boundary coverage moved into `provider::materialize`,
   source adaptation and dependency-resolution coverage moved into `provider::source_adapter`,
-  cache helper coverage moved into `provider::cache`, HTTP default coverage moved into
-  `provider::http`, provider capability/retry coverage moved into `provider`, and
-  `provider::tests` is left for default-provider composition and HTTP/cache orchestration.
+  cache helper and cache-management repair/purge coverage moved into `provider::cache`, HTTP
+  default coverage moved into `provider::http`, provider capability/retry coverage moved into
+  `provider`, and `provider::tests` is left for default-provider composition and HTTP/cache
+  orchestration.
 
 Exit criteria:
 
