@@ -463,9 +463,9 @@ enough that these rules live in one place.
   Current progress: resolved installation DTOs now validate before core projection. App services
   reject relative installation tree paths before addon, bundle, backup, config, or policy code can
   plan reads or writes against ambient cwd.
-  Current progress: addon provider options now validate before runtime provider construction. A
-  zero-attempt retry policy fails at the app/runtime boundary instead of being silently promoted to
-  one attempt by the provider execution guard.
+  Current progress: addon provider options now validate before runtime provider construction.
+  Zero-attempt retry policies and zero-second HTTP no-validator reuse windows fail at the
+  app/runtime boundary instead of being silently or ambiguously interpreted by provider execution.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

@@ -272,11 +272,18 @@ impl HttpNoValidatorCachePolicyValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainHttpNoValidatorCachePolicy {
+    pub(crate) fn into_domain(self) -> AppResult<DomainHttpNoValidatorCachePolicy> {
         match self {
-            Self::AlwaysRefresh => DomainHttpNoValidatorCachePolicy::AlwaysRefresh,
+            Self::AlwaysRefresh => Ok(DomainHttpNoValidatorCachePolicy::AlwaysRefresh),
             Self::ReuseWithinWindow { max_age_secs } => {
-                DomainHttpNoValidatorCachePolicy::ReuseWithinWindow { max_age_secs }
+                if max_age_secs == 0 {
+                    return Err(AppError::Validation(
+                        "HTTP no-validator cache window must be greater than zero seconds"
+                            .to_string(),
+                    ));
+                }
+
+                Ok(DomainHttpNoValidatorCachePolicy::ReuseWithinWindow { max_age_secs })
             }
         }
     }
@@ -308,7 +315,7 @@ impl AddonProviderOptionsValue {
         Ok(DomainAddonProviderOptions {
             download_cache_dir: self.download_cache_dir,
             retry_policy: self.retry_policy.into_domain()?,
-            http_no_validator_cache_policy: self.http_no_validator_cache_policy.into_domain(),
+            http_no_validator_cache_policy: self.http_no_validator_cache_policy.into_domain()?,
         })
     }
 }

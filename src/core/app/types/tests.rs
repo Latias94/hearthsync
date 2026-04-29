@@ -141,6 +141,46 @@ fn addon_provider_options_value_rejects_invalid_retry_policy() {
 }
 
 #[test]
+fn http_no_validator_cache_policy_value_roundtrips_domain_shape() {
+    let value = HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 120 };
+
+    let domain = value.clone().into_domain().expect("cache policy");
+
+    assert_eq!(HttpNoValidatorCachePolicyValue::from_domain(domain), value);
+}
+
+#[test]
+fn http_no_validator_cache_policy_value_rejects_zero_window() {
+    let error = HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 0 }
+        .into_domain()
+        .expect_err("zero cache window should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("HTTP no-validator cache window must be greater than zero seconds")
+    );
+}
+
+#[test]
+fn addon_provider_options_value_rejects_invalid_no_validator_cache_policy() {
+    let error = AddonProviderOptionsValue {
+        http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
+            max_age_secs: 0,
+        },
+        ..AddonProviderOptionsValue::default()
+    }
+    .into_domain()
+    .expect_err("invalid no-validator cache policy should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("HTTP no-validator cache window must be greater than zero seconds")
+    );
+}
+
+#[test]
 fn addon_state_storage_value_roundtrips_domain_shape() {
     let value = AddonStateStorageValue::Sidecar;
 

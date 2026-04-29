@@ -316,9 +316,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - resolved installation DTOs now validate before core projection: app services reject relative
   installation tree paths before addon, bundle, backup, config, or policy code can plan reads or
   writes against ambient cwd.
-- addon provider options now validate before runtime provider construction: zero retry attempts are
-  rejected at the app/runtime boundary instead of being silently promoted to one attempt inside
-  provider execution.
+- addon provider options now validate before runtime provider construction: zero retry attempts and
+  zero-second HTTP no-validator reuse windows are rejected at the app/runtime boundary instead of
+  being silently or ambiguously interpreted inside provider execution.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

@@ -1538,14 +1538,18 @@ Specifically:
 
 - `AddonProviderRetryPolicyValue::into_domain()` is fallible.
 - `AddonProviderOptionsValue::into_domain()` is fallible because it owns nested retry-policy
-  projection.
+  and HTTP no-validator cache-policy projection.
 - `max_attempts` must be greater than zero. The app/runtime boundary rejects zero instead of
   relying on the provider's internal `max(1)` execution guard.
+- `HttpNoValidatorCachePolicyValue::ReuseWithinWindow` must use a positive `max_age_secs`.
+  `AlwaysRefresh` remains the explicit no-reuse policy.
 
 ### Consequences
 
 - Future GUI callers cannot build a runtime whose displayed retry policy says zero attempts while
   the provider silently performs one attempt.
+- Future GUI callers and hand-edited persisted settings cannot express a zero-second no-validator
+  reuse window with ambiguous behavior; they must choose a positive window or `AlwaysRefresh`.
 - Provider internals can keep defensive guards, but frontend/runtime configuration semantics stay
   explicit and validation-driven.
 - Runtime construction remains the single fallible step for path-bearing and provider-policy

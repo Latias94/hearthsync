@@ -198,6 +198,23 @@ fn runtime_builder_rejects_zero_addon_provider_retry_attempts() {
 }
 
 #[test]
+fn runtime_builder_rejects_zero_http_no_validator_cache_window() {
+    let error = AppRuntime::with_addon_provider_options(AddonProviderOptionsValue {
+        http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
+            max_age_secs: 0,
+        },
+        ..AddonProviderOptionsValue::default()
+    })
+    .expect_err("zero no-validator cache window should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("HTTP no-validator cache window must be greater than zero seconds")
+    );
+}
+
+#[test]
 fn runtime_builder_resolves_relative_runtime_paths_before_diagnostics() {
     let temp = tempdir().expect("temp dir");
     let runtime = AppRuntime::builder()
