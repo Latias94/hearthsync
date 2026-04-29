@@ -150,6 +150,95 @@ supported_flavors = ["retail"]
 }
 
 #[test]
+fn inspect_addon_index_rejects_blank_addon_directories() {
+    let temp = tempdir().expect("temp dir");
+    let index_path = temp.path().join("index.toml");
+    fs::write(
+        &index_path,
+        r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "details"
+name = "Details"
+version = "1.0.0"
+addon_directories = [""]
+source = { kind = "http_archive", url = "https://example.invalid/details.zip" }
+supported_flavors = ["retail"]
+"#,
+    )
+    .expect("write index");
+
+    let error = inspect_addon_index(&index_path).expect_err("blank addon directory should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("invalid addon directory name"));
+    assert!(error.to_string().contains("for package `details`"));
+}
+
+#[test]
+fn inspect_addon_index_rejects_non_portable_addon_directories() {
+    for addon_directory in ["Bad/Addon", "CON", "Weak:Auras"] {
+        let temp = tempdir().expect("temp dir");
+        let index_path = temp.path().join("index.toml");
+        fs::write(
+            &index_path,
+            format!(
+                r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "details"
+name = "Details"
+version = "1.0.0"
+addon_directories = ["{addon_directory}"]
+source = {{ kind = "http_archive", url = "https://example.invalid/details.zip" }}
+supported_flavors = ["retail"]
+"#
+            ),
+        )
+        .expect("write index");
+
+        let error =
+            inspect_addon_index(&index_path).expect_err("non-portable addon directory should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("invalid addon directory name"));
+        assert!(error.to_string().contains("for package `details`"));
+    }
+}
+
+#[test]
+fn inspect_addon_index_rejects_duplicate_addon_directories() {
+    let temp = tempdir().expect("temp dir");
+    let index_path = temp.path().join("index.toml");
+    fs::write(
+        &index_path,
+        r#"
+schema_version = 1
+name = "Fixture Index"
+
+[[packages]]
+id = "details"
+name = "Details"
+version = "1.0.0"
+addon_directories = ["Details", "details"]
+source = { kind = "http_archive", url = "https://example.invalid/details.zip" }
+supported_flavors = ["retail"]
+"#,
+    )
+    .expect("write index");
+
+    let error =
+        inspect_addon_index(&index_path).expect_err("duplicate addon directory should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("duplicate addon directory"));
+}
+
+#[test]
 fn inspect_addon_index_rejects_case_insensitive_duplicate_package_ids() {
     let temp = tempdir().expect("temp dir");
     let index_path = temp.path().join("index.toml");

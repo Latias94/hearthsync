@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::core::addon::canonicalize_local_archive_path;
+use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 
@@ -151,6 +152,26 @@ fn validate_index_package(package: &AddonIndexPackage) -> AppResult<()> {
         if !normalized_match_package_ids.insert(normalized) {
             return Err(AppError::Validation(format!(
                 "duplicate match package id for package `{}`",
+                package.id
+            )));
+        }
+    }
+
+    let mut normalized_addon_directories = BTreeSet::new();
+    for addon_directory in &package.addon_directories {
+        validate_portable_path_segment(addon_directory, "addon directory").map_err(|error| {
+            match error {
+                AppError::Validation(message) => {
+                    AppError::Validation(format!("{message} for package `{}`", package.id))
+                }
+                other => other,
+            }
+        })?;
+
+        let normalized = addon_directory.trim().to_ascii_lowercase();
+        if !normalized_addon_directories.insert(normalized) {
+            return Err(AppError::Validation(format!(
+                "duplicate addon directory for package `{}`",
                 package.id
             )));
         }

@@ -330,6 +330,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   before pack/apply code can turn them into live paths.
 - addon package metadata values now reject blank optional text fields and blank supported-flavor
   entries before install requests can persist them into managed state.
+- addon-index directory hints now validate as portable, case-insensitively unique addon directory
+  segments, so exact `addon_directories` hints cannot be blank, path-shaped, Windows-reserved, or
+  ambiguous on Windows/default-macOS targets.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

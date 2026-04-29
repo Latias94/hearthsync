@@ -477,6 +477,10 @@ enough that these rules live in one place.
   author metadata fail before pack/apply code can turn them into live paths.
   Current progress: addon package metadata values now reject blank optional text fields and blank
   supported-flavor entries before install requests can persist them into managed state.
+  Current progress: addon-index exact directory hints now validate as portable, case-insensitively
+  unique addon directory segments, so curator indexes cannot carry blank, path-shaped,
+  Windows-reserved, or Windows/default-macOS-ambiguous `addon_directories` values into preflight
+  matching.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

@@ -1660,3 +1660,31 @@ Specifically:
   absent values.
 - Stricter URL/hash syntax can be added later as a separate contract change without mixing it with
   blank-field rejection.
+
+## ADR-066: Addon Index Directory Hints Validate as Portable Segments
+
+Accepted on 2026-04-29
+
+### Decision
+
+Addon index `addon_directories` entries are exact identity hints and must validate before an index
+is trusted by inspect, validate, suggest, scaffold, attach, install, update, or relink flows.
+
+Specifically:
+
+- Each declared addon directory must be one portable addon directory segment.
+- Blank directory hints, path separators, Windows-reserved names, reserved characters, trailing
+  dots, and trailing spaces are invalid.
+- Directory hints must be unique within a package under case-insensitive Windows/default-macOS
+  semantics.
+- Packages may still omit `addon_directories`; the existing exact-hint coverage warnings decide
+  whether the omission is advisory or blocking based on the package's other hints.
+
+### Consequences
+
+- Curated indexes cannot mark a package as having exact directory hints while carrying unusable or
+  non-portable directory names.
+- Addon-index preflight matching sees the same case-folded directory identity rules as live
+  AddOns planning on Windows and default macOS targets.
+- Future authoring tools and GUI editors can treat index validation as the canonical gate for
+  exact addon-directory hint quality instead of duplicating path checks.
