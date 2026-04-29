@@ -1963,3 +1963,27 @@ Specifically:
   backup metadata values.
 - Future GUI backup browsers can use catalog loading as a semantic metadata validation boundary.
 - Target-specific restore checks remain separate from archive metadata shape checks.
+
+## ADR-077: Addon-Lock Source Sidecars Validate Portable Source Identity
+
+Accepted on 2026-04-29
+
+### Decision
+
+Optional addon-lock `sources.toml` sidecars must validate their source rows before they are merged
+with explicit source overrides.
+
+Specifically:
+
+- Present sidecars must use the supported schema version and contain at least one source row.
+- Source comparison keys must be non-empty and must not carry surrounding whitespace.
+- Source paths must stay under the portable `sources/` root.
+- Source paths must be unique under case-insensitive comparison.
+- Explicit source overrides keep their existing absolute-path and duplicate-key validation.
+
+### Consequences
+
+- A malformed sidecar cannot silently produce an empty or ambiguous source override map.
+- Sidecar source path identity follows the same cross-platform duplicate rule as embedded bundle
+  addon-source indexes.
+- Future GUI lock-source editors can rely on one fail-closed sidecar contract.

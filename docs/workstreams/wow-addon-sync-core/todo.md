@@ -499,6 +499,9 @@ enough that these rules live in one place.
   local archive refs, blank package metadata/timestamps, invalid content hashes, non-portable addon
   directory names, and case-insensitive addon-directory ownership conflicts. Bundle addon-lock
   embedding now reuses the same validated loader and generated locks validate before persistence.
+  Current progress: addon-lock source sidecars now reject empty source lists, blank or
+  whitespace-padded comparison keys, non-portable source paths, and case-insensitive duplicate
+  source paths before source override resolution.
   Current progress: embedded bundle addon source indexes now fail closed before source extraction
   on blank or duplicate comparison keys, invalid source paths, invalid content hashes, and
   non-portable addon directory declarations.

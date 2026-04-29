@@ -77,8 +77,15 @@ fn load_sidecar_source_overrides(lock_path: &Path) -> AppResult<BTreeMap<String,
             source_index.schema_version
         )));
     }
+    if source_index.sources.is_empty() {
+        return Err(AppError::Validation(format!(
+            "addon lock source index `{}` must contain at least one source",
+            source_index_path.display()
+        )));
+    }
 
     let mut map = BTreeMap::new();
+    let mut source_paths = BTreeSet::new();
     for source in source_index.sources {
         if source.comparison_key.trim().is_empty() {
             return Err(AppError::Validation(format!(
@@ -86,7 +93,20 @@ fn load_sidecar_source_overrides(lock_path: &Path) -> AppResult<BTreeMap<String,
                 source_index_path.display()
             )));
         }
+        if source.comparison_key.trim() != source.comparison_key {
+            return Err(AppError::Validation(format!(
+                "addon lock source index comparison key must not have surrounding whitespace: {}",
+                source.comparison_key
+            )));
+        }
         let segments = safe_sidecar_source_segments(&source.path)?;
+        let normalized_path = segments.join("/").to_ascii_lowercase();
+        if !source_paths.insert(normalized_path) {
+            return Err(AppError::Validation(format!(
+                "duplicate addon lock source index path: {}",
+                source.path
+            )));
+        }
         let archive_path = join_segments(lock_dir, &segments);
         if map
             .insert(source.comparison_key.clone(), archive_path)
@@ -150,6 +170,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::PathBuf;
 
     use tempfile::tempdir;
@@ -207,5 +228,67 @@ mod tests {
 
         assert!(matches!(error, AppError::Validation(_)));
         assert!(error.to_string().contains("must be absolute"));
+    }
+
+    #[test]
+    fn resolved_source_override_map_rejects_invalid_sidecar_contracts() {
+        for (case_name, content, expected_message) in [
+            (
+                "empty sources",
+                r#"
+schema_version = 1
+sources = []
+"#,
+                "must contain at least one source",
+            ),
+            (
+                "blank comparison key",
+                r#"
+schema_version = 1
+
+[[sources]]
+comparison_key = " "
+path = "sources/WeakAuras.zip"
+"#,
+                "contains an empty comparison key",
+            ),
+            (
+                "whitespace comparison key",
+                r#"
+schema_version = 1
+
+[[sources]]
+comparison_key = " addons:weakauras "
+path = "sources/WeakAuras.zip"
+"#,
+                "must not have surrounding whitespace",
+            ),
+            (
+                "duplicate source path",
+                r#"
+schema_version = 1
+
+[[sources]]
+comparison_key = "addons:weakauras"
+path = "sources/WeakAuras.zip"
+
+[[sources]]
+comparison_key = "addons:plater"
+path = "sources/weakauras.zip"
+"#,
+                "duplicate addon lock source index path",
+            ),
+        ] {
+            let temp = tempdir().expect("temp dir");
+            fs::write(temp.path().join("sources.toml"), content).expect("source index");
+
+            let error = resolved_source_override_map(&temp.path().join("lock.toml"), &[])
+                .expect_err(case_name);
+
+            assert!(
+                error.to_string().contains(expected_message),
+                "{case_name}: expected `{expected_message}`, got `{error}`"
+            );
+        }
     }
 }
