@@ -1303,7 +1303,7 @@ fn default_addon_provider_resolves_required_curseforge_dependencies() {
             match request.url.as_str() {
                 "https://api.curseforge.com/v1/mods/42/files/777" => Ok(HttpResponse {
                     status_code: 200,
-                    body: r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1,"dependencies":[{"modId":99,"relationType":3},{"modId":100,"relationType":2},{"modId":42,"relationType":3}]}}"#.to_string(),
+                    body: r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1,"dependencies":[{"modId":99,"relationType":3},{"modId":99,"relationType":3},{"modId":100,"relationType":2},{"modId":101,"relationType":9},{"modId":42,"relationType":3}]}}"#.to_string(),
                 }),
                 _ => Err(AppError::Validation(format!(
                     "unexpected request url: {}",

@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
 
-use super::model::{
-    CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1, CurseForgeFile, CurseForgeGame,
-    CurseForgeGameVersionType,
+use super::model::{CurseForgeFile, CurseForgeGame, CurseForgeGameVersionType};
+use super::policy::{
+    CurseForgeFileReleaseType, curseforge_hash_contract, file_matches_curseforge_release_type,
+    validate_curseforge_file_dependencies, validate_curseforge_release_type,
 };
 use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::boundary_validation::{
@@ -10,23 +11,6 @@ use crate::core::boundary_validation::{
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CurseForgeFileReleaseType {
-    Stable,
-    Beta,
-    Alpha,
-}
-
-impl CurseForgeFileReleaseType {
-    fn rank(self) -> u8 {
-        match self {
-            Self::Stable => 1,
-            Self::Beta => 2,
-            Self::Alpha => 3,
-        }
-    }
-}
 
 pub(crate) fn select_curseforge_version_type(
     version_types: &[CurseForgeGameVersionType],
@@ -179,36 +163,6 @@ fn is_zip_file_name(file_name: &str) -> bool {
     file_name.to_ascii_lowercase().ends_with(".zip")
 }
 
-fn validate_curseforge_release_type(file: &CurseForgeFile) -> AppResult<()> {
-    if curseforge_file_release_rank(file.release_type).is_none() {
-        return Err(AppError::Validation(format!(
-            "CurseForge file `{}` release type must be one of 1 (stable), 2 (beta), or 3 (alpha)",
-            file.id
-        )));
-    }
-
-    Ok(())
-}
-
-fn validate_curseforge_file_dependencies(file: &CurseForgeFile) -> AppResult<()> {
-    for dependency in &file.dependencies {
-        if dependency.mod_id == 0 {
-            return Err(AppError::Validation(format!(
-                "CurseForge file `{}` dependency mod id must be greater than zero",
-                file.id
-            )));
-        }
-        if dependency.relation_type == 0 {
-            return Err(AppError::Validation(format!(
-                "CurseForge file `{}` dependency relation type must be greater than zero",
-                file.id
-            )));
-        }
-    }
-
-    Ok(())
-}
-
 fn validate_curseforge_file_hashes(file: &CurseForgeFile) -> AppResult<()> {
     let mut known_hash_algos = BTreeSet::new();
     for hash in &file.hashes {
@@ -260,14 +214,6 @@ fn validate_curseforge_sortable_game_versions(file: &CurseForgeFile) -> AppResul
     Ok(())
 }
 
-fn curseforge_hash_contract(algo: u8) -> Option<(usize, &'static str)> {
-    match algo {
-        CURSEFORGE_HASH_ALGO_SHA1 => Some((40, "SHA-1")),
-        CURSEFORGE_HASH_ALGO_MD5 => Some((32, "MD5")),
-        _ => None,
-    }
-}
-
 fn curseforge_version_type_candidates(flavor: WowFlavor) -> &'static [&'static str] {
     match flavor {
         WowFlavor::Retail => &["wow_retail", "retail"],
@@ -283,25 +229,6 @@ fn file_matches_curseforge_version_type(file: &CurseForgeFile, version_type_id: 
     file.sortable_game_versions
         .iter()
         .any(|item| item.game_version_type_id == version_type_id)
-}
-
-fn file_matches_curseforge_release_type(
-    file: &CurseForgeFile,
-    max_release_type: CurseForgeFileReleaseType,
-) -> bool {
-    let Some(rank) = curseforge_file_release_rank(file.release_type) else {
-        return false;
-    };
-    rank <= max_release_type.rank()
-}
-
-fn curseforge_file_release_rank(release_type: u8) -> Option<u8> {
-    match release_type {
-        1 => Some(CurseForgeFileReleaseType::Stable.rank()),
-        2 => Some(CurseForgeFileReleaseType::Beta.rank()),
-        3 => Some(CurseForgeFileReleaseType::Alpha.rank()),
-        _ => None,
-    }
 }
 
 fn missing_curseforge_file_message(

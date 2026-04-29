@@ -1,5 +1,6 @@
 mod api;
 mod model;
+mod policy;
 mod select;
 
 use api::{
@@ -10,14 +11,18 @@ use api::{
 use model::CurseForgeSearchMod;
 #[allow(unused_imports)]
 pub(crate) use model::{
-    CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1, CurseForgeFile, CurseForgeFileDependency,
-    CurseForgeFileHash, CurseForgeGameVersionType, CurseForgeSortableGameVersion,
+    CurseForgeFile, CurseForgeFileDependency, CurseForgeFileHash, CurseForgeGameVersionType,
+    CurseForgeSortableGameVersion,
+};
+pub(crate) use policy::CurseForgeFileReleaseType;
+pub(super) use policy::{
+    CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1,
+    required_dependency_mod_ids_for_curseforge_file,
 };
 use select::ensure_curseforge_file_matches_version_type;
 #[allow(unused_imports)]
 pub(crate) use select::{
-    CurseForgeFileReleaseType, select_curseforge_version_type, select_latest_curseforge_file,
-    validate_curseforge_file,
+    select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
 };
 
 use super::http::HttpClient;

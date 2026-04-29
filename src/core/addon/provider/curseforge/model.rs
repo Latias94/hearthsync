@@ -1,8 +1,5 @@
 use serde::Deserialize;
 
-pub(crate) const CURSEFORGE_HASH_ALGO_SHA1: u8 = 1;
-pub(crate) const CURSEFORGE_HASH_ALGO_MD5: u8 = 2;
-
 #[derive(Debug, Deserialize)]
 pub(super) struct CurseForgeApiResponse<T> {
     pub(super) data: T,

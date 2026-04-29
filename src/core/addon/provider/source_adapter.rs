@@ -1,6 +1,6 @@
 use super::curseforge::{
-    CurseForgeFileDependency, CurseForgeFileReleaseType, resolve_curseforge_file_with_client,
-    search_curseforge_mods_with_client,
+    CurseForgeFileReleaseType, required_dependency_mod_ids_for_curseforge_file,
+    resolve_curseforge_file_with_client, search_curseforge_mods_with_client,
 };
 use super::http::HttpClient;
 use super::source::source_kind_label;
@@ -36,7 +36,9 @@ pub(super) fn resolve_source_dependencies_impl(
                 curseforge_release_type_limit(context.resolution_policy),
             )?;
             Ok(ResolvedAddonDependencies::missing_required_only(
-                required_dependency_sources_for_curseforge_file(*mod_id, &file.dependencies),
+                curseforge_mod_id_dependencies_to_source_refs(
+                    required_dependency_mod_ids_for_curseforge_file(*mod_id, &file.dependencies),
+                ),
             ))
         }
         _ => Err(AppError::Validation(format!(
@@ -47,24 +49,8 @@ pub(super) fn resolve_source_dependencies_impl(
     }
 }
 
-const CURSEFORGE_REQUIRED_DEPENDENCY_RELATION_TYPE: u8 = 3;
-
-fn required_dependency_sources_for_curseforge_file(
-    source_mod_id: u32,
-    dependencies: &[CurseForgeFileDependency],
-) -> Vec<AddonSourceRef> {
-    let mut dependency_mod_ids = dependencies
-        .iter()
-        .filter(|dependency| {
-            dependency.relation_type == CURSEFORGE_REQUIRED_DEPENDENCY_RELATION_TYPE
-        })
-        .map(|dependency| dependency.mod_id)
-        .filter(|mod_id| *mod_id != 0 && *mod_id != source_mod_id)
-        .collect::<Vec<_>>();
-    dependency_mod_ids.sort_unstable();
-    dependency_mod_ids.dedup();
-
-    dependency_mod_ids
+fn curseforge_mod_id_dependencies_to_source_refs(mod_ids: Vec<u32>) -> Vec<AddonSourceRef> {
+    mod_ids
         .into_iter()
         .map(|mod_id| AddonSourceRef::CurseForgeMod {
             mod_id,

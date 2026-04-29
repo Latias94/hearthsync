@@ -2207,3 +2207,30 @@ Specifically:
   provider data loss.
 - The dependency boundary stays forward-compatible: unknown positive relation types remain
   non-required until HearthSync deliberately supports them.
+
+## ADR-086: CurseForge Provider Policy Semantics Stay Inside the CurseForge Module
+
+Accepted on 2026-04-29
+
+### Decision
+
+CurseForge-specific policy constants and projections live inside the CurseForge provider module
+instead of being split across generic provider adapters.
+
+Specifically:
+
+- `CurseForgeFileReleaseType`, raw CurseForge release-type ranking, hash algo contracts, dependency
+  DTO validation, and required-dependency relation matching are owned by `curseforge::policy`.
+- `source_adapter` no longer knows that CurseForge relation type `3` means required; it receives
+  already-filtered dependency mod ids and only projects them into generic `AddonSourceRef` values.
+- The CurseForge DTO `model` module stays closer to transport shape and no longer owns provider
+  policy constants.
+
+### Consequences
+
+- Release-channel filtering, dependency planning, and cache-validator projection now share one
+  local CurseForge semantics module.
+- Future support for optional dependencies or additional CurseForge relation types has one obvious
+  place to change.
+- Generic provider adapter code keeps less provider-specific knowledge, which reduces GUI-era
+  coupling when more provider backends are added.

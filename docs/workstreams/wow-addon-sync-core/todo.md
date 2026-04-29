@@ -583,6 +583,9 @@ enough that these rules live in one place.
   Current progress: CurseForge `releaseType` and dependency DTO rows now validate before
   release-channel filtering or dependency planning consumes them. Unknown positive dependency
   relation types remain allowed and ignored by the current required-dependency strategy.
+  Current cleanup: CurseForge release, hash, and dependency relation policy semantics now live in
+  `curseforge::policy`; generic provider source adaptation only projects filtered CurseForge mod ids
+  into `AddonSourceRef` values.
 
 Exit criteria:
 

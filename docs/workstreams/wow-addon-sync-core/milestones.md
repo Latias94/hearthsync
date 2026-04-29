@@ -1048,6 +1048,9 @@ the resulting DTOs as stable product state.
 - CurseForge `releaseType` and dependency DTO fields now validate before release-channel filtering
   or dependency planning uses them; unknown positive dependency relation types remain allowed and
   ignored until HearthSync deliberately supports more than required dependencies
-- the next provider-side candidate is checking whether provider enum constants and dependency
-  relation projection should move into a narrower CurseForge domain module instead of being split
-  between selection and source-adapter code
+- CurseForge release, hash, and dependency relation policy semantics now live in
+  `curseforge::policy`; the generic source adapter only projects filtered dependency mod ids into
+  `AddonSourceRef` values
+- the next provider-side candidate is checking whether provider-specific cache validator projection
+  should also sit behind narrower provider-owned projection helpers instead of sharing one mixed
+  `provider::validation` module
