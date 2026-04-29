@@ -5,6 +5,7 @@ mod archive_io;
 mod archive_path;
 mod atomic_write;
 pub mod backup;
+mod boundary_validation;
 pub mod bundle;
 pub mod error;
 pub mod install;

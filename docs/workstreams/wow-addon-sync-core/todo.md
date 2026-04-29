@@ -562,6 +562,10 @@ enough that these rules live in one place.
   Final selected files still own the stricter downloadable-archive contract: available `.zip` with
   a present download URL. The provider also accepts `CURSEFORGE_API_KEY` as a fallback to the
   namespaced HearthSync env var.
+  Current cleanup: shared boundary validators now own HTTP(S) URL scheme recognition and RFC
+  3339-shaped timestamp recognition, replacing duplicate backup/provider implementations and
+  keeping addon source parsing, provider materialization, cache recovery, and remote DTO validation
+  on the same shape rules.
 
 Exit criteria:
 

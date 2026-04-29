@@ -19,6 +19,7 @@ use super::validation::{
 };
 use super::{AddonProviderOptions, AddonSourceRef};
 use crate::core::atomic_write::write_bytes_atomically;
+use crate::core::boundary_validation::is_http_url;
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::{CancellationToken, NeverCancel};
 
@@ -791,7 +792,7 @@ fn parse_cached_source_display_name(source_display_name: &str) -> Option<AddonSo
     if let Ok(Some(source_ref)) = parse_github_source(source_display_name) {
         return Some(source_ref);
     }
-    if source_display_name.starts_with("https://") || source_display_name.starts_with("http://") {
+    if is_http_url(source_display_name) {
         return Some(AddonSourceRef::HttpArchive {
             url: source_display_name.to_string(),
         });

@@ -23,6 +23,7 @@ use super::{
     AddonDownloadProgressObserver, AddonProviderContext, AddonProviderOptions, AddonSourceRef,
     MaterializedAddonSource,
 };
+use crate::core::boundary_validation::is_http_url;
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
 
@@ -50,7 +51,7 @@ pub(super) fn materialize_source_input_impl(
         return materialize_source_ref_impl(http_client, &source_ref, stage_root, context, options);
     }
 
-    if source.starts_with("https://") || source.starts_with("http://") {
+    if is_http_url(source) {
         let source_ref = AddonSourceRef::HttpArchive {
             url: source.to_string(),
         };

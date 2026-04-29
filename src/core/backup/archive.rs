@@ -25,6 +25,7 @@ use crate::core::archive_path::{
     find_platform_path_prefix_conflict, join_segments, safe_zip_segments, to_zip_path,
     validate_portable_path_segment,
 };
+use crate::core::boundary_validation::is_rfc3339_timestamp_shape;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, WowFlavor};
 use crate::core::task::{
@@ -570,73 +571,6 @@ fn is_supported_backup_flavor(value: &str) -> bool {
     ]
     .iter()
     .any(|flavor| value.eq_ignore_ascii_case(flavor.as_str()))
-}
-
-fn is_rfc3339_timestamp_shape(value: &str) -> bool {
-    let Some((date, time)) = value.split_once('T') else {
-        return false;
-    };
-    if date.len() != 10 {
-        return false;
-    }
-    let date_bytes = date.as_bytes();
-    if date_bytes[4] != b'-' || date_bytes[7] != b'-' {
-        return false;
-    }
-    if !date
-        .bytes()
-        .enumerate()
-        .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit())
-    {
-        return false;
-    }
-
-    let Some(time_without_zone) = strip_rfc3339_time_zone(time) else {
-        return false;
-    };
-    let time_bytes = time_without_zone.as_bytes();
-    if time_bytes.len() < 8 || time_bytes[2] != b':' || time_bytes[5] != b':' {
-        return false;
-    }
-
-    if !time_without_zone
-        .bytes()
-        .take(8)
-        .enumerate()
-        .all(|(index, byte)| matches!(index, 2 | 5) || byte.is_ascii_digit())
-    {
-        return false;
-    }
-
-    let fraction = &time_without_zone[8..];
-    fraction.is_empty()
-        || (fraction.starts_with('.')
-            && fraction.len() > 1
-            && fraction[1..].bytes().all(|byte| byte.is_ascii_digit()))
-}
-
-fn strip_rfc3339_time_zone(value: &str) -> Option<&str> {
-    if let Some(without_zone) = value.strip_suffix('Z') {
-        return Some(without_zone);
-    }
-
-    if value.len() < 6 {
-        return None;
-    }
-    let split_at = value.len() - 6;
-    let (time, zone) = value.split_at(split_at);
-    let zone_bytes = zone.as_bytes();
-    if matches!(zone_bytes[0], b'+' | b'-')
-        && zone_bytes[1].is_ascii_digit()
-        && zone_bytes[2].is_ascii_digit()
-        && zone_bytes[3] == b':'
-        && zone_bytes[4].is_ascii_digit()
-        && zone_bytes[5].is_ascii_digit()
-    {
-        Some(time)
-    } else {
-        None
-    }
 }
 
 fn clear_group_destination(

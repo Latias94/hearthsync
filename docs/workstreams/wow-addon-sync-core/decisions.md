@@ -2066,3 +2066,28 @@ Specifically:
 - Cache freshness comparison no longer depends on blank or malformed remote timestamps.
 - Operators can use either the namespaced HearthSync API key variable or the standard CurseForge
   variable without changing provider code.
+
+## ADR-081: Boundary Shape Validators Are Shared Core Rules
+
+Accepted on 2026-04-29
+
+### Decision
+
+Common boundary shape checks live in `core::boundary_validation` instead of being reimplemented by
+each file or provider boundary.
+
+Specifically:
+
+- HTTP(S) URL scheme recognition is one shared helper used by addon source parsing, provider
+  materialization, cache source recovery, and remote provider DTO validation.
+- RFC 3339-shaped timestamp recognition is one shared helper used by backup metadata and
+  CurseForge file metadata validation.
+- Callers still own domain-specific error context, but not the low-level shape parser.
+
+### Consequences
+
+- Future GUI/app callers inherit the same URL and timestamp floor no matter which boundary loaded
+  or fetched the value.
+- Backup and provider validation no longer drift when one side tightens timestamp or URL rules.
+- The shared helper becomes the right place to harden these shapes further if later provider or
+  state-file contracts need stricter parsing.

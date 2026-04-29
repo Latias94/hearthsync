@@ -1,5 +1,6 @@
 use super::model::{CurseForgeFile, CurseForgeGame, CurseForgeGameVersionType};
 use crate::core::archive_path::validate_portable_path_segment;
+use crate::core::boundary_validation::{is_rfc3339_timestamp_shape, validate_http_url};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 
@@ -151,18 +152,10 @@ pub(crate) fn validate_curseforge_file_metadata(file: &CurseForgeFile) -> AppRes
 }
 
 fn validate_curseforge_download_url(file_id: u32, download_url: &str) -> AppResult<()> {
-    if download_url.trim().is_empty() {
-        return Err(AppError::Validation(format!(
-            "CurseForge file `{file_id}` download URL must not be empty"
-        )));
-    }
-    if !(download_url.starts_with("http://") || download_url.starts_with("https://")) {
-        return Err(AppError::Validation(format!(
-            "CurseForge file `{file_id}` download URL must start with `http://` or `https://`"
-        )));
-    }
-
-    Ok(())
+    validate_http_url(
+        download_url,
+        &format!("CurseForge file `{file_id}` download URL"),
+    )
 }
 
 fn is_zip_file_name(file_name: &str) -> bool {
@@ -178,73 +171,6 @@ fn curseforge_version_type_candidates(flavor: WowFlavor) -> &'static [&'static s
         WowFlavor::Beta => &["wow_beta", "beta"],
         WowFlavor::Xptr => &["wow_xptr", "xptr"],
     }
-}
-
-fn is_rfc3339_timestamp_shape(value: &str) -> bool {
-    if value.trim() != value || value.is_empty() {
-        return false;
-    }
-    let Some((date, time)) = value.split_once('T') else {
-        return false;
-    };
-
-    is_rfc3339_date(date) && is_rfc3339_time(time)
-}
-
-fn is_rfc3339_date(value: &str) -> bool {
-    value.len() == 10
-        && value.as_bytes().get(4) == Some(&b'-')
-        && value.as_bytes().get(7) == Some(&b'-')
-        && value
-            .chars()
-            .enumerate()
-            .all(|(index, char)| matches!(index, 4 | 7) || char.is_ascii_digit())
-}
-
-fn is_rfc3339_time(value: &str) -> bool {
-    let Some((time, zone)) = split_rfc3339_zone(value) else {
-        return false;
-    };
-    let (time, fraction) = time
-        .split_once('.')
-        .map_or((time, None), |(time, fraction)| (time, Some(fraction)));
-
-    time.len() == 8
-        && time.as_bytes().get(2) == Some(&b':')
-        && time.as_bytes().get(5) == Some(&b':')
-        && time
-            .chars()
-            .enumerate()
-            .all(|(index, char)| matches!(index, 2 | 5) || char.is_ascii_digit())
-        && fraction.is_none_or(|fraction| {
-            !fraction.is_empty() && fraction.chars().all(|char| char.is_ascii_digit())
-        })
-        && is_rfc3339_zone(zone)
-}
-
-fn split_rfc3339_zone(value: &str) -> Option<(&str, &str)> {
-    if let Some(time) = value.strip_suffix('Z') {
-        return Some((time, "Z"));
-    }
-    value
-        .rfind(['+', '-'])
-        .map(|zone_start| value.split_at(zone_start))
-}
-
-fn is_rfc3339_zone(value: &str) -> bool {
-    if value == "Z" {
-        return true;
-    }
-    let Some(rest) = value.strip_prefix(['+', '-']) else {
-        return false;
-    };
-
-    rest.len() == 5
-        && rest.as_bytes().get(2) == Some(&b':')
-        && rest
-            .chars()
-            .enumerate()
-            .all(|(index, char)| index == 2 || char.is_ascii_digit())
 }
 
 fn file_matches_curseforge_version_type(file: &CurseForgeFile, version_type_id: u32) -> bool {

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::core::boundary_validation::is_http_url;
 use crate::core::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -64,10 +65,7 @@ impl AddonSourceRef {
 }
 
 pub(crate) fn addon_source_input_is_local_archive(source: &str) -> bool {
-    !(source.starts_with("https://")
-        || source.starts_with("http://")
-        || source.starts_with("curseforge:")
-        || source.starts_with("github:"))
+    !(is_http_url(source) || source.starts_with("curseforge:") || source.starts_with("github:"))
 }
 
 pub(crate) fn validate_absolute_local_archive_source_path(path: &Path) -> AppResult<()> {
@@ -101,7 +99,7 @@ pub(crate) fn validate_addon_source_ref(
                     "HTTP archive source URL must not be empty",
                 ));
             }
-            if !(url.starts_with("http://") || url.starts_with("https://")) {
+            if !is_http_url(url) {
                 return Err(invalid_source_ref(
                     source_context,
                     "HTTP archive source URL must start with `http://` or `https://`",

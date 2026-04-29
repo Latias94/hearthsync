@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use serde::Deserialize;
 
 use crate::core::archive_path::validate_portable_path_segment;
+use crate::core::boundary_validation::validate_http_url;
 use crate::core::error::{AppError, AppResult};
 
 use super::http::{HttpClient, HttpHeader, HttpRequest};
@@ -162,20 +163,10 @@ fn validate_github_download_asset(asset: &GitHubReleaseAsset) -> AppResult<()> {
 
 fn validate_github_release_asset(asset: &GitHubReleaseAsset) -> AppResult<()> {
     validate_portable_path_segment(&asset.name, "GitHub release asset")?;
-    if asset.browser_download_url.trim().is_empty() {
-        return Err(AppError::Validation(format!(
-            "GitHub release asset `{}` download URL must not be empty",
-            asset.name
-        )));
-    }
-    if !(asset.browser_download_url.starts_with("http://")
-        || asset.browser_download_url.starts_with("https://"))
-    {
-        return Err(AppError::Validation(format!(
-            "GitHub release asset `{}` download URL must start with `http://` or `https://`",
-            asset.name
-        )));
-    }
+    validate_http_url(
+        &asset.browser_download_url,
+        &format!("GitHub release asset `{}` download URL", asset.name),
+    )?;
 
     Ok(())
 }

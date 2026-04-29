@@ -1029,5 +1029,8 @@ the resulting DTOs as stable product state.
 - the CurseForge provider now accepts `CURSEFORGE_API_KEY` as a fallback to the namespaced
   HearthSync API key env var, matching common local tooling conventions without giving up the
   application-specific variable
-- the next provider-side candidates are CurseForge search-result DTO hardening and shared timestamp
-  validation extraction if another boundary needs the same RFC 3339 shape rule
+- shared boundary validators now own HTTP(S) URL scheme recognition and RFC 3339-shaped timestamp
+  recognition, so backup metadata, addon source parsing, provider materialization, cache recovery,
+  and remote provider DTO validation no longer carry parallel low-level parsers
+- the next provider-side candidate is CurseForge search-result DTO hardening around blank names,
+  website URL scheme, latest-file index ids, and provider result shape
