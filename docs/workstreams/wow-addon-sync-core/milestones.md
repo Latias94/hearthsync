@@ -1034,5 +1034,12 @@ the resulting DTOs as stable product state.
   and remote provider DTO validation no longer carry parallel low-level parsers
 - CurseForge search responses now validate non-zero mod ids, non-empty unpadded names, HTTP(S)
   website URLs, and non-zero latest-file index ids before projection into app-owned search results
-- the next provider-side candidate is validating CurseForge game/version context DTOs and deciding
-  whether blank optional provider text should be normalized at projection or rejected at fetch
+- CurseForge game and game-version-type context responses now validate non-zero unique ids plus
+  non-empty unpadded names/slugs before those ids are used in follow-up provider requests
+- CurseForge search latest-file indexes validate non-zero ids without treating
+  `gameVersionTypeId` as unique, matching observed API responses
+- optional CurseForge search summaries are normalized during app-result projection: trimmed text is
+  preserved, blank text becomes absent
+- the next provider-side candidate is deciding whether remote response validators such as hash
+  values, file lengths, and provider timestamps need stricter syntax checks before cache metadata
+  persistence

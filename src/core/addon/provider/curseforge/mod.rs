@@ -83,7 +83,7 @@ fn to_addon_search_result(
     AddonSearchResult {
         provider: "curseforge",
         name: mod_item.name,
-        summary: mod_item.summary,
+        summary: normalize_optional_provider_text(mod_item.summary),
         source,
         install_hint,
         website_url: mod_item.links.website_url,
@@ -91,4 +91,10 @@ fn to_addon_search_result(
         provider_file_id: file_id,
         download_count: mod_item.download_count,
     }
+}
+
+fn normalize_optional_provider_text(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }

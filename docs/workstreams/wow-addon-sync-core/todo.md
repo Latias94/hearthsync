@@ -569,6 +569,12 @@ enough that these rules live in one place.
   Current progress: CurseForge search results now validate non-zero mod ids, non-empty unpadded
   names, HTTP(S) website URLs, and non-zero latest-file index ids before projecting provider JSON
   into app-owned addon search results.
+  Current progress: CurseForge game and game-version-type context responses now validate non-zero
+  unique ids plus non-empty unpadded names/slugs before those ids are used in follow-up provider
+  requests. Search latest-file indexes validate non-zero ids without assuming unique
+  `gameVersionTypeId` entries, matching observed CurseForge API responses. Optional search
+  summaries are normalized during app-result projection: trimmed text is preserved, blank text
+  becomes absent.
 
 Exit criteria:
 

@@ -1400,13 +1400,13 @@ fn default_addon_provider_accepts_standard_curseforge_api_key_env() {
 fn search_curseforge_mods_with_client_projects_validated_results() {
     let _guard = curseforge_api_key_guard("test-api-key");
     let client = CurseForgeSearchHttpClient::new(
-        r#"{"data":[{"id":42,"name":"WeakAuras","summary":"Aura tracking","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://www.curseforge.com/wow/addons/weakauras-2"}}]}"#,
+        r#"{"data":[{"id":42,"name":"WeakAuras","summary":"  Aura tracking  ","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517},{"fileId":778,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://www.curseforge.com/wow/addons/weakauras-2"}},{"id":43,"name":"SharedMedia","summary":"   ","downloadCount":50,"latestFilesIndexes":[],"links":{"websiteUrl":null}}]}"#,
     );
 
     let results = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 100)
         .expect("search");
 
-    assert_eq!(results.len(), 1);
+    assert_eq!(results.len(), 2);
     assert_eq!(results[0].name, "WeakAuras");
     assert_eq!(results[0].summary.as_deref(), Some("Aura tracking"));
     assert_eq!(
@@ -1419,6 +1419,15 @@ fn search_curseforge_mods_with_client_projects_validated_results() {
     assert_eq!(results[0].install_hint, "curseforge:42@777");
     assert_eq!(results[0].provider_project_id, Some(42));
     assert_eq!(results[0].provider_file_id, Some(777));
+    assert_eq!(results[1].name, "SharedMedia");
+    assert_eq!(results[1].summary, None);
+    assert_eq!(
+        results[1].source,
+        AddonSourceRef::CurseForgeMod {
+            mod_id: 43,
+            file_id: None,
+        }
+    );
 
     let requests = client.requests.borrow();
     let search_request = requests
@@ -1447,11 +1456,11 @@ fn search_curseforge_mods_with_client_rejects_invalid_result_contracts() {
         ),
         (
             r#"{"data":[{"id":42,"name":" ","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "name must not be empty",
+            "name `42` must not be empty",
         ),
         (
             r#"{"data":[{"id":42,"name":" WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "name must not have surrounding whitespace",
+            "name `42` must not have surrounding whitespace",
         ),
         (
             r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"ftp://example.com/weakauras"}}]}"#,
@@ -1471,6 +1480,80 @@ fn search_curseforge_mods_with_client_rejects_invalid_result_contracts() {
         let client = CurseForgeSearchHttpClient::new(body);
         let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
             .expect_err("invalid search result");
+
+        assert!(
+            error.to_string().contains(expected_message),
+            "expected `{}` in `{}`",
+            expected_message,
+            error
+        );
+    }
+}
+
+#[test]
+fn search_curseforge_mods_with_client_rejects_invalid_game_context_contracts() {
+    let _guard = curseforge_api_key_guard("test-api-key");
+    let cases = [
+        (
+            r#"{"data":[{"id":0,"name":"World of Warcraft","slug":"world-of-warcraft"}]}"#,
+            "CurseForge game id must be greater than zero",
+        ),
+        (
+            r#"{"data":[{"id":1,"name":" ","slug":"world-of-warcraft"}]}"#,
+            "CurseForge game name `1` must not be empty",
+        ),
+        (
+            r#"{"data":[{"id":1,"name":" World of Warcraft","slug":"world-of-warcraft"}]}"#,
+            "CurseForge game name `1` must not have surrounding whitespace",
+        ),
+        (
+            r#"{"data":[{"id":1,"name":"World of Warcraft","slug":"world-of-warcraft"},{"id":1,"name":"World of Warcraft Classic","slug":"wow-classic"}]}"#,
+            "duplicate game id",
+        ),
+    ];
+
+    for (games_body, expected_message) in cases {
+        let client = CurseForgeSearchHttpClient::new(valid_curseforge_search_body())
+            .with_games_body(games_body);
+        let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
+            .expect_err("invalid game context");
+
+        assert!(
+            error.to_string().contains(expected_message),
+            "expected `{}` in `{}`",
+            expected_message,
+            error
+        );
+    }
+}
+
+#[test]
+fn search_curseforge_mods_with_client_rejects_invalid_version_type_contracts() {
+    let _guard = curseforge_api_key_guard("test-api-key");
+    let cases = [
+        (
+            r#"{"data":[{"id":0,"name":"WoW Retail","slug":"wow_retail"}]}"#,
+            "CurseForge game version type id must be greater than zero",
+        ),
+        (
+            r#"{"data":[{"id":517,"name":" ","slug":"wow_retail"}]}"#,
+            "CurseForge game version type name `517` must not be empty",
+        ),
+        (
+            r#"{"data":[{"id":517,"name":"WoW Retail","slug":" wow_retail"}]}"#,
+            "CurseForge game version type slug `517` must not have surrounding whitespace",
+        ),
+        (
+            r#"{"data":[{"id":517,"name":"WoW Retail","slug":"wow_retail"},{"id":517,"name":"Retail","slug":"retail"}]}"#,
+            "duplicate version type id",
+        ),
+    ];
+
+    for (version_types_body, expected_message) in cases {
+        let client = CurseForgeSearchHttpClient::new(valid_curseforge_search_body())
+            .with_version_types_body(version_types_body);
+        let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
+            .expect_err("invalid version type context");
 
         assert!(
             error.to_string().contains(expected_message),
@@ -2481,6 +2564,8 @@ impl HttpClient for StaticResponseHttpClient<'_> {
 }
 
 struct CurseForgeSearchHttpClient<'a> {
+    games_body: &'a str,
+    version_types_body: &'a str,
     search_body: &'a str,
     requests: RefCell<Vec<HttpRequest>>,
 }
@@ -2488,9 +2573,21 @@ struct CurseForgeSearchHttpClient<'a> {
 impl<'a> CurseForgeSearchHttpClient<'a> {
     fn new(search_body: &'a str) -> Self {
         Self {
+            games_body: r#"{"data":[{"id":1,"name":"World of Warcraft","slug":"world-of-warcraft"}]}"#,
+            version_types_body: r#"{"data":[{"id":517,"name":"WoW Retail","slug":"wow_retail"}]}"#,
             search_body,
             requests: RefCell::new(Vec::new()),
         }
+    }
+
+    fn with_games_body(mut self, games_body: &'a str) -> Self {
+        self.games_body = games_body;
+        self
+    }
+
+    fn with_version_types_body(mut self, version_types_body: &'a str) -> Self {
+        self.version_types_body = version_types_body;
+        self
     }
 }
 
@@ -2500,14 +2597,11 @@ impl HttpClient for CurseForgeSearchHttpClient<'_> {
         match request.url.as_str() {
             "https://api.curseforge.com/v1/games" => Ok(HttpResponse {
                 status_code: 200,
-                body:
-                    r#"{"data":[{"id":1,"name":"World of Warcraft","slug":"world-of-warcraft"}]}"#
-                        .to_string(),
+                body: self.games_body.to_string(),
             }),
             "https://api.curseforge.com/v1/games/1/version-types" => Ok(HttpResponse {
                 status_code: 200,
-                body: r#"{"data":[{"id":517,"name":"WoW Retail","slug":"wow_retail"}]}"#
-                    .to_string(),
+                body: self.version_types_body.to_string(),
             }),
             "https://api.curseforge.com/v1/mods/search" => Ok(HttpResponse {
                 status_code: 200,
@@ -2528,6 +2622,10 @@ impl HttpClient for CurseForgeSearchHttpClient<'_> {
     ) -> AppResult<HttpDownloadResponse> {
         panic!("download_to_path should not be called in this test")
     }
+}
+
+fn valid_curseforge_search_body() -> &'static str {
+    r#"{"data":[{"id":42,"name":"WeakAuras","summary":"Aura tracking","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#
 }
 
 fn github_release_asset(name: &str, browser_download_url: &str) -> GitHubReleaseAsset {

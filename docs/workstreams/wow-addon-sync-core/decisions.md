@@ -2118,3 +2118,31 @@ Specifically:
   CLI or app output rendering.
 - Search results now follow the same fail-closed boundary model as GitHub release assets and
   CurseForge file responses.
+
+## ADR-083: CurseForge Context Identity Validates Before Provider Queries
+
+Accepted on 2026-04-29
+
+### Decision
+
+CurseForge game and game-version-type responses are validated before their ids are used in later
+provider requests.
+
+Specifically:
+
+- Game ids and game-version-type ids must be non-zero.
+- Game and game-version-type names/slugs must be non-empty and must not carry surrounding
+  whitespace.
+- Game ids and game-version-type ids must be unique within the response page/list being consumed.
+- Search result latest-file indexes validate non-zero file ids and game-version-type ids, but do
+  not require game-version-type uniqueness because the public CurseForge API can return multiple
+  indexes for the same version type.
+- Search result summaries are optional display text, so projection trims them and treats blank
+  summaries as absent instead of rejecting the whole provider response.
+
+### Consequences
+
+- Provider requests cannot silently use `gameId=0` or `gameVersionTypeId=0`.
+- Future GUI search filters and install hints do not inherit ambiguous provider context ids.
+- Identity fields remain fail-closed, while optional display copy is normalized at the projection
+  boundary instead of becoming GUI cleanup work.
