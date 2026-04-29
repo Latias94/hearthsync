@@ -372,7 +372,31 @@ fn bundle_apply_defaults_value_converts_back_to_domain_defaults() {
 
 #[test]
 fn bundle_manifest_value_roundtrips_domain_shape() {
-    let value = BundleManifestValue {
+    let value = valid_bundle_manifest_value();
+
+    let domain = value.clone().into_domain().expect("bundle manifest");
+
+    assert_eq!(BundleManifestValue::from_domain(domain), value);
+}
+
+#[test]
+fn bundle_manifest_value_rejects_invalid_manifest() {
+    let mut value = valid_bundle_manifest_value();
+    value.schema_version = 0;
+
+    let error = value
+        .into_domain()
+        .expect_err("invalid manifest should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("schema_version must be greater than zero")
+    );
+}
+
+fn valid_bundle_manifest_value() -> BundleManifestValue {
+    BundleManifestValue {
         schema_version: 1,
         package: BundlePackageValue {
             id: "author-ui".to_string(),
@@ -414,11 +438,7 @@ fn bundle_manifest_value_roundtrips_domain_shape() {
             fonts: ResourceApplyPolicyValue::Mirror,
             interface_assets: ResourceApplyPolicyValue::Mirror,
         },
-    };
-
-    let domain = value.clone().into_domain();
-
-    assert_eq!(BundleManifestValue::from_domain(domain), value);
+    }
 }
 
 fn absolute_installation_value() -> ResolvedInstallationValue {

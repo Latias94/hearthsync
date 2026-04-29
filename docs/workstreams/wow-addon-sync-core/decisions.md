@@ -1554,3 +1554,30 @@ Specifically:
   explicit and validation-driven.
 - Runtime construction remains the single fallible step for path-bearing and provider-policy
   settings.
+
+## ADR-062: Bundle Manifests Validate at App and Apply Boundaries
+
+Accepted on 2026-04-29
+
+### Decision
+
+Bundle manifests must be validated before app-owned requests enter core packing and before embedded
+bundle manifests drive apply planning.
+
+Specifically:
+
+- `BundleManifestValue::into_domain()` is fallible and runs `BundleManifest::validate()` after
+  projecting the app-owned value tree.
+- `PackBundleAppRequest::into_domain_request()` rejects invalid app-owned manifests before
+  constructing a core `PackBundleRequest`.
+- Bundle apply planning validates the embedded archive manifest before target compatibility,
+  character mapping, selected-account, or destination planning logic uses it.
+
+### Consequences
+
+- Future GUI callers get deterministic manifest validation errors at request projection time for
+  pack flows instead of relying on deeper core packing code to reject malformed manifests.
+- Operators cannot bypass `inspect_bundle` validation by applying a bundle archive directly through
+  plan/apply entrypoints.
+- Core packing keeps its defensive manifest validation, but app and apply boundaries now enforce
+  the same manifest contract explicitly.

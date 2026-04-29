@@ -25,6 +25,7 @@ pub(super) fn plan_apply_from_entries(
     entry_names: &[String],
     apply_mappings: &BundleApplyMappings,
 ) -> AppResult<LogicalBundleApply> {
+    manifest.validate()?;
     validate_target_compatibility(&manifest, installation)?;
     let discovered_accounts = discover_local_accounts(installation)?;
     let character_mappings = build_character_mappings(&manifest, apply_mappings)?;

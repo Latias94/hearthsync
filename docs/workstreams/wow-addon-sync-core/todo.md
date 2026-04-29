@@ -466,6 +466,9 @@ enough that these rules live in one place.
   Current progress: addon provider options now validate before runtime provider construction.
   Zero-attempt retry policies and zero-second HTTP no-validator reuse windows fail at the
   app/runtime boundary instead of being silently or ambiguously interpreted by provider execution.
+  Current progress: bundle manifests now validate at app and apply boundaries. App-owned pack
+  manifests fail before core request construction, and embedded bundle manifests fail during apply
+  planning even when callers bypass bundle inspection.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

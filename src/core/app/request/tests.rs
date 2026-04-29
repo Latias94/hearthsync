@@ -567,6 +567,28 @@ fn pack_bundle_request_converts_app_owned_manifest() {
 }
 
 #[test]
+fn pack_bundle_request_rejects_invalid_app_manifest_before_core_projection() {
+    let runtime = AppRuntime::new();
+    let mut manifest = sample_manifest();
+    manifest.schema_version = 0;
+
+    let error = PackBundleAppRequest {
+        installation: sample_installation(),
+        manifest,
+        output_path: None,
+        manifest_base_dir: None,
+    }
+    .into_domain_request(&runtime)
+    .expect_err("invalid manifest should fail before core packing");
+
+    assert!(
+        error
+            .to_string()
+            .contains("schema_version must be greater than zero")
+    );
+}
+
+#[test]
 fn pack_bundle_request_resolves_relative_output_without_manifest_base_against_installation_parent()
 {
     let runtime = AppRuntime::new();

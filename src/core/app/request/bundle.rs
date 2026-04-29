@@ -62,7 +62,7 @@ impl PackBundleAppRequest {
             Ok(DomainPackBundleRequest {
                 installation,
                 addon_state_storage_kind: runtime.addon_state_storage_kind(),
-                manifest: request.manifest.into_domain(),
+                manifest: request.manifest.into_domain()?,
                 output_path,
                 manifest_base_dir,
             })

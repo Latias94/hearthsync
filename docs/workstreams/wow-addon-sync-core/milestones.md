@@ -319,6 +319,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon provider options now validate before runtime provider construction: zero retry attempts and
   zero-second HTTP no-validator reuse windows are rejected at the app/runtime boundary instead of
   being silently or ambiguously interpreted inside provider execution.
+- bundle manifests now validate at both relevant boundaries: app-owned pack manifests fail before
+  core request construction, and embedded bundle manifests fail during apply planning even when an
+  operator bypasses `inspect_bundle`.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

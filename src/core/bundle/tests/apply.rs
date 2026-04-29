@@ -351,6 +351,32 @@ fn plan_bundle_apply_discovers_local_accounts_and_selected_accounts() {
 }
 
 #[test]
+fn plan_bundle_apply_rejects_invalid_embedded_manifest() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("invalid-manifest-bundle.zip");
+    let installation = create_fixture_installation(temp.path(), false);
+    let mut manifest = sample_manifest();
+    manifest.schema_version = 0;
+    let manifest = toml::to_string_pretty(&manifest).expect("manifest");
+    create_archive_with_raw_entries(
+        &bundle_path,
+        &[
+            (MANIFEST_ENTRY, &manifest),
+            ("addons/WeakAuras/WeakAuras.toc", "toc"),
+        ],
+    );
+
+    let error = plan_bundle_apply(&bundle_path, &installation, &BundleApplyMappings::default())
+        .expect_err("invalid manifest should fail before apply planning");
+
+    assert!(
+        error
+            .to_string()
+            .contains("schema_version must be greater than zero")
+    );
+}
+
+#[test]
 fn plan_bundle_apply_requires_explicit_common_account_selection_for_common_only_bundle() {
     let source = tempdir().expect("source temp dir");
     let target = tempdir().expect("target temp dir");

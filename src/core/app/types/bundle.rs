@@ -5,6 +5,7 @@ use crate::core::bundle::{
     BundleApplyMappings as DomainBundleApplyMappings,
     CharacterMappingOverride as DomainCharacterMappingOverride, WtfScope as DomainWtfScope,
 };
+use crate::core::error::AppResult;
 use crate::core::manifest::{
     ApplyDefaults as DomainApplyDefaults, BundleManifest as DomainBundleManifest,
     BundleResources as DomainBundleResources, CharacterMappingMode as DomainCharacterMappingMode,
@@ -440,14 +441,16 @@ impl BundleManifestValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainBundleManifest {
-        DomainBundleManifest {
+    pub(crate) fn into_domain(self) -> AppResult<DomainBundleManifest> {
+        let manifest = DomainBundleManifest {
             schema_version: self.schema_version,
             package: self.package.into_domain(),
             source: self.source.into_domain(),
             resources: self.resources.into_domain(),
             mapping: self.mapping.into_domain(),
             apply: self.apply.into_domain(),
-        }
+        };
+        manifest.validate()?;
+        Ok(manifest)
     }
 }
