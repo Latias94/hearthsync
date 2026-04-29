@@ -467,6 +467,11 @@ fn retry_http<T>(max_attempts: u32, mut operation: impl FnMut() -> AppResult<T>)
 
 #[cfg(test)]
 mod default_provider_tests {
+    use std::cell::{Cell, RefCell};
+
+    use tempfile::tempdir;
+
+    use super::http::HttpResponse;
     use super::*;
 
     #[test]
@@ -489,5 +494,114 @@ mod default_provider_tests {
             }),
             AddonDependencyResolutionCapability::Unsupported
         );
+    }
+
+    #[test]
+    fn default_addon_provider_retries_failed_http_archive_downloads() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            attempts: RefCell<usize>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                let mut attempts = self.attempts.borrow_mut();
+                *attempts += 1;
+                if *attempts == 1 {
+                    return Err(AppError::Validation(
+                        "transient download failure".to_string(),
+                    ));
+                }
+
+                std::fs::write(&request.destination, b"archive").expect("archive file");
+                Ok(HttpDownloadResponse {
+                    status_code: 200,
+                    headers: Vec::new(),
+                })
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+            .with_retry_policy(AddonProviderRetryPolicy { max_attempts: 2 });
+        let source = AddonSourceRef::HttpArchive {
+            url: "https://example.com/addon.zip".to_string(),
+        };
+
+        let materialized = provider
+            .materialize_source_ref(MaterializeSourceRefRequest {
+                source: &source,
+                stage_root: temp.path(),
+                context: AddonProviderContext::default(),
+            })
+            .expect("materialize with retry");
+
+        assert!(materialized.archive_path.exists());
+        assert_eq!(*provider.http_client().attempts.borrow(), 2);
+    }
+
+    #[test]
+    fn default_addon_provider_forwards_cancellation_without_retrying() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            attempts: Cell<usize>,
+            saw_cancelled: Cell<bool>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.attempts.set(self.attempts.get() + 1);
+                self.saw_cancelled.set(cancellation.is_cancelled());
+                Err(AppError::Cancelled(
+                    "addon provider download cancelled".to_string(),
+                ))
+            }
+        }
+
+        struct AlwaysCancelled;
+
+        impl CancellationToken for AlwaysCancelled {
+            fn is_cancelled(&self) -> bool {
+                true
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+            .with_retry_policy(AddonProviderRetryPolicy { max_attempts: 3 });
+        let source = AddonSourceRef::HttpArchive {
+            url: "https://example.com/addon.zip".to_string(),
+        };
+        let cancellation = AlwaysCancelled;
+
+        let error = provider
+            .materialize_source_ref(MaterializeSourceRefRequest {
+                source: &source,
+                stage_root: temp.path(),
+                context: AddonProviderContext::new(None, Some(&cancellation)),
+            })
+            .expect_err("cancelled download");
+
+        assert!(matches!(error, AppError::Cancelled(_)));
+        assert_eq!(provider.http_client().attempts.get(), 1);
+        assert!(provider.http_client().saw_cancelled.get());
     }
 }
