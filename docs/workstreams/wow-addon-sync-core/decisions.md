@@ -1746,3 +1746,34 @@ Specifically:
   drifting between curated input and managed state.
 - Future GUI state editors can reuse the registry save/load contract rather than carrying a
   separate managed-state validation model.
+
+## ADR-069: Addon Lock Files Fail Closed at the Storage Boundary
+
+Accepted on 2026-04-29
+
+### Decision
+
+Addon lock files must validate package identity, source refs, metadata, content hashes, and addon
+directory declarations as soon as they are read.
+
+Specifically:
+
+- Lock package source refs share the common `AddonSourceRef` validation.
+- Lock local archive source refs must be absolute; portable bundled sources continue to flow
+  through explicit sidecar source overrides instead of relative `local_archive` refs.
+- Package ids, generated timestamps, installed/updated timestamps, and content hashes must not be
+  blank; content hashes must be 64-character SHA-256 hex digests.
+- Optional package metadata fields may be absent, but must not be blank when present.
+- Declared addon directories must be portable addon directory segments and unique within and across
+  packages under case-insensitive Windows/default-macOS semantics.
+- Optional per-addon snapshot fields must not be blank when present, and TOC file names must be
+  portable single segments.
+
+### Consequences
+
+- `addon lock inspect`, `diff`, `verify`, `plan`, and `apply` now share the same fail-closed lock
+  validation before planning or mutation code sees the file.
+- Malformed relative local archive refs no longer survive inspection and only become blocked plan
+  actions later; the lock file itself is invalid.
+- Future GUI lock editors can validate lock payloads through one storage-boundary contract instead
+  of duplicating plan-time checks.

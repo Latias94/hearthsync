@@ -6,14 +6,15 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use walkdir::WalkDir;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::core::addon::{
-    AddonPackageMetadata, AddonRegistry, AddonStatePaths, TrackedAddon, TrackedAddonPackage,
-    find_existing_addon_path, load_registry,
+    AddonPackageMetadata, AddonRegistry, AddonSourceRef, AddonStatePaths, TrackedAddon,
+    TrackedAddonPackage, find_existing_addon_path, load_registry, validate_addon_source_ref,
 };
+use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
@@ -306,9 +307,26 @@ fn validate_addon_lock(lock: &AddonLock) -> AppResult<()> {
             lock.schema_version
         )));
     }
+    if lock.generated_at.trim().is_empty() {
+        return Err(AppError::Validation(
+            "addon lock generated_at must not be empty".to_string(),
+        ));
+    }
 
     let mut comparison_keys = BTreeSet::new();
+    let mut package_ids = BTreeSet::new();
+    let mut addon_owners = BTreeMap::new();
     for package in &lock.packages {
+        validate_addon_lock_package(package, &mut addon_owners)?;
+
+        let package_id_key = package.package_id.trim().to_ascii_lowercase();
+        if !package_ids.insert(package_id_key) {
+            return Err(AppError::Validation(format!(
+                "duplicate addon lock package id: {}",
+                package.package_id
+            )));
+        }
+
         let comparison_key = comparison_key(
             &package.package_id,
             package.index_name.as_deref(),
@@ -322,6 +340,151 @@ fn validate_addon_lock(lock: &AddonLock) -> AppResult<()> {
         }
     }
     Ok(())
+}
+
+fn validate_addon_lock_package(
+    package: &AddonLockPackage,
+    addon_owners: &mut BTreeMap<String, String>,
+) -> AppResult<()> {
+    if package.package_id.trim().is_empty() {
+        return Err(AppError::Validation(
+            "addon lock package id must not be empty".to_string(),
+        ));
+    }
+
+    for (field, value) in [
+        ("index_name", package.index_name.as_deref()),
+        ("index_package_id", package.index_package_id.as_deref()),
+        ("name", package.name.as_deref()),
+        ("version", package.version.as_deref()),
+        ("source_url", package.source_url.as_deref()),
+        ("website_url", package.website_url.as_deref()),
+        ("source_sha256", package.source_sha256.as_deref()),
+    ] {
+        validate_optional_lock_text(package, field, value)?;
+    }
+
+    validate_addon_source_ref(
+        &package.source,
+        &format!("source for addon lock package `{}`", package.package_id),
+    )?;
+    validate_lock_local_archive_source(package)?;
+
+    validate_required_lock_text(package, "content_sha256", &package.content_sha256)?;
+    if !is_sha256_hex(&package.content_sha256) {
+        return Err(AppError::Validation(format!(
+            "addon lock package `{}` content_sha256 must be a 64-character SHA-256 hex digest",
+            package.package_id
+        )));
+    }
+    validate_required_lock_text(package, "installed_at", &package.installed_at)?;
+    validate_required_lock_text(package, "updated_at", &package.updated_at)?;
+
+    if package.addon_directories.is_empty() {
+        return Err(AppError::Validation(format!(
+            "addon lock package `{}` must contain at least one addon directory",
+            package.package_id
+        )));
+    }
+
+    let mut package_addons = BTreeSet::new();
+    for addon_directory in &package.addon_directories {
+        validate_lock_addon_directory(package, addon_directory)?;
+        let addon_key = addon_directory.trim().to_ascii_lowercase();
+        if !package_addons.insert(addon_key.clone()) {
+            return Err(AppError::Validation(format!(
+                "duplicate addon directory `{}` in addon lock package `{}`",
+                addon_directory, package.package_id
+            )));
+        }
+        if let Some(existing_package_id) =
+            addon_owners.insert(addon_key, package.package_id.clone())
+        {
+            return Err(AppError::Validation(format!(
+                "addon directory `{}` in addon lock package `{}` conflicts with addon lock package `{}`",
+                addon_directory, package.package_id, existing_package_id
+            )));
+        }
+    }
+
+    for addon in &package.addons {
+        validate_lock_addon_directory(package, &addon.directory_name)?;
+        validate_optional_lock_text(package, "addon.toc_file", addon.toc_file.as_deref())?;
+        if let Some(toc_file) = &addon.toc_file {
+            validate_portable_path_segment(toc_file, "addon toc file").map_err(|error| {
+                AppError::Validation(format!(
+                    "{error} for addon lock package `{}`",
+                    package.package_id
+                ))
+            })?;
+        }
+        validate_optional_lock_text(package, "addon.title", addon.title.as_deref())?;
+        validate_optional_lock_text(package, "addon.version", addon.version.as_deref())?;
+    }
+
+    Ok(())
+}
+
+fn validate_lock_local_archive_source(package: &AddonLockPackage) -> AppResult<()> {
+    let AddonSourceRef::LocalArchive { path } = &package.source else {
+        return Ok(());
+    };
+
+    if path.is_absolute() {
+        return Ok(());
+    }
+
+    Err(AppError::Validation(format!(
+        "invalid source for addon lock package `{}`: local archive source path must be absolute before lock planning: {}",
+        package.package_id,
+        path.display()
+    )))
+}
+
+fn validate_lock_addon_directory(
+    package: &AddonLockPackage,
+    addon_directory: &str,
+) -> AppResult<()> {
+    validate_portable_path_segment(addon_directory, "addon directory").map_err(|error| {
+        AppError::Validation(format!(
+            "{error} for addon lock package `{}`",
+            package.package_id
+        ))
+    })
+}
+
+fn validate_required_lock_text(
+    package: &AddonLockPackage,
+    field: &str,
+    value: &str,
+) -> AppResult<()> {
+    if value.trim().is_empty() {
+        return Err(AppError::Validation(format!(
+            "addon lock package `{}` {field} must not be empty",
+            package.package_id
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_optional_lock_text(
+    package: &AddonLockPackage,
+    field: &str,
+    value: Option<&str>,
+) -> AppResult<()> {
+    if value.is_some_and(|value| value.trim().is_empty()) {
+        return Err(AppError::Validation(format!(
+            "addon lock package `{}` {field} must not be blank",
+            package.package_id
+        )));
+    }
+
+    Ok(())
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|char| char.is_ascii_hexdigit())
 }
 
 pub(super) fn now_rfc3339() -> AppResult<String> {

@@ -339,6 +339,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - tracked addon registry load/save now reuses the same source-reference shape validation, keeps the
   stricter absolute-local-archive state rule, validates addon directory names as portable segments,
   and rejects blank stored metadata fields or supported-flavor entries.
+- addon-lock files now fail closed at read time on invalid source refs, relative local archive
+  refs, blank package metadata/timestamps, invalid content hashes, non-portable addon directory
+  names, and case-insensitive addon-directory ownership conflicts.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

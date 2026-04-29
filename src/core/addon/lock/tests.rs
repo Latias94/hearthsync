@@ -23,6 +23,8 @@ use crate::core::task::{
     VecTaskProgressSink,
 };
 
+const VALID_LOCK_SHA256: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
 fn addon_state_paths(
     installation: &DetectedFlavorInstallation,
 ) -> crate::core::addon::AddonStatePaths {
@@ -101,6 +103,169 @@ fn write_addon_lock_removes_stale_lock_when_registry_is_empty() {
 }
 
 #[test]
+fn inspect_addon_lock_rejects_invalid_source_refs() {
+    for (source_toml, expected_message) in [
+        (
+            r#"{ kind = "local_archive", path = "" }"#,
+            "local archive source path",
+        ),
+        (
+            r#"{ kind = "local_archive", path = "sources/details.zip" }"#,
+            "must be absolute",
+        ),
+        (
+            r#"{ kind = "http_archive", url = "" }"#,
+            "HTTP archive source URL",
+        ),
+        (
+            r#"{ kind = "http_archive", url = "ftp://example.invalid/details.zip" }"#,
+            "HTTP archive source URL",
+        ),
+        (
+            r#"{ kind = "curseforge_mod", mod_id = 0 }"#,
+            "CurseForge mod id",
+        ),
+        (
+            r#"{ kind = "curseforge_mod", mod_id = 12345, file_id = 0 }"#,
+            "CurseForge file id",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "", repo = "details" }"#,
+            "GitHub owner",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "owner", repo = " " }"#,
+            "GitHub repo",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "owner", repo = "details", tag = "" }"#,
+            "GitHub tag",
+        ),
+        (
+            r#"{ kind = "github_release", owner = "owner", repo = "details", asset_name = "" }"#,
+            "GitHub asset name",
+        ),
+    ] {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_fixture_installation(temp.path());
+        write_lock_fixture(
+            &installation,
+            &lock_fixture_toml(source_toml, VALID_LOCK_SHA256, r#"["Details"]"#, ""),
+        );
+
+        let error = inspect_addon_lock(&installation, &addon_state_paths(&installation))
+            .expect_err("invalid source should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("invalid source for addon lock package `details`"));
+        assert!(message.contains(expected_message));
+    }
+}
+
+#[test]
+fn inspect_addon_lock_rejects_non_portable_addon_directories() {
+    for addon_directory in ["Bad/Addon", "CON", "Weak:Auras"] {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_fixture_installation(temp.path());
+        write_lock_fixture(
+            &installation,
+            &lock_fixture_toml(
+                r#"{ kind = "http_archive", url = "https://example.invalid/details.zip" }"#,
+                VALID_LOCK_SHA256,
+                &format!(r#"["{addon_directory}"]"#),
+                "",
+            ),
+        );
+
+        let error = inspect_addon_lock(&installation, &addon_state_paths(&installation))
+            .expect_err("non-portable addon directory should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("invalid addon directory name"));
+        assert!(message.contains("addon lock package `details`"));
+    }
+}
+
+#[test]
+fn inspect_addon_lock_rejects_duplicate_addon_directories() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    write_lock_fixture(
+        &installation,
+        &lock_fixture_toml(
+            r#"{ kind = "http_archive", url = "https://example.invalid/details.zip" }"#,
+            VALID_LOCK_SHA256,
+            r#"["Details", "details"]"#,
+            "",
+        ),
+    );
+
+    let error = inspect_addon_lock(&installation, &addon_state_paths(&installation))
+        .expect_err("duplicate addon directory should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("duplicate addon directory"));
+}
+
+#[test]
+fn inspect_addon_lock_rejects_blank_metadata_fields() {
+    for (field, field_toml) in [
+        ("index_name", r#"index_name = " ""#),
+        ("index_package_id", r#"index_package_id = """#),
+        ("name", r#"name = " ""#),
+        ("version", r#"version = """#),
+        ("source_url", r#"source_url = " ""#),
+        ("website_url", r#"website_url = """#),
+        ("source_sha256", r#"source_sha256 = " ""#),
+    ] {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_fixture_installation(temp.path());
+        write_lock_fixture(
+            &installation,
+            &lock_fixture_toml(
+                r#"{ kind = "http_archive", url = "https://example.invalid/details.zip" }"#,
+                VALID_LOCK_SHA256,
+                r#"["Details"]"#,
+                field_toml,
+            ),
+        );
+
+        let error = inspect_addon_lock(&installation, &addon_state_paths(&installation))
+            .expect_err("blank metadata should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains(field));
+        assert!(message.contains("must not be blank"));
+        assert!(message.contains("addon lock package `details`"));
+    }
+}
+
+#[test]
+fn inspect_addon_lock_rejects_invalid_content_hash() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    write_lock_fixture(
+        &installation,
+        &lock_fixture_toml(
+            r#"{ kind = "http_archive", url = "https://example.invalid/details.zip" }"#,
+            "not-a-sha256",
+            r#"["Details"]"#,
+            "",
+        ),
+    );
+
+    let error = inspect_addon_lock(&installation, &addon_state_paths(&installation))
+        .expect_err("invalid content hash should fail");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("content_sha256"));
+    assert!(error.to_string().contains("64-character"));
+}
+
+#[test]
 fn remove_addon_cleans_lock_file_when_last_package_is_removed() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());
@@ -155,7 +320,7 @@ index_name = "Raid"
 index_package_id = "details"
 name = "Details"
 version = "1.0.0"
-source = { kind = "local_archive", path = "C:\\details.zip" }
+source = { kind = "http_archive", url = "https://example.invalid/details.zip" }
 content_sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 installed_at = "2026-04-15T00:00:00Z"
 updated_at = "2026-04-15T00:00:00Z"
@@ -165,7 +330,7 @@ addons = []
 [[packages]]
 package_id = "omen"
 name = "Omen"
-source = { kind = "local_archive", path = "C:\\omen.zip" }
+source = { kind = "http_archive", url = "https://example.invalid/omen.zip" }
 content_sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 installed_at = "2026-04-15T00:00:00Z"
 updated_at = "2026-04-15T00:00:00Z"
@@ -187,7 +352,7 @@ index_name = "Raid"
 index_package_id = "details"
 name = "Details"
 version = "2.0.0"
-source = { kind = "local_archive", path = "C:\\details-v2.zip" }
+source = { kind = "http_archive", url = "https://example.invalid/details-v2.zip" }
 content_sha256 = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 installed_at = "2026-04-16T00:00:00Z"
 updated_at = "2026-04-16T00:00:00Z"
@@ -197,7 +362,7 @@ addons = []
 [[packages]]
 package_id = "bigwigs"
 name = "BigWigs"
-source = { kind = "local_archive", path = "C:\\bigwigs.zip" }
+source = { kind = "http_archive", url = "https://example.invalid/bigwigs.zip" }
 content_sha256 = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 installed_at = "2026-04-16T00:00:00Z"
 updated_at = "2026-04-16T00:00:00Z"
@@ -494,7 +659,7 @@ fn plan_addon_lock_sync_allows_case_distinct_untracked_addon_on_linux() {
 }
 
 #[test]
-fn plan_addon_lock_sync_blocks_relative_local_archive_sources() {
+fn plan_addon_lock_sync_rejects_relative_local_archive_sources() {
     let temp = tempdir().expect("temp dir");
     let desired_lock = desired_lock_with_single_addon(
         temp.path(),
@@ -508,21 +673,15 @@ fn plan_addon_lock_sync_blocks_relative_local_archive_sources() {
         HostPlatform::Windows,
     );
 
-    let plan = plan_addon_lock_sync(
+    let error = plan_addon_lock_sync(
         &current_installation,
         &addon_state_paths(&current_installation),
         Some(&desired_lock),
     )
-    .expect("plan");
+    .expect_err("relative local archive source should fail before planning");
 
-    assert_eq!(plan.install_count, 1);
-    assert_eq!(plan.blocked_count, 1);
-    assert!(
-        plan.actions[0]
-            .blocked_reasons
-            .iter()
-            .any(|reason| reason.contains("must be absolute"))
-    );
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("must be absolute"));
 }
 
 #[test]
@@ -912,6 +1071,37 @@ fn rewrite_first_lock_package_source_to_relative_local_archive(lock_path: &Path)
         toml::to_string_pretty(&lock).expect("rewritten lock toml"),
     )
     .expect("rewrite lock");
+}
+
+fn write_lock_fixture(installation: &DetectedFlavorInstallation, content: &str) -> PathBuf {
+    let path = lock_path(&addon_state_paths(installation));
+    fs::create_dir_all(path.parent().expect("lock parent")).expect("lock parent");
+    fs::write(&path, content).expect("write lock fixture");
+    path
+}
+
+fn lock_fixture_toml(
+    source_toml: &str,
+    content_sha256: &str,
+    addon_directories_toml: &str,
+    package_extra_toml: &str,
+) -> String {
+    format!(
+        r#"
+schema_version = 1
+generated_at = "2026-04-15T00:00:00Z"
+
+[[packages]]
+package_id = "details"
+source = {source_toml}
+content_sha256 = "{content_sha256}"
+installed_at = "2026-04-15T00:00:00Z"
+updated_at = "2026-04-15T00:00:00Z"
+addon_directories = {addon_directories_toml}
+addons = []
+{package_extra_toml}
+"#
+    )
 }
 
 fn create_untracked_addon(installation: &DetectedFlavorInstallation, addon_name: &str) {

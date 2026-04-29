@@ -489,6 +489,9 @@ enough that these rules live in one place.
   still requires local archive sources to be absolute in managed state, validates tracked addon
   directory names as portable path segments, and rejects blank stored metadata fields or
   supported-flavor entries.
+  Current progress: addon-lock files now fail closed at read time on invalid source refs, relative
+  local archive refs, blank package metadata/timestamps, invalid content hashes, non-portable addon
+  directory names, and case-insensitive addon-directory ownership conflicts.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.
