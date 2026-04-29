@@ -2287,7 +2287,8 @@ Specifically:
 - Shared provider test fixtures that are not owned by one provider behavior live in
   `provider::test_support`.
 - `provider::tests` remains focused on HTTP/cache behavior, source cache orchestration, and other
-  cross-module integration paths.
+  cross-module integration paths, split by source family when the orchestration behavior is not
+  owned by one implementation module.
 
 ### Consequences
 

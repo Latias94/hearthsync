@@ -1067,4 +1067,5 @@ the resulting DTOs as stable product state.
   `provider::test_support`, and cross-module provider orchestration tests remain in
   `provider::tests`
 - remaining `provider::tests` orchestration coverage now shares narrow materialization helpers, so
-  each scenario keeps its HTTP fake and cache assertions visible without repeating stage setup
+  each scenario keeps its HTTP fake and cache assertions visible without repeating stage setup; the
+  tests are split into `http_cache`, `github_cache`, and `curseforge_cache` source-family modules

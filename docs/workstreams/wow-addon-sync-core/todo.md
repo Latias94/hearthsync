@@ -602,7 +602,8 @@ enough that these rules live in one place.
   default coverage moved into `provider::http`, provider composition/capability/retry coverage
   moved into `provider`, shared provider test fixtures moved into `provider::test_support`, and
   `provider::tests` is left for HTTP/cache orchestration. Remaining provider orchestration tests now
-  share narrow materialization helpers instead of repeating stage setup in every scenario.
+  share narrow materialization helpers instead of repeating stage setup in every scenario, and are
+  split into source-family modules (`http_cache`, `github_cache`, `curseforge_cache`).
 
 Exit criteria:
 
