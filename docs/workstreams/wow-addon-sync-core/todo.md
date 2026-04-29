@@ -534,6 +534,9 @@ enough that these rules live in one place.
   Current progress: unsupported-symlink rejection now also shares one canonical helper in
   `core::archive_io`, so addon archive prep, backup restore/source scanning, bundle archive
   ingest, and external-package ingest no longer keep separate identical error branches.
+  Current progress: backup metadata now validates at the archive metadata boundary.
+  `backup.toml` symlink/directory entries, invalid schema/timestamps/flavor/group rows, and blank
+  labels fail before catalog or restore-selection code consumes metadata.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.

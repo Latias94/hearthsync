@@ -1938,3 +1938,28 @@ Specifically:
   corrupted or a future generation path creates an invalid value.
 - Standalone addon-lock workflows and bundle pack workflows share one lock-file contract.
 - Future GUI export flows do not need a separate addon-lock validation path for bundle embedding.
+
+## ADR-076: Backup Metadata Validates at the Archive Metadata Boundary
+
+Accepted on 2026-04-29
+
+### Decision
+
+Backup metadata has two validation layers: archive metadata shape and target-installation
+compatibility.
+
+Specifically:
+
+- Reading `backup.toml` rejects symlink or directory metadata entries before TOML parsing.
+- The metadata reader validates schema version, RFC 3339 `created_at`, non-blank label values,
+  supported flavor names, non-empty source flavor roots, non-empty groups, and duplicate groups.
+- Restore preparation still owns the target-flavor compatibility check because it depends on the
+  selected installation.
+- Backup creation validates generated metadata before writing the archive.
+
+### Consequences
+
+- `backup list`, restore selection, and restore preparation no longer see parsed-but-invalid
+  backup metadata values.
+- Future GUI backup browsers can use catalog loading as a semantic metadata validation boundary.
+- Target-specific restore checks remain separate from archive metadata shape checks.

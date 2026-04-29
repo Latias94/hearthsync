@@ -22,7 +22,7 @@ use crate::core::archive_path::{
     find_platform_path_prefix_conflict, join_segments, safe_zip_segments, to_zip_path,
 };
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::DetectedFlavorInstallation;
+use crate::core::install::{DetectedFlavorInstallation, WowFlavor};
 use crate::core::task::{
     CancellationToken, TaskKind, TaskPhase, TaskProgressCode, TaskProgressSink,
     emit_task_step_progress, ensure_task_not_cancelled,
@@ -166,6 +166,7 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
         flavor_root: request.installation.flavor_root.clone(),
         groups: request.groups,
     };
+    validate_backup_metadata_for_installation(&metadata, &request.installation)?;
 
     register_backup_archive_output(&mut archive_outputs, "backup.toml", false)?;
     start_file_to_zip(&mut zip, "backup.toml", zip_file_options())?;
@@ -250,7 +251,7 @@ fn prepare_restore_archive(
     let file = File::open(archive_path)?;
     let mut archive = ZipArchive::new(file)?;
     let metadata = read_backup_metadata(&mut archive)?;
-    validate_backup_metadata(&metadata, installation)?;
+    validate_backup_metadata_for_installation(&metadata, installation)?;
 
     let mut entries = Vec::new();
 
@@ -461,20 +462,79 @@ fn register_backup_archive_output(
 
 fn read_backup_metadata(archive: &mut ZipArchive<File>) -> AppResult<BackupMetadata> {
     let mut entry = archive.by_name("backup.toml")?;
+    validate_zip_archive_entry(
+        "backup metadata entry",
+        entry.name(),
+        entry.is_symlink(),
+        entry.is_dir(),
+    )?;
+    if entry.is_dir() {
+        return Err(AppError::Validation(
+            "backup metadata entry must be a file: backup.toml".to_string(),
+        ));
+    }
     let mut content = String::new();
     entry.read_to_string(&mut content)?;
-    Ok(toml::from_str(&content)?)
+    let metadata = toml::from_str::<BackupMetadata>(&content)?;
+    validate_backup_metadata_shape(&metadata)?;
+    Ok(metadata)
 }
 
-fn validate_backup_metadata(
+fn validate_backup_metadata_for_installation(
     metadata: &BackupMetadata,
     installation: &DetectedFlavorInstallation,
 ) -> AppResult<()> {
+    validate_backup_metadata_shape(metadata)?;
+
+    if !metadata
+        .flavor
+        .eq_ignore_ascii_case(installation.flavor.as_str())
+    {
+        return Err(AppError::Validation(format!(
+            "backup flavor `{}` does not match target flavor `{}`",
+            metadata.flavor,
+            installation.flavor.as_str()
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_backup_metadata_shape(metadata: &BackupMetadata) -> AppResult<()> {
     if metadata.schema_version != 1 {
         return Err(AppError::Validation(format!(
             "unsupported backup schema version: {}",
             metadata.schema_version
         )));
+    }
+
+    if !is_rfc3339_timestamp_shape(&metadata.created_at) {
+        return Err(AppError::Validation(
+            "backup metadata created_at must be an RFC 3339 timestamp".to_string(),
+        ));
+    }
+
+    if metadata
+        .label
+        .as_deref()
+        .is_some_and(|value| value.trim().is_empty())
+    {
+        return Err(AppError::Validation(
+            "backup metadata label must not be blank".to_string(),
+        ));
+    }
+
+    if !is_supported_backup_flavor(&metadata.flavor) {
+        return Err(AppError::Validation(format!(
+            "unsupported backup flavor: {}",
+            metadata.flavor
+        )));
+    }
+
+    if metadata.flavor_root.as_os_str().is_empty() {
+        return Err(AppError::Validation(
+            "backup metadata flavor_root must not be empty".to_string(),
+        ));
     }
 
     if metadata.groups.is_empty() {
@@ -493,18 +553,87 @@ fn validate_backup_metadata(
         }
     }
 
-    if !metadata
-        .flavor
-        .eq_ignore_ascii_case(installation.flavor.as_str())
+    Ok(())
+}
+
+fn is_supported_backup_flavor(value: &str) -> bool {
+    [
+        WowFlavor::Retail,
+        WowFlavor::Classic,
+        WowFlavor::ClassicEra,
+        WowFlavor::Ptr,
+        WowFlavor::Beta,
+        WowFlavor::Xptr,
+    ]
+    .iter()
+    .any(|flavor| value.eq_ignore_ascii_case(flavor.as_str()))
+}
+
+fn is_rfc3339_timestamp_shape(value: &str) -> bool {
+    let Some((date, time)) = value.split_once('T') else {
+        return false;
+    };
+    if date.len() != 10 {
+        return false;
+    }
+    let date_bytes = date.as_bytes();
+    if date_bytes[4] != b'-' || date_bytes[7] != b'-' {
+        return false;
+    }
+    if !date
+        .bytes()
+        .enumerate()
+        .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit())
     {
-        return Err(AppError::Validation(format!(
-            "backup flavor `{}` does not match target flavor `{}`",
-            metadata.flavor,
-            installation.flavor.as_str()
-        )));
+        return false;
     }
 
-    Ok(())
+    let Some(time_without_zone) = strip_rfc3339_time_zone(time) else {
+        return false;
+    };
+    let time_bytes = time_without_zone.as_bytes();
+    if time_bytes.len() < 8 || time_bytes[2] != b':' || time_bytes[5] != b':' {
+        return false;
+    }
+
+    if !time_without_zone
+        .bytes()
+        .take(8)
+        .enumerate()
+        .all(|(index, byte)| matches!(index, 2 | 5) || byte.is_ascii_digit())
+    {
+        return false;
+    }
+
+    let fraction = &time_without_zone[8..];
+    fraction.is_empty()
+        || (fraction.starts_with('.')
+            && fraction.len() > 1
+            && fraction[1..].bytes().all(|byte| byte.is_ascii_digit()))
+}
+
+fn strip_rfc3339_time_zone(value: &str) -> Option<&str> {
+    if let Some(without_zone) = value.strip_suffix('Z') {
+        return Some(without_zone);
+    }
+
+    if value.len() < 6 {
+        return None;
+    }
+    let split_at = value.len() - 6;
+    let (time, zone) = value.split_at(split_at);
+    let zone_bytes = zone.as_bytes();
+    if matches!(zone_bytes[0], b'+' | b'-')
+        && zone_bytes[1].is_ascii_digit()
+        && zone_bytes[2].is_ascii_digit()
+        && zone_bytes[3] == b':'
+        && zone_bytes[4].is_ascii_digit()
+        && zone_bytes[5].is_ascii_digit()
+    {
+        Some(time)
+    } else {
+        None
+    }
 }
 
 fn clear_group_destination(

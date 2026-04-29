@@ -228,6 +228,50 @@ fn list_backups_reads_metadata_and_sorts_newest_first() {
 }
 
 #[test]
+fn list_backups_rejects_invalid_metadata_contracts() {
+    let temp = tempdir().expect("temp dir");
+    let backup_dir = temp.path().join("backups");
+    fs::create_dir_all(&backup_dir).expect("backup dir");
+
+    write_test_backup_archive(
+        &backup_dir.join("backup-invalid-created-at.zip"),
+        BackupMetadata {
+            schema_version: 1,
+            created_at: "not-a-timestamp".to_string(),
+            label: Some("invalid".to_string()),
+            flavor: "retail".to_string(),
+            flavor_root: PathBuf::from("C:/WoW/_retail_"),
+            groups: vec![BackupGroup::Addons],
+        },
+    );
+
+    let error = list_backups(Some(&backup_dir)).expect_err("invalid metadata should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("backup metadata created_at must be an RFC 3339 timestamp")
+    );
+}
+
+#[test]
+fn list_backups_rejects_symlink_metadata_entries() {
+    let temp = tempdir().expect("temp dir");
+    let backup_dir = temp.path().join("backups");
+    fs::create_dir_all(&backup_dir).expect("backup dir");
+    write_test_backup_archive_with_symlink_metadata(
+        &backup_dir.join("backup-symlink-metadata.zip"),
+        "../backup.toml",
+    );
+
+    let error = list_backups(Some(&backup_dir)).expect_err("symlink metadata should fail closed");
+    let message = error.to_string();
+    assert!(message.contains("backup metadata entry"));
+    assert!(message.contains("unsupported symlink metadata"));
+    assert!(message.contains("backup.toml"));
+}
+
+#[test]
 fn resolve_backup_dir_defaults_to_clean_appdata_layout() {
     let backup_dir = super::storage::resolve_backup_dir(None).expect("default backup dir");
     let path = backup_dir.to_string_lossy().replace('\\', "/");
@@ -660,6 +704,14 @@ enum TestBackupArchiveEntry<'a> {
 
 fn write_test_backup_archive(path: &Path, metadata: BackupMetadata) {
     write_test_backup_archive_with_entries(path, metadata, &[]);
+}
+
+fn write_test_backup_archive_with_symlink_metadata(path: &Path, target: &str) {
+    let file = File::create(path).expect("archive file");
+    let mut zip = ZipWriter::new(file);
+    zip.add_symlink("backup.toml", target, SimpleFileOptions::default())
+        .expect("add backup metadata symlink");
+    zip.finish().expect("finish archive");
 }
 
 fn write_test_backup_archive_with_entries(

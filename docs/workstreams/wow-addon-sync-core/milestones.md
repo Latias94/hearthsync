@@ -364,6 +364,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - backup restore archive preparation now rejects symlink entries up front and reuses the same
   portable archive-segment validation as bundle/external-package ingest, so restore-time path
   safety no longer trails import-time path safety
+- backup metadata now validates at the archive metadata boundary: `backup.toml` symlink/directory
+  entries, invalid schema/timestamps/flavor/group rows, and blank labels fail before catalog or
+  restore-selection code consumes metadata.
 - backup creation now also rejects local directory/interface symlink entries instead of following
   link targets into the archive, keeping backup payloads bounded to the intended WoW tree
 - addon local-archive package preparation now also rejects zip symlink entries, so addon
