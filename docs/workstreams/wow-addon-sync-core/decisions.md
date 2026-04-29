@@ -2091,3 +2091,30 @@ Specifically:
 - Backup and provider validation no longer drift when one side tightens timestamp or URL rules.
 - The shared helper becomes the right place to harden these shapes further if later provider or
   state-file contracts need stricter parsing.
+
+## ADR-082: CurseForge Search Results Validate GUI-Facing Identity
+
+Accepted on 2026-04-29
+
+### Decision
+
+CurseForge search responses are validated before they are projected into app-owned
+`AddonSearchResult` values.
+
+Specifically:
+
+- Search result mod ids must be non-zero.
+- Search result names must be non-empty and must not carry surrounding whitespace.
+- Present website URLs must pass the shared HTTP(S) URL validation rule.
+- Latest-file index rows must use non-zero file ids and non-zero game-version-type ids.
+- Search result projection remains a pure mapping after validation, including optional file-id
+  matching for the requested WoW flavor.
+
+### Consequences
+
+- Future GUI search screens do not need to handle blank provider names, invalid provider links, or
+  `curseforge:0` / `curseforge:<mod>@0` install hints.
+- Provider result shape is validated where remote JSON enters the core instead of being patched in
+  CLI or app output rendering.
+- Search results now follow the same fail-closed boundary model as GitHub release assets and
+  CurseForge file responses.

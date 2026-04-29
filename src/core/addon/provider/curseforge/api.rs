@@ -8,6 +8,7 @@ use super::select::{
     is_world_of_warcraft_game, select_curseforge_version_type, validate_curseforge_file_metadata,
 };
 use crate::core::addon::provider::http::{HttpClient, HttpHeader, HttpRequest};
+use crate::core::boundary_validation::validate_http_url;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 
@@ -82,6 +83,7 @@ pub(super) fn search_curseforge_mods_with_client(
     let response = send_curseforge_request(client, request)?;
     let payload =
         serde_json::from_str::<CurseForgeApiResponse<Vec<CurseForgeSearchMod>>>(&response)?;
+    validate_curseforge_search_mods(&payload.data)?;
 
     Ok((wow_context, payload.data))
 }
@@ -185,6 +187,56 @@ fn send_curseforge_request(client: &impl HttpClient, request: HttpRequest) -> Ap
 fn validate_curseforge_files_metadata(files: &[CurseForgeFile]) -> AppResult<()> {
     for file in files {
         validate_curseforge_file_metadata(file)?;
+    }
+
+    Ok(())
+}
+
+fn validate_curseforge_search_mods(mods: &[CurseForgeSearchMod]) -> AppResult<()> {
+    for mod_item in mods {
+        validate_curseforge_search_mod(mod_item)?;
+    }
+
+    Ok(())
+}
+
+fn validate_curseforge_search_mod(mod_item: &CurseForgeSearchMod) -> AppResult<()> {
+    if mod_item.id == 0 {
+        return Err(AppError::Validation(
+            "CurseForge search result mod id must be greater than zero".to_string(),
+        ));
+    }
+    if mod_item.name.trim().is_empty() {
+        return Err(AppError::Validation(format!(
+            "CurseForge search result `{}` name must not be empty",
+            mod_item.id
+        )));
+    }
+    if mod_item.name.trim() != mod_item.name {
+        return Err(AppError::Validation(format!(
+            "CurseForge search result `{}` name must not have surrounding whitespace",
+            mod_item.id
+        )));
+    }
+    if let Some(website_url) = &mod_item.links.website_url {
+        validate_http_url(
+            website_url,
+            &format!("CurseForge search result `{}` website URL", mod_item.id),
+        )?;
+    }
+    for file_index in &mod_item.latest_files_indexes {
+        if file_index.file_id == 0 {
+            return Err(AppError::Validation(format!(
+                "CurseForge search result `{}` latest file index file id must be greater than zero",
+                mod_item.id
+            )));
+        }
+        if file_index.game_version_type_id == 0 {
+            return Err(AppError::Validation(format!(
+                "CurseForge search result `{}` latest file index game version type id must be greater than zero",
+                mod_item.id
+            )));
+        }
     }
 
     Ok(())

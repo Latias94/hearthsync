@@ -566,6 +566,9 @@ enough that these rules live in one place.
   3339-shaped timestamp recognition, replacing duplicate backup/provider implementations and
   keeping addon source parsing, provider materialization, cache recovery, and remote DTO validation
   on the same shape rules.
+  Current progress: CurseForge search results now validate non-zero mod ids, non-empty unpadded
+  names, HTTP(S) website URLs, and non-zero latest-file index ids before projecting provider JSON
+  into app-owned addon search results.
 
 Exit criteria:
 

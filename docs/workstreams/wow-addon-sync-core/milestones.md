@@ -1032,5 +1032,7 @@ the resulting DTOs as stable product state.
 - shared boundary validators now own HTTP(S) URL scheme recognition and RFC 3339-shaped timestamp
   recognition, so backup metadata, addon source parsing, provider materialization, cache recovery,
   and remote provider DTO validation no longer carry parallel low-level parsers
-- the next provider-side candidate is CurseForge search-result DTO hardening around blank names,
-  website URL scheme, latest-file index ids, and provider result shape
+- CurseForge search responses now validate non-zero mod ids, non-empty unpadded names, HTTP(S)
+  website URLs, and non-zero latest-file index ids before projection into app-owned search results
+- the next provider-side candidate is validating CurseForge game/version context DTOs and deciding
+  whether blank optional provider text should be normalized at projection or rejected at fetch

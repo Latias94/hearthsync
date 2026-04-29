@@ -12,8 +12,8 @@ use zip::write::SimpleFileOptions;
 
 use super::curseforge::{
     CurseForgeFile, CurseForgeFileReleaseType, CurseForgeGameVersionType,
-    CurseForgeSortableGameVersion, select_curseforge_version_type, select_latest_curseforge_file,
-    validate_curseforge_file,
+    CurseForgeSortableGameVersion, search_curseforge_mods_with_client,
+    select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
 };
 use super::github::{
     GitHubRelease, GitHubReleaseAsset, fetch_github_release_with_client,
@@ -1397,6 +1397,91 @@ fn default_addon_provider_accepts_standard_curseforge_api_key_env() {
 }
 
 #[test]
+fn search_curseforge_mods_with_client_projects_validated_results() {
+    let _guard = curseforge_api_key_guard("test-api-key");
+    let client = CurseForgeSearchHttpClient::new(
+        r#"{"data":[{"id":42,"name":"WeakAuras","summary":"Aura tracking","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://www.curseforge.com/wow/addons/weakauras-2"}}]}"#,
+    );
+
+    let results = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 100)
+        .expect("search");
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].name, "WeakAuras");
+    assert_eq!(results[0].summary.as_deref(), Some("Aura tracking"));
+    assert_eq!(
+        results[0].source,
+        AddonSourceRef::CurseForgeMod {
+            mod_id: 42,
+            file_id: Some(777),
+        }
+    );
+    assert_eq!(results[0].install_hint, "curseforge:42@777");
+    assert_eq!(results[0].provider_project_id, Some(42));
+    assert_eq!(results[0].provider_file_id, Some(777));
+
+    let requests = client.requests.borrow();
+    let search_request = requests
+        .iter()
+        .find(|request| request.url == "https://api.curseforge.com/v1/mods/search")
+        .expect("search request");
+    assert!(
+        search_request
+            .query
+            .contains(&("pageSize".to_string(), "50".to_string()))
+    );
+    assert!(
+        search_request
+            .query
+            .contains(&("searchFilter".to_string(), "weak".to_string()))
+    );
+}
+
+#[test]
+fn search_curseforge_mods_with_client_rejects_invalid_result_contracts() {
+    let _guard = curseforge_api_key_guard("test-api-key");
+    let cases = [
+        (
+            r#"{"data":[{"id":0,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
+            "mod id must be greater than zero",
+        ),
+        (
+            r#"{"data":[{"id":42,"name":" ","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
+            "name must not be empty",
+        ),
+        (
+            r#"{"data":[{"id":42,"name":" WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
+            "name must not have surrounding whitespace",
+        ),
+        (
+            r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"ftp://example.com/weakauras"}}]}"#,
+            "website URL must start with",
+        ),
+        (
+            r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[{"fileId":0,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
+            "latest file index file id",
+        ),
+        (
+            r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":0}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
+            "latest file index game version type id",
+        ),
+    ];
+
+    for (body, expected_message) in cases {
+        let client = CurseForgeSearchHttpClient::new(body);
+        let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
+            .expect_err("invalid search result");
+
+        assert!(
+            error.to_string().contains(expected_message),
+            "expected `{}` in `{}`",
+            expected_message,
+            error
+        );
+    }
+}
+
+#[test]
 fn default_addon_provider_rejects_invalid_curseforge_file_list_contracts() {
     #[derive(Default)]
     struct FakeHttpClient;
@@ -2383,6 +2468,56 @@ impl HttpClient for StaticResponseHttpClient<'_> {
             status_code: 200,
             body: self.body.to_string(),
         })
+    }
+
+    fn download_to_path(
+        &self,
+        _request: HttpDownloadRequest,
+        _cancellation: &dyn CancellationToken,
+        _observer: Option<&dyn HttpDownloadProgressObserver>,
+    ) -> AppResult<HttpDownloadResponse> {
+        panic!("download_to_path should not be called in this test")
+    }
+}
+
+struct CurseForgeSearchHttpClient<'a> {
+    search_body: &'a str,
+    requests: RefCell<Vec<HttpRequest>>,
+}
+
+impl<'a> CurseForgeSearchHttpClient<'a> {
+    fn new(search_body: &'a str) -> Self {
+        Self {
+            search_body,
+            requests: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl HttpClient for CurseForgeSearchHttpClient<'_> {
+    fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+        self.requests.borrow_mut().push(request.clone());
+        match request.url.as_str() {
+            "https://api.curseforge.com/v1/games" => Ok(HttpResponse {
+                status_code: 200,
+                body:
+                    r#"{"data":[{"id":1,"name":"World of Warcraft","slug":"world-of-warcraft"}]}"#
+                        .to_string(),
+            }),
+            "https://api.curseforge.com/v1/games/1/version-types" => Ok(HttpResponse {
+                status_code: 200,
+                body: r#"{"data":[{"id":517,"name":"WoW Retail","slug":"wow_retail"}]}"#
+                    .to_string(),
+            }),
+            "https://api.curseforge.com/v1/mods/search" => Ok(HttpResponse {
+                status_code: 200,
+                body: self.search_body.to_string(),
+            }),
+            _ => Err(AppError::Validation(format!(
+                "unexpected request url: {}",
+                request.url
+            ))),
+        }
     }
 
     fn download_to_path(
