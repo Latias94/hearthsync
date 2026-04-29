@@ -712,6 +712,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - those warning codes now distinguish the hard "missing both exact hints" case from softer
   curation follow-up: `missing_exact_identity_hints` is blocking, while
   `missing_match_package_ids` and `missing_addon_directories` remain advisory
+- addon-index inspection regression coverage now lives in
+  `core::addon::index::tests::inspect`, leaving the root addon-index test module for curation,
+  install, attach, relink, and update orchestration until those are split in later slices
 - `addon index validate` now also exists as an explicit curator gate, returning a structured
   validation result while making the CLI fail fast only on blocking addon-index curation warnings
 - `addon index suggest` now also exists as the first explicit curator authoring helper: it reuses

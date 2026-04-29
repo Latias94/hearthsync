@@ -785,6 +785,9 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   bucket. `missing_exact_identity_hints` remains the blocking "both hints absent" case, while
   `missing_match_package_ids` and `missing_addon_directories` stay advisory so curators can see
   incomplete exact-hint coverage without turning every partial hint into a hard validation failure.
+  Current cleanup: pure addon-index inspection tests now live in
+  `core::addon::index::tests::inspect`, so later curation/install/update orchestration coverage can
+  be split without continuing to grow one root addon-index test file.
   Current cleanup: `addon index validate` now turns those structured inspect warnings into an
   explicit curator gate. It returns a structured validation result for JSON/app consumers,
   including total, blocking, and advisory warning counts, while the CLI only exits non-zero when
