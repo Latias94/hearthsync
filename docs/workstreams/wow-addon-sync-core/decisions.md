@@ -2011,3 +2011,30 @@ Specifically:
 - Backup catalogs can trust metadata labels as display text that also remains safe for filename
   reuse.
 - Existing no-label backups keep the same behavior.
+
+## ADR-079: GitHub Provider Responses Validate Downloadable Asset Contracts
+
+Accepted on 2026-04-29
+
+### Decision
+
+GitHub release JSON is validated immediately after provider fetch and again before selecting a
+downloadable archive asset.
+
+Specifically:
+
+- Release `tag_name` must be non-empty before it can become a resolved tracked source tag.
+- Release asset names must be portable single filename segments and unique under
+  case-insensitive comparison.
+- Release asset download URLs must be non-empty `http://` or `https://` URLs.
+- The selected downloadable asset must be a `.zip` archive, including explicit `#asset` selections.
+- Non-zip release assets remain valid release metadata, but they cannot be selected as addon
+  archives.
+
+### Consequences
+
+- Provider cache paths and future GUI download views no longer consume GitHub asset names that
+  would be unsafe on Windows or default macOS filesystems.
+- Floating GitHub release resolution cannot persist a blank tag into managed addon state.
+- Explicit GitHub asset selection fails at the provider boundary instead of deferring an invalid
+  archive name or URL to the downloader.

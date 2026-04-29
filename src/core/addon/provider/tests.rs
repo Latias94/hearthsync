@@ -294,6 +294,22 @@ fn fetch_github_releases_with_client_uses_release_list_endpoint() {
 }
 
 #[test]
+fn fetch_github_release_with_client_rejects_invalid_release_contracts() {
+    let client = StaticResponseHttpClient {
+        body: r#"{"tag_name":" ","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#,
+    };
+
+    let error = fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3"))
+        .expect_err("invalid release");
+
+    assert!(
+        error
+            .to_string()
+            .contains("GitHub release tag name must not be empty")
+    );
+}
+
+#[test]
 fn default_addon_provider_accepts_injected_http_client() {
     #[derive(Default)]
     struct FakeHttpClient {
@@ -1978,6 +1994,59 @@ fn select_github_release_asset_matches_explicit_asset() {
 }
 
 #[test]
+fn select_github_release_asset_rejects_non_portable_asset_names() {
+    let release = GitHubRelease {
+        tag_name: "v1.2.3".to_string(),
+        draft: false,
+        prerelease: false,
+        assets: vec![github_release_asset(
+            "bad/name.zip",
+            "https://example.com/addon.zip",
+        )],
+    };
+
+    let error = select_github_release_asset(&release, None).expect_err("unsafe asset name");
+    assert!(
+        error
+            .to_string()
+            .contains("invalid GitHub release asset name")
+    );
+}
+
+#[test]
+fn select_github_release_asset_rejects_invalid_download_url() {
+    let release = GitHubRelease {
+        tag_name: "v1.2.3".to_string(),
+        draft: false,
+        prerelease: false,
+        assets: vec![github_release_asset(
+            "addon.zip",
+            "ftp://example.com/addon.zip",
+        )],
+    };
+
+    let error = select_github_release_asset(&release, None).expect_err("invalid download url");
+    assert!(error.to_string().contains("download URL must start with"));
+}
+
+#[test]
+fn select_github_release_asset_rejects_explicit_non_zip_asset() {
+    let release = GitHubRelease {
+        tag_name: "v1.2.3".to_string(),
+        draft: false,
+        prerelease: false,
+        assets: vec![github_release_asset(
+            "addon.txt",
+            "https://example.com/addon.txt",
+        )],
+    };
+
+    let error =
+        select_github_release_asset(&release, Some("addon.txt")).expect_err("non-zip asset");
+    assert!(error.to_string().contains("is not a `.zip` archive"));
+}
+
+#[test]
 fn select_github_release_prefers_latest_prerelease_when_allowed() {
     let releases = vec![
         GitHubRelease {
@@ -2147,6 +2216,28 @@ fn validate_curseforge_file_rejects_missing_download_url() {
     .expect_err("missing download url");
 
     assert!(error.to_string().contains("download URL"));
+}
+
+struct StaticResponseHttpClient<'a> {
+    body: &'a str,
+}
+
+impl HttpClient for StaticResponseHttpClient<'_> {
+    fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+        Ok(HttpResponse {
+            status_code: 200,
+            body: self.body.to_string(),
+        })
+    }
+
+    fn download_to_path(
+        &self,
+        _request: HttpDownloadRequest,
+        _cancellation: &dyn CancellationToken,
+        _observer: Option<&dyn HttpDownloadProgressObserver>,
+    ) -> AppResult<HttpDownloadResponse> {
+        panic!("download_to_path should not be called in this test")
+    }
 }
 
 fn github_release_asset(name: &str, browser_download_url: &str) -> GitHubReleaseAsset {

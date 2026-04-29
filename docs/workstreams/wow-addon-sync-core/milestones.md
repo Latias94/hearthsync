@@ -987,3 +987,41 @@ contracts for the future `egui` frontend.
 - sixth progress is also complete: `cargo clippy --all-targets -- -D warnings` now passes. The
   cleanup kept mechanical style fixes separate from real boundary fixes, and the meaningful
   long-argument warnings now use request/context payloads instead of broad lint suppression.
+
+## M10 - Pre-GUI Boundary Contract Hardening
+
+### Status
+
+In progress
+
+### Goal
+
+Make every file, app, and remote-provider boundary fail closed before future `egui` code consumes
+the resulting DTOs as stable product state.
+
+### Deliverables
+
+- validated readers for manifests, apply mappings, addon locks, backup metadata, and sidecar
+  source indexes
+- provider response validation for remote archive identities before cache path construction or
+  download execution
+- regression coverage for cross-platform path identity, duplicate detection, and invalid remote
+  metadata
+
+### Exit Criteria
+
+- app and CLI callers do not need parallel validation for loaded files or fetched provider DTOs
+- unsafe names, duplicate case-folded identities, blank semantic fields, and invalid download URLs
+  fail before planning or execution mutates state
+- future GUI forms can project and edit app-owned DTOs without preserving raw parsed-but-invalid
+  values
+
+### Current Notes
+
+- recent progress has moved manifest, apply-mapping, addon-lock, addon-lock sidecar, and backup
+  metadata validation to the read/write boundaries that own those contracts
+- GitHub release fetch now validates non-empty release tags, portable case-insensitively unique
+  asset names, and HTTP(S) asset download URLs; selecting a GitHub asset also rejects explicit
+  non-zip assets before cache or downloader code sees them
+- the next provider-side candidate is CurseForge file DTO hardening around portable filenames,
+  URL schemes, and required timestamp semantics

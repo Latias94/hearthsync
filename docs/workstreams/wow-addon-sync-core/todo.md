@@ -24,6 +24,8 @@ The active refactor sequence is:
    of adding frontend-only progress channels
 9. close the 2026-04-28 architecture-hardening findings before `egui` depends on current addon
    mutation, index update, config, provider, and task boundaries
+10. keep closing app/file/provider boundary validation gaps so future GUI screens consume trusted
+    DTOs instead of raw parsed data
 
 ## Refactor Rules
 
@@ -551,6 +553,10 @@ enough that these rules live in one place.
   Current progress: bundle archive entry validation now also rejects non-portable path segments
   during inspect/apply, so first-party bundle archives fail on the same portable-name floor as
   addon/external-package/backup archives.
+  Current progress: GitHub provider responses now validate release tags, portable
+  case-insensitively unique asset names, and HTTP(S) download URLs after fetch. Asset selection also
+  validates the selected asset and rejects explicit non-zip assets before cache path construction or
+  download execution.
 
 Exit criteria:
 
