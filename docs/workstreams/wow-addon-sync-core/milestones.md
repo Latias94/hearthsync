@@ -1040,6 +1040,11 @@ the resulting DTOs as stable product state.
   `gameVersionTypeId` as unique, matching observed API responses
 - optional CurseForge search summaries are normalized during app-result projection: trimmed text is
   preserved, blank text becomes absent
-- the next provider-side candidate is deciding whether remote response validators such as hash
-  values, file lengths, and provider timestamps need stricter syntax checks before cache metadata
-  persistence
+- provider archive validators now fail closed before cache metadata persistence: GitHub asset
+  size/digest/updated_at values and CurseForge file length/hash/sortable-version metadata are
+  validated before initial materialization or cache repair can store them
+- SHA-256 hex validation now lives in the shared boundary validator module and is reused by addon
+  locks and bundle source indexes instead of duplicated locally
+- the next provider-side candidate is checking whether dependency DTOs and release-type contracts
+  need the same boundary treatment before dependency installation and update policy decisions use
+  them

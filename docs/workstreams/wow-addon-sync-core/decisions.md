@@ -2146,3 +2146,37 @@ Specifically:
 - Future GUI search filters and install hints do not inherit ambiguous provider context ids.
 - Identity fields remain fail-closed, while optional display copy is normalized at the projection
   boundary instead of becoming GUI cleanup work.
+
+## ADR-084: Provider Archive Validators Are Validated Before Cache Persistence
+
+Accepted on 2026-04-29
+
+### Decision
+
+Remote archive validator fields from provider DTOs are validated before they are projected into
+download cache metadata.
+
+Specifically:
+
+- Hex digest shape checks live in `core::boundary_validation`, alongside the shared URL and RFC
+  3339 timestamp helpers.
+- GitHub asset `size`, `digest`, and `updated_at` fields are optional, but present values must be
+  semantically usable: positive size, `sha256:` plus a 64-character SHA-256 hex digest, and an RFC
+  3339-shaped timestamp.
+- CurseForge file `fileLength`, known hash values, and sortable game-version ids are optional or
+  provider-dependent, but present values must be positive and unambiguous before the file can be
+  selected for download or cache repair.
+- CurseForge hash algo `1` is treated as SHA-1 and must be a 40-character hex digest; algo `2` is
+  treated as MD5 and must be a 32-character hex digest. Duplicate known hash algos are rejected
+  instead of silently choosing the first value.
+- Addon lock and bundle source-index SHA-256 validation now reuse the shared digest helper instead
+  of carrying duplicate local parsers.
+
+### Consequences
+
+- Cache metadata can no longer persist short provider digests, zero-length remote archive
+  validators, or padded provider timestamps.
+- Cache repair compares provider validators that have already passed the same boundary floor as
+  initial materialization.
+- Future GUI cache and update screens can treat persisted remote validator metadata as structured
+  product state rather than raw best-effort provider strings.

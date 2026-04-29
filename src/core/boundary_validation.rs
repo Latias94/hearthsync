@@ -59,6 +59,29 @@ fn is_rfc3339_time(value: &str) -> bool {
         && is_rfc3339_zone(zone)
 }
 
+pub(in crate::core) fn is_hex_digest(value: &str, expected_len: usize) -> bool {
+    value.len() == expected_len && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+pub(in crate::core) fn is_sha256_hex(value: &str) -> bool {
+    is_hex_digest(value, 64)
+}
+
+pub(in crate::core) fn validate_hex_digest(
+    value: &str,
+    field: &str,
+    expected_len: usize,
+    algorithm: &str,
+) -> AppResult<()> {
+    if !is_hex_digest(value, expected_len) {
+        return Err(AppError::Validation(format!(
+            "{field} must be a {expected_len}-character {algorithm} hex digest"
+        )));
+    }
+
+    Ok(())
+}
+
 fn split_rfc3339_zone(value: &str) -> Option<(&str, &str)> {
     if let Some(time) = value.strip_suffix('Z') {
         return Some((time, "Z"));
@@ -86,7 +109,10 @@ fn is_rfc3339_zone(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_http_url, is_rfc3339_timestamp_shape, validate_http_url};
+    use super::{
+        is_hex_digest, is_http_url, is_rfc3339_timestamp_shape, is_sha256_hex, validate_hex_digest,
+        validate_http_url,
+    };
 
     #[test]
     fn is_http_url_accepts_supported_schemes() {
@@ -132,5 +158,30 @@ mod tests {
         ] {
             assert!(!is_rfc3339_timestamp_shape(value), "{value}");
         }
+    }
+
+    #[test]
+    fn hex_digest_helpers_validate_exact_ascii_hex_shapes() {
+        assert!(is_hex_digest("0123456789abcdefABCDEF", 22));
+        assert!(is_sha256_hex(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ));
+
+        for value in [
+            "",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaag",
+            " aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ] {
+            assert!(!is_sha256_hex(value), "{value}");
+        }
+
+        let error =
+            validate_hex_digest("abc", "asset digest", 64, "SHA-256").expect_err("short digest");
+        assert!(
+            error
+                .to_string()
+                .contains("asset digest must be a 64-character SHA-256 hex digest")
+        );
     }
 }

@@ -1,6 +1,13 @@
-use super::model::{CurseForgeFile, CurseForgeGame, CurseForgeGameVersionType};
+use std::collections::BTreeSet;
+
+use super::model::{
+    CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1, CurseForgeFile, CurseForgeGame,
+    CurseForgeGameVersionType,
+};
 use crate::core::archive_path::validate_portable_path_segment;
-use crate::core::boundary_validation::{is_rfc3339_timestamp_shape, validate_http_url};
+use crate::core::boundary_validation::{
+    is_rfc3339_timestamp_shape, validate_hex_digest, validate_http_url,
+};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 
@@ -147,6 +154,14 @@ pub(crate) fn validate_curseforge_file_metadata(file: &CurseForgeFile) -> AppRes
     if let Some(download_url) = &file.download_url {
         validate_curseforge_download_url(file.id, download_url)?;
     }
+    if file.file_length.is_some_and(|file_length| file_length == 0) {
+        return Err(AppError::Validation(format!(
+            "CurseForge file `{}` file length must be greater than zero",
+            file.id
+        )));
+    }
+    validate_curseforge_file_hashes(file)?;
+    validate_curseforge_sortable_game_versions(file)?;
 
     Ok(())
 }
@@ -160,6 +175,65 @@ fn validate_curseforge_download_url(file_id: u32, download_url: &str) -> AppResu
 
 fn is_zip_file_name(file_name: &str) -> bool {
     file_name.to_ascii_lowercase().ends_with(".zip")
+}
+
+fn validate_curseforge_file_hashes(file: &CurseForgeFile) -> AppResult<()> {
+    let mut known_hash_algos = BTreeSet::new();
+    for hash in &file.hashes {
+        if hash.value.trim().is_empty() {
+            return Err(AppError::Validation(format!(
+                "CurseForge file `{}` hash value for algo `{}` must not be empty",
+                file.id, hash.algo
+            )));
+        }
+        if hash.value.trim() != hash.value {
+            return Err(AppError::Validation(format!(
+                "CurseForge file `{}` hash value for algo `{}` must not have surrounding whitespace",
+                file.id, hash.algo
+            )));
+        }
+        let Some((expected_len, algorithm)) = curseforge_hash_contract(hash.algo) else {
+            continue;
+        };
+        if !known_hash_algos.insert(hash.algo) {
+            return Err(AppError::Validation(format!(
+                "CurseForge file `{}` declares duplicate hash algo `{}`",
+                file.id, hash.algo
+            )));
+        }
+        validate_hex_digest(
+            &hash.value,
+            &format!(
+                "CurseForge file `{}` hash value for algo `{}`",
+                file.id, hash.algo
+            ),
+            expected_len,
+            algorithm,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn validate_curseforge_sortable_game_versions(file: &CurseForgeFile) -> AppResult<()> {
+    for game_version in &file.sortable_game_versions {
+        if game_version.game_version_type_id == 0 {
+            return Err(AppError::Validation(format!(
+                "CurseForge file `{}` sortable game version type id must be greater than zero",
+                file.id
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn curseforge_hash_contract(algo: u8) -> Option<(usize, &'static str)> {
+    match algo {
+        CURSEFORGE_HASH_ALGO_SHA1 => Some((40, "SHA-1")),
+        CURSEFORGE_HASH_ALGO_MD5 => Some((32, "MD5")),
+        _ => None,
+    }
 }
 
 fn curseforge_version_type_candidates(flavor: WowFlavor) -> &'static [&'static str] {

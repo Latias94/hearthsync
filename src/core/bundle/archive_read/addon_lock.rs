@@ -14,6 +14,7 @@ use super::safety::reject_unsupported_bundle_symlink_entry;
 use crate::core::addon::lock::AddonLockSourceOverride;
 use crate::core::archive_io::copy_reader_to_path;
 use crate::core::archive_path::{safe_zip_segments_under, validate_portable_path_segment};
+use crate::core::boundary_validation::is_sha256_hex;
 use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle) fn extract_embedded_addon_lock(
@@ -184,10 +185,6 @@ fn validate_bundle_addon_source_entry(
     }
 
     Ok(())
-}
-
-fn is_sha256_hex(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 fn safe_bundle_addon_source_segments(path: &str) -> AppResult<Vec<&str>> {

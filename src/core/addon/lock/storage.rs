@@ -16,6 +16,7 @@ use crate::core::addon::{
 };
 use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::atomic_write::write_bytes_atomically;
+use crate::core::boundary_validation::is_sha256_hex;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
@@ -482,10 +483,6 @@ fn validate_optional_lock_text(
     }
 
     Ok(())
-}
-
-fn is_sha256_hex(value: &str) -> bool {
-    value.len() == 64 && value.chars().all(|char| char.is_ascii_hexdigit())
 }
 
 pub(super) fn now_rfc3339() -> AppResult<String> {

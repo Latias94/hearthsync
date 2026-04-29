@@ -10,8 +10,8 @@ use api::{
 use model::CurseForgeSearchMod;
 #[allow(unused_imports)]
 pub(crate) use model::{
-    CurseForgeFile, CurseForgeFileDependency, CurseForgeGameVersionType,
-    CurseForgeSortableGameVersion,
+    CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1, CurseForgeFile, CurseForgeFileDependency,
+    CurseForgeFileHash, CurseForgeGameVersionType, CurseForgeSortableGameVersion,
 };
 use select::ensure_curseforge_file_matches_version_type;
 #[allow(unused_imports)]

@@ -575,6 +575,11 @@ enough that these rules live in one place.
   `gameVersionTypeId` entries, matching observed CurseForge API responses. Optional search
   summaries are normalized during app-result projection: trimmed text is preserved, blank text
   becomes absent.
+  Current progress: provider archive validators now validate before cache metadata persistence.
+  GitHub asset `size`, `digest`, and `updated_at` values must be usable when present; CurseForge
+  file length, known hash digests, and sortable game-version ids must be positive and unambiguous.
+  Shared SHA-256 hex validation now lives in `core::boundary_validation` and is reused by addon
+  locks and bundle source indexes.
 
 Exit criteria:
 

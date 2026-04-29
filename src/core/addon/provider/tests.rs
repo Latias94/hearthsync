@@ -11,7 +11,7 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 use super::curseforge::{
-    CurseForgeFile, CurseForgeFileReleaseType, CurseForgeGameVersionType,
+    CurseForgeFile, CurseForgeFileHash, CurseForgeFileReleaseType, CurseForgeGameVersionType,
     CurseForgeSortableGameVersion, search_curseforge_mods_with_client,
     select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
 };
@@ -1779,10 +1779,10 @@ fn default_addon_provider_redownloads_cached_release_when_remote_asset_validator
             self.release_calls.set(next_call);
             let body = match next_call {
                 1 => {
-                    r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.2.3/addon.zip","size":17,"digest":"sha256:1111","updated_at":"2026-04-20T10:00:00Z"}]}"#
+                    r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.2.3/addon.zip","size":17,"digest":"sha256:1111111111111111111111111111111111111111111111111111111111111111","updated_at":"2026-04-20T10:00:00Z"}]}"#
                 }
                 _ => {
-                    r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.2.3/addon.zip","size":21,"digest":"sha256:2222","updated_at":"2026-04-21T10:00:00Z"}]}"#
+                    r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/v1.2.3/addon.zip","size":21,"digest":"sha256:2222222222222222222222222222222222222222222222222222222222222222","updated_at":"2026-04-21T10:00:00Z"}]}"#
                 }
             };
             Ok(HttpResponse {
@@ -1868,10 +1868,10 @@ fn default_addon_provider_redownloads_cached_curseforge_file_when_remote_validat
             self.file_calls.set(next_call);
             let body = match next_call {
                 1 => {
-                    r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-20T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"fileLength":17,"hashes":[{"value":"aaaa","algo":1},{"value":"bbbb","algo":2}]}}"#
+                    r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-20T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"fileLength":17,"hashes":[{"value":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","algo":1},{"value":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","algo":2}]}}"#
                 }
                 _ => {
-                    r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"fileLength":21,"hashes":[{"value":"cccc","algo":1},{"value":"dddd","algo":2}]}}"#
+                    r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"fileLength":21,"hashes":[{"value":"cccccccccccccccccccccccccccccccccccccccc","algo":1},{"value":"dddddddddddddddddddddddddddddddd","algo":2}]}}"#
                 }
             };
             Ok(HttpResponse {
@@ -2293,6 +2293,58 @@ fn select_github_release_asset_rejects_invalid_download_url() {
 }
 
 #[test]
+fn select_github_release_asset_rejects_invalid_remote_validator_metadata() {
+    let cases = vec![
+        (
+            GitHubReleaseAsset {
+                size: Some(0),
+                ..github_release_asset("addon.zip", "https://example.com/addon.zip")
+            },
+            "size must be greater than zero",
+        ),
+        (
+            GitHubReleaseAsset {
+                digest: Some("sha256:abc".to_string()),
+                ..github_release_asset("addon.zip", "https://example.com/addon.zip")
+            },
+            "digest must be a 64-character SHA-256 hex digest",
+        ),
+        (
+            GitHubReleaseAsset {
+                digest: Some("sha1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()),
+                ..github_release_asset("addon.zip", "https://example.com/addon.zip")
+            },
+            "digest must use the `sha256:` prefix",
+        ),
+        (
+            GitHubReleaseAsset {
+                updated_at: Some("2026-04-02 12:00:00".to_string()),
+                ..github_release_asset("addon.zip", "https://example.com/addon.zip")
+            },
+            "updated_at must be an RFC 3339 timestamp",
+        ),
+    ];
+
+    for (asset, expected_message) in cases {
+        let release = GitHubRelease {
+            tag_name: "v1.2.3".to_string(),
+            draft: false,
+            prerelease: false,
+            assets: vec![asset],
+        };
+
+        let error = select_github_release_asset(&release, None)
+            .expect_err("invalid remote validator metadata");
+        assert!(
+            error.to_string().contains(expected_message),
+            "expected `{}` in `{}`",
+            expected_message,
+            error
+        );
+    }
+}
+
+#[test]
 fn select_github_release_asset_rejects_explicit_non_zip_asset() {
     let release = GitHubRelease {
         tag_name: "v1.2.3".to_string(),
@@ -2524,6 +2576,101 @@ fn validate_curseforge_file_rejects_invalid_file_date() {
     .expect_err("invalid file date");
 
     assert!(error.to_string().contains("file date must be"));
+}
+
+#[test]
+fn validate_curseforge_file_rejects_invalid_remote_validator_metadata() {
+    let mut zero_length = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    zero_length.file_length = Some(0);
+
+    let mut short_sha1 = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    short_sha1.hashes = vec![CurseForgeFileHash {
+        value: "abc".to_string(),
+        algo: 1,
+    }];
+
+    let mut short_md5 = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    short_md5.hashes = vec![CurseForgeFileHash {
+        value: "abc".to_string(),
+        algo: 2,
+    }];
+
+    let mut duplicate_sha1 = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    duplicate_sha1.hashes = vec![
+        CurseForgeFileHash {
+            value: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            algo: 1,
+        },
+        CurseForgeFileHash {
+            value: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string(),
+            algo: 1,
+        },
+    ];
+
+    let mut zero_version_type = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    zero_version_type.sortable_game_versions = vec![CurseForgeSortableGameVersion {
+        game_version_type_id: 0,
+    }];
+
+    for (file, expected_message) in [
+        (zero_length, "file length must be greater than zero"),
+        (
+            short_sha1,
+            "hash value for algo `1` must be a 40-character SHA-1 hex digest",
+        ),
+        (
+            short_md5,
+            "hash value for algo `2` must be a 32-character MD5 hex digest",
+        ),
+        (duplicate_sha1, "declares duplicate hash algo `1`"),
+        (
+            zero_version_type,
+            "sortable game version type id must be greater than zero",
+        ),
+    ] {
+        let error = validate_curseforge_file(file).expect_err("invalid remote validator metadata");
+        assert!(
+            error.to_string().contains(expected_message),
+            "expected `{}` in `{}`",
+            expected_message,
+            error
+        );
+    }
 }
 
 #[test]

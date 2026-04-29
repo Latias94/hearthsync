@@ -4,7 +4,7 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
-use super::curseforge::CurseForgeFile;
+use super::curseforge::{CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1, CurseForgeFile};
 use super::github::GitHubReleaseAsset;
 use super::http::HttpHeader;
 use crate::core::error::AppResult;
@@ -52,9 +52,6 @@ pub(super) fn remote_validators_for_github_asset(
 
     validators
 }
-
-const CURSEFORGE_HASH_ALGO_SHA1: u8 = 1;
-const CURSEFORGE_HASH_ALGO_MD5: u8 = 2;
 
 pub(super) fn remote_validators_for_curseforge_file(
     file: &CurseForgeFile,
