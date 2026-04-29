@@ -492,6 +492,9 @@ enough that these rules live in one place.
   Current progress: addon-lock files now fail closed at read time on invalid source refs, relative
   local archive refs, blank package metadata/timestamps, invalid content hashes, non-portable addon
   directory names, and case-insensitive addon-directory ownership conflicts.
+  Current progress: addon-policy files now fail closed on blank update timestamps, blank or
+  duplicate package ids, no-op package rows, empty version pins, and zero file-id pins, and writes
+  run the same validation before persistence.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

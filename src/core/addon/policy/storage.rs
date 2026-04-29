@@ -13,7 +13,7 @@ use crate::core::install::DetectedFlavorInstallation;
 use super::{
     AddonPolicyInspection, AddonPolicyMutationResult, AddonPolicyPackageEntry,
     AddonPolicyPackageView, AddonPolicyPin, AddonPolicyState, RemoveAddonPolicyRequest,
-    SetAddonPolicyRequest,
+    SetAddonPolicyRequest, normalize_package_key,
 };
 
 pub fn inspect_addon_policy(
@@ -166,6 +166,7 @@ fn persist_addon_policy_state(path: &Path, state: &mut AddonPolicyState) -> AppR
     state
         .packages
         .sort_by(|left, right| left.package_id.cmp(&right.package_id));
+    validate_addon_policy_state(state)?;
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -293,15 +294,16 @@ fn validate_addon_policy_state(state: &AddonPolicyState) -> AppResult<()> {
             state.schema_version
         )));
     }
+    if state.updated_at.trim().is_empty() {
+        return Err(AppError::Validation(
+            "addon policy updated_at must not be empty".to_string(),
+        ));
+    }
 
     let mut package_ids = BTreeSet::new();
     for entry in &state.packages {
-        if entry.package_id.trim().is_empty() {
-            return Err(AppError::Validation(
-                "addon policy package id cannot be empty".to_string(),
-            ));
-        }
-        let normalized = entry.package_id.to_ascii_lowercase();
+        validate_addon_policy_entry(entry)?;
+        let normalized = normalize_package_key(&entry.package_id);
         if !package_ids.insert(normalized) {
             return Err(AppError::Validation(format!(
                 "duplicate addon policy package id: {}",
@@ -311,6 +313,44 @@ fn validate_addon_policy_state(state: &AddonPolicyState) -> AppResult<()> {
     }
 
     Ok(())
+}
+
+fn validate_addon_policy_entry(entry: &AddonPolicyPackageEntry) -> AppResult<()> {
+    if entry.package_id.trim().is_empty() {
+        return Err(AppError::Validation(
+            "addon policy package id cannot be empty".to_string(),
+        ));
+    }
+    if !entry_has_policy_setting(entry) {
+        return Err(AppError::Validation(format!(
+            "addon policy package `{}` must contain at least one policy setting",
+            entry.package_id
+        )));
+    }
+
+    match &entry.pin {
+        Some(AddonPolicyPin::Version { value }) if value.trim().is_empty() => {
+            Err(AppError::Validation(format!(
+                "addon policy pinned version cannot be empty for package `{}`",
+                entry.package_id
+            )))
+        }
+        Some(AddonPolicyPin::FileId { value }) if *value == 0 => {
+            Err(AppError::Validation(format!(
+                "addon policy pinned file id must be greater than zero for package `{}`",
+                entry.package_id
+            )))
+        }
+        _ => Ok(()),
+    }
+}
+
+fn entry_has_policy_setting(entry: &AddonPolicyPackageEntry) -> bool {
+    entry.ignored.is_some()
+        || entry.pin.is_some()
+        || entry.release_channel.is_some()
+        || entry.allow_prerelease.is_some()
+        || entry.install_dependencies.is_some()
 }
 
 fn now_rfc3339() -> AppResult<String> {

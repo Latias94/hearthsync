@@ -1777,3 +1777,30 @@ Specifically:
   actions later; the lock file itself is invalid.
 - Future GUI lock editors can validate lock payloads through one storage-boundary contract instead
   of duplicating plan-time checks.
+
+## ADR-070: Addon Policy Files Validate Mutable State Contracts
+
+Accepted on 2026-04-29
+
+### Decision
+
+Addon policy files must validate mutable preference state at the same storage boundary used by
+inspect, set, remove, and update-policy snapshot loading.
+
+Specifically:
+
+- Existing policy files must carry a non-empty `updated_at`.
+- Policy package ids must be non-empty and case-insensitively unique after trimming.
+- Every policy package entry must contain at least one real policy setting.
+- Version pins must be non-empty when present.
+- File-id pins must be greater than zero when present.
+- Policy writes must run the same validation after timestamp refresh and sorting, before atomic
+  persistence.
+
+### Consequences
+
+- Hand-edited policy files and future GUI state editors cannot persist no-op or invalid preference
+  rows that later behave differently across inspect, update, and provider-resolution paths.
+- Pin validation is now enforced both on mutation requests and on stored state loaded from disk.
+- Future addon-policy UI work can treat the core policy storage contract as the canonical gate
+  instead of duplicating pin and row-validity rules.

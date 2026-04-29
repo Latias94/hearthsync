@@ -342,6 +342,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon-lock files now fail closed at read time on invalid source refs, relative local archive
   refs, blank package metadata/timestamps, invalid content hashes, non-portable addon directory
   names, and case-insensitive addon-directory ownership conflicts.
+- addon-policy files now also fail closed on blank update timestamps, blank or duplicate package
+  ids, no-op package rows, empty version pins, and zero file-id pins, with the same validation
+  applied before writes.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead
