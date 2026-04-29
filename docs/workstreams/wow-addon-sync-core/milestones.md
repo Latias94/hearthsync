@@ -1045,6 +1045,9 @@ the resulting DTOs as stable product state.
   validated before initial materialization or cache repair can store them
 - SHA-256 hex validation now lives in the shared boundary validator module and is reused by addon
   locks and bundle source indexes instead of duplicated locally
-- the next provider-side candidate is checking whether dependency DTOs and release-type contracts
-  need the same boundary treatment before dependency installation and update policy decisions use
-  them
+- CurseForge `releaseType` and dependency DTO fields now validate before release-channel filtering
+  or dependency planning uses them; unknown positive dependency relation types remain allowed and
+  ignored until HearthSync deliberately supports more than required dependencies
+- the next provider-side candidate is checking whether provider enum constants and dependency
+  relation projection should move into a narrower CurseForge domain module instead of being split
+  between selection and source-adapter code

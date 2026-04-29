@@ -2180,3 +2180,30 @@ Specifically:
   initial materialization.
 - Future GUI cache and update screens can treat persisted remote validator metadata as structured
   product state rather than raw best-effort provider strings.
+
+## ADR-085: CurseForge Policy Fields Validate Before Dependency Planning
+
+Accepted on 2026-04-29
+
+### Decision
+
+CurseForge file policy fields are validated before release-channel filtering or dependency
+planning consumes them.
+
+Specifically:
+
+- `releaseType` must be one of the known CurseForge archive release types used by HearthSync
+  policy mapping: `1` stable, `2` beta, or `3` alpha.
+- Dependency rows must use non-zero `modId` and non-zero `relationType`.
+- Unknown positive dependency relation types are allowed and ignored by the current
+  `missing_required_only` strategy, because only relation type `3` is projected as a required
+  dependency and future CurseForge relation types should not break unrelated addon installs.
+
+### Consequences
+
+- Release-channel policy no longer silently accepts provider files with unknown release types when
+  no explicit release filter is active.
+- Dependency installation cannot silently drop `modId=0` rows that would otherwise look like
+  provider data loss.
+- The dependency boundary stays forward-compatible: unknown positive relation types remain
+  non-required until HearthSync deliberately supports them.

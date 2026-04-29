@@ -11,8 +11,8 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 use super::curseforge::{
-    CurseForgeFile, CurseForgeFileHash, CurseForgeFileReleaseType, CurseForgeGameVersionType,
-    CurseForgeSortableGameVersion, search_curseforge_mods_with_client,
+    CurseForgeFile, CurseForgeFileDependency, CurseForgeFileHash, CurseForgeFileReleaseType,
+    CurseForgeGameVersionType, CurseForgeSortableGameVersion, search_curseforge_mods_with_client,
     select_curseforge_version_type, select_latest_curseforge_file, validate_curseforge_file,
 };
 use super::github::{
@@ -2671,6 +2671,84 @@ fn validate_curseforge_file_rejects_invalid_remote_validator_metadata() {
             error
         );
     }
+}
+
+#[test]
+fn validate_curseforge_file_rejects_invalid_policy_and_dependency_metadata() {
+    let mut invalid_release_type = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        4,
+    );
+    invalid_release_type.dependencies = vec![CurseForgeFileDependency {
+        mod_id: 99,
+        relation_type: 3,
+    }];
+
+    let mut zero_dependency_mod_id = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    zero_dependency_mod_id.dependencies = vec![CurseForgeFileDependency {
+        mod_id: 0,
+        relation_type: 3,
+    }];
+
+    let mut zero_dependency_relation_type = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    zero_dependency_relation_type.dependencies = vec![CurseForgeFileDependency {
+        mod_id: 99,
+        relation_type: 0,
+    }];
+
+    let mut unknown_positive_dependency_relation_type = curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    );
+    unknown_positive_dependency_relation_type.dependencies = vec![CurseForgeFileDependency {
+        mod_id: 99,
+        relation_type: 9,
+    }];
+
+    for (file, expected_message) in [
+        (invalid_release_type, "release type must be one of"),
+        (
+            zero_dependency_mod_id,
+            "dependency mod id must be greater than zero",
+        ),
+        (
+            zero_dependency_relation_type,
+            "dependency relation type must be greater than zero",
+        ),
+    ] {
+        let error = validate_curseforge_file(file).expect_err("invalid policy/dependency metadata");
+        assert!(
+            error.to_string().contains(expected_message),
+            "expected `{}` in `{}`",
+            expected_message,
+            error
+        );
+    }
+
+    validate_curseforge_file(unknown_positive_dependency_relation_type)
+        .expect("unknown positive dependency relation type remains ignorable");
 }
 
 #[test]

@@ -580,6 +580,9 @@ enough that these rules live in one place.
   file length, known hash digests, and sortable game-version ids must be positive and unambiguous.
   Shared SHA-256 hex validation now lives in `core::boundary_validation` and is reused by addon
   locks and bundle source indexes.
+  Current progress: CurseForge `releaseType` and dependency DTO rows now validate before
+  release-channel filtering or dependency planning consumes them. Unknown positive dependency
+  relation types remain allowed and ignored by the current required-dependency strategy.
 
 Exit criteria:
 

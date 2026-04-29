@@ -160,6 +160,8 @@ pub(crate) fn validate_curseforge_file_metadata(file: &CurseForgeFile) -> AppRes
             file.id
         )));
     }
+    validate_curseforge_release_type(file)?;
+    validate_curseforge_file_dependencies(file)?;
     validate_curseforge_file_hashes(file)?;
     validate_curseforge_sortable_game_versions(file)?;
 
@@ -175,6 +177,36 @@ fn validate_curseforge_download_url(file_id: u32, download_url: &str) -> AppResu
 
 fn is_zip_file_name(file_name: &str) -> bool {
     file_name.to_ascii_lowercase().ends_with(".zip")
+}
+
+fn validate_curseforge_release_type(file: &CurseForgeFile) -> AppResult<()> {
+    if curseforge_file_release_rank(file.release_type).is_none() {
+        return Err(AppError::Validation(format!(
+            "CurseForge file `{}` release type must be one of 1 (stable), 2 (beta), or 3 (alpha)",
+            file.id
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_curseforge_file_dependencies(file: &CurseForgeFile) -> AppResult<()> {
+    for dependency in &file.dependencies {
+        if dependency.mod_id == 0 {
+            return Err(AppError::Validation(format!(
+                "CurseForge file `{}` dependency mod id must be greater than zero",
+                file.id
+            )));
+        }
+        if dependency.relation_type == 0 {
+            return Err(AppError::Validation(format!(
+                "CurseForge file `{}` dependency relation type must be greater than zero",
+                file.id
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_curseforge_file_hashes(file: &CurseForgeFile) -> AppResult<()> {
