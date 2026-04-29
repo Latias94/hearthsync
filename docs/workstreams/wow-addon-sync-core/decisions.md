@@ -2260,3 +2260,29 @@ Specifically:
   shape while provider modules own how remote DTOs produce it.
 - Adding another provider should not require editing a shared module with provider-specific JSON
   semantics.
+
+## ADR-088: Provider Boundary Tests Live With Provider Modules
+
+Accepted on 2026-04-29
+
+### Decision
+
+Provider-owned pure boundary tests should live beside the provider module that owns the contract
+instead of accumulating in the default-provider integration test file.
+
+Specifically:
+
+- GitHub release and asset selection tests live in `provider::github`.
+- CurseForge version-type, file-selection, and file-metadata validation tests live in
+  `provider::curseforge::select`.
+- `provider::tests` remains focused on provider composition, HTTP/cache behavior, source
+  materialization, dependency resolution, and other cross-module integration paths.
+
+### Consequences
+
+- Narrow provider DTO validation changes are reviewable in the same file as the implementation
+  they protect.
+- The default-provider test file stops being the place where every provider rule is added by
+  default.
+- Future provider backends get a clearer testing pattern: pure provider contract tests stay local,
+  while shared provider orchestration coverage stays in the integration-style provider test module.

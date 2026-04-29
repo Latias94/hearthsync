@@ -1054,6 +1054,10 @@ the resulting DTOs as stable product state.
 - provider-specific cache validator projection now lives with each provider: GitHub asset projection
   is in `github.rs`, CurseForge file projection is in `curseforge::policy`, and
   `provider::validation` only owns provider-agnostic cache/transport helpers
-- the next provider-side candidate is checking whether provider-owned tests should move closer to
-  the provider modules now that the generic provider test file is carrying many narrow boundary
-  cases
+- provider-owned pure boundary tests now live beside the modules that own those contracts: GitHub
+  release/asset selector tests in `provider::github`, CurseForge
+  version-type/file-selection/file-metadata tests in `provider::curseforge::select`, and
+  cross-module provider orchestration tests remain in `provider::tests`
+- the next provider-side candidate is continuing to drain remaining default-provider test helpers
+  that only support one focused provider module, while keeping cross-module orchestration tests in
+  `provider::tests`

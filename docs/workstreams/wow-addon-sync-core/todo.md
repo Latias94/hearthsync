@@ -590,6 +590,11 @@ enough that these rules live in one place.
   `provider::validation` module. GitHub owns asset-to-validator projection, CurseForge owns
   file-to-validator projection, and the shared module keeps only provider-agnostic cache and
   transport helpers.
+  Current cleanup: provider-owned pure boundary tests now live next to their implementation
+  modules. GitHub release/asset selector coverage moved into `provider::github`, CurseForge
+  version-type/file-selection/file-metadata coverage moved into `provider::curseforge::select`,
+  and `provider::tests` is left for default-provider composition, HTTP/cache, source
+  materialization, and dependency-resolution integration behavior.
 
 Exit criteria:
 
