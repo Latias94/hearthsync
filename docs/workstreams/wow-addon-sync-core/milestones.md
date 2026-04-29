@@ -322,9 +322,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - runtime settings files now validate the same provider policy before inspect or persistence:
   persisted addon cache directories must be absolute, and zero-second HTTP no-validator reuse
   windows fail before future GUI settings screens can save them.
-- bundle manifests now validate at both relevant boundaries: app-owned pack manifests fail before
-  core request construction, and embedded bundle manifests fail during apply planning even when an
-  operator bypasses `inspect_bundle`.
+- bundle manifests now validate at all manifest-read and app boundaries: disk-loaded manifest
+  files fail inside `load_manifest()`, embedded bundle manifests fail inside the archive reader,
+  and app-owned pack manifests fail before core request construction.
 - bundle apply mappings now validate explicit account, server, and character identity segments at
   the app boundary before bundle, external-package, or config apply planning can turn them into
   WTF target paths.

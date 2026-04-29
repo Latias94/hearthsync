@@ -1890,3 +1890,28 @@ Specifically:
 - CLI, future GUI callers, and direct core tests share one mapping validity contract.
 - Case-insensitive duplicate account selections fail before planning can create target-path
   duplication on Windows or default macOS filesystems.
+
+## ADR-074: Manifest Readers Return Validated Domain Manifests
+
+Accepted on 2026-04-29
+
+### Decision
+
+Bundle manifest readers must validate immediately after TOML parsing and before returning a
+domain `BundleManifest`.
+
+Specifically:
+
+- `load_manifest()` validates disk-loaded manifest files before CLI validation or pack-request
+  construction can consume them.
+- `read_manifest_from_archive()` validates embedded bundle manifests before inspect, plan, or
+  prepare flows receive the manifest.
+- Direct app DTO and bundle planner validation remains as defensive coverage for manifests built
+  in memory by tests, CLI code, or future GUI forms.
+
+### Consequences
+
+- A parsed-but-invalid manifest is no longer a normal value at file/archive boundaries.
+- Future GUI file-open and bundle-inspection flows can trust the shared loader contract instead of
+  remembering to call `validate()` after every read.
+- Bundle archive inspection and apply planning now fail at the same manifest-read boundary.

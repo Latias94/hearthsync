@@ -38,8 +38,7 @@ pub(super) fn build_manifest_validation_result(
     runtime: &AppRuntime,
 ) -> AppResult<ManifestValidationResult> {
     let file = runtime.resolve_input_path(file, "manifest file")?;
-    let manifest = load_manifest(&file)?;
-    manifest.validate()?;
+    load_manifest(&file)?;
 
     Ok(ManifestValidationResult {
         status: "ok".to_string(),

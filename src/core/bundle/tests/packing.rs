@@ -310,6 +310,30 @@ fn inspect_bundle_rejects_symlink_manifest_entries() {
 }
 
 #[test]
+fn inspect_bundle_rejects_invalid_embedded_manifest() {
+    let temp = tempdir().expect("temp dir");
+    let bundle_path = temp.path().join("invalid-manifest-bundle.zip");
+    let mut manifest = sample_manifest();
+    manifest.schema_version = 0;
+    let manifest = toml::to_string_pretty(&manifest).expect("manifest");
+    create_archive_with_raw_entries(
+        &bundle_path,
+        &[
+            (MANIFEST_ENTRY, &manifest),
+            ("addons/WeakAuras/WeakAuras.toc", "toc"),
+        ],
+    );
+
+    let error = inspect_bundle(&bundle_path).expect_err("invalid manifest should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("schema_version must be greater than zero")
+    );
+}
+
+#[test]
 fn inspect_bundle_rejects_non_portable_entry_paths() {
     let temp = tempdir().expect("temp dir");
     let bundle_path = temp.path().join("unsafe-path-bundle.zip");

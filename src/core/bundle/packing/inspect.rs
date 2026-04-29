@@ -13,7 +13,6 @@ pub fn inspect_bundle(path: &Path) -> AppResult<BundleInspection> {
     let file = File::open(path)?;
     let mut archive = ZipArchive::new(file)?;
     let manifest = read_manifest_from_archive(&mut archive)?;
-    manifest.validate()?;
     let entries = count_bundle_entries(&mut archive)?;
 
     Ok(BundleInspection {

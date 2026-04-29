@@ -469,9 +469,9 @@ enough that these rules live in one place.
   Current progress: runtime settings files now validate that persisted addon cache directories are
   absolute and persisted HTTP no-validator cache policy is semantically valid before inspect or
   persistence, so future GUI settings screens cannot save provider policy that only fails later.
-  Current progress: bundle manifests now validate at app and apply boundaries. App-owned pack
-  manifests fail before core request construction, and embedded bundle manifests fail during apply
-  planning even when callers bypass bundle inspection.
+  Current progress: bundle manifests now validate at manifest-read and app boundaries.
+  Disk-loaded manifest files fail inside `load_manifest()`, embedded bundle manifests fail inside
+  the archive reader, and app-owned pack manifests fail before core request construction.
   Current progress: bundle apply mappings now validate explicit account, server, and character
   identity segments at the app boundary before bundle, external-package, or config apply planning
   can turn them into WTF target paths.

@@ -20,7 +20,9 @@ pub(in crate::core::bundle) fn read_manifest_from_archive(
     )?;
     let mut content = String::new();
     manifest_file.read_to_string(&mut content)?;
-    Ok(toml::from_str(&content)?)
+    let manifest = toml::from_str::<BundleManifest>(&content)?;
+    manifest.validate()?;
+    Ok(manifest)
 }
 
 pub(in crate::core::bundle) fn count_bundle_entries(
