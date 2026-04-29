@@ -2282,10 +2282,10 @@ Specifically:
 - Source materialization boundary tests live in `provider::materialize`.
 - Source adaptation and dependency-resolution tests live in `provider::source_adapter`.
 - Cache helper and cache-management repair/purge contracts live in `provider::cache`, HTTP
-  transport defaults live in `provider::http`, and default-provider capability/retry declarations
-  live in `provider`.
-- `provider::tests` remains focused on provider composition, HTTP/cache behavior, source
-  cache orchestration, and other cross-module integration paths.
+  transport defaults live in `provider::http`, and default-provider composition/capability/retry
+  declarations live in `provider`.
+- `provider::tests` remains focused on HTTP/cache behavior, source cache orchestration, and other
+  cross-module integration paths.
 
 ### Consequences
 

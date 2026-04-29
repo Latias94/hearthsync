@@ -1,8 +1,5 @@
 use std::cell::{Cell, RefCell};
 use tempfile::tempdir;
-use zip::CompressionMethod;
-use zip::ZipWriter;
-use zip::write::SimpleFileOptions;
 
 use super::http::{
     HttpClient, HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse,
@@ -15,72 +12,6 @@ use super::{
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
-
-#[test]
-fn default_addon_provider_accepts_injected_http_client() {
-    #[derive(Default)]
-    struct FakeHttpClient {
-        requests: RefCell<Vec<HttpRequest>>,
-        downloads: RefCell<Vec<HttpDownloadRequest>>,
-    }
-
-    impl HttpClient for FakeHttpClient {
-        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
-            self.requests.borrow_mut().push(request);
-            Ok(HttpResponse {
-                status_code: 200,
-                body: r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#.to_string(),
-            })
-        }
-
-        fn download_to_path(
-            &self,
-            request: HttpDownloadRequest,
-            _cancellation: &dyn CancellationToken,
-            _observer: Option<&dyn HttpDownloadProgressObserver>,
-        ) -> AppResult<HttpDownloadResponse> {
-            self.downloads.borrow_mut().push(request.clone());
-            let file = std::fs::File::create(&request.destination).expect("archive file");
-            let mut zip = ZipWriter::new(file);
-            zip.start_file(
-                "WeakAuras/WeakAuras.toc",
-                SimpleFileOptions::default().compression_method(CompressionMethod::Deflated),
-            )
-            .expect("start zip entry");
-            use std::io::Write;
-            zip.write_all(b"## Interface: 110000\n## Version: 1.0.0\n")
-                .expect("write zip entry");
-            zip.finish().expect("finish zip");
-            Ok(successful_download_response(Vec::new()))
-        }
-    }
-
-    let temp = tempdir().expect("temp dir");
-    let http_client = FakeHttpClient::default();
-    let provider = DefaultAddonProvider::with_http_client(http_client)
-        .with_download_cache_dir(Some(temp.path().join("cache")));
-
-    let materialized = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &AddonSourceRef::GitHubRelease {
-                owner: "owner".to_string(),
-                repo: "repo".to_string(),
-                tag: Some("v1.2.3".to_string()),
-                asset_name: Some("addon.zip".to_string()),
-            },
-            stage_root: temp.path(),
-            context: AddonProviderContext::default(),
-        })
-        .expect("materialize github source");
-
-    assert!(materialized.archive_path.exists());
-    assert_eq!(
-        provider.options().download_cache_dir,
-        Some(temp.path().join("cache"))
-    );
-    assert_eq!(provider.http_client().requests.borrow().len(), 1);
-    assert_eq!(provider.http_client().downloads.borrow().len(), 1);
-}
 
 #[test]
 fn default_addon_provider_refreshes_download_cache_for_http_archives_when_policy_requires_it() {

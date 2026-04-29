@@ -1063,8 +1063,8 @@ the resulting DTOs as stable product state.
   source materialization boundary tests in `provider::materialize`, source adaptation and
   dependency-resolution tests in `provider::source_adapter`, cache helper and cache-management
   repair/purge tests in `provider::cache`, HTTP default tests in `provider::http`, provider
-  capability/retry tests in `provider`, and cross-module provider orchestration tests remain in
-  `provider::tests`
+  composition/capability/retry tests in `provider`, and cross-module provider orchestration tests
+  remain in `provider::tests`
 - the next provider-side candidate is continuing to drain remaining default-provider test helpers
   that only support one focused provider module, while keeping cross-module orchestration tests in
   `provider::tests`
