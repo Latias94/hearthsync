@@ -228,3 +228,75 @@ fn normalize_canonical_archive_path(path: PathBuf) -> PathBuf {
 fn normalize_canonical_archive_path(path: PathBuf) -> PathBuf {
     path
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct AddonSourceFixture {
+        source: AddonSourceRef,
+    }
+
+    #[test]
+    fn addon_source_ref_uses_canonical_provider_kind_names() {
+        let github = AddonSourceFixture {
+            source: AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: None,
+                asset_name: None,
+            },
+        };
+        let curseforge = AddonSourceFixture {
+            source: AddonSourceRef::CurseForgeMod {
+                mod_id: 12345,
+                file_id: None,
+            },
+        };
+
+        assert!(
+            toml::to_string(&github)
+                .expect("github source toml")
+                .contains("kind = \"github_release\"")
+        );
+        assert!(
+            toml::to_string(&curseforge)
+                .expect("curseforge source toml")
+                .contains("kind = \"curseforge_mod\"")
+        );
+    }
+
+    #[test]
+    fn addon_source_ref_accepts_legacy_provider_kind_names() {
+        let github: AddonSourceFixture = toml::from_str(
+            r#"
+source = { kind = "git_hub_release", owner = "owner", repo = "repo" }
+"#,
+        )
+        .expect("legacy github source");
+        let curseforge: AddonSourceFixture = toml::from_str(
+            r#"
+source = { kind = "curse_forge_mod", mod_id = 12345 }
+"#,
+        )
+        .expect("legacy curseforge source");
+
+        assert_eq!(
+            github.source,
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: None,
+                asset_name: None,
+            }
+        );
+        assert_eq!(
+            curseforge.source,
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 12345,
+                file_id: None,
+            }
+        );
+    }
+}

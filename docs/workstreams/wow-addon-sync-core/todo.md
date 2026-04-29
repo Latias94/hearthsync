@@ -594,9 +594,10 @@ enough that these rules live in one place.
   modules. GitHub API fetch and release/asset selector coverage moved into `provider::github`,
   CurseForge search/context/file-response API coverage moved into `provider::curseforge::api`,
   version-type/file-selection/file-metadata coverage moved into `provider::curseforge::select`,
-  search-result projection coverage moved into `provider::curseforge`, and `provider::tests` is
-  left for default-provider composition, HTTP/cache, source materialization, and
-  dependency-resolution integration behavior.
+  search-result projection coverage moved into `provider::curseforge`, source parser coverage
+  moved into `provider::parse`, source-reference serialization compatibility coverage moved into
+  `provider::source`, and `provider::tests` is left for default-provider composition, HTTP/cache,
+  source materialization, and dependency-resolution integration behavior.
 
 Exit criteria:
 

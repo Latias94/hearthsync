@@ -1058,8 +1058,9 @@ the resulting DTOs as stable product state.
   API fetch and release/asset selector tests in `provider::github`, CurseForge
   search/context/file-response API tests in `provider::curseforge::api`,
   version-type/file-selection/file-metadata tests in `provider::curseforge::select`,
-  search-result projection tests in `provider::curseforge`, and cross-module provider
-  orchestration tests remain in `provider::tests`
+  search-result projection tests in `provider::curseforge`, source parser tests in
+  `provider::parse`, source-reference serialization compatibility tests in `provider::source`,
+  and cross-module provider orchestration tests remain in `provider::tests`
 - the next provider-side candidate is continuing to drain remaining default-provider test helpers
   that only support one focused provider module, while keeping cross-module orchestration tests in
   `provider::tests`

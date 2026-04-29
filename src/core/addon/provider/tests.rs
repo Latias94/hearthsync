@@ -2,7 +2,6 @@ use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
 use tempfile::tempdir;
 use zip::CompressionMethod;
 use zip::ZipWriter;
@@ -12,7 +11,6 @@ use super::http::{
     HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpDownloadRequest,
     HttpDownloadResponse, HttpHeader, HttpRequest, HttpResponse, ReqwestHttpClient,
 };
-use super::parse::{parse_curseforge_source, parse_github_source};
 use super::test_support::{curseforge_api_key_guard, standard_curseforge_api_key_guard};
 use super::{
     AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy,
@@ -22,73 +20,6 @@ use super::{
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
-
-#[derive(Debug, Deserialize, Serialize)]
-struct AddonSourceFixture {
-    source: AddonSourceRef,
-}
-
-#[test]
-fn addon_source_ref_uses_canonical_provider_kind_names() {
-    let github = AddonSourceFixture {
-        source: AddonSourceRef::GitHubRelease {
-            owner: "owner".to_string(),
-            repo: "repo".to_string(),
-            tag: None,
-            asset_name: None,
-        },
-    };
-    let curseforge = AddonSourceFixture {
-        source: AddonSourceRef::CurseForgeMod {
-            mod_id: 12345,
-            file_id: None,
-        },
-    };
-
-    assert!(
-        toml::to_string(&github)
-            .expect("github source toml")
-            .contains("kind = \"github_release\"")
-    );
-    assert!(
-        toml::to_string(&curseforge)
-            .expect("curseforge source toml")
-            .contains("kind = \"curseforge_mod\"")
-    );
-}
-
-#[test]
-fn addon_source_ref_accepts_legacy_provider_kind_names() {
-    let github: AddonSourceFixture = toml::from_str(
-        r#"
-source = { kind = "git_hub_release", owner = "owner", repo = "repo" }
-"#,
-    )
-    .expect("legacy github source");
-    let curseforge: AddonSourceFixture = toml::from_str(
-        r#"
-source = { kind = "curse_forge_mod", mod_id = 12345 }
-"#,
-    )
-    .expect("legacy curseforge source");
-
-    assert_eq!(
-        github.source,
-        AddonSourceRef::GitHubRelease {
-            owner: "owner".to_string(),
-            repo: "repo".to_string(),
-            tag: None,
-            asset_name: None,
-        }
-    );
-    assert_eq!(
-        curseforge.source,
-        AddonSourceRef::CurseForgeMod {
-            mod_id: 12345,
-            file_id: None,
-        }
-    );
-}
 
 #[test]
 fn default_addon_provider_rejects_relative_local_archive_source_refs() {
@@ -107,84 +38,6 @@ fn default_addon_provider_rejects_relative_local_archive_source_refs() {
 
     assert!(matches!(error, AppError::Validation(_)));
     assert!(error.to_string().contains("must be absolute"));
-}
-
-#[test]
-fn parse_curseforge_source_with_explicit_file() {
-    let source = parse_curseforge_source("curseforge:12345@67890")
-        .expect("parse")
-        .expect("source ref");
-
-    assert_eq!(
-        source,
-        AddonSourceRef::CurseForgeMod {
-            mod_id: 12345,
-            file_id: Some(67890),
-        }
-    );
-}
-
-#[test]
-fn parse_curseforge_source_without_file() {
-    let source = parse_curseforge_source("curseforge:12345")
-        .expect("parse")
-        .expect("source ref");
-
-    assert_eq!(
-        source,
-        AddonSourceRef::CurseForgeMod {
-            mod_id: 12345,
-            file_id: None,
-        }
-    );
-}
-
-#[test]
-fn parse_curseforge_source_rejects_zero_ids() {
-    for source in ["curseforge:0", "curseforge:12345@0"] {
-        let error = parse_curseforge_source(source).expect_err("zero ids should fail");
-
-        assert!(matches!(error, AppError::Validation(_)));
-        assert!(
-            error
-                .to_string()
-                .contains("CurseForge source must look like")
-        );
-    }
-}
-
-#[test]
-fn parse_github_source_with_tag_and_asset() {
-    let source = parse_github_source("github:owner/repo@v1.2.3#addon.zip")
-        .expect("parse")
-        .expect("source ref");
-
-    assert_eq!(
-        source,
-        AddonSourceRef::GitHubRelease {
-            owner: "owner".to_string(),
-            repo: "repo".to_string(),
-            tag: Some("v1.2.3".to_string()),
-            asset_name: Some("addon.zip".to_string()),
-        }
-    );
-}
-
-#[test]
-fn parse_github_source_without_tag() {
-    let source = parse_github_source("github:owner/repo")
-        .expect("parse")
-        .expect("source ref");
-
-    assert_eq!(
-        source,
-        AddonSourceRef::GitHubRelease {
-            owner: "owner".to_string(),
-            repo: "repo".to_string(),
-            tag: None,
-            asset_name: None,
-        }
-    );
 }
 
 #[test]

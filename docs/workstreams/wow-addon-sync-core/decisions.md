@@ -2277,6 +2277,8 @@ Specifically:
   `provider::curseforge::api`.
 - CurseForge version-type, file-selection, and file-metadata validation tests live in
   `provider::curseforge::select`; search-result projection tests live in `provider::curseforge`.
+- Provider source parsing tests live in `provider::parse`, and source-reference serialization
+  compatibility tests live in `provider::source`.
 - `provider::tests` remains focused on provider composition, HTTP/cache behavior, source
   materialization, dependency resolution, and other cross-module integration paths.
 
