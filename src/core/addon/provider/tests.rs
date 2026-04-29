@@ -1349,6 +1349,101 @@ fn default_addon_provider_resolves_required_curseforge_dependencies() {
 }
 
 #[test]
+fn default_addon_provider_accepts_standard_curseforge_api_key_env() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        requests: RefCell<Vec<HttpRequest>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            assert!(
+                request
+                    .headers
+                    .iter()
+                    .any(|header| header.name == "x-api-key" && header.value == "standard-key")
+            );
+            self.requests.borrow_mut().push(request.clone());
+            Ok(HttpResponse {
+                status_code: 200,
+                body: r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}}"#.to_string(),
+            })
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            panic!("download_to_path should not be called in this test")
+        }
+    }
+
+    let _guard = standard_curseforge_api_key_guard("standard-key");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default());
+    let dependencies = provider
+        .resolve_addon_dependencies(ResolveAddonDependenciesRequest {
+            source: &AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: Some(777),
+            },
+            context: AddonProviderContext::default(),
+        })
+        .expect("resolve dependencies with standard env");
+
+    assert!(dependencies.dependencies.is_empty());
+    assert_eq!(provider.http_client().requests.borrow().len(), 1);
+}
+
+#[test]
+fn default_addon_provider_rejects_invalid_curseforge_file_list_contracts() {
+    #[derive(Default)]
+    struct FakeHttpClient;
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            match request.url.as_str() {
+                "https://api.curseforge.com/v1/mods/42/files" => Ok(HttpResponse {
+                    status_code: 200,
+                    body: r#"{"data":[{"id":777,"fileName":"bad/name.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}]}"#.to_string(),
+                }),
+                _ => Err(AppError::Validation(format!(
+                    "unexpected request url: {}",
+                    request.url
+                ))),
+            }
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            panic!("download_to_path should not be called in this test")
+        }
+    }
+
+    let _guard = curseforge_api_key_guard("test-api-key");
+    let temp = tempdir().expect("temp dir");
+    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient);
+
+    let error = provider
+        .materialize_source_ref(super::MaterializeSourceRefRequest {
+            source: &AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: None,
+            },
+            stage_root: temp.path(),
+            context: AddonProviderContext::default(),
+        })
+        .expect_err("invalid file metadata");
+
+    assert!(error.to_string().contains("invalid CurseForge file name"));
+}
+
+#[test]
 fn default_addon_provider_reports_dependency_resolution_capability_by_source_kind() {
     let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
 
@@ -2218,6 +2313,66 @@ fn validate_curseforge_file_rejects_missing_download_url() {
     assert!(error.to_string().contains("download URL"));
 }
 
+#[test]
+fn validate_curseforge_file_rejects_non_portable_file_name() {
+    let error = validate_curseforge_file(curseforge_file(
+        1,
+        "bad/name.zip",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    ))
+    .expect_err("non-portable filename");
+
+    assert!(error.to_string().contains("invalid CurseForge file name"));
+}
+
+#[test]
+fn validate_curseforge_file_rejects_invalid_download_url() {
+    let error = validate_curseforge_file(curseforge_file(
+        1,
+        "addon.zip",
+        "2026-04-02T12:00:00Z",
+        "ftp://example.com/addon.zip",
+        517,
+        1,
+    ))
+    .expect_err("invalid download url");
+
+    assert!(error.to_string().contains("download URL must start with"));
+}
+
+#[test]
+fn validate_curseforge_file_rejects_invalid_file_date() {
+    let error = validate_curseforge_file(curseforge_file(
+        1,
+        "addon.zip",
+        "not-a-timestamp",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    ))
+    .expect_err("invalid file date");
+
+    assert!(error.to_string().contains("file date must be"));
+}
+
+#[test]
+fn validate_curseforge_file_accepts_uppercase_zip_extension() {
+    let file = validate_curseforge_file(curseforge_file(
+        1,
+        "addon.ZIP",
+        "2026-04-02T12:00:00Z",
+        "https://example.com/addon.zip",
+        517,
+        1,
+    ))
+    .expect("uppercase zip");
+
+    assert_eq!(file.file_name, "addon.ZIP");
+}
+
 struct StaticResponseHttpClient<'a> {
     body: &'a str,
 }
@@ -2329,37 +2484,70 @@ fn not_modified_download_response(headers: Vec<HttpHeader>) -> HttpDownloadRespo
 }
 
 fn curseforge_api_key_guard(value: &str) -> CurseForgeApiKeyGuard {
+    curseforge_api_key_env_guard(Some(value), None)
+}
+
+fn standard_curseforge_api_key_guard(value: &str) -> CurseForgeApiKeyGuard {
+    curseforge_api_key_env_guard(None, Some(value))
+}
+
+fn curseforge_api_key_env_guard(
+    hearthsync_value: Option<&str>,
+    standard_value: Option<&str>,
+) -> CurseForgeApiKeyGuard {
     static CURSEFORGE_API_KEY_ENV_MUTEX: Mutex<()> = Mutex::new(());
     let lock = CURSEFORGE_API_KEY_ENV_MUTEX
         .lock()
         .expect("curseforge api key env lock");
-    let key = "HEARTHSYNC_CURSEFORGE_API_KEY";
-    let previous = std::env::var_os(key);
-    unsafe {
-        std::env::set_var(key, value);
-    }
+    let hearthsync_key = "HEARTHSYNC_CURSEFORGE_API_KEY";
+    let standard_key = "CURSEFORGE_API_KEY";
+    let previous_hearthsync = std::env::var_os(hearthsync_key);
+    let previous_standard = std::env::var_os(standard_key);
+    set_optional_env_var(hearthsync_key, hearthsync_value);
+    set_optional_env_var(standard_key, standard_value);
+
     CurseForgeApiKeyGuard {
-        key,
-        previous,
+        hearthsync_key,
+        previous_hearthsync,
+        standard_key,
+        previous_standard,
         _lock: lock,
     }
 }
 
 struct CurseForgeApiKeyGuard {
-    key: &'static str,
-    previous: Option<OsString>,
+    hearthsync_key: &'static str,
+    previous_hearthsync: Option<OsString>,
+    standard_key: &'static str,
+    previous_standard: Option<OsString>,
     _lock: MutexGuard<'static, ()>,
 }
 
 impl Drop for CurseForgeApiKeyGuard {
     fn drop(&mut self) {
-        match &self.previous {
-            Some(value) => unsafe {
-                std::env::set_var(self.key, value);
-            },
-            None => unsafe {
-                std::env::remove_var(self.key);
-            },
-        }
+        restore_env_var(self.hearthsync_key, &self.previous_hearthsync);
+        restore_env_var(self.standard_key, &self.previous_standard);
+    }
+}
+
+fn set_optional_env_var(key: &str, value: Option<&str>) {
+    match value {
+        Some(value) => unsafe {
+            std::env::set_var(key, value);
+        },
+        None => unsafe {
+            std::env::remove_var(key);
+        },
+    }
+}
+
+fn restore_env_var(key: &str, value: &Option<OsString>) {
+    match value {
+        Some(value) => unsafe {
+            std::env::set_var(key, value);
+        },
+        None => unsafe {
+            std::env::remove_var(key);
+        },
     }
 }

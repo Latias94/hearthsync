@@ -2038,3 +2038,31 @@ Specifically:
 - Floating GitHub release resolution cannot persist a blank tag into managed addon state.
 - Explicit GitHub asset selection fails at the provider boundary instead of deferring an invalid
   archive name or URL to the downloader.
+
+## ADR-080: CurseForge File Responses Validate Archive Identity Before Selection
+
+Accepted on 2026-04-29
+
+### Decision
+
+CurseForge file responses have separate metadata and downloadable-archive validation layers.
+
+Specifically:
+
+- File DTOs fetched from CurseForge must carry a non-zero file id, portable single-segment
+  `fileName`, and RFC 3339-shaped `fileDate`.
+- Present `downloadUrl` values must be non-empty `http://` or `https://` URLs.
+- Final selected addon files must still be available, use a `.zip` filename, and provide a
+  download URL.
+- File-list fetch validates metadata for every returned file, but non-zip files remain valid list
+  metadata and are simply not candidates for addon archive selection.
+- The provider reads `HEARTHSYNC_CURSEFORGE_API_KEY` first and falls back to the common
+  `CURSEFORGE_API_KEY` environment variable for local tooling compatibility.
+
+### Consequences
+
+- CurseForge filenames cannot become unsafe cache or staging archive names on Windows or default
+  macOS targets.
+- Cache freshness comparison no longer depends on blank or malformed remote timestamps.
+- Operators can use either the namespaced HearthSync API key variable or the standard CurseForge
+  variable without changing provider code.

@@ -4,14 +4,17 @@ use super::model::{
     CurseForgeApiResponse, CurseForgeFile, CurseForgeGame, CurseForgeGameVersionType,
     CurseForgePaginatedResponse, CurseForgeSearchMod, CurseForgeWowContext,
 };
-use super::select::{is_world_of_warcraft_game, select_curseforge_version_type};
+use super::select::{
+    is_world_of_warcraft_game, select_curseforge_version_type, validate_curseforge_file_metadata,
+};
 use crate::core::addon::provider::http::{HttpClient, HttpHeader, HttpRequest};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 
 const CURSEFORGE_API_BASE: &str = "https://api.curseforge.com/v1";
 const CURSEFORGE_ACCEPT: &str = "application/json";
-const CURSEFORGE_API_KEY_ENV: &str = "HEARTHSYNC_CURSEFORGE_API_KEY";
+const HEARTHSYNC_CURSEFORGE_API_KEY_ENV: &str = "HEARTHSYNC_CURSEFORGE_API_KEY";
+const STANDARD_CURSEFORGE_API_KEY_ENV: &str = "CURSEFORGE_API_KEY";
 const USER_AGENT_VALUE: &str = "hearthsync/0.1.0";
 
 pub(super) fn resolve_curseforge_wow_context_with_client(
@@ -38,6 +41,7 @@ pub(super) fn fetch_curseforge_mod_files_with_client(
         HttpRequest::new(url).with_headers(curseforge_headers()?),
     )?;
     let payload = serde_json::from_str::<CurseForgeApiResponse<Vec<CurseForgeFile>>>(&response)?;
+    validate_curseforge_files_metadata(&payload.data)?;
     Ok(payload.data)
 }
 
@@ -52,6 +56,7 @@ pub(super) fn fetch_curseforge_file_with_client(
         HttpRequest::new(url).with_headers(curseforge_headers()?),
     )?;
     let payload = serde_json::from_str::<CurseForgeApiResponse<CurseForgeFile>>(&response)?;
+    validate_curseforge_file_metadata(&payload.data)?;
     Ok(payload.data)
 }
 
@@ -130,11 +135,7 @@ fn fetch_curseforge_game_version_types(
 }
 
 fn curseforge_headers() -> AppResult<Vec<HttpHeader>> {
-    let api_key = env::var(CURSEFORGE_API_KEY_ENV).map_err(|_| {
-        AppError::Validation(format!(
-            "CurseForge provider requires environment variable `{CURSEFORGE_API_KEY_ENV}`"
-        ))
-    })?;
+    let api_key = curseforge_api_key()?;
     Ok(vec![
         HttpHeader {
             name: "Accept".to_string(),
@@ -151,6 +152,16 @@ fn curseforge_headers() -> AppResult<Vec<HttpHeader>> {
     ])
 }
 
+fn curseforge_api_key() -> AppResult<String> {
+    env::var(HEARTHSYNC_CURSEFORGE_API_KEY_ENV)
+        .or_else(|_| env::var(STANDARD_CURSEFORGE_API_KEY_ENV))
+        .map_err(|_| {
+            AppError::Validation(format!(
+                "CurseForge provider requires environment variable `{HEARTHSYNC_CURSEFORGE_API_KEY_ENV}` or `{STANDARD_CURSEFORGE_API_KEY_ENV}`"
+            ))
+        })
+}
+
 fn send_curseforge_request(client: &impl HttpClient, request: HttpRequest) -> AppResult<String> {
     let response = client.get(request)?;
     if response.is_success() {
@@ -159,7 +170,7 @@ fn send_curseforge_request(client: &impl HttpClient, request: HttpRequest) -> Ap
 
     let message = match response.status_code {
         401 | 403 => format!(
-            "CurseForge request was rejected with {}. Check `{CURSEFORGE_API_KEY_ENV}` and ensure the API key is valid for the official CurseForge REST API.",
+            "CurseForge request was rejected with {}. Check `{HEARTHSYNC_CURSEFORGE_API_KEY_ENV}` or `{STANDARD_CURSEFORGE_API_KEY_ENV}` and ensure the API key is valid for the official CurseForge REST API.",
             response.status_code
         ),
         _ => format!(
@@ -169,4 +180,12 @@ fn send_curseforge_request(client: &impl HttpClient, request: HttpRequest) -> Ap
     };
 
     Err(AppError::Validation(message))
+}
+
+fn validate_curseforge_files_metadata(files: &[CurseForgeFile]) -> AppResult<()> {
+    for file in files {
+        validate_curseforge_file_metadata(file)?;
+    }
+
+    Ok(())
 }

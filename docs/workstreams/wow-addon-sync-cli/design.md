@@ -522,7 +522,8 @@ Resolution rules in the current version:
 
 - `curseforge:modId` selects the newest available `.zip` file returned by the official mod-files API
 - `curseforge:modId@fileId` pins one exact file
-- the provider requires environment variable `HEARTHSYNC_CURSEFORGE_API_KEY`
+- the provider requires environment variable `HEARTHSYNC_CURSEFORGE_API_KEY` or
+  `CURSEFORGE_API_KEY`
 - current v1 filters by the target WoW flavor through official CurseForge version-type metadata
 - explicit `fileId` is still the safest path when one flavor exposes multiple parallel builds
 - `addon search` uses the official search API and returns an install hint such as `curseforge:12345@67890`

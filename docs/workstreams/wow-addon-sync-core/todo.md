@@ -557,6 +557,11 @@ enough that these rules live in one place.
   case-insensitively unique asset names, and HTTP(S) download URLs after fetch. Asset selection also
   validates the selected asset and rejects explicit non-zip assets before cache path construction or
   download execution.
+  Current progress: CurseForge file responses now validate non-zero file ids, portable filenames,
+  RFC 3339-shaped file dates, and HTTP(S) download URLs before selection or cache construction.
+  Final selected files still own the stricter downloadable-archive contract: available `.zip` with
+  a present download URL. The provider also accepts `CURSEFORGE_API_KEY` as a fallback to the
+  namespaced HearthSync env var.
 
 Exit criteria:
 

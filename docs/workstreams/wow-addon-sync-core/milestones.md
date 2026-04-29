@@ -1023,5 +1023,11 @@ the resulting DTOs as stable product state.
 - GitHub release fetch now validates non-empty release tags, portable case-insensitively unique
   asset names, and HTTP(S) asset download URLs; selecting a GitHub asset also rejects explicit
   non-zip assets before cache or downloader code sees them
-- the next provider-side candidate is CurseForge file DTO hardening around portable filenames,
-  URL schemes, and required timestamp semantics
+- CurseForge file fetch now validates non-zero file ids, portable filenames, RFC 3339-shaped file
+  dates, and HTTP(S) download URLs before selection; final selected files still enforce available
+  `.zip` archive semantics
+- the CurseForge provider now accepts `CURSEFORGE_API_KEY` as a fallback to the namespaced
+  HearthSync API key env var, matching common local tooling conventions without giving up the
+  application-specific variable
+- the next provider-side candidates are CurseForge search-result DTO hardening and shared timestamp
+  validation extraction if another boundary needs the same RFC 3339 shape rule
