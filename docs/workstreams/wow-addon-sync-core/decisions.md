@@ -1634,3 +1634,29 @@ Specifically:
   paths.
 - Deeper pack/apply code can keep defensive path checks, but manifest validity no longer depends
   on reaching those later code paths.
+
+## ADR-065: Addon Package Metadata Values Reject Blank Fields
+
+Accepted on 2026-04-29
+
+### Decision
+
+App-owned addon package metadata must reject blank identity/display/source fields before install
+requests can store that metadata in managed state.
+
+Specifically:
+
+- `AddonPackageMetadataValue::into_domain()` is fallible.
+- Optional text fields are valid when absent, but must not be blank when present.
+- `supported_flavors` may be empty to mean "unspecified", but cannot contain blank entries.
+- URL and SHA-256-looking fields remain text fields for now; this change only makes presence
+  meaningful and non-empty.
+
+### Consequences
+
+- Future GUI callers cannot persist metadata that later behaves like a curator identity while being
+  semantically empty.
+- Lock/scaffold/policy display paths no longer need to distinguish blank metadata values from
+  absent values.
+- Stricter URL/hash syntax can be added later as a separate contract change without mixing it with
+  blank-field rejection.

@@ -52,18 +52,55 @@ impl AddonPackageMetadataValue {
         }
     }
 
-    pub(crate) fn into_domain(self) -> DomainAddonPackageMetadata {
-        DomainAddonPackageMetadata {
-            index_name: self.index_name,
-            index_package_id: self.index_package_id,
-            package_name: self.package_name,
-            version: self.version,
-            source_url: self.source_url,
-            website_url: self.website_url,
-            source_sha256: self.source_sha256,
-            supported_flavors: self.supported_flavors,
+    pub(crate) fn into_domain(self) -> AppResult<DomainAddonPackageMetadata> {
+        let Self {
+            index_name,
+            index_package_id,
+            package_name,
+            version,
+            source_url,
+            website_url,
+            source_sha256,
+            supported_flavors,
+        } = self;
+
+        validate_optional_metadata_text("index_name", index_name.as_deref())?;
+        validate_optional_metadata_text("index_package_id", index_package_id.as_deref())?;
+        validate_optional_metadata_text("package_name", package_name.as_deref())?;
+        validate_optional_metadata_text("version", version.as_deref())?;
+        validate_optional_metadata_text("source_url", source_url.as_deref())?;
+        validate_optional_metadata_text("website_url", website_url.as_deref())?;
+        validate_optional_metadata_text("source_sha256", source_sha256.as_deref())?;
+        for flavor in &supported_flavors {
+            if flavor.trim().is_empty() {
+                return Err(AppError::Validation(
+                    "addon package metadata supported_flavors must not contain empty values"
+                        .to_string(),
+                ));
+            }
         }
+
+        Ok(DomainAddonPackageMetadata {
+            index_name,
+            index_package_id,
+            package_name,
+            version,
+            source_url,
+            website_url,
+            source_sha256,
+            supported_flavors,
+        })
     }
+}
+
+fn validate_optional_metadata_text(field: &str, value: Option<&str>) -> AppResult<()> {
+    if value.is_some_and(|value| value.trim().is_empty()) {
+        return Err(AppError::Validation(format!(
+            "addon package metadata {field} must not be empty"
+        )));
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

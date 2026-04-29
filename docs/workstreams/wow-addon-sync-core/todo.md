@@ -475,6 +475,8 @@ enough that these rules live in one place.
   Current progress: bundle manifest validation now also covers portable resource identifiers.
   Addon directory names, WTF character identity segments, interface asset root names, and non-empty
   author metadata fail before pack/apply code can turn them into live paths.
+  Current progress: addon package metadata values now reject blank optional text fields and blank
+  supported-flavor entries before install requests can persist them into managed state.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

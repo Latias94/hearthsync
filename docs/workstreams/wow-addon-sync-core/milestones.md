@@ -328,6 +328,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle manifest validation now also covers portable resource identifiers: addon directory names,
   WTF character identity segments, interface asset root names, and non-empty author metadata fail
   before pack/apply code can turn them into live paths.
+- addon package metadata values now reject blank optional text fields and blank supported-flavor
+  entries before install requests can persist them into managed state.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

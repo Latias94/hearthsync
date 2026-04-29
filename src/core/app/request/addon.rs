@@ -136,7 +136,10 @@ impl InstallAddonAppRequest {
                     request.backup_output_path,
                 )?,
                 replace_existing: request.replace_existing,
-                metadata: request.metadata.map(AddonPackageMetadataValue::into_domain),
+                metadata: request
+                    .metadata
+                    .map(AddonPackageMetadataValue::into_domain)
+                    .transpose()?,
             })
         })
     }

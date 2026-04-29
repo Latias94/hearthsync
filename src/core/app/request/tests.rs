@@ -671,6 +671,32 @@ fn install_addon_request_converts_app_owned_metadata() {
 }
 
 #[test]
+fn install_addon_request_rejects_invalid_app_metadata() {
+    let base = std::env::current_dir().expect("cwd");
+    let runtime = runtime_with_relative_path_base(base);
+
+    let error = InstallAddonAppRequest {
+        installation: sample_installation(),
+        source: "https://example.invalid/weakauras.zip".to_string(),
+        dry_run: false,
+        backup_output_path: None,
+        replace_existing: true,
+        metadata: Some(AddonPackageMetadataValue {
+            index_package_id: Some(" ".to_string()),
+            ..AddonPackageMetadataValue::default()
+        }),
+    }
+    .into_domain_request(&runtime)
+    .expect_err("invalid addon metadata should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon package metadata index_package_id must not be empty")
+    );
+}
+
+#[test]
 fn relink_addon_request_projects_domain_inputs() {
     let runtime = AppRuntime::new();
     let domain: DomainRelinkAddonRequest = RelinkAddonAppRequest {

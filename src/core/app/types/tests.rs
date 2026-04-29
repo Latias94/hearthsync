@@ -238,9 +238,41 @@ fn addon_package_metadata_value_roundtrips_domain_shape() {
         supported_flavors: vec!["retail".to_string(), "classic".to_string()],
     };
 
-    let domain = value.clone().into_domain();
+    let domain = value.clone().into_domain().expect("addon metadata");
 
     assert_eq!(AddonPackageMetadataValue::from_domain(domain), value);
+}
+
+#[test]
+fn addon_package_metadata_value_rejects_empty_optional_text() {
+    let error = AddonPackageMetadataValue {
+        package_name: Some(" ".to_string()),
+        ..AddonPackageMetadataValue::default()
+    }
+    .into_domain()
+    .expect_err("empty metadata text should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon package metadata package_name must not be empty")
+    );
+}
+
+#[test]
+fn addon_package_metadata_value_rejects_empty_supported_flavor() {
+    let error = AddonPackageMetadataValue {
+        supported_flavors: vec!["retail".to_string(), " ".to_string()],
+        ..AddonPackageMetadataValue::default()
+    }
+    .into_domain()
+    .expect_err("empty supported flavor should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("addon package metadata supported_flavors must not contain empty values")
+    );
 }
 
 #[test]
