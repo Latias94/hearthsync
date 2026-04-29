@@ -2273,8 +2273,9 @@ instead of accumulating in the default-provider integration test file.
 Specifically:
 
 - GitHub API fetch contract and release/asset selection tests live in `provider::github`.
+- CurseForge API search/context validation tests live in `provider::curseforge::api`.
 - CurseForge version-type, file-selection, and file-metadata validation tests live in
-  `provider::curseforge::select`.
+  `provider::curseforge::select`; search-result projection tests live in `provider::curseforge`.
 - `provider::tests` remains focused on provider composition, HTTP/cache behavior, source
   materialization, dependency resolution, and other cross-module integration paths.
 

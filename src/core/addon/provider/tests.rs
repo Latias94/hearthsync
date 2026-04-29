@@ -1,7 +1,5 @@
 use std::cell::{Cell, RefCell};
-use std::ffi::OsString;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -10,12 +8,12 @@ use zip::CompressionMethod;
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
-use super::curseforge::search_curseforge_mods_with_client;
 use super::http::{
     HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpDownloadRequest,
     HttpDownloadResponse, HttpHeader, HttpRequest, HttpResponse, ReqwestHttpClient,
 };
 use super::parse::{parse_curseforge_source, parse_github_source};
+use super::test_support::{curseforge_api_key_guard, standard_curseforge_api_key_guard};
 use super::{
     AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy,
     AddonDownloadProgressObserver, AddonProvider, AddonProviderContext, AddonSourceRef,
@@ -23,7 +21,6 @@ use super::{
     ResolveAddonDependenciesRequest,
 };
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::WowFlavor;
 use crate::core::task::CancellationToken;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1278,174 +1275,6 @@ fn default_addon_provider_accepts_standard_curseforge_api_key_env() {
 }
 
 #[test]
-fn search_curseforge_mods_with_client_projects_validated_results() {
-    let _guard = curseforge_api_key_guard("test-api-key");
-    let client = CurseForgeSearchHttpClient::new(
-        r#"{"data":[{"id":42,"name":"WeakAuras","summary":"  Aura tracking  ","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517},{"fileId":778,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://www.curseforge.com/wow/addons/weakauras-2"}},{"id":43,"name":"SharedMedia","summary":"   ","downloadCount":50,"latestFilesIndexes":[],"links":{"websiteUrl":null}}]}"#,
-    );
-
-    let results = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 100)
-        .expect("search");
-
-    assert_eq!(results.len(), 2);
-    assert_eq!(results[0].name, "WeakAuras");
-    assert_eq!(results[0].summary.as_deref(), Some("Aura tracking"));
-    assert_eq!(
-        results[0].source,
-        AddonSourceRef::CurseForgeMod {
-            mod_id: 42,
-            file_id: Some(777),
-        }
-    );
-    assert_eq!(results[0].install_hint, "curseforge:42@777");
-    assert_eq!(results[0].provider_project_id, Some(42));
-    assert_eq!(results[0].provider_file_id, Some(777));
-    assert_eq!(results[1].name, "SharedMedia");
-    assert_eq!(results[1].summary, None);
-    assert_eq!(
-        results[1].source,
-        AddonSourceRef::CurseForgeMod {
-            mod_id: 43,
-            file_id: None,
-        }
-    );
-
-    let requests = client.requests.borrow();
-    let search_request = requests
-        .iter()
-        .find(|request| request.url == "https://api.curseforge.com/v1/mods/search")
-        .expect("search request");
-    assert!(
-        search_request
-            .query
-            .contains(&("pageSize".to_string(), "50".to_string()))
-    );
-    assert!(
-        search_request
-            .query
-            .contains(&("searchFilter".to_string(), "weak".to_string()))
-    );
-}
-
-#[test]
-fn search_curseforge_mods_with_client_rejects_invalid_result_contracts() {
-    let _guard = curseforge_api_key_guard("test-api-key");
-    let cases = [
-        (
-            r#"{"data":[{"id":0,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "mod id must be greater than zero",
-        ),
-        (
-            r#"{"data":[{"id":42,"name":" ","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "name `42` must not be empty",
-        ),
-        (
-            r#"{"data":[{"id":42,"name":" WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "name `42` must not have surrounding whitespace",
-        ),
-        (
-            r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[],"links":{"websiteUrl":"ftp://example.com/weakauras"}}]}"#,
-            "website URL must start with",
-        ),
-        (
-            r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[{"fileId":0,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "latest file index file id",
-        ),
-        (
-            r#"{"data":[{"id":42,"name":"WeakAuras","summary":null,"downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":0}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#,
-            "latest file index game version type id",
-        ),
-    ];
-
-    for (body, expected_message) in cases {
-        let client = CurseForgeSearchHttpClient::new(body);
-        let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
-            .expect_err("invalid search result");
-
-        assert!(
-            error.to_string().contains(expected_message),
-            "expected `{}` in `{}`",
-            expected_message,
-            error
-        );
-    }
-}
-
-#[test]
-fn search_curseforge_mods_with_client_rejects_invalid_game_context_contracts() {
-    let _guard = curseforge_api_key_guard("test-api-key");
-    let cases = [
-        (
-            r#"{"data":[{"id":0,"name":"World of Warcraft","slug":"world-of-warcraft"}]}"#,
-            "CurseForge game id must be greater than zero",
-        ),
-        (
-            r#"{"data":[{"id":1,"name":" ","slug":"world-of-warcraft"}]}"#,
-            "CurseForge game name `1` must not be empty",
-        ),
-        (
-            r#"{"data":[{"id":1,"name":" World of Warcraft","slug":"world-of-warcraft"}]}"#,
-            "CurseForge game name `1` must not have surrounding whitespace",
-        ),
-        (
-            r#"{"data":[{"id":1,"name":"World of Warcraft","slug":"world-of-warcraft"},{"id":1,"name":"World of Warcraft Classic","slug":"wow-classic"}]}"#,
-            "duplicate game id",
-        ),
-    ];
-
-    for (games_body, expected_message) in cases {
-        let client = CurseForgeSearchHttpClient::new(valid_curseforge_search_body())
-            .with_games_body(games_body);
-        let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
-            .expect_err("invalid game context");
-
-        assert!(
-            error.to_string().contains(expected_message),
-            "expected `{}` in `{}`",
-            expected_message,
-            error
-        );
-    }
-}
-
-#[test]
-fn search_curseforge_mods_with_client_rejects_invalid_version_type_contracts() {
-    let _guard = curseforge_api_key_guard("test-api-key");
-    let cases = [
-        (
-            r#"{"data":[{"id":0,"name":"WoW Retail","slug":"wow_retail"}]}"#,
-            "CurseForge game version type id must be greater than zero",
-        ),
-        (
-            r#"{"data":[{"id":517,"name":" ","slug":"wow_retail"}]}"#,
-            "CurseForge game version type name `517` must not be empty",
-        ),
-        (
-            r#"{"data":[{"id":517,"name":"WoW Retail","slug":" wow_retail"}]}"#,
-            "CurseForge game version type slug `517` must not have surrounding whitespace",
-        ),
-        (
-            r#"{"data":[{"id":517,"name":"WoW Retail","slug":"wow_retail"},{"id":517,"name":"Retail","slug":"retail"}]}"#,
-            "duplicate version type id",
-        ),
-    ];
-
-    for (version_types_body, expected_message) in cases {
-        let client = CurseForgeSearchHttpClient::new(valid_curseforge_search_body())
-            .with_version_types_body(version_types_body);
-        let error = search_curseforge_mods_with_client(&client, "weak", WowFlavor::Retail, 10)
-            .expect_err("invalid version type context");
-
-        assert!(
-            error.to_string().contains(expected_message),
-            "expected `{}` in `{}`",
-            expected_message,
-            error
-        );
-    }
-}
-
-#[test]
 fn default_addon_provider_rejects_invalid_curseforge_file_list_contracts() {
     #[derive(Default)]
     struct FakeHttpClient;
@@ -2105,71 +1934,6 @@ fn default_addon_provider_forwards_cancellation_without_retrying() {
     assert!(provider.http_client().saw_cancelled.get());
 }
 
-struct CurseForgeSearchHttpClient<'a> {
-    games_body: &'a str,
-    version_types_body: &'a str,
-    search_body: &'a str,
-    requests: RefCell<Vec<HttpRequest>>,
-}
-
-impl<'a> CurseForgeSearchHttpClient<'a> {
-    fn new(search_body: &'a str) -> Self {
-        Self {
-            games_body: r#"{"data":[{"id":1,"name":"World of Warcraft","slug":"world-of-warcraft"}]}"#,
-            version_types_body: r#"{"data":[{"id":517,"name":"WoW Retail","slug":"wow_retail"}]}"#,
-            search_body,
-            requests: RefCell::new(Vec::new()),
-        }
-    }
-
-    fn with_games_body(mut self, games_body: &'a str) -> Self {
-        self.games_body = games_body;
-        self
-    }
-
-    fn with_version_types_body(mut self, version_types_body: &'a str) -> Self {
-        self.version_types_body = version_types_body;
-        self
-    }
-}
-
-impl HttpClient for CurseForgeSearchHttpClient<'_> {
-    fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
-        self.requests.borrow_mut().push(request.clone());
-        match request.url.as_str() {
-            "https://api.curseforge.com/v1/games" => Ok(HttpResponse {
-                status_code: 200,
-                body: self.games_body.to_string(),
-            }),
-            "https://api.curseforge.com/v1/games/1/version-types" => Ok(HttpResponse {
-                status_code: 200,
-                body: self.version_types_body.to_string(),
-            }),
-            "https://api.curseforge.com/v1/mods/search" => Ok(HttpResponse {
-                status_code: 200,
-                body: self.search_body.to_string(),
-            }),
-            _ => Err(AppError::Validation(format!(
-                "unexpected request url: {}",
-                request.url
-            ))),
-        }
-    }
-
-    fn download_to_path(
-        &self,
-        _request: HttpDownloadRequest,
-        _cancellation: &dyn CancellationToken,
-        _observer: Option<&dyn HttpDownloadProgressObserver>,
-    ) -> AppResult<HttpDownloadResponse> {
-        panic!("download_to_path should not be called in this test")
-    }
-}
-
-fn valid_curseforge_search_body() -> &'static str {
-    r#"{"data":[{"id":42,"name":"WeakAuras","summary":"Aura tracking","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#
-}
-
 fn write_cache_entry<H>(
     provider: &DefaultAddonProvider<H>,
     stage_root: &std::path::Path,
@@ -2221,74 +1985,5 @@ fn not_modified_download_response(headers: Vec<HttpHeader>) -> HttpDownloadRespo
     HttpDownloadResponse {
         status_code: 304,
         headers,
-    }
-}
-
-fn curseforge_api_key_guard(value: &str) -> CurseForgeApiKeyGuard {
-    curseforge_api_key_env_guard(Some(value), None)
-}
-
-fn standard_curseforge_api_key_guard(value: &str) -> CurseForgeApiKeyGuard {
-    curseforge_api_key_env_guard(None, Some(value))
-}
-
-fn curseforge_api_key_env_guard(
-    hearthsync_value: Option<&str>,
-    standard_value: Option<&str>,
-) -> CurseForgeApiKeyGuard {
-    static CURSEFORGE_API_KEY_ENV_MUTEX: Mutex<()> = Mutex::new(());
-    let lock = CURSEFORGE_API_KEY_ENV_MUTEX
-        .lock()
-        .expect("curseforge api key env lock");
-    let hearthsync_key = "HEARTHSYNC_CURSEFORGE_API_KEY";
-    let standard_key = "CURSEFORGE_API_KEY";
-    let previous_hearthsync = std::env::var_os(hearthsync_key);
-    let previous_standard = std::env::var_os(standard_key);
-    set_optional_env_var(hearthsync_key, hearthsync_value);
-    set_optional_env_var(standard_key, standard_value);
-
-    CurseForgeApiKeyGuard {
-        hearthsync_key,
-        previous_hearthsync,
-        standard_key,
-        previous_standard,
-        _lock: lock,
-    }
-}
-
-struct CurseForgeApiKeyGuard {
-    hearthsync_key: &'static str,
-    previous_hearthsync: Option<OsString>,
-    standard_key: &'static str,
-    previous_standard: Option<OsString>,
-    _lock: MutexGuard<'static, ()>,
-}
-
-impl Drop for CurseForgeApiKeyGuard {
-    fn drop(&mut self) {
-        restore_env_var(self.hearthsync_key, &self.previous_hearthsync);
-        restore_env_var(self.standard_key, &self.previous_standard);
-    }
-}
-
-fn set_optional_env_var(key: &str, value: Option<&str>) {
-    match value {
-        Some(value) => unsafe {
-            std::env::set_var(key, value);
-        },
-        None => unsafe {
-            std::env::remove_var(key);
-        },
-    }
-}
-
-fn restore_env_var(key: &str, value: &Option<OsString>) {
-    match value {
-        Some(value) => unsafe {
-            std::env::set_var(key, value);
-        },
-        None => unsafe {
-            std::env::remove_var(key);
-        },
     }
 }

@@ -102,3 +102,78 @@ fn normalize_optional_provider_text(value: Option<String>) -> Option<String> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::model::{CurseForgeFileIndex, CurseForgeSearchMod, CurseForgeSearchModLinks};
+    use super::*;
+
+    #[test]
+    fn to_addon_search_result_projects_matching_file_index_and_normalizes_summary() {
+        let result = to_addon_search_result(
+            CurseForgeSearchMod {
+                id: 42,
+                name: "WeakAuras".to_string(),
+                summary: Some("  Aura tracking  ".to_string()),
+                download_count: 100,
+                latest_files_indexes: vec![
+                    CurseForgeFileIndex {
+                        file_id: 777,
+                        game_version_type_id: 517,
+                    },
+                    CurseForgeFileIndex {
+                        file_id: 778,
+                        game_version_type_id: 517,
+                    },
+                ],
+                links: CurseForgeSearchModLinks {
+                    website_url: Some(
+                        "https://www.curseforge.com/wow/addons/weakauras-2".to_string(),
+                    ),
+                },
+            },
+            517,
+        );
+
+        assert_eq!(result.provider, "curseforge");
+        assert_eq!(result.name, "WeakAuras");
+        assert_eq!(result.summary.as_deref(), Some("Aura tracking"));
+        assert_eq!(
+            result.source,
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: Some(777),
+            }
+        );
+        assert_eq!(result.install_hint, "curseforge:42@777");
+        assert_eq!(result.provider_project_id, Some(42));
+        assert_eq!(result.provider_file_id, Some(777));
+        assert_eq!(result.download_count, 100);
+    }
+
+    #[test]
+    fn to_addon_search_result_drops_blank_summary_and_absent_version_match() {
+        let result = to_addon_search_result(
+            CurseForgeSearchMod {
+                id: 43,
+                name: "SharedMedia".to_string(),
+                summary: Some("   ".to_string()),
+                download_count: 50,
+                latest_files_indexes: Vec::new(),
+                links: CurseForgeSearchModLinks { website_url: None },
+            },
+            517,
+        );
+
+        assert_eq!(result.summary, None);
+        assert_eq!(
+            result.source,
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 43,
+                file_id: None,
+            }
+        );
+        assert_eq!(result.install_hint, "curseforge:43");
+        assert_eq!(result.provider_file_id, None);
+    }
+}
