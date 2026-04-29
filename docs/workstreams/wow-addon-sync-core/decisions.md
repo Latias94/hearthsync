@@ -1718,3 +1718,31 @@ Specifically:
   carry no usable operator information.
 - Future GUI editors can validate index package source forms through the same core gate that CLI
   `addon index validate` and runtime flows use.
+
+## ADR-068: Tracked Registry State Validates Source and Directory Contracts
+
+Accepted on 2026-04-29
+
+### Decision
+
+Tracked addon registry load/save must validate the same source-reference shape as addon indexes,
+plus the stricter managed-state rules that apply only after a package is tracked locally.
+
+Specifically:
+
+- Registry source refs share the common `AddonSourceRef` validation for HTTP, CurseForge, GitHub,
+  and non-empty local archive fields.
+- Registry local archive sources must also be absolute before managed state is trusted or written.
+- Tracked addon directory names must be portable addon directory segments and remain
+  case-insensitively unique within and across packages.
+- Stored addon metadata may omit optional fields, but present metadata text fields and supported
+  flavor entries must not be blank.
+
+### Consequences
+
+- Hand-edited or corrupted managed addon state fails before update, remove, lock, or index attach
+  paths can turn invalid directory names into live filesystem targets.
+- Registry and addon-index source validation now share one source-reference floor instead of
+  drifting between curated input and managed state.
+- Future GUI state editors can reuse the registry save/load contract rather than carrying a
+  separate managed-state validation model.

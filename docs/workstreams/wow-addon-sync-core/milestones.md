@@ -336,6 +336,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon-index package sources and optional source metadata now reject empty local paths, invalid
   HTTP archive URL schemes, zero CurseForge ids, blank GitHub owner/repo/tag/asset fields, and
   blank source metadata before provider materialization or registry writes can trust them.
+- tracked addon registry load/save now reuses the same source-reference shape validation, keeps the
+  stricter absolute-local-archive state rule, validates addon directory names as portable segments,
+  and rejects blank stored metadata fields or supported-flavor entries.
 - installation path normalization now preserves Windows verbatim UNC roots when trimming `\\?\`
   prefixes, so network-share installs remain absolute UNC paths after canonicalization cleanup
 - external-package source analysis now rejects directory and zip symlink entries explicitly instead

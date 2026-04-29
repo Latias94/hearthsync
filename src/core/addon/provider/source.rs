@@ -81,6 +81,97 @@ pub(crate) fn validate_absolute_local_archive_source_path(path: &Path) -> AppRes
     )))
 }
 
+pub(crate) fn validate_addon_source_ref(
+    source: &AddonSourceRef,
+    source_context: &str,
+) -> AppResult<()> {
+    match source {
+        AddonSourceRef::LocalArchive { path } => {
+            if path.as_os_str().is_empty() {
+                return Err(invalid_source_ref(
+                    source_context,
+                    "local archive source path must not be empty",
+                ));
+            }
+        }
+        AddonSourceRef::HttpArchive { url } => {
+            if url.trim().is_empty() {
+                return Err(invalid_source_ref(
+                    source_context,
+                    "HTTP archive source URL must not be empty",
+                ));
+            }
+            if !(url.starts_with("http://") || url.starts_with("https://")) {
+                return Err(invalid_source_ref(
+                    source_context,
+                    "HTTP archive source URL must start with `http://` or `https://`",
+                ));
+            }
+        }
+        AddonSourceRef::CurseForgeMod { mod_id, file_id } => {
+            if *mod_id == 0 {
+                return Err(invalid_source_ref(
+                    source_context,
+                    "CurseForge mod id must be greater than zero",
+                ));
+            }
+            if matches!(file_id, Some(0)) {
+                return Err(invalid_source_ref(
+                    source_context,
+                    "CurseForge file id must be greater than zero",
+                ));
+            }
+        }
+        AddonSourceRef::GitHubRelease {
+            owner,
+            repo,
+            tag,
+            asset_name,
+        } => {
+            validate_required_source_text(source_context, "GitHub owner", owner)?;
+            validate_required_source_text(source_context, "GitHub repo", repo)?;
+            validate_optional_source_text(source_context, "GitHub tag", tag.as_deref())?;
+            validate_optional_source_text(
+                source_context,
+                "GitHub asset name",
+                asset_name.as_deref(),
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_required_source_text(source_context: &str, field: &str, value: &str) -> AppResult<()> {
+    if value.trim().is_empty() {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must not be empty"),
+        ));
+    }
+
+    Ok(())
+}
+
+fn validate_optional_source_text(
+    source_context: &str,
+    field: &str,
+    value: Option<&str>,
+) -> AppResult<()> {
+    if value.is_some_and(|value| value.trim().is_empty()) {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must not be empty when present"),
+        ));
+    }
+
+    Ok(())
+}
+
+fn invalid_source_ref(source_context: &str, message: &str) -> AppError {
+    AppError::Validation(format!("invalid {source_context}: {message}"))
+}
+
 pub(crate) fn canonicalize_local_archive_path(path: &Path) -> AppResult<PathBuf> {
     let resolved =
         fs::canonicalize(path).map_err(|_| AppError::NotFound(path.display().to_string()))?;

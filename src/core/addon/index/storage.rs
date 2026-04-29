@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::core::addon::canonicalize_local_archive_path;
+use crate::core::addon::{canonicalize_local_archive_path, validate_addon_source_ref};
 use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
@@ -140,7 +140,10 @@ fn validate_index_package(package: &AddonIndexPackage) -> AppResult<()> {
         }
     }
 
-    validate_index_package_source(package)?;
+    validate_addon_source_ref(
+        &package.source,
+        &format!("source for package `{}`", package.id),
+    )?;
     validate_optional_package_text(package, "source_url", package.source_url.as_deref())?;
     validate_optional_package_text(package, "website_url", package.website_url.as_deref())?;
     validate_optional_package_text(package, "sha256", package.sha256.as_deref())?;
@@ -194,90 +197,6 @@ fn validate_index_package(package: &AddonIndexPackage) -> AppResult<()> {
     Ok(())
 }
 
-fn validate_index_package_source(package: &AddonIndexPackage) -> AppResult<()> {
-    match &package.source {
-        AddonSourceRef::LocalArchive { path } => {
-            if path.as_os_str().is_empty() {
-                return Err(invalid_package_source(
-                    package,
-                    "local archive source path must not be empty",
-                ));
-            }
-        }
-        AddonSourceRef::HttpArchive { url } => {
-            if url.trim().is_empty() {
-                return Err(invalid_package_source(
-                    package,
-                    "HTTP archive source URL must not be empty",
-                ));
-            }
-            if !(url.starts_with("http://") || url.starts_with("https://")) {
-                return Err(invalid_package_source(
-                    package,
-                    "HTTP archive source URL must start with `http://` or `https://`",
-                ));
-            }
-        }
-        AddonSourceRef::CurseForgeMod { mod_id, file_id } => {
-            if *mod_id == 0 {
-                return Err(invalid_package_source(
-                    package,
-                    "CurseForge mod id must be greater than zero",
-                ));
-            }
-            if matches!(file_id, Some(0)) {
-                return Err(invalid_package_source(
-                    package,
-                    "CurseForge file id must be greater than zero",
-                ));
-            }
-        }
-        AddonSourceRef::GitHubRelease {
-            owner,
-            repo,
-            tag,
-            asset_name,
-        } => {
-            validate_required_source_text(package, "GitHub owner", owner)?;
-            validate_required_source_text(package, "GitHub repo", repo)?;
-            validate_optional_source_text(package, "GitHub tag", tag.as_deref())?;
-            validate_optional_source_text(package, "GitHub asset name", asset_name.as_deref())?;
-        }
-    }
-
-    Ok(())
-}
-
-fn validate_required_source_text(
-    package: &AddonIndexPackage,
-    field: &str,
-    value: &str,
-) -> AppResult<()> {
-    if value.trim().is_empty() {
-        return Err(invalid_package_source(
-            package,
-            &format!("{field} must not be empty"),
-        ));
-    }
-
-    Ok(())
-}
-
-fn validate_optional_source_text(
-    package: &AddonIndexPackage,
-    field: &str,
-    value: Option<&str>,
-) -> AppResult<()> {
-    if value.is_some_and(|value| value.trim().is_empty()) {
-        return Err(invalid_package_source(
-            package,
-            &format!("{field} must not be empty when present"),
-        ));
-    }
-
-    Ok(())
-}
-
 fn validate_optional_package_text(
     package: &AddonIndexPackage,
     field: &str,
@@ -291,13 +210,6 @@ fn validate_optional_package_text(
     }
 
     Ok(())
-}
-
-fn invalid_package_source(package: &AddonIndexPackage, message: &str) -> AppError {
-    AppError::Validation(format!(
-        "invalid source for package `{}`: {message}",
-        package.id
-    ))
 }
 
 pub(super) fn find_index_package<'a>(

@@ -485,6 +485,10 @@ enough that these rules live in one place.
   HTTP archive URL schemes, zero CurseForge ids, blank GitHub owner/repo/tag/asset fields, and
   blank optional source metadata before those values reach provider materialization or registry
   metadata writes.
+  Current progress: tracked addon registry load/save now shares that source-reference validation,
+  still requires local archive sources to be absolute in managed state, validates tracked addon
+  directory names as portable path segments, and rejects blank stored metadata fields or
+  supported-flavor entries.
   Current progress: addon-root matching now also prefers exact-prefix matches but falls back to
   case-insensitive matching on Windows/default macOS targets, so mixed-case archive subtrees stage
   into the intended addon root instead of being skipped as if they belonged to no addon.

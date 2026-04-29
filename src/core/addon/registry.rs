@@ -2,13 +2,14 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::core::archive_path::validate_portable_path_segment;
 use crate::core::atomic_write::write_bytes_atomically;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::DetectedFlavorInstallation;
 
 use super::{
     AddonRegistry, AddonSourceRef, AddonStatePaths, TrackedAddonPackage, lock,
-    provider::validate_absolute_local_archive_source_path,
+    provider::{validate_absolute_local_archive_source_path, validate_addon_source_ref},
 };
 
 pub(crate) fn load_registry(
@@ -58,6 +59,7 @@ fn validate_registry(registry: &AddonRegistry) -> AppResult<()> {
     let mut addon_owners = BTreeMap::new();
     for package in &registry.packages {
         validate_registry_package_source(package)?;
+        validate_registry_package_metadata(package)?;
 
         let package_id = package.package_id.trim();
         if package_id.is_empty() {
@@ -85,14 +87,16 @@ fn validate_registry(registry: &AddonRegistry) -> AppResult<()> {
 
         let mut package_addons = BTreeMap::new();
         for addon in &package.addons {
-            let addon_name = addon.directory_name.trim();
-            if addon_name.is_empty() {
-                return Err(AppError::Validation(format!(
-                    "tracked addon directory name cannot be empty for package `{}`",
-                    package.package_id
-                )));
-            }
+            validate_portable_path_segment(&addon.directory_name, "addon directory").map_err(
+                |error| {
+                    AppError::Validation(format!(
+                        "{error} for tracked package `{}`",
+                        package.package_id
+                    ))
+                },
+            )?;
 
+            let addon_name = addon.directory_name.trim();
             let addon_key = addon_name.to_ascii_lowercase();
             if let Some(existing_addon_name) =
                 package_addons.insert(addon_key.clone(), addon.directory_name.clone())
@@ -122,6 +126,11 @@ fn validate_registry(registry: &AddonRegistry) -> AppResult<()> {
 }
 
 fn validate_registry_package_source(package: &TrackedAddonPackage) -> AppResult<()> {
+    validate_addon_source_ref(
+        &package.source,
+        &format!("source for tracked addon package `{}`", package.package_id),
+    )?;
+
     match &package.source {
         AddonSourceRef::LocalArchive { path } => validate_absolute_local_archive_source_path(path)
             .map_err(|error| {
@@ -132,6 +141,40 @@ fn validate_registry_package_source(package: &TrackedAddonPackage) -> AppResult<
             }),
         _ => Ok(()),
     }
+}
+
+fn validate_registry_package_metadata(package: &TrackedAddonPackage) -> AppResult<()> {
+    let Some(metadata) = &package.metadata else {
+        return Ok(());
+    };
+
+    for (field, value) in [
+        ("index_name", metadata.index_name.as_deref()),
+        ("index_package_id", metadata.index_package_id.as_deref()),
+        ("package_name", metadata.package_name.as_deref()),
+        ("version", metadata.version.as_deref()),
+        ("source_url", metadata.source_url.as_deref()),
+        ("website_url", metadata.website_url.as_deref()),
+        ("source_sha256", metadata.source_sha256.as_deref()),
+    ] {
+        if value.is_some_and(|value| value.trim().is_empty()) {
+            return Err(AppError::Validation(format!(
+                "tracked addon metadata `{field}` must not be blank for package `{}`",
+                package.package_id
+            )));
+        }
+    }
+
+    for flavor in &metadata.supported_flavors {
+        if flavor.trim().is_empty() {
+            return Err(AppError::Validation(format!(
+                "tracked addon metadata supported flavor must not be blank for package `{}`",
+                package.package_id
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 fn cleanup_registry_storage(path: &Path) -> AppResult<()> {

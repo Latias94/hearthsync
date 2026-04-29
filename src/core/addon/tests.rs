@@ -312,6 +312,28 @@ fn save_registry_rejects_case_insensitive_duplicate_addon_directory_owners() {
 }
 
 #[test]
+fn save_registry_rejects_non_portable_addon_directory_names() {
+    for addon_directory in ["Bad/Addon", "CON", "Weak:Auras"] {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_fixture_installation(temp.path());
+        let state_paths = sidecar_addon_state_paths(&installation);
+        let registry = AddonRegistry {
+            schema_version: 1,
+            packages: vec![tracked_package("details", addon_directory)],
+        };
+
+        let error = save_registry(&installation, &state_paths, &registry)
+            .expect_err("non-portable addon directory should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("invalid addon directory name"));
+        assert!(message.contains("tracked package `details`"));
+        assert!(!state_paths.registry_path.exists());
+    }
+}
+
+#[test]
 fn save_registry_rejects_relative_local_archive_sources() {
     let temp = tempdir().expect("temp dir");
     let installation = create_fixture_installation(temp.path());
@@ -333,6 +355,173 @@ fn save_registry_rejects_relative_local_archive_sources() {
     assert!(message.contains("tracked addon package `details`"));
     assert!(message.contains("must be absolute"));
     assert!(!state_paths.registry_path.exists());
+}
+
+#[test]
+fn save_registry_rejects_invalid_remote_source_refs() {
+    for (source, expected_message) in [
+        (
+            AddonSourceRef::HttpArchive { url: String::new() },
+            "HTTP archive source URL",
+        ),
+        (
+            AddonSourceRef::HttpArchive {
+                url: "ftp://example.invalid/details.zip".to_string(),
+            },
+            "HTTP archive source URL",
+        ),
+        (
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 0,
+                file_id: None,
+            },
+            "CurseForge mod id",
+        ),
+        (
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 12345,
+                file_id: Some(0),
+            },
+            "CurseForge file id",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: String::new(),
+                repo: "details".to_string(),
+                tag: None,
+                asset_name: None,
+            },
+            "GitHub owner",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: " ".to_string(),
+                tag: None,
+                asset_name: None,
+            },
+            "GitHub repo",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "details".to_string(),
+                tag: Some(String::new()),
+                asset_name: None,
+            },
+            "GitHub tag",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "details".to_string(),
+                tag: None,
+                asset_name: Some(String::new()),
+            },
+            "GitHub asset name",
+        ),
+    ] {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_fixture_installation(temp.path());
+        let state_paths = sidecar_addon_state_paths(&installation);
+        let mut package = tracked_package("details", "Details");
+        package.source = source;
+        let registry = AddonRegistry {
+            schema_version: 1,
+            packages: vec![package],
+        };
+
+        let error = save_registry(&installation, &state_paths, &registry)
+            .expect_err("invalid remote source should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("invalid source for tracked addon package `details`"));
+        assert!(message.contains(expected_message));
+        assert!(!state_paths.registry_path.exists());
+    }
+}
+
+#[test]
+fn save_registry_rejects_blank_metadata_values() {
+    for (expected_message, metadata) in [
+        (
+            "index_name",
+            super::AddonPackageMetadata {
+                index_name: Some(" ".to_string()),
+                ..Default::default()
+            },
+        ),
+        (
+            "index_package_id",
+            super::AddonPackageMetadata {
+                index_package_id: Some(String::new()),
+                ..Default::default()
+            },
+        ),
+        (
+            "package_name",
+            super::AddonPackageMetadata {
+                package_name: Some(" ".to_string()),
+                ..Default::default()
+            },
+        ),
+        (
+            "version",
+            super::AddonPackageMetadata {
+                version: Some(String::new()),
+                ..Default::default()
+            },
+        ),
+        (
+            "source_url",
+            super::AddonPackageMetadata {
+                source_url: Some(" ".to_string()),
+                ..Default::default()
+            },
+        ),
+        (
+            "website_url",
+            super::AddonPackageMetadata {
+                website_url: Some(String::new()),
+                ..Default::default()
+            },
+        ),
+        (
+            "source_sha256",
+            super::AddonPackageMetadata {
+                source_sha256: Some(" ".to_string()),
+                ..Default::default()
+            },
+        ),
+        (
+            "supported flavor",
+            super::AddonPackageMetadata {
+                supported_flavors: vec![" ".to_string()],
+                ..Default::default()
+            },
+        ),
+    ] {
+        let temp = tempdir().expect("temp dir");
+        let installation = create_fixture_installation(temp.path());
+        let state_paths = sidecar_addon_state_paths(&installation);
+        let mut package = tracked_package("details", "Details");
+        package.metadata = Some(metadata);
+        let registry = AddonRegistry {
+            schema_version: 1,
+            packages: vec![package],
+        };
+
+        let error = save_registry(&installation, &state_paths, &registry)
+            .expect_err("blank metadata should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("tracked addon metadata"));
+        assert!(message.contains(expected_message));
+        assert!(message.contains("package `details`"));
+        assert!(!state_paths.registry_path.exists());
+    }
 }
 
 #[test]
