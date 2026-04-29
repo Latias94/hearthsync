@@ -370,6 +370,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - backup metadata now validates at the archive metadata boundary: `backup.toml` symlink/directory
   entries, invalid schema/timestamps/flavor/group rows, and blank labels fail before catalog or
   restore-selection code consumes metadata.
+- backup labels now normalize before archive creation and must be portable filename segments both
+  when creating new backups and when reading stored backup metadata.
 - backup creation now also rejects local directory/interface symlink entries instead of following
   link targets into the archive, keeping backup payloads bounded to the intended WoW tree
 - addon local-archive package preparation now also rejects zip symlink entries, so addon

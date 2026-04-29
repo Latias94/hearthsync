@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::archive_path::validate_portable_path_segment;
+use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -110,9 +112,22 @@ pub struct RestoreBackupRequest {
     pub backup_dir: Option<PathBuf>,
 }
 
+pub(crate) fn normalize_backup_label(label: Option<String>) -> AppResult<Option<String>> {
+    let Some(label) = label else {
+        return Ok(None);
+    };
+    let label = label.trim().to_string();
+    if label.is_empty() {
+        return Ok(None);
+    }
+
+    validate_portable_path_segment(&label, "backup label")?;
+    Ok(Some(label))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::BackupGroup;
+    use super::{BackupGroup, normalize_backup_label};
 
     #[test]
     fn backup_group_archive_root_name_distinguishes_metadata_label() {
@@ -138,5 +153,23 @@ mod tests {
         }
 
         assert_eq!(BackupGroup::from_archive_root_name("metadata"), None);
+    }
+
+    #[test]
+    fn normalize_backup_label_trims_blank_and_rejects_non_portable_names() {
+        assert_eq!(normalize_backup_label(None).expect("none label"), None);
+        assert_eq!(
+            normalize_backup_label(Some("  nightly ".to_string())).expect("trim label"),
+            Some("nightly".to_string())
+        );
+        assert_eq!(
+            normalize_backup_label(Some(" ".to_string())).expect("blank label"),
+            None
+        );
+
+        let error = normalize_backup_label(Some("../escape".to_string()))
+            .expect_err("path-shaped labels should fail");
+
+        assert!(error.to_string().contains("invalid backup label name"));
     }
 }

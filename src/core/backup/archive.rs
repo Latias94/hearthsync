@@ -10,7 +10,10 @@ use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use super::model::{BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup};
+use super::model::{
+    BackupGroup, BackupMetadata, BackupRequest, CreatedBackup, RestoredBackup,
+    normalize_backup_label,
+};
 use super::storage::resolve_backup_dir;
 use crate::core::archive_io::{
     PortableArchivePathSet, add_directory_to_zip, copy_reader_to_path,
@@ -20,6 +23,7 @@ use crate::core::archive_io::{
 use crate::core::archive_path::{
     PlatformPathCollisionKind, PlatformPathPrefixConflictKind, find_platform_path_collision,
     find_platform_path_prefix_conflict, join_segments, safe_zip_segments, to_zip_path,
+    validate_portable_path_segment,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, WowFlavor};
@@ -130,12 +134,13 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
         .format(&Rfc3339)
         .map_err(|error| AppError::Validation(error.to_string()))?;
     let output_dir = resolve_backup_dir(request.output_path.as_deref())?;
+    let label = normalize_backup_label(request.label)?;
 
     fs::create_dir_all(&output_dir)?;
 
     let file_name = build_backup_file_name(
         request.installation.flavor.as_str(),
-        request.label.as_deref(),
+        label.as_deref(),
         &timestamp,
     );
     let archive_path = output_dir.join(file_name);
@@ -156,12 +161,7 @@ pub fn create_backup(request: BackupRequest) -> AppResult<CreatedBackup> {
     let metadata = BackupMetadata {
         schema_version: 1,
         created_at: timestamp,
-        label: request
-            .label
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToOwned::to_owned),
+        label,
         flavor: request.installation.flavor.as_str().to_string(),
         flavor_root: request.installation.flavor_root.clone(),
         groups: request.groups,
@@ -522,6 +522,9 @@ fn validate_backup_metadata_shape(metadata: &BackupMetadata) -> AppResult<()> {
         return Err(AppError::Validation(
             "backup metadata label must not be blank".to_string(),
         ));
+    }
+    if let Some(label) = metadata.label.as_deref() {
+        validate_portable_path_segment(label, "backup label")?;
     }
 
     if !is_supported_backup_flavor(&metadata.flavor) {

@@ -1987,3 +1987,27 @@ Specifically:
 - Sidecar source path identity follows the same cross-platform duplicate rule as embedded bundle
   addon-source indexes.
 - Future GUI lock-source editors can rely on one fail-closed sidecar contract.
+
+## ADR-078: Backup Labels Are Portable Filename Segments
+
+Accepted on 2026-04-29
+
+### Decision
+
+Backup labels are both user-facing metadata and part of generated backup archive filenames, so
+non-empty labels must be portable filename segments.
+
+Specifically:
+
+- Backup creation trims labels and treats blank labels as absent.
+- Non-empty labels must pass the shared portable path-segment validation before the backup output
+  directory is created.
+- Backup metadata readers reject stored labels that are blank or non-portable.
+
+### Consequences
+
+- A CLI or future GUI label cannot introduce path separators, Windows reserved names, trailing
+  dots/spaces, or other cross-platform filename hazards into backup archive paths.
+- Backup catalogs can trust metadata labels as display text that also remains safe for filename
+  reuse.
+- Existing no-label backups keep the same behavior.

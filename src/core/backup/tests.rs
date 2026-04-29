@@ -92,6 +92,24 @@ fn create_and_restore_backup_preserve_large_binary_file_contents() {
 }
 
 #[test]
+fn create_backup_rejects_non_portable_label_before_creating_output_dir() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path(), WowFlavor::Retail);
+    let output_dir = temp.path().join("out");
+
+    let error = create_backup(BackupRequest {
+        installation,
+        output_path: Some(output_dir.clone()),
+        groups: vec![BackupGroup::Addons],
+        label: Some("../escape".to_string()),
+    })
+    .expect_err("path-shaped label should fail");
+
+    assert!(error.to_string().contains("invalid backup label name"));
+    assert!(!output_dir.exists());
+}
+
+#[test]
 fn restore_backup_restores_previous_state_and_removes_new_files() {
     let temp = tempdir().expect("temp dir");
     let flavor_root = temp.path().join("_retail_");
@@ -252,6 +270,29 @@ fn list_backups_rejects_invalid_metadata_contracts() {
             .to_string()
             .contains("backup metadata created_at must be an RFC 3339 timestamp")
     );
+}
+
+#[test]
+fn list_backups_rejects_non_portable_metadata_label() {
+    let temp = tempdir().expect("temp dir");
+    let backup_dir = temp.path().join("backups");
+    fs::create_dir_all(&backup_dir).expect("backup dir");
+
+    write_test_backup_archive(
+        &backup_dir.join("backup-invalid-label.zip"),
+        BackupMetadata {
+            schema_version: 1,
+            created_at: "2026-04-15T10:00:00Z".to_string(),
+            label: Some("../escape".to_string()),
+            flavor: "retail".to_string(),
+            flavor_root: PathBuf::from("C:/WoW/_retail_"),
+            groups: vec![BackupGroup::Addons],
+        },
+    );
+
+    let error = list_backups(Some(&backup_dir)).expect_err("invalid label should fail closed");
+
+    assert!(error.to_string().contains("invalid backup label name"));
 }
 
 #[test]
