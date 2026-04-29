@@ -1275,53 +1275,6 @@ fn default_addon_provider_accepts_standard_curseforge_api_key_env() {
 }
 
 #[test]
-fn default_addon_provider_rejects_invalid_curseforge_file_list_contracts() {
-    #[derive(Default)]
-    struct FakeHttpClient;
-
-    impl HttpClient for FakeHttpClient {
-        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
-            match request.url.as_str() {
-                "https://api.curseforge.com/v1/mods/42/files" => Ok(HttpResponse {
-                    status_code: 200,
-                    body: r#"{"data":[{"id":777,"fileName":"bad/name.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}]}"#.to_string(),
-                }),
-                _ => Err(AppError::Validation(format!(
-                    "unexpected request url: {}",
-                    request.url
-                ))),
-            }
-        }
-
-        fn download_to_path(
-            &self,
-            _request: HttpDownloadRequest,
-            _cancellation: &dyn CancellationToken,
-            _observer: Option<&dyn HttpDownloadProgressObserver>,
-        ) -> AppResult<HttpDownloadResponse> {
-            panic!("download_to_path should not be called in this test")
-        }
-    }
-
-    let _guard = curseforge_api_key_guard("test-api-key");
-    let temp = tempdir().expect("temp dir");
-    let provider = DefaultAddonProvider::with_http_client(FakeHttpClient);
-
-    let error = provider
-        .materialize_source_ref(super::MaterializeSourceRefRequest {
-            source: &AddonSourceRef::CurseForgeMod {
-                mod_id: 42,
-                file_id: None,
-            },
-            stage_root: temp.path(),
-            context: AddonProviderContext::default(),
-        })
-        .expect_err("invalid file metadata");
-
-    assert!(error.to_string().contains("invalid CurseForge file name"));
-}
-
-#[test]
 fn default_addon_provider_reports_dependency_resolution_capability_by_source_kind() {
     let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
 

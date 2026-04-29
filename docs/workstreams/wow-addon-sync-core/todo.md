@@ -592,7 +592,7 @@ enough that these rules live in one place.
   transport helpers.
   Current cleanup: provider-owned pure boundary tests now live next to their implementation
   modules. GitHub API fetch and release/asset selector coverage moved into `provider::github`,
-  CurseForge search/context API coverage moved into `provider::curseforge::api`,
+  CurseForge search/context/file-response API coverage moved into `provider::curseforge::api`,
   version-type/file-selection/file-metadata coverage moved into `provider::curseforge::select`,
   search-result projection coverage moved into `provider::curseforge`, and `provider::tests` is
   left for default-provider composition, HTTP/cache, source materialization, and

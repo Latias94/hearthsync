@@ -313,6 +313,73 @@ mod tests {
     use crate::core::task::CancellationToken;
 
     #[test]
+    fn fetch_curseforge_mod_files_with_client_returns_validated_files() {
+        let _guard = curseforge_api_key_guard("test-api-key");
+        let client = SingleRouteHttpClient::new(
+            "https://api.curseforge.com/v1/mods/42/files",
+            r#"{"data":[{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}]}"#,
+        );
+
+        let files = fetch_curseforge_mod_files_with_client(&client, 42).expect("mod files");
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].id, 777);
+        assert_eq!(files[0].file_name, "addon.zip");
+        assert!(
+            client.requests.borrow()[0]
+                .headers
+                .iter()
+                .any(|header| header.name == "x-api-key" && header.value == "test-api-key")
+        );
+    }
+
+    #[test]
+    fn fetch_curseforge_mod_files_with_client_rejects_invalid_file_contracts() {
+        let _guard = curseforge_api_key_guard("test-api-key");
+        let client = SingleRouteHttpClient::new(
+            "https://api.curseforge.com/v1/mods/42/files",
+            r#"{"data":[{"id":777,"fileName":"bad/name.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}]}"#,
+        );
+
+        let error =
+            fetch_curseforge_mod_files_with_client(&client, 42).expect_err("invalid file metadata");
+
+        assert!(error.to_string().contains("invalid CurseForge file name"));
+    }
+
+    #[test]
+    fn fetch_curseforge_file_with_client_returns_validated_file() {
+        let _guard = curseforge_api_key_guard("test-api-key");
+        let client = SingleRouteHttpClient::new(
+            "https://api.curseforge.com/v1/mods/42/files/777",
+            r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"2026-04-21T12:00:00Z","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}}"#,
+        );
+
+        let file = fetch_curseforge_file_with_client(&client, 42, 777).expect("file");
+
+        assert_eq!(file.id, 777);
+        assert_eq!(file.file_name, "addon.zip");
+        assert_eq!(
+            client.requests.borrow()[0].url,
+            "https://api.curseforge.com/v1/mods/42/files/777"
+        );
+    }
+
+    #[test]
+    fn fetch_curseforge_file_with_client_rejects_invalid_file_contracts() {
+        let _guard = curseforge_api_key_guard("test-api-key");
+        let client = SingleRouteHttpClient::new(
+            "https://api.curseforge.com/v1/mods/42/files/777",
+            r#"{"data":{"id":777,"fileName":"addon.zip","fileDate":"not-a-timestamp","downloadUrl":"https://example.com/curseforge/777/addon.zip","isAvailable":true,"releaseType":1}}"#,
+        );
+
+        let error =
+            fetch_curseforge_file_with_client(&client, 42, 777).expect_err("invalid file metadata");
+
+        assert!(error.to_string().contains("file date must be"));
+    }
+
+    #[test]
     fn search_curseforge_mods_with_client_returns_validated_payload() {
         let _guard = curseforge_api_key_guard("test-api-key");
         let client = CurseForgeSearchHttpClient::new(
@@ -535,5 +602,47 @@ mod tests {
 
     fn valid_curseforge_search_body() -> &'static str {
         r#"{"data":[{"id":42,"name":"WeakAuras","summary":"Aura tracking","downloadCount":100,"latestFilesIndexes":[{"fileId":777,"gameVersionTypeId":517}],"links":{"websiteUrl":"https://example.com/weakauras"}}]}"#
+    }
+
+    struct SingleRouteHttpClient<'a> {
+        expected_url: &'a str,
+        body: &'a str,
+        requests: RefCell<Vec<HttpRequest>>,
+    }
+
+    impl<'a> SingleRouteHttpClient<'a> {
+        fn new(expected_url: &'a str, body: &'a str) -> Self {
+            Self {
+                expected_url,
+                body,
+                requests: RefCell::new(Vec::new()),
+            }
+        }
+    }
+
+    impl HttpClient for SingleRouteHttpClient<'_> {
+        fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+            self.requests.borrow_mut().push(request.clone());
+            if request.url == self.expected_url {
+                return Ok(HttpResponse {
+                    status_code: 200,
+                    body: self.body.to_string(),
+                });
+            }
+
+            Err(AppError::Validation(format!(
+                "unexpected request url: {}",
+                request.url
+            )))
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            panic!("download_to_path should not be called in this test")
+        }
     }
 }
