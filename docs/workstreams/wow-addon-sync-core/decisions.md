@@ -1831,3 +1831,33 @@ Specifically:
   built for addon operations.
 - CLI-specific persisted-path checks can remain defensive, but the core app settings service is
   now the canonical owner of settings-file validity.
+
+## ADR-072: Bundle Addon Source Indexes Fail Closed before Extraction
+
+Accepted on 2026-04-29
+
+### Decision
+
+Embedded bundle addon source indexes must validate their source rows before source archives are
+extracted and projected into addon-lock source overrides.
+
+Specifically:
+
+- The index schema version must be supported, and present source indexes must contain at least one
+  source row.
+- Source comparison keys and package ids must be non-empty.
+- Comparison keys and source archive paths must be unique; paths use case-insensitive comparison
+  because bundle metadata must remain portable across Windows and default macOS targets.
+- Source archive paths must stay under the portable `sources/` root.
+- Stored content hashes must be 64-character SHA-256 hex digests.
+- Declared addon directories must be non-empty, portable addon directory segments, and
+  case-insensitively unique within a source row.
+
+### Consequences
+
+- Malformed author or generated bundles cannot copy source archives into a temporary extraction
+  area before failing on override resolution.
+- Bundle addon-lock plan/apply now sees source overrides only after the source index has passed the
+  same portability and identity rules that generated bundles already follow.
+- Future GUI bundle-inspection flows can flag invalid embedded addon-source metadata at the bundle
+  boundary instead of discovering it later during lock planning.

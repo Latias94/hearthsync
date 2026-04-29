@@ -345,6 +345,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - addon-lock files now fail closed at read time on invalid source refs, relative local archive
   refs, blank package metadata/timestamps, invalid content hashes, non-portable addon directory
   names, and case-insensitive addon-directory ownership conflicts.
+- embedded bundle addon source indexes now fail closed before source extraction on blank or
+  duplicate comparison keys, invalid source paths, invalid content hashes, and non-portable addon
+  directory declarations.
 - addon-policy files now also fail closed on blank update timestamps, blank or duplicate package
   ids, no-op package rows, empty version pins, and zero file-id pins, with the same validation
   applied before writes.

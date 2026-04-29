@@ -495,6 +495,9 @@ enough that these rules live in one place.
   Current progress: addon-lock files now fail closed at read time on invalid source refs, relative
   local archive refs, blank package metadata/timestamps, invalid content hashes, non-portable addon
   directory names, and case-insensitive addon-directory ownership conflicts.
+  Current progress: embedded bundle addon source indexes now fail closed before source extraction
+  on blank or duplicate comparison keys, invalid source paths, invalid content hashes, and
+  non-portable addon directory declarations.
   Current progress: addon-policy files now fail closed on blank update timestamps, blank or
   duplicate package ids, no-op package rows, empty version pins, and zero file-id pins, and writes
   run the same validation before persistence.
