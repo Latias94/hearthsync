@@ -586,6 +586,10 @@ enough that these rules live in one place.
   Current cleanup: CurseForge release, hash, and dependency relation policy semantics now live in
   `curseforge::policy`; generic provider source adaptation only projects filtered CurseForge mod ids
   into `AddonSourceRef` values.
+  Current cleanup: provider-specific cache validator projection moved out of the mixed
+  `provider::validation` module. GitHub owns asset-to-validator projection, CurseForge owns
+  file-to-validator projection, and the shared module keeps only provider-agnostic cache and
+  transport helpers.
 
 Exit criteria:
 

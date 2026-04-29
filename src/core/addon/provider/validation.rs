@@ -4,8 +4,6 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
-use super::curseforge::{CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1, CurseForgeFile};
-use super::github::GitHubReleaseAsset;
 use super::http::HttpHeader;
 use crate::core::error::AppResult;
 
@@ -30,57 +28,6 @@ impl RemoteArchiveValidators {
             && self.sha1.is_none()
             && self.md5.is_none()
     }
-}
-
-pub(super) fn remote_validators_for_github_asset(
-    asset: &GitHubReleaseAsset,
-) -> RemoteArchiveValidators {
-    let mut validators = RemoteArchiveValidators {
-        content_length: asset.size,
-        last_modified: asset.updated_at.clone(),
-        etag: None,
-        sha256: None,
-        sha1: None,
-        md5: None,
-    };
-
-    if let Some(digest) = asset.digest.as_deref()
-        && let Some(value) = digest.strip_prefix("sha256:")
-    {
-        validators.sha256 = Some(value.to_ascii_lowercase());
-    }
-
-    validators
-}
-
-pub(super) fn remote_validators_for_curseforge_file(
-    file: &CurseForgeFile,
-) -> RemoteArchiveValidators {
-    let mut validators = RemoteArchiveValidators {
-        content_length: file.file_length,
-        last_modified: (!file.file_date.is_empty()).then(|| file.file_date.clone()),
-        etag: None,
-        sha256: None,
-        sha1: None,
-        md5: None,
-    };
-
-    for hash in &file.hashes {
-        if hash.value.is_empty() {
-            continue;
-        }
-        match hash.algo {
-            CURSEFORGE_HASH_ALGO_SHA1 if validators.sha1.is_none() => {
-                validators.sha1 = Some(hash.value.to_ascii_lowercase());
-            }
-            CURSEFORGE_HASH_ALGO_MD5 if validators.md5.is_none() => {
-                validators.md5 = Some(hash.value.to_ascii_lowercase());
-            }
-            _ => {}
-        }
-    }
-
-    validators
 }
 
 pub(super) fn remote_validators_for_http_headers(

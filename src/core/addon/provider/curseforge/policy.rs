@@ -1,8 +1,9 @@
+use super::super::validation::RemoteArchiveValidators;
 use super::model::{CurseForgeFile, CurseForgeFileDependency};
 use crate::core::error::{AppError, AppResult};
 
-pub(crate) const CURSEFORGE_HASH_ALGO_SHA1: u8 = 1;
-pub(crate) const CURSEFORGE_HASH_ALGO_MD5: u8 = 2;
+const CURSEFORGE_HASH_ALGO_SHA1: u8 = 1;
+const CURSEFORGE_HASH_ALGO_MD5: u8 = 2;
 
 const CURSEFORGE_RELEASE_STABLE: u8 = 1;
 const CURSEFORGE_RELEASE_BETA: u8 = 2;
@@ -72,6 +73,33 @@ pub(super) fn curseforge_hash_contract(algo: u8) -> Option<(usize, &'static str)
         CURSEFORGE_HASH_ALGO_MD5 => Some((32, "MD5")),
         _ => None,
     }
+}
+
+pub(in crate::core::addon::provider) fn remote_validators_for_curseforge_file(
+    file: &CurseForgeFile,
+) -> RemoteArchiveValidators {
+    let mut validators = RemoteArchiveValidators {
+        content_length: file.file_length,
+        last_modified: Some(file.file_date.clone()),
+        etag: None,
+        sha256: None,
+        sha1: None,
+        md5: None,
+    };
+
+    for hash in &file.hashes {
+        match hash.algo {
+            CURSEFORGE_HASH_ALGO_SHA1 if validators.sha1.is_none() => {
+                validators.sha1 = Some(hash.value.to_ascii_lowercase());
+            }
+            CURSEFORGE_HASH_ALGO_MD5 if validators.md5.is_none() => {
+                validators.md5 = Some(hash.value.to_ascii_lowercase());
+            }
+            _ => {}
+        }
+    }
+
+    validators
 }
 
 pub(in crate::core::addon::provider) fn required_dependency_mod_ids_for_curseforge_file(

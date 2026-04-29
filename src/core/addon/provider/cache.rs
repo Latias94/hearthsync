@@ -5,8 +5,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use super::curseforge::resolve_curseforge_file_with_client;
-use super::github::{fetch_github_release_with_client, select_github_release_asset};
+use super::curseforge::{
+    remote_validators_for_curseforge_file, resolve_curseforge_file_with_client,
+};
+use super::github::{
+    fetch_github_release_with_client, remote_validators_for_github_asset,
+    select_github_release_asset,
+};
 use super::http::{
     HttpClient, HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse, HttpHeader,
 };
@@ -14,7 +19,6 @@ use super::parse::{parse_curseforge_source, parse_github_source};
 use super::source::{short_hash, source_cache_namespace};
 use super::validation::{
     RemoteArchiveValidators, conditional_request_headers_for_transport_validators, file_sha256,
-    remote_validators_for_curseforge_file, remote_validators_for_github_asset,
     remote_validators_for_http_headers,
 };
 use super::{AddonProviderOptions, AddonSourceRef};

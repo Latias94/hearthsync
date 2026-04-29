@@ -1051,6 +1051,9 @@ the resulting DTOs as stable product state.
 - CurseForge release, hash, and dependency relation policy semantics now live in
   `curseforge::policy`; the generic source adapter only projects filtered dependency mod ids into
   `AddonSourceRef` values
-- the next provider-side candidate is checking whether provider-specific cache validator projection
-  should also sit behind narrower provider-owned projection helpers instead of sharing one mixed
-  `provider::validation` module
+- provider-specific cache validator projection now lives with each provider: GitHub asset projection
+  is in `github.rs`, CurseForge file projection is in `curseforge::policy`, and
+  `provider::validation` only owns provider-agnostic cache/transport helpers
+- the next provider-side candidate is checking whether provider-owned tests should move closer to
+  the provider modules now that the generic provider test file is carrying many narrow boundary
+  cases

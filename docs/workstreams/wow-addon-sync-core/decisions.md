@@ -2234,3 +2234,29 @@ Specifically:
   place to change.
 - Generic provider adapter code keeps less provider-specific knowledge, which reduces GUI-era
   coupling when more provider backends are added.
+
+## ADR-087: Provider Validator Projection Is Provider-Owned
+
+Accepted on 2026-04-29
+
+### Decision
+
+Provider DTO-to-cache-validator projection is owned by each provider module instead of the shared
+`provider::validation` module.
+
+Specifically:
+
+- GitHub release asset validator projection lives in `github.rs`, next to GitHub asset DTO
+  validation and digest syntax rules.
+- CurseForge file validator projection lives in `curseforge::policy`, next to CurseForge hash algo
+  and release/dependency policy rules.
+- `provider::validation` keeps only provider-agnostic cache validator structures, HTTP transport
+  header projection, conditional request header composition, and local file SHA-256 hashing.
+
+### Consequences
+
+- Provider-specific DTO knowledge no longer accumulates in a mixed validation module.
+- Cache materialization and cache repair continue to consume one common `RemoteArchiveValidators`
+  shape while provider modules own how remote DTOs produce it.
+- Adding another provider should not require editing a shared module with provider-specific JSON
+  semantics.

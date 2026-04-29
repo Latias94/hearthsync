@@ -5,10 +5,12 @@ use super::cache::{
     guess_archive_name_from_url, resolve_archive_path, should_reuse_cached_archive,
     should_reuse_cached_http_archive_without_transport_validators, write_cached_archive_metadata,
 };
-use super::curseforge::resolve_curseforge_file_with_client;
+use super::curseforge::{
+    remote_validators_for_curseforge_file, resolve_curseforge_file_with_client,
+};
 use super::github::{
-    fetch_github_release_with_client, fetch_github_releases_with_client, select_github_release,
-    select_github_release_asset,
+    fetch_github_release_with_client, fetch_github_releases_with_client,
+    remote_validators_for_github_asset, select_github_release, select_github_release_asset,
 };
 use super::http::{HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpHeader};
 use super::parse::{parse_curseforge_source, parse_github_source};
@@ -16,7 +18,6 @@ use super::source::{canonicalize_local_archive_path, validate_absolute_local_arc
 use super::source_adapter::{curseforge_release_type_limit, github_allows_prerelease};
 use super::validation::{
     RemoteArchiveValidators, conditional_request_headers_for_transport_validators,
-    remote_validators_for_curseforge_file, remote_validators_for_github_asset,
     remote_validators_for_http_headers,
 };
 use super::{

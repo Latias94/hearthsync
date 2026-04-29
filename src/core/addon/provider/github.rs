@@ -9,6 +9,7 @@ use crate::core::boundary_validation::{
 use crate::core::error::{AppError, AppResult};
 
 use super::http::{HttpClient, HttpHeader, HttpRequest};
+use super::validation::RemoteArchiveValidators;
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const GITHUB_API_VERSION: &str = "2022-11-28";
@@ -221,6 +222,27 @@ fn validate_github_asset_digest(asset: &GitHubReleaseAsset, digest: &str) -> App
         64,
         "SHA-256",
     )
+}
+
+pub(super) fn remote_validators_for_github_asset(
+    asset: &GitHubReleaseAsset,
+) -> RemoteArchiveValidators {
+    let mut validators = RemoteArchiveValidators {
+        content_length: asset.size,
+        last_modified: asset.updated_at.clone(),
+        etag: None,
+        sha256: None,
+        sha1: None,
+        md5: None,
+    };
+
+    if let Some(digest) = asset.digest.as_deref()
+        && let Some(value) = digest.strip_prefix("sha256:")
+    {
+        validators.sha256 = Some(value.to_ascii_lowercase());
+    }
+
+    validators
 }
 
 fn is_zip_asset_name(asset_name: &str) -> bool {

@@ -16,8 +16,7 @@ pub(crate) use model::{
 };
 pub(crate) use policy::CurseForgeFileReleaseType;
 pub(super) use policy::{
-    CURSEFORGE_HASH_ALGO_MD5, CURSEFORGE_HASH_ALGO_SHA1,
-    required_dependency_mod_ids_for_curseforge_file,
+    remote_validators_for_curseforge_file, required_dependency_mod_ids_for_curseforge_file,
 };
 use select::ensure_curseforge_file_matches_version_type;
 #[allow(unused_imports)]
