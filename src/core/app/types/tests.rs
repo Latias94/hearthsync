@@ -406,6 +406,39 @@ fn bundle_apply_mappings_value_rejects_invalid_character_override() {
 }
 
 #[test]
+fn bundle_apply_mappings_value_rejects_overlapping_character_overrides() {
+    let error = BundleApplyMappingsValue {
+        characters: vec![
+            BundleCharacterMappingOverrideValue {
+                source_account: None,
+                source_server: "Stormrage".to_string(),
+                source_character: "SourceMain".to_string(),
+                target_account: Some("TargetAccount".to_string()),
+                target_server: "Illidan".to_string(),
+                target_character: "TargetMain".to_string(),
+            },
+            BundleCharacterMappingOverrideValue {
+                source_account: Some("SourceAccount".to_string()),
+                source_server: "stormrage".to_string(),
+                source_character: "SourceMain".to_string(),
+                target_account: Some("OtherTargetAccount".to_string()),
+                target_server: "Illidan".to_string(),
+                target_character: "OtherTargetMain".to_string(),
+            },
+        ],
+        ..BundleApplyMappingsValue::default()
+    }
+    .into_domain()
+    .expect_err("overlapping character overrides should fail closed");
+
+    assert!(
+        error
+            .to_string()
+            .contains("overlapping character mapping override")
+    );
+}
+
+#[test]
 fn bundle_apply_defaults_value_author_package_defaults_match_shared_profile() {
     let defaults = BundleApplyDefaultsValue::author_package_defaults();
 

@@ -328,6 +328,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - bundle apply mappings now validate explicit account, server, and character identity segments at
   the app boundary before bundle, external-package, or config apply planning can turn them into
   WTF target paths.
+- bundle apply mappings now also have a domain-level validation contract: mapping files, app DTOs,
+  and direct planning inputs reject duplicate selected accounts and overlapping character override
+  rows before planning.
 - bundle manifest validation now also covers portable resource identifiers: addon directory names,
   WTF character identity segments, interface asset root names, and non-empty author metadata fail
   before pack/apply code can turn them into live paths.

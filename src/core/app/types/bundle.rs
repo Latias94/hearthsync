@@ -295,14 +295,16 @@ impl BundleApplyMappingsValue {
             .map(BundleCharacterMappingOverrideValue::into_domain)
             .collect::<AppResult<Vec<_>>>()?;
 
-        Ok(DomainBundleApplyMappings {
+        let mappings = DomainBundleApplyMappings {
             target_account,
             target_server,
             target_character,
             selected_accounts,
             all_accounts,
             characters,
-        })
+        };
+        mappings.validate()?;
+        Ok(mappings)
     }
 }
 

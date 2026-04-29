@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::archive_path::validate_portable_path_segment;
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{DetectedFlavorInstallation, LocalWowAccount};
 use crate::core::lua_patch::CharacterMapping;
 use crate::core::manifest::{BundleManifest, ResourceApplyPolicy};
@@ -146,6 +148,27 @@ pub struct BundleApplyMappings {
     pub characters: Vec<CharacterMappingOverride>,
 }
 
+impl BundleApplyMappings {
+    pub(crate) fn validate(&self) -> AppResult<()> {
+        validate_optional_mapping_segment("target account", self.target_account.as_deref())?;
+        validate_optional_mapping_segment("target server", self.target_server.as_deref())?;
+        validate_optional_mapping_segment("target character", self.target_character.as_deref())?;
+
+        let mut selected_accounts = std::collections::BTreeMap::new();
+        for selected_account in &self.selected_accounts {
+            validate_mapping_segment("selected account", selected_account)?;
+            let key = normalized_mapping_key(selected_account);
+            if let Some(existing) = selected_accounts.insert(key, selected_account) {
+                return Err(AppError::Validation(format!(
+                    "duplicate selected account mapping: `{selected_account}` conflicts with `{existing}`"
+                )));
+            }
+        }
+
+        validate_character_mapping_overrides(&self.characters)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterMappingOverride {
     pub source_account: Option<String>,
@@ -154,4 +177,148 @@ pub struct CharacterMappingOverride {
     pub target_account: Option<String>,
     pub target_server: String,
     pub target_character: String,
+}
+
+impl CharacterMappingOverride {
+    fn validate(&self) -> AppResult<()> {
+        validate_optional_mapping_segment("source account", self.source_account.as_deref())?;
+        validate_mapping_segment("source server", &self.source_server)?;
+        validate_mapping_segment("source character", &self.source_character)?;
+        validate_optional_mapping_segment("target account", self.target_account.as_deref())?;
+        validate_mapping_segment("target server", &self.target_server)?;
+        validate_mapping_segment("target character", &self.target_character)?;
+
+        Ok(())
+    }
+}
+
+fn validate_character_mapping_overrides(overrides: &[CharacterMappingOverride]) -> AppResult<()> {
+    let mut seen = Vec::new();
+    for mapping in overrides {
+        mapping.validate()?;
+        let current = CharacterMappingOverrideKey::from(mapping);
+        for previous in &seen {
+            if current.overlaps(previous) {
+                return Err(AppError::Validation(format!(
+                    "overlapping character mapping override for `{}/{}`",
+                    mapping.source_server, mapping.source_character
+                )));
+            }
+        }
+        seen.push(current);
+    }
+
+    Ok(())
+}
+
+#[derive(Debug)]
+struct CharacterMappingOverrideKey {
+    source_account: Option<String>,
+    source_server: String,
+    source_character: String,
+}
+
+impl CharacterMappingOverrideKey {
+    fn from(mapping: &CharacterMappingOverride) -> Self {
+        Self {
+            source_account: mapping
+                .source_account
+                .as_deref()
+                .map(normalized_mapping_key),
+            source_server: normalized_mapping_key(&mapping.source_server),
+            source_character: normalized_mapping_key(&mapping.source_character),
+        }
+    }
+
+    fn overlaps(&self, other: &Self) -> bool {
+        self.source_server == other.source_server
+            && self.source_character == other.source_character
+            && (self.source_account.is_none()
+                || other.source_account.is_none()
+                || self.source_account == other.source_account)
+    }
+}
+
+fn validate_optional_mapping_segment(kind: &str, value: Option<&str>) -> AppResult<()> {
+    if let Some(value) = value {
+        validate_mapping_segment(kind, value)?;
+    }
+
+    Ok(())
+}
+
+fn validate_mapping_segment(kind: &str, value: &str) -> AppResult<()> {
+    validate_portable_path_segment(value, kind)
+}
+
+fn normalized_mapping_key(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BundleApplyMappings, CharacterMappingOverride};
+
+    #[test]
+    fn bundle_apply_mappings_rejects_duplicate_selected_accounts() {
+        let error = BundleApplyMappings {
+            selected_accounts: vec!["AccountA".to_string(), "accounta".to_string()],
+            ..BundleApplyMappings::default()
+        }
+        .validate()
+        .expect_err("duplicate selected accounts should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate selected account mapping")
+        );
+    }
+
+    #[test]
+    fn bundle_apply_mappings_rejects_overlapping_character_overrides() {
+        let error = BundleApplyMappings {
+            characters: vec![
+                character_override(None, "Illidan", "Mage"),
+                character_override(Some("AccountA"), "illidan", "Mage"),
+            ],
+            ..BundleApplyMappings::default()
+        }
+        .validate()
+        .expect_err("overlapping character overrides should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("overlapping character mapping override")
+        );
+    }
+
+    #[test]
+    fn bundle_apply_mappings_allows_distinct_account_specific_character_overrides() {
+        BundleApplyMappings {
+            characters: vec![
+                character_override(Some("AccountA"), "Illidan", "Mage"),
+                character_override(Some("AccountB"), "illidan", "Mage"),
+            ],
+            ..BundleApplyMappings::default()
+        }
+        .validate()
+        .expect("account-specific overrides do not overlap");
+    }
+
+    fn character_override(
+        source_account: Option<&str>,
+        source_server: &str,
+        source_character: &str,
+    ) -> CharacterMappingOverride {
+        CharacterMappingOverride {
+            source_account: source_account.map(str::to_string),
+            source_server: source_server.to_string(),
+            source_character: source_character.to_string(),
+            target_account: Some("TargetAccount".to_string()),
+            target_server: "Stormrage".to_string(),
+            target_character: "TargetMage".to_string(),
+        }
+    }
 }

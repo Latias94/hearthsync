@@ -1861,3 +1861,32 @@ Specifically:
   same portability and identity rules that generated bundles already follow.
 - Future GUI bundle-inspection flows can flag invalid embedded addon-source metadata at the bundle
   boundary instead of discovering it later during lock planning.
+
+## ADR-073: Bundle Apply Mappings Validate before Planning
+
+Accepted on 2026-04-29
+
+### Decision
+
+Bundle apply mappings are frontend/operator input and must validate before bundle planning starts,
+whether they come from a CLI mapping file, app DTOs, or direct core request construction.
+
+Specifically:
+
+- Target account, server, character, selected account, and per-character override identity fields
+  must be portable path segments.
+- Selected account entries must be case-insensitively unique.
+- Per-character mapping overrides must not overlap under the same matching semantics used by
+  planning: a wildcard source account overlaps any account-specific override for the same source
+  server and character, and equal account-specific overrides overlap each other.
+- `load_apply_mappings()` validates TOML mapping files immediately after parsing.
+- The app-owned `BundleApplyMappingsValue` and core bundle planning path both call the same domain
+  validation.
+
+### Consequences
+
+- Mapping files cannot carry ambiguous rows that only fail later during character mapping
+  resolution.
+- CLI, future GUI callers, and direct core tests share one mapping validity contract.
+- Case-insensitive duplicate account selections fail before planning can create target-path
+  duplication on Windows or default macOS filesystems.

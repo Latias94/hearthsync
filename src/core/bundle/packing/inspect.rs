@@ -25,5 +25,38 @@ pub fn inspect_bundle(path: &Path) -> AppResult<BundleInspection> {
 
 pub fn load_apply_mappings(path: &Path) -> AppResult<BundleApplyMappings> {
     let content = fs::read_to_string(path)?;
-    Ok(toml::from_str(&content)?)
+    let mappings = toml::from_str::<BundleApplyMappings>(&content)?;
+    mappings.validate()?;
+    Ok(mappings)
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::load_apply_mappings;
+
+    #[test]
+    fn load_apply_mappings_rejects_invalid_file_contracts() {
+        let temp = tempdir().expect("temp dir");
+        let mapping_path = temp.path().join("mapping.toml");
+        fs::write(
+            &mapping_path,
+            r#"
+selected_accounts = ["AccountA", "accounta"]
+"#,
+        )
+        .expect("mapping file");
+
+        let error = load_apply_mappings(&mapping_path)
+            .expect_err("duplicate selected accounts should fail");
+
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate selected account mapping")
+        );
+    }
+
+    use std::fs;
 }
