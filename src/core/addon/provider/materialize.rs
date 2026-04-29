@@ -320,3 +320,151 @@ impl HttpDownloadProgressObserver for ForwardAddonDownloadProgressObserver<'_> {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::path::PathBuf;
+
+    use tempfile::tempdir;
+
+    use super::super::http::{
+        HttpDownloadRequest, HttpDownloadResponse, HttpRequest, HttpResponse,
+    };
+    use super::*;
+
+    #[test]
+    fn materialize_source_ref_rejects_relative_local_archive_source_refs() {
+        struct FakeHttpClient;
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                panic!("download_to_path should not be called in this test")
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let source = AddonSourceRef::LocalArchive {
+            path: PathBuf::from("addons/WeakAuras.zip"),
+        };
+
+        let error = materialize_source_ref_impl(
+            &FakeHttpClient,
+            &source,
+            temp.path(),
+            AddonProviderContext::default(),
+            &AddonProviderOptions::default(),
+        )
+        .expect_err("relative persisted local source should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("must be absolute"));
+    }
+
+    #[test]
+    fn materialize_http_archive_forwards_download_progress_to_observer() {
+        #[derive(Default)]
+        struct FakeHttpClient;
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                let observer = observer.expect("download observer");
+                observer.on_progress(HttpDownloadProgress {
+                    bytes_current: 0,
+                    bytes_total: Some(1024),
+                    bytes_per_second: None,
+                });
+                observer.on_progress(HttpDownloadProgress {
+                    bytes_current: 1024,
+                    bytes_total: Some(1024),
+                    bytes_per_second: Some(512),
+                });
+                std::fs::write(&request.destination, b"archive").expect("archive file");
+                Ok(HttpDownloadResponse {
+                    status_code: 200,
+                    headers: Vec::new(),
+                })
+            }
+        }
+
+        type ProgressEvent = (String, String, u64, Option<u64>, Option<u64>);
+
+        #[derive(Default)]
+        struct FakeObserver {
+            seen: RefCell<Vec<ProgressEvent>>,
+        }
+
+        impl AddonDownloadProgressObserver for FakeObserver {
+            fn on_download_progress(
+                &self,
+                source: &AddonSourceRef,
+                archive_name: &str,
+                bytes_current: u64,
+                bytes_total: Option<u64>,
+                bytes_per_second: Option<u64>,
+            ) {
+                self.seen.borrow_mut().push((
+                    source.display_name(),
+                    archive_name.to_string(),
+                    bytes_current,
+                    bytes_total,
+                    bytes_per_second,
+                ));
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let source = AddonSourceRef::HttpArchive {
+            url: "https://example.com/addon.zip".to_string(),
+        };
+        let observer = FakeObserver::default();
+
+        let materialized = materialize_source_ref_impl(
+            &FakeHttpClient,
+            &source,
+            temp.path(),
+            AddonProviderContext::new(None, None).with_download_progress(Some(&observer)),
+            &AddonProviderOptions::default(),
+        )
+        .expect("materialize source");
+
+        assert!(materialized.archive_path.exists());
+        assert_eq!(
+            observer.seen.borrow().as_slice(),
+            &[
+                (
+                    "https://example.com/addon.zip".to_string(),
+                    "addon.zip".to_string(),
+                    0,
+                    Some(1024),
+                    None,
+                ),
+                (
+                    "https://example.com/addon.zip".to_string(),
+                    "addon.zip".to_string(),
+                    1024,
+                    Some(1024),
+                    Some(512),
+                ),
+            ]
+        );
+    }
+}
