@@ -38,12 +38,7 @@ use crate::core::install::WowFlavor;
 use crate::core::task::CancellationToken;
 
 #[cfg(test)]
-use self::cache::{
-    CachedArchiveMetadata, cached_archive_metadata_path, resolve_archive_path,
-    write_cached_archive_metadata,
-};
-#[cfg(test)]
-use self::validation::RemoteArchiveValidators;
+use self::cache::{CachedArchiveMetadata, cached_archive_metadata_path};
 
 #[derive(Debug)]
 pub struct MaterializedAddonSource {

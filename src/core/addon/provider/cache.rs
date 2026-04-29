@@ -896,6 +896,7 @@ fn archive_path_from_metadata_sidecar(metadata_path: &Path) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
     use std::path::{Path, PathBuf};
 
     use tempfile::tempdir;
@@ -1093,6 +1094,224 @@ mod tests {
         assert!(!cached_archive_metadata_path(&archive_path).exists());
     }
 
+    #[test]
+    fn repair_download_cache_verifies_http_archives_with_conditional_get() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            downloads: RefCell<Vec<HttpDownloadRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.downloads.borrow_mut().push(request.clone());
+                Ok(not_modified_download_response(Vec::new()))
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let cache_dir = temp.path().join("cache");
+        let options = cache_options(&cache_dir);
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::HttpArchive {
+            url: "https://example.com/addon.zip".to_string(),
+        };
+        let archive_path =
+            write_cache_entry(temp.path(), &options, &source, "addon.zip", b"archive");
+        let mut metadata = load_cached_archive_metadata_fixture(&archive_path);
+        metadata.remote_validators = RemoteArchiveValidators {
+            content_length: Some(7),
+            last_modified: Some("Wed, 23 Apr 2026 10:00:00 GMT".to_string()),
+            etag: Some("\"addon-v1\"".to_string()),
+            sha256: None,
+            sha1: None,
+            md5: None,
+        };
+        write_cached_archive_metadata_fixture(&archive_path, &metadata);
+
+        let result = repair_download_cache_dir(&http_client, Some(&cache_dir), &options)
+            .expect("repair cache");
+
+        assert_eq!(result.scanned_metadata_count, 1);
+        assert_eq!(result.repaired_entry_count, 0);
+        assert_eq!(result.remote_verified_entry_count, 1);
+        assert_eq!(result.remote_refreshed_entry_count, 0);
+        assert_eq!(result.remote_check_failed_count, 0);
+        assert_eq!(http_client.downloads.borrow().len(), 1);
+        assert_eq!(
+            http_client.downloads.borrow()[0].headers,
+            vec![
+                HttpHeader {
+                    name: "If-None-Match".to_string(),
+                    value: "\"addon-v1\"".to_string(),
+                },
+                HttpHeader {
+                    name: "If-Modified-Since".to_string(),
+                    value: "Wed, 23 Apr 2026 10:00:00 GMT".to_string(),
+                },
+            ]
+        );
+        assert_eq!(
+            std::fs::read_to_string(&archive_path).expect("cached archive"),
+            "archive"
+        );
+    }
+
+    #[test]
+    fn repair_download_cache_refreshes_http_archives_when_remote_changed() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            downloads: RefCell<Vec<HttpDownloadRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.downloads.borrow_mut().push(request.clone());
+                std::fs::write(&request.destination, b"archive-v2").expect("archive file");
+                Ok(successful_download_response(vec![
+                    HttpHeader {
+                        name: "ETag".to_string(),
+                        value: "\"addon-v2\"".to_string(),
+                    },
+                    HttpHeader {
+                        name: "Last-Modified".to_string(),
+                        value: "Thu, 24 Apr 2026 10:00:00 GMT".to_string(),
+                    },
+                ]))
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let cache_dir = temp.path().join("cache");
+        let options = cache_options(&cache_dir);
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::HttpArchive {
+            url: "https://example.com/addon.zip".to_string(),
+        };
+        let archive_path =
+            write_cache_entry(temp.path(), &options, &source, "addon.zip", b"archive");
+        let mut metadata = load_cached_archive_metadata_fixture(&archive_path);
+        metadata.remote_validators = RemoteArchiveValidators {
+            content_length: Some(7),
+            last_modified: Some("Wed, 23 Apr 2026 10:00:00 GMT".to_string()),
+            etag: Some("\"addon-v1\"".to_string()),
+            sha256: None,
+            sha1: None,
+            md5: None,
+        };
+        write_cached_archive_metadata_fixture(&archive_path, &metadata);
+
+        let result = repair_download_cache_dir(&http_client, Some(&cache_dir), &options)
+            .expect("repair cache");
+        let repaired_metadata = load_cached_archive_metadata_fixture(&archive_path);
+
+        assert_eq!(result.scanned_metadata_count, 1);
+        assert_eq!(result.repaired_entry_count, 1);
+        assert_eq!(result.remote_verified_entry_count, 0);
+        assert_eq!(result.remote_refreshed_entry_count, 1);
+        assert_eq!(result.remote_check_failed_count, 0);
+        assert_eq!(
+            std::fs::read_to_string(&archive_path).expect("refreshed archive"),
+            "archive-v2"
+        );
+        assert_eq!(
+            repaired_metadata.remote_validators.etag,
+            Some("\"addon-v2\"".to_string())
+        );
+    }
+
+    #[test]
+    fn repair_download_cache_refreshes_github_archives_when_remote_validators_change() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+            downloads: RefCell<Vec<HttpDownloadRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request);
+                Ok(HttpResponse {
+                    status_code: 200,
+                    body: r#"{"tag_name":"v1.0.0","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/releases/addon.zip","size":12,"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","updated_at":"2026-04-24T10:00:00Z"}]}"#.to_string(),
+                })
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.downloads.borrow_mut().push(request.clone());
+                std::fs::write(&request.destination, b"archive-v2!").expect("archive file");
+                Ok(successful_download_response(Vec::new()))
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let cache_dir = temp.path().join("cache");
+        let options = cache_options(&cache_dir);
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::GitHubRelease {
+            owner: "owner".to_string(),
+            repo: "repo".to_string(),
+            tag: Some("v1.0.0".to_string()),
+            asset_name: Some("addon.zip".to_string()),
+        };
+        let archive_path =
+            write_cache_entry(temp.path(), &options, &source, "addon.zip", b"archive");
+        let mut metadata = load_cached_archive_metadata_fixture(&archive_path);
+        metadata.remote_validators = RemoteArchiveValidators {
+            content_length: Some(7),
+            last_modified: Some("2026-04-23T10:00:00Z".to_string()),
+            etag: None,
+            sha256: Some(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            ),
+            sha1: None,
+            md5: None,
+        };
+        write_cached_archive_metadata_fixture(&archive_path, &metadata);
+
+        let result = repair_download_cache_dir(&http_client, Some(&cache_dir), &options)
+            .expect("repair cache");
+        let repaired_metadata = load_cached_archive_metadata_fixture(&archive_path);
+
+        assert_eq!(result.scanned_metadata_count, 1);
+        assert_eq!(result.repaired_entry_count, 1);
+        assert_eq!(result.remote_verified_entry_count, 0);
+        assert_eq!(result.remote_refreshed_entry_count, 1);
+        assert_eq!(result.remote_check_failed_count, 0);
+        assert_eq!(http_client.requests.borrow().len(), 1);
+        assert_eq!(http_client.downloads.borrow().len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(&archive_path).expect("refreshed archive"),
+            "archive-v2!"
+        );
+        assert_eq!(
+            repaired_metadata.remote_validators.sha256,
+            Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string())
+        );
+    }
+
     fn cache_options(cache_dir: &Path) -> AddonProviderOptions {
         AddonProviderOptions {
             download_cache_dir: Some(cache_dir.to_path_buf()),
@@ -1135,5 +1354,19 @@ mod tests {
         let metadata_path = cached_archive_metadata_path(archive_path);
         let metadata_bytes = serde_json::to_vec_pretty(metadata).expect("cache metadata json");
         std::fs::write(metadata_path, metadata_bytes).expect("cache metadata write");
+    }
+
+    fn successful_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
+        HttpDownloadResponse {
+            status_code: 200,
+            headers,
+        }
+    }
+
+    fn not_modified_download_response(headers: Vec<HttpHeader>) -> HttpDownloadResponse {
+        HttpDownloadResponse {
+            status_code: 304,
+            headers,
+        }
     }
 }
