@@ -2279,6 +2279,8 @@ Specifically:
   `provider::curseforge::select`; search-result projection tests live in `provider::curseforge`.
 - Provider source parsing tests live in `provider::parse`, and source-reference serialization
   compatibility tests live in `provider::source`.
+- Cache helper contracts live in `provider::cache`, HTTP transport defaults live in
+  `provider::http`, and default-provider capability declarations live in `provider`.
 - `provider::tests` remains focused on provider composition, HTTP/cache behavior, source
   materialization, dependency resolution, and other cross-module integration paths.
 

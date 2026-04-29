@@ -893,3 +893,19 @@ fn archive_path_from_metadata_sidecar(metadata_path: &Path) -> Option<PathBuf> {
     let archive_name = file_name.strip_suffix(CACHE_METADATA_SUFFIX)?;
     Some(metadata_path.with_file_name(archive_name))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guess_archive_name_from_url_ignores_query_string_and_fragment() {
+        assert_eq!(
+            guess_archive_name_from_url(
+                "https://example.com/downloads/addon.zip?token=abc123#section",
+            )
+            .as_deref(),
+            Some("addon.zip")
+        );
+    }
+}

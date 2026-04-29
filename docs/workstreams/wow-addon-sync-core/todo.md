@@ -596,8 +596,10 @@ enough that these rules live in one place.
   version-type/file-selection/file-metadata coverage moved into `provider::curseforge::select`,
   search-result projection coverage moved into `provider::curseforge`, source parser coverage
   moved into `provider::parse`, source-reference serialization compatibility coverage moved into
-  `provider::source`, and `provider::tests` is left for default-provider composition, HTTP/cache,
-  source materialization, and dependency-resolution integration behavior.
+  `provider::source`, cache helper coverage moved into `provider::cache`, HTTP default coverage
+  moved into `provider::http`, provider capability coverage moved into `provider`, and
+  `provider::tests` is left for default-provider composition, HTTP/cache, source materialization,
+  and dependency-resolution integration behavior.
 
 Exit criteria:
 

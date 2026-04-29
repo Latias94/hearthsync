@@ -1,6 +1,5 @@
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use tempfile::tempdir;
 use zip::CompressionMethod;
@@ -9,14 +8,13 @@ use zip::write::SimpleFileOptions;
 
 use super::http::{
     HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpDownloadRequest,
-    HttpDownloadResponse, HttpHeader, HttpRequest, HttpResponse, ReqwestHttpClient,
+    HttpDownloadResponse, HttpHeader, HttpRequest, HttpResponse,
 };
 use super::test_support::{curseforge_api_key_guard, standard_curseforge_api_key_guard};
 use super::{
-    AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy,
-    AddonDownloadProgressObserver, AddonProvider, AddonProviderContext, AddonSourceRef,
-    AddonSourceResolutionPolicy, DefaultAddonProvider, HttpNoValidatorCachePolicy,
-    ResolveAddonDependenciesRequest,
+    AddonDependencyResolutionStrategy, AddonDownloadProgressObserver, AddonProvider,
+    AddonProviderContext, AddonSourceRef, AddonSourceResolutionPolicy, DefaultAddonProvider,
+    HttpNoValidatorCachePolicy, ResolveAddonDependenciesRequest,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
@@ -1128,28 +1126,6 @@ fn default_addon_provider_accepts_standard_curseforge_api_key_env() {
 }
 
 #[test]
-fn default_addon_provider_reports_dependency_resolution_capability_by_source_kind() {
-    let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
-
-    assert_eq!(
-        provider.dependency_resolution_capability(&AddonSourceRef::CurseForgeMod {
-            mod_id: 42,
-            file_id: None,
-        }),
-        AddonDependencyResolutionCapability::missing_required_only()
-    );
-    assert_eq!(
-        provider.dependency_resolution_capability(&AddonSourceRef::GitHubRelease {
-            owner: "owner".to_string(),
-            repo: "repo".to_string(),
-            tag: None,
-            asset_name: None,
-        }),
-        AddonDependencyResolutionCapability::Unsupported
-    );
-}
-
-#[test]
 fn default_addon_provider_redownloads_cached_release_when_cache_metadata_is_missing() {
     #[derive(Default)]
     struct FakeHttpClient {
@@ -1521,17 +1497,6 @@ fn default_addon_provider_refreshes_latest_github_release_when_resolved_tag_chan
 }
 
 #[test]
-fn guess_archive_name_from_url_ignores_query_string_and_fragment() {
-    assert_eq!(
-        super::guess_archive_name_from_url(
-            "https://example.com/downloads/addon.zip?token=abc123#section",
-        )
-        .as_deref(),
-        Some("addon.zip")
-    );
-}
-
-#[test]
 fn default_addon_provider_retries_failed_http_archive_downloads() {
     #[derive(Default)]
     struct FakeHttpClient {
@@ -1674,14 +1639,6 @@ fn default_addon_provider_forwards_download_progress_to_observer() {
             ),
         ]
     );
-}
-
-#[test]
-fn reqwest_http_client_default_uses_bounded_timeouts() {
-    let client = ReqwestHttpClient::default();
-
-    assert_eq!(client.connect_timeout(), Duration::from_secs(10));
-    assert_eq!(client.request_timeout(), Duration::from_secs(30));
 }
 
 #[test]

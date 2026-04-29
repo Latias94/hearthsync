@@ -301,3 +301,16 @@ fn ensure_download_not_cancelled(cancellation: &dyn CancellationToken) -> AppRes
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reqwest_http_client_default_uses_bounded_timeouts() {
+        let client = ReqwestHttpClient::default();
+
+        assert_eq!(client.connect_timeout(), Duration::from_secs(10));
+        assert_eq!(client.request_timeout(), Duration::from_secs(30));
+    }
+}

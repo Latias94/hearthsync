@@ -39,8 +39,8 @@ use crate::core::task::CancellationToken;
 
 #[cfg(test)]
 use self::cache::{
-    CachedArchiveMetadata, cached_archive_metadata_path, guess_archive_name_from_url,
-    resolve_archive_path, write_cached_archive_metadata,
+    CachedArchiveMetadata, cached_archive_metadata_path, resolve_archive_path,
+    write_cached_archive_metadata,
 };
 #[cfg(test)]
 use self::validation::RemoteArchiveValidators;
@@ -463,4 +463,31 @@ fn retry_http<T>(max_attempts: u32, mut operation: impl FnMut() -> AppResult<T>)
             "addon provider retry policy must allow at least one attempt".to_string(),
         )
     }))
+}
+
+#[cfg(test)]
+mod default_provider_tests {
+    use super::*;
+
+    #[test]
+    fn default_addon_provider_reports_dependency_resolution_capability_by_source_kind() {
+        let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+
+        assert_eq!(
+            provider.dependency_resolution_capability(&AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: None,
+            }),
+            AddonDependencyResolutionCapability::missing_required_only()
+        );
+        assert_eq!(
+            provider.dependency_resolution_capability(&AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: None,
+                asset_name: None,
+            }),
+            AddonDependencyResolutionCapability::Unsupported
+        );
+    }
 }
