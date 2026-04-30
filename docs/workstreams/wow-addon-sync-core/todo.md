@@ -809,6 +809,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current cleanup: addon-index matching/source-authority coverage now lives in
   `core::addon::index::tests::update_matching`, with shared provider fixtures for curated
   CurseForge source authority and GitHub source-family/display-name/exact-hint matching.
+  Current cleanup: regular addon local-archive install coverage now lives in
+  `core::addon::tests::install`, separating archive write, lock/registry persistence,
+  variant-TOC, symlink rejection, and case-insensitive root-collision behavior from the remaining
+  addon registry/update/adopt/relink orchestration tests.
   Current cleanup: `addon index validate` now turns those structured inspect warnings into an
   explicit curator gate. It returns a structured validation result for JSON/app consumers,
   including total, blocking, and advisory warning counts, while the CLI only exits non-zero when
