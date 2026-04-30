@@ -637,6 +637,10 @@ addon update, addon-lock sync, and frontend-facing dry-run behavior feel trustwo
   Completed: addon-lock apply now treats “execution succeeded but verification could not complete”
   as a rollback path when a backup exists. Verification cancellation or verification-time errors no
   longer leave filesystem mutations in place while still returning failure to the caller.
+  Current cleanup: addon-lock regression coverage now lives in focused sibling modules:
+  `storage`, `inspect`, `diff_verify`, `plan`, and `apply`, leaving
+  `core::addon::lock::tests` as shared lock-sync fixtures and cancellation/progress fakes instead
+  of a single mixed lock lifecycle bucket.
 - [x] decide whether default public planning stays rewrite-aware and compare-heavy or whether the
   product should split logical planning from deeper content-compare preview
   Completed: default public plan is now logical and conservative. `bundle plan` and

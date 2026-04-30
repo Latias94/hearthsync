@@ -1105,3 +1105,6 @@ the resulting DTOs as stable product state.
 - bundle apply regression coverage is now split into `progress`, `planning`, `execution`, and
   `policy`, leaving `core::bundle::tests::apply` as the module root instead of a second large
   mixed planner/executor test file
+- addon-lock regression coverage is now split into `storage`, `inspect`, `diff_verify`, `plan`,
+  and `apply`, leaving `core::addon::lock::tests` as shared lock-sync fixtures instead of one
+  mixed lifecycle test file
