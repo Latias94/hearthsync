@@ -736,8 +736,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
   `core::addon::index::tests::update_matching`, using shared provider fixtures for curated source
   authority and GitHub source-family/display-name/exact-hint matching
 - regular addon local-archive install coverage now also lives in `core::addon::tests::install`,
-  leaving the root addon test module focused on registry validation, update, remove, adopt, relink,
-  and provider-helper orchestration tests
+  and the remaining regular addon command coverage now lives in `registry`, `remove`, `adopt`,
+  `relink`, `provider_helpers`, `update_basic`, `update_policy`, and `update_dependencies`,
+  leaving the root addon test module as shared fixture setup only
 - `addon index validate` now also exists as an explicit curator gate, returning a structured
   validation result while making the CLI fail fast only on blocking addon-index curation warnings
 - `addon index suggest` now also exists as the first explicit curator authoring helper: it reuses
