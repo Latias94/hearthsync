@@ -800,6 +800,15 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current cleanup: basic addon-index update coverage now lives in
   `core::addon::index::tests::update_basic`, keeping local archive update, relative source,
   update-task progress, and ignored-package bulk behavior separate from provider fake scenarios.
+  Current cleanup: addon-index update policy/preflight coverage now lives in
+  `core::addon::index::tests::update_policy`, separating ignored preflight, unsupported dependency
+  policy, and deferred-match guidance from dependency execution and matching tests.
+  Current cleanup: addon-index dependency execution coverage now lives in
+  `core::addon::index::tests::update_dependencies`, with one shared CurseForge dependency provider
+  fixture covering both successful required-dependency install and rollback-on-conflict behavior.
+  Current cleanup: addon-index matching/source-authority coverage now lives in
+  `core::addon::index::tests::update_matching`, with shared provider fixtures for curated
+  CurseForge source authority and GitHub source-family/display-name/exact-hint matching.
   Current cleanup: `addon index validate` now turns those structured inspect warnings into an
   explicit curator gate. It returns a structured validation result for JSON/app consumers,
   including total, blocking, and advisory warning counts, while the CLI only exits non-zero when

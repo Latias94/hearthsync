@@ -726,6 +726,15 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - basic addon-index update coverage now also lives in
   `core::addon::index::tests::update_basic`, leaving the root addon-index test module focused on
   provider fake scenarios and source-matching/dependency-policy orchestration
+- addon-index update policy/preflight coverage now also lives in
+  `core::addon::index::tests::update_policy`, keeping ignored preflight, unsupported dependency
+  policy, and deferred-match guidance separate from dependency execution and matching tests
+- addon-index dependency execution coverage now also lives in
+  `core::addon::index::tests::update_dependencies`, using one shared CurseForge dependency
+  provider fixture for both successful dependency install and rollback-on-conflict behavior
+- addon-index matching/source-authority coverage now also lives in
+  `core::addon::index::tests::update_matching`, using shared provider fixtures for curated source
+  authority and GitHub source-family/display-name/exact-hint matching
 - `addon index validate` now also exists as an explicit curator gate, returning a structured
   validation result while making the CLI fail fast only on blocking addon-index curation warnings
 - `addon index suggest` now also exists as the first explicit curator authoring helper: it reuses
