@@ -315,6 +315,10 @@ enough that these rules live in one place.
   with a dozen addon roots, more than one hundred normalized files, WTF/fonts/interface resources,
   and repeated archive noise, so resource summary behavior is no longer only covered by tiny
   fixtures.
+  Current cleanup: external-package regression coverage now lives in focused sibling modules:
+  `analysis`, `validation`, `bundle`, `progress`, `apply`, and `serialization`, leaving the root
+  `core::bundle::tests::external_package` module as shared imports and module ownership rather
+  than a single broad archive/apply bucket.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two

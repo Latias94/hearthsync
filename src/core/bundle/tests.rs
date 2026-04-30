@@ -1,6 +1,6 @@
 #[path = "tests/apply.rs"]
 mod apply;
-#[path = "tests/external_package.rs"]
+#[path = "tests/external_package/mod.rs"]
 mod external_package;
 #[path = "tests/packing.rs"]
 mod packing;

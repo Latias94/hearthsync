@@ -1099,3 +1099,6 @@ the resulting DTOs as stable product state.
 - remaining `provider::tests` orchestration coverage now shares narrow materialization helpers, so
   each scenario keeps its HTTP fake and cache assertions visible without repeating stage setup; the
   tests are split into `http_cache`, `github_cache`, and `curseforge_cache` source-family modules
+- external-package regression coverage is now split into `analysis`, `validation`, `bundle`,
+  `progress`, `apply`, and `serialization`, leaving
+  `core::bundle::tests::external_package` as the module root instead of a 1.5k-line mixed test file
