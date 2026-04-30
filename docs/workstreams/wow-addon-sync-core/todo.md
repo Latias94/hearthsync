@@ -1099,6 +1099,10 @@ place.
   sibling modules. Provider cache/freshness changes and new source adapters no longer expand one
   multi-responsibility module. The provider-local clippy findings from the review are also cleared;
   remaining clippy work is outside the provider slice.
+  Current cleanup: provider cache internals now follow the same focused ownership rule inside the
+  cache module itself. Download path/temporary-file handling, sidecar metadata, cache reuse policy,
+  purge filesystem maintenance, remote repair, and cache regression tests live in sibling
+  `provider::cache::*` modules while `provider::cache` stays the export surface.
 - [x] promote one app-owned live task contract for cancellation and progress streaming
   Completed: `core::app::AppLiveTask` is now the public live-task input contract. Stable and
   extended app services expose `*_live` methods for long-running operations, while existing
