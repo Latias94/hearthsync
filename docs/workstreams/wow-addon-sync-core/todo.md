@@ -157,6 +157,10 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: addon-lock CLI output now shares formatter helpers under `cli::output`, so
     repeated diff/verify/apply package rendering stays at the presentation edge instead of being
     copied across command handlers.
+    Current cleanup: addon CLI output now follows the same ownership split. Addon-index,
+    regular addon management, cache output, shared formatter helpers, and output tests live under
+    `cli::output::addon::{index,manage,cache,shared,tests}`, leaving the module root as the stable
+    render-function export surface instead of another broad mixed renderer file.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access now stay
     inside the `core::app` module boundary, so external callers stay on stable direct/task
     entrypoints instead of treating the stable boundary as another service factory.

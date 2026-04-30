@@ -199,6 +199,8 @@ desktop work.
 - addon-lock CLI output now shares formatter helpers in `cli::output`, keeping command handlers
   focused on app orchestration while repeated diff/verify/apply text rendering logic lives at the
   presentation edge
+- addon CLI output is now split into addon-index, regular management, cache, shared formatter, and
+  test modules, while `cli::output::addon` keeps the same render-function export surface
 - raw `StableAppServices` service accessors and direct runtime access now stay inside the
   `core::app` module boundary, so the public stable boundary stays centered on direct/task
   entrypoints instead of leaking a second service-factory-style API
