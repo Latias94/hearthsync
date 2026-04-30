@@ -852,6 +852,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - UTF-8 text rewriting and non-UTF-8 byte rewriting now share one low-level Lua syntax scanner for
   table traversal and string/key parsing, reducing duplicate parser behavior while leaving their
   replacement encodings separate
+- direct text-rewrite regression tests now live in `lua_patch::tests::text`, so the remaining Lua
+  patch test root can keep the shared fixtures while the larger byte-preview coverage is split in
+  follow-up slices
 - fixture breadth now also covers BigWigs-style profile keys without broad note rewriting plus a
   Baganator-style recent-character cache that remains fail-closed instead of treating history
   strings as supported identity data
