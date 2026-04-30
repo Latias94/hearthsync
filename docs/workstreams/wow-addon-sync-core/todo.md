@@ -791,6 +791,12 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current cleanup: addon-index curation regression coverage now also lives in
   `core::addon::index::tests::curation`, keeping suggest/scaffold authoring behavior separate from
   install, attach, relink, and update orchestration tests.
+  Current cleanup: addon-index install coverage now lives in
+  `core::addon::index::tests::install`, separating selected-package install and install-task
+  progress behavior from the remaining attach, relink, and update orchestration coverage.
+  Current cleanup: addon-index relink and attach coverage now live in
+  `core::addon::index::tests::{relink,attach}`, leaving the root addon-index test module focused on
+  update orchestration and provider-backed matching behavior.
   Current cleanup: `addon index validate` now turns those structured inspect warnings into an
   explicit curator gate. It returns a structured validation result for JSON/app consumers,
   including total, blocking, and advisory warning counts, while the CLI only exits non-zero when
