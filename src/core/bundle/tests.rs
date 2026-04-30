@@ -1,4 +1,4 @@
-#[path = "tests/apply.rs"]
+#[path = "tests/apply/mod.rs"]
 mod apply;
 #[path = "tests/external_package/mod.rs"]
 mod external_package;

@@ -319,6 +319,10 @@ enough that these rules live in one place.
   `analysis`, `validation`, `bundle`, `progress`, `apply`, and `serialization`, leaving the root
   `core::bundle::tests::external_package` module as shared imports and module ownership rather
   than a single broad archive/apply bucket.
+  Current cleanup: bundle apply regression coverage now also lives in focused sibling modules:
+  `progress`, `planning`, `execution`, and `policy`, leaving
+  `core::bundle::tests::apply` as shared imports and ownership rather than a second 1.5k-line
+  mixed planner/executor bucket.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two

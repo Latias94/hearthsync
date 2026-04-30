@@ -1102,3 +1102,6 @@ the resulting DTOs as stable product state.
 - external-package regression coverage is now split into `analysis`, `validation`, `bundle`,
   `progress`, `apply`, and `serialization`, leaving
   `core::bundle::tests::external_package` as the module root instead of a 1.5k-line mixed test file
+- bundle apply regression coverage is now split into `progress`, `planning`, `execution`, and
+  `policy`, leaving `core::bundle::tests::apply` as the module root instead of a second large
+  mixed planner/executor test file
