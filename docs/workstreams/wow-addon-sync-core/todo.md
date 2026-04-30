@@ -967,6 +967,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current progress: UTF-8 payloads no longer fall through to byte rewriting after a scoped text
   rewrite misses, so known-file identity rules cannot accidentally revive broad quoted-string
   replacement on ordinary UTF-8 SavedVariables text.
+  Current cleanup: UTF-8 text rewriting and non-UTF-8 byte rewriting now share one Lua syntax
+  scanner for table ranges, direct table entries, string keys, string literals, and brace matching.
+  This removes duplicated parser logic without changing the separate replacement semantics for
+  `str` and raw-byte payloads.
   Current progress: fixture breadth now also covers a realistic BigWigs-style profile-key payload
   where `profileKeys` should migrate but descriptive boss/profile notes must remain untouched, plus
   a realistic Baganator-style recent-character cache that stays fail-closed instead of rewriting

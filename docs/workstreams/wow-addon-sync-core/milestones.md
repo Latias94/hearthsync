@@ -849,6 +849,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - the non-UTF-8 byte fallback is now also scoped by Lua structure instead of whole-document text
   replacement, and UTF-8 payloads no longer fall through into byte rewriting after a scoped
   rewrite miss
+- UTF-8 text rewriting and non-UTF-8 byte rewriting now share one low-level Lua syntax scanner for
+  table traversal and string/key parsing, reducing duplicate parser behavior while leaving their
+  replacement encodings separate
 - fixture breadth now also covers BigWigs-style profile keys without broad note rewriting plus a
   Baganator-style recent-character cache that remains fail-closed instead of treating history
   strings as supported identity data

@@ -1,6 +1,7 @@
 mod bytes;
 mod model;
 mod policy;
+mod syntax;
 #[cfg(test)]
 mod tests;
 mod text;
