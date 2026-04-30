@@ -817,6 +817,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `registry`, `remove`, `adopt`, `relink`, `provider_helpers`, `update_basic`, `update_policy`,
   and `update_dependencies`, leaving `core::addon::tests` as a shared fixture module instead of a
   mixed 2k-line regression bucket.
+  Current cleanup: app-level addon-index service coverage now also lives in focused sibling
+  modules: `inspect_validate`, `operations`, `curation`, `provider_runtime`, and `update`, leaving
+  `core::app::addon_index::tests` as shared service fixtures and fake providers instead of another
+  broad orchestration bucket.
   Current cleanup: `addon index validate` now turns those structured inspect warnings into an
   explicit curator gate. It returns a structured validation result for JSON/app consumers,
   including total, blocking, and advisory warning counts, while the CLI only exits non-zero when
