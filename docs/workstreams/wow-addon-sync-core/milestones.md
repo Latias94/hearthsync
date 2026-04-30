@@ -723,6 +723,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - addon-index relink and attach coverage now also live in
   `core::addon::index::tests::{relink,attach}`, leaving the root addon-index test module focused
   on update orchestration and provider-backed matching behavior
+- basic addon-index update coverage now also lives in
+  `core::addon::index::tests::update_basic`, leaving the root addon-index test module focused on
+  provider fake scenarios and source-matching/dependency-policy orchestration
 - `addon index validate` now also exists as an explicit curator gate, returning a structured
   validation result while making the CLI fail fast only on blocking addon-index curation warnings
 - `addon index suggest` now also exists as the first explicit curator authoring helper: it reuses
