@@ -837,6 +837,9 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   modules: `inspect_validate`, `operations`, `curation`, `provider_runtime`, and `update`, leaving
   `core::app::addon_index::tests` as shared service fixtures and fake providers instead of another
   broad orchestration bucket.
+  Current cleanup: app-level regular addon service coverage now also lives in focused sibling
+  modules: `install`, `catalog`, `registry`, and `tasks`, leaving `core::app::addon::tests` as
+  shared installation fixtures and fake providers only.
   Current cleanup: addon-index domain operations are now split by use case under
   `core::addon::index::operations::{install,attach,relink,update,shared}`. The module root owns
   the unchanged public export surface and shared plan structs, while each operation file owns its

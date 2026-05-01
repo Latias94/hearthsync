@@ -744,6 +744,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - app-level addon-index service coverage now also lives in `inspect_validate`, `operations`,
   `curation`, `provider_runtime`, and `update` sibling modules, leaving
   `core::app::addon_index::tests` as shared fixtures/fake providers only
+- app-level regular addon service coverage now also lives in `install`, `catalog`, `registry`,
+  and `tasks` sibling modules, leaving `core::app::addon::tests` as shared fixtures/fake
+  providers only
 - addon-index domain operations are now split into `install`, `attach`, `relink`, `update`, and
   `shared` modules, with the `operations` root preserving the public export surface while removing
   the former single-file install/attach/relink/update orchestration bucket
