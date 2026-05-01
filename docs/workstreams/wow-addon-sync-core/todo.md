@@ -547,6 +547,9 @@ enough that these rules live in one place.
   Current progress: zip-style archive path serialization now also lives in the same shared core
   helper layer, so backup zip writing and bundle zip writing no longer maintain separate
   slash-normalization implementations.
+  Current cleanup: the shared archive-path helper layer now mirrors its responsibilities in code:
+  portable segment validation, platform-aware path identity, zip path conversion, and regression
+  tests live in focused `archive_path::{segment,platform,zip,tests}` modules.
   Current progress: zip-writing entry creation now also reuses shared portable-path validation in
   `core::archive_io`, so backup creation and bundle packing reject non-portable archive names
   before emitting first-party zip payloads.

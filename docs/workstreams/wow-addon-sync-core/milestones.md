@@ -404,6 +404,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   Windows/default-macOS filesystems
 - zip-style archive path serialization now also lives in the shared `core::archive_path` layer,
   so backup zip writing and bundle zip writing no longer keep parallel slash-normalization helpers
+- the shared archive-path helper layer now mirrors its responsibilities in code: portable segment
+  validation, platform-aware path identity, zip path conversion, and regression tests live in
+  focused `archive_path::{segment,platform,zip,tests}` modules
 - zip-writing entry creation now also reuses shared portable-path validation in
   `core::archive_io`, so backup creation and bundle packing reject non-portable archive names
   before emitting first-party zip payloads
