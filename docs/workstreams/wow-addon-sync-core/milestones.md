@@ -240,6 +240,9 @@ desktop work.
 - bundle response contracts now split manifest/resource summaries, archive inspect/pack results,
   local account and character mapping DTOs, apply plan/apply DTOs, and embedded addon-lock bridge
   results under focused `response::bundle::*` child modules
+- external-package response contracts now split bundle-handle lifetime results, normalized entry
+  DTOs, warning/summary DTOs, analysis DTOs, and apply plan/apply DTOs under focused
+  `response::external_package::*` child modules
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior
