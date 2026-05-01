@@ -203,6 +203,9 @@ desktop work.
 - addon-lock CLI output now shares formatter helpers in `cli::output`, keeping command handlers
   focused on app orchestration while repeated diff/verify/apply text rendering logic lives at the
   presentation edge
+- addon-lock CLI output now also follows the focused renderer layout with
+  `cli::output::addon_lock::{plan,apply,inspection,diff,shared,tests}`, keeping the root module as
+  the command-facing render export surface
 - addon CLI output is now split into addon-index, regular management, cache, shared formatter, and
   test modules, while `cli::output::addon` keeps the same render-function export surface
 - addon CLI output regression coverage now mirrors that split with focused addon-index,
