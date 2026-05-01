@@ -1074,6 +1074,8 @@ contracts for the future `egui` frontend.
 - CurseForge API context/search response validation now also lives in
   `curseforge::api::validation`, leaving the API root focused on request construction,
   authentication headers, response decoding, and fetch/search orchestration.
+- CurseForge API unit coverage now mirrors that split too: HTTP fake clients and fetch/search
+  contract tests live in `curseforge::api::tests`, keeping large test fixtures out of the API root.
 - fifth progress is also in place: `core::app::AppLiveTask` is the stable live-task input contract,
   and stable/extended services now expose public `*_live` entrypoints for long-running operations.
   These entrypoints reuse the same cancellation polling and `TaskProgressEvent` stream as the
@@ -1149,8 +1151,8 @@ the resulting DTOs as stable product state.
   is in `github.rs`, CurseForge file projection is in `curseforge::policy`, and
   `provider::validation` only owns provider-agnostic cache/transport helpers
 - provider-owned pure boundary tests now live beside the modules that own those contracts: GitHub
-  API fetch and release/asset selector tests in `provider::github`, CurseForge
-  search/context/file-response API tests in `provider::curseforge::api`,
+  API fetch and release/asset selector tests in `provider::github::tests`, CurseForge
+  search/context/file-response API tests in `provider::curseforge::api::tests`,
   version-type/file-selection/file-metadata tests in `provider::curseforge::select`,
   search-result projection tests in `provider::curseforge`, source parser tests in
   `provider::parse`, source-reference serialization compatibility tests in `provider::source`,

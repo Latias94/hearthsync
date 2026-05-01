@@ -627,6 +627,9 @@ enough that these rules live in one place.
   Current cleanup: CurseForge API context/search response validation now also lives below the API
   module in `curseforge::api::validation`, leaving the API root focused on request construction,
   authentication headers, response decoding, and high-level fetch/search orchestration.
+  Current cleanup: CurseForge API unit coverage now mirrors that split. HTTP fake clients and
+  fetch/search contract tests live in `curseforge::api::tests`, so the API root no longer mixes
+  production request flow with large test fixtures.
   Current cleanup: provider-specific cache validator projection moved out of the mixed
   `provider::validation` module. GitHub owns asset-to-validator projection, CurseForge owns
   file-to-validator projection, and the shared module keeps only provider-agnostic cache and
@@ -640,7 +643,7 @@ enough that these rules live in one place.
   HTTP wrapping and default cache/materialization/search wiring live with the default implementation.
   Current cleanup: provider-owned pure boundary tests now live next to their implementation
   modules. GitHub API fetch and release/asset selector coverage moved into `provider::github::tests`,
-  CurseForge search/context/file-response API coverage moved into `provider::curseforge::api`,
+  CurseForge search/context/file-response API coverage moved into `provider::curseforge::api::tests`,
   version-type/file-selection coverage moved into `provider::curseforge::select`,
   file-contract coverage moved into `provider::curseforge::file_validation`,
   search-result projection coverage moved into `provider::curseforge`, source parser coverage
