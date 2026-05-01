@@ -1,13 +1,12 @@
 use std::collections::BTreeSet;
 use std::env;
 
+use super::file_validation::validate_curseforge_file_metadata;
 use super::model::{
     CurseForgeApiResponse, CurseForgeFile, CurseForgeGame, CurseForgeGameVersionType,
     CurseForgePaginatedResponse, CurseForgeSearchMod, CurseForgeWowContext,
 };
-use super::select::{
-    is_world_of_warcraft_game, select_curseforge_version_type, validate_curseforge_file_metadata,
-};
+use super::select::{is_world_of_warcraft_game, select_curseforge_version_type};
 use crate::core::addon::provider::http::{HttpClient, HttpHeader, HttpRequest};
 use crate::core::boundary_validation::validate_http_url;
 use crate::core::error::{AppError, AppResult};

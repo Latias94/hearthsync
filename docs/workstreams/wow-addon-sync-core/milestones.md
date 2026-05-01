@@ -1051,6 +1051,10 @@ contracts for the future `egui` frontend.
   metadata, freshness policy, purge maintenance, remote repair, and cache tests live in sibling
   `provider::cache::*` modules while `provider::cache` keeps the same public/internal re-export
   surface for provider callers.
+- CurseForge selection and file-contract validation now follow the same provider ownership rule:
+  `curseforge::select` owns version-type/latest-file choice, while `curseforge::file_validation`
+  owns download URL, archive name, hash, sortable-version, release-type, and dependency-row
+  validation before provider responses reach cache or materialization code.
 - fifth progress is also in place: `core::app::AppLiveTask` is the stable live-task input contract,
   and stable/extended services now expose public `*_live` entrypoints for long-running operations.
   These entrypoints reuse the same cancellation polling and `TaskProgressEvent` stream as the

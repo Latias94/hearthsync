@@ -616,6 +616,11 @@ enough that these rules live in one place.
   Current cleanup: CurseForge release, hash, and dependency relation policy semantics now live in
   `curseforge::policy`; generic provider source adaptation only projects filtered CurseForge mod ids
   into `AddonSourceRef` values.
+  Current cleanup: CurseForge file selection and file-contract validation are now separate modules.
+  `curseforge::select` owns version-type and latest-file candidate selection, while
+  `curseforge::file_validation` owns file download URL, archive name, hash, sortable-version,
+  release-type, and dependency-row validation before provider API responses reach cache or
+  materialization code.
   Current cleanup: provider-specific cache validator projection moved out of the mixed
   `provider::validation` module. GitHub owns asset-to-validator projection, CurseForge owns
   file-to-validator projection, and the shared module keeps only provider-agnostic cache and
@@ -623,7 +628,8 @@ enough that these rules live in one place.
   Current cleanup: provider-owned pure boundary tests now live next to their implementation
   modules. GitHub API fetch and release/asset selector coverage moved into `provider::github`,
   CurseForge search/context/file-response API coverage moved into `provider::curseforge::api`,
-  version-type/file-selection/file-metadata coverage moved into `provider::curseforge::select`,
+  version-type/file-selection coverage moved into `provider::curseforge::select`,
+  file-contract coverage moved into `provider::curseforge::file_validation`,
   search-result projection coverage moved into `provider::curseforge`, source parser coverage
   moved into `provider::parse`, source-reference serialization compatibility coverage moved into
   `provider::source`, source materialization boundary coverage moved into `provider::materialize`,
