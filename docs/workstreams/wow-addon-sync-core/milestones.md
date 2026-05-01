@@ -228,6 +228,9 @@ desktop work.
 - app-owned contract modules are now also split by domain, with smaller `types/*` and `response/*`
   files replacing the old monolithic contract modules; this reduces review friction now and keeps
   future `egui` binding work from depending on one oversized app-contract file
+- addon-index response contracts now also split by responsibility under
+  `response::addon_index::{package,inspection,attach,curation,operations,shared}`, while the root
+  response module stays the single export surface for app callers
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior
