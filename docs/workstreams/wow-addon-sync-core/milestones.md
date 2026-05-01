@@ -1042,9 +1042,10 @@ contracts for the future `egui` frontend.
   `cache.rs` owns cache metadata, purge/repair, freshness, and cache-local download utilities;
   `materialize.rs` owns source materialization; `validation.rs` owns remote validator/checksum
   construction; `source.rs` owns source identity helpers; and `source_adapter.rs` owns
-  provider-adapter search, dependency, and release-policy glue. `mod.rs` now stays centered on the
-  provider trait, request/result contracts, options, retry wrapper, and default-provider
-  composition. Provider-local clippy findings were reduced out of the remaining baseline; the
+  provider-adapter search, dependency, and release-policy glue. `default_provider.rs` owns the
+  default provider options, retry wrapper, cache/materialization/search wiring, and default-provider
+  tests. `mod.rs` now stays centered on the provider trait, request/result contracts, context
+  policy, and public exports. Provider-local clippy findings were reduced out of the remaining baseline; the
   follow-up clippy milestone is now concentrated in addon mutation/package-prep, task progress,
   bundle/install/lua helpers, and tests.
 - provider cache ownership is now split below the cache root too: download helpers, sidecar
