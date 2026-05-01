@@ -2,14 +2,20 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+mod path_resolution;
+
 use crate::core::addon::{
     AddonProvider, AddonStatePaths, AddonStateStorageKind, DefaultAddonProvider,
 };
-use crate::core::error::{AppError, AppResult};
+use crate::core::error::AppResult;
 use crate::core::install::{
     DetectedFlavorInstallation, scan_installations_for_host, scan_installations_with_roots,
 };
 
+use self::path_resolution::{
+    resolve_optional_runtime_path, resolve_optional_runtime_paths, resolve_runtime_path,
+    validate_relative_path_base,
+};
 use super::{
     AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
     AddonStatePathsValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
@@ -395,68 +401,6 @@ impl Default for AppRuntime {
             .build()
             .expect("default runtime has no fallible path normalization")
     }
-}
-
-fn validate_relative_path_base(relative_path_base: Option<PathBuf>) -> AppResult<Option<PathBuf>> {
-    if let Some(base) = relative_path_base.as_deref()
-        && !base.is_absolute()
-    {
-        return Err(AppError::Validation(format!(
-            "app runtime relative path base must be absolute: {}",
-            base.display()
-        )));
-    }
-
-    Ok(relative_path_base)
-}
-
-fn resolve_optional_runtime_paths(
-    paths: Option<Vec<PathBuf>>,
-    base: Option<&Path>,
-    description: &str,
-) -> AppResult<Option<Vec<PathBuf>>> {
-    paths
-        .map(|paths| {
-            paths
-                .into_iter()
-                .map(|path| resolve_runtime_path(path, base, description))
-                .collect()
-        })
-        .transpose()
-}
-
-fn resolve_optional_runtime_path(
-    path: Option<PathBuf>,
-    base: Option<&Path>,
-    description: &str,
-) -> AppResult<Option<PathBuf>> {
-    path.map(|path| resolve_runtime_path(path, base, description))
-        .transpose()
-}
-
-fn resolve_runtime_path(
-    path: PathBuf,
-    base: Option<&Path>,
-    description: &str,
-) -> AppResult<PathBuf> {
-    if path.is_absolute() {
-        return Ok(path);
-    }
-
-    let Some(base) = base else {
-        return Err(AppError::Validation(format!(
-            "{description} relative path requires an app runtime relative path base: {}",
-            path.display()
-        )));
-    };
-    if !base.is_absolute() {
-        return Err(AppError::Validation(format!(
-            "app runtime relative path base must be absolute before resolving {description}: {}",
-            base.display()
-        )));
-    }
-
-    Ok(base.join(path))
 }
 
 impl fmt::Debug for AppRuntime {

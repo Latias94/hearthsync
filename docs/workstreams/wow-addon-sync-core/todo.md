@@ -242,6 +242,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: runtime-backed request defaults now share `core::app::request` field helpers
     plus one `RuntimeDefaultableRequest` projection trait, so backup-output, backup-dir,
     bundle-output, and source-platform defaults no longer drift across request families.
+    Current cleanup: app runtime path normalization now lives in `core::app::runtime::path_resolution`,
+    keeping `AppRuntime` focused on provider/capability/diagnostic assembly while relative input,
+    output, scan-root, backup-dir, bundle-output, and cache-dir resolution share one local rule set.
     Current cleanup: app contract projections now share one private `core::app` collection helper,
     reducing repeated Vec projection code across request, value, and response boundaries without
     publishing another frontend-facing conversion trait.

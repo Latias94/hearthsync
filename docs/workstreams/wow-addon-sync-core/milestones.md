@@ -268,6 +268,9 @@ desktop work.
 - config request contracts no longer expose public `From<external-package request>` conversions;
   config still reuses the external-package engine internally, but its runtime defaults and request
   shape are owned at the app boundary
+- app runtime path normalization now lives in `core::app::runtime::path_resolution`, so relative
+  path base validation plus input/output/default/cache path resolution share one local rule set
+  without making `AppRuntime` itself own every filesystem-normalization detail
 - app value contracts now also use crate-internal `from_domain()` / `into_domain()` helpers instead
   of public domain conversion trait impls, so frontend-facing value shapes no longer advertise
   domain types as part of their stable contract surface
