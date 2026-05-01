@@ -198,6 +198,10 @@ ways that a future frontend can depend on without learning internal domain seams
     `request/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`, and the
     remaining external-package `apply_runtime_defaults()` helpers are crate-visible again rather
     than public API. Runtime default projection stays inside app assembly.
+    Current cleanup: app request contract regression coverage now mirrors that domain split too.
+    `core::app::request::tests` keeps shared sample builders at the root while request behavior
+    lives in `defaults`, `installation`, `addon`, `addon_index`, `addon_lock`, `addon_policy`,
+    `bundle`, and `external_package` modules.
     Current cleanup: runtime-backed request defaults now share `core::app::request` field helpers
     plus one `RuntimeDefaultableRequest` projection trait, so backup-output, backup-dir,
     bundle-output, and source-platform defaults no longer drift across request families.

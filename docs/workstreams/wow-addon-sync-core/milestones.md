@@ -226,6 +226,9 @@ desktop work.
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior
+- app request contract regression coverage now also mirrors that split with focused
+  `core::app::request::tests::{defaults,installation,addon,addon_index,addon_lock,addon_policy,bundle,external_package}`
+  modules and root-only shared sample builders
 - app request contracts no longer rely on public `From<app request> for domain request` trait
   impls; domain projection now stays on crate-internal helper methods, matching the response-side
   boundary cleanup and reducing visible frontend coupling to domain request types
