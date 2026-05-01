@@ -733,6 +733,9 @@ enough for future `egui` work to consume directly.
   than pushing it into each business operation
   Completed: `core::task` now owns task id generation plus shared progress emit helpers, so
   frontend-visible identity and payload shape do not depend on ad hoc service logic.
+  Current cleanup: `core::task` now also splits event DTOs, cancellation contracts, progress sinks,
+  emit helpers, runners, and task-layer tests into focused child modules while keeping `core::task`
+  as the single public export surface.
 - [x] convert key execution loops to structured step progress instead of text-only updates
   Completed: addon directory mutation, metadata-only addon-lock actions, backup restore execution,
   and bundle apply operation loops now emit typed codes plus `current/total` counts.

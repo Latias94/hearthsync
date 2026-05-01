@@ -609,6 +609,9 @@ structured progress model that future `egui` work can consume directly.
   `current`, `total`, `bytes_current`, `bytes_total`, and `bytes_per_second`
 - `core::task` now generates task ids inside the shared wrapper layer, so business operations do
   not each invent their own identity scheme
+- `core::task` now also keeps event DTOs, cancellation contracts, progress sinks, emit helpers,
+  runners, and task-layer tests in focused child modules while preserving the root public export
+  surface for existing callers
 - addon directory mutation, backup restore execution, metadata-only addon-lock actions, and bundle
   apply operations now emit typed step progress instead of only text
 - provider-backed addon archive downloads now also emit `TaskProgressCode::DownloadArchive` with
