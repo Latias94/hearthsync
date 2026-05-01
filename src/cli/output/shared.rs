@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use crate::core::app::{
-    BundleCharacterResourceResult, CharacterMappingResult, ExternalPackageSummaryResult,
-    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-    ExternalPackageWarningResult, LocalWowAccountResult,
+    BundleCharacterResourceResult, CharacterMappingResult, ConfigPackageSummaryResult,
+    ConfigWarningCategoryValue, ConfigWarningCodeValue, ConfigWarningResult,
+    ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue, ExternalPackageWarningResult, LocalWowAccountResult,
 };
 
 pub(super) fn format_bundle_characters(resources: &[BundleCharacterResourceResult]) -> String {
@@ -97,32 +98,96 @@ pub(super) fn format_external_package_warnings(
     warnings: &[ExternalPackageWarningResult],
     summary: &ExternalPackageSummaryResult,
 ) -> String {
-    if warnings.is_empty() {
+    format_warning_report(
+        warnings.is_empty(),
+        summary.warning_count,
+        summary.addon_warning_count,
+        summary.wtf_warning_count,
+        summary
+            .warning_groups
+            .iter()
+            .map(|group| WarningGroupDisplay {
+                category: format_external_package_warning_category(group.category),
+                code: format_external_package_warning_code(group.code),
+                count: group.count,
+            })
+            .collect(),
+        warnings
+            .iter()
+            .map(|warning| WarningDetailDisplay {
+                category: format_external_package_warning_category(warning.category),
+                code: format_external_package_warning_code(warning.code),
+                source_path: &warning.source_path,
+            })
+            .collect(),
+    )
+}
+
+pub(super) fn format_config_warnings(
+    warnings: &[ConfigWarningResult],
+    summary: &ConfigPackageSummaryResult,
+) -> String {
+    format_warning_report(
+        warnings.is_empty(),
+        summary.warning_count,
+        summary.addon_warning_count,
+        summary.wtf_warning_count,
+        summary
+            .warning_groups
+            .iter()
+            .map(|group| WarningGroupDisplay {
+                category: format_config_warning_category(group.category),
+                code: format_config_warning_code(group.code),
+                count: group.count,
+            })
+            .collect(),
+        warnings
+            .iter()
+            .map(|warning| WarningDetailDisplay {
+                category: format_config_warning_category(warning.category),
+                code: format_config_warning_code(warning.code),
+                source_path: &warning.source_path,
+            })
+            .collect(),
+    )
+}
+
+struct WarningGroupDisplay {
+    category: &'static str,
+    code: &'static str,
+    count: usize,
+}
+
+struct WarningDetailDisplay<'a> {
+    category: &'static str,
+    code: &'static str,
+    source_path: &'a str,
+}
+
+fn format_warning_report(
+    is_empty: bool,
+    warning_count: usize,
+    addon_warning_count: usize,
+    wtf_warning_count: usize,
+    warning_groups: Vec<WarningGroupDisplay>,
+    warning_details: Vec<WarningDetailDisplay<'_>>,
+) -> String {
+    if is_empty {
         return "none".to_string();
     }
 
-    let groups = summary
-        .warning_groups
+    let groups = warning_groups
         .iter()
-        .map(|group| {
-            format!(
-                "{}/{}={}",
-                format_warning_category(group.category),
-                format_warning_code(group.code),
-                group.count
-            )
-        })
+        .map(|group| format!("{}/{}={}", group.category, group.code, group.count))
         .collect::<Vec<_>>()
         .join(", ");
 
-    let details = warnings
+    let details = warning_details
         .iter()
         .map(|warning| {
             format!(
                 "{}/{}: {}",
-                format_warning_category(warning.category),
-                format_warning_code(warning.code),
-                warning.source_path
+                warning.category, warning.code, warning.source_path
             )
         })
         .collect::<Vec<_>>()
@@ -130,22 +195,20 @@ pub(super) fn format_external_package_warnings(
 
     format!(
         "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
-        summary.warning_count,
-        summary.addon_warning_count,
-        summary.wtf_warning_count,
-        groups,
-        details
+        warning_count, addon_warning_count, wtf_warning_count, groups, details
     )
 }
 
-fn format_warning_category(category: ExternalPackageWarningCategoryValue) -> &'static str {
+fn format_external_package_warning_category(
+    category: ExternalPackageWarningCategoryValue,
+) -> &'static str {
     match category {
         ExternalPackageWarningCategoryValue::Addon => "addon",
         ExternalPackageWarningCategoryValue::Wtf => "wtf",
     }
 }
 
-fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
+fn format_external_package_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
     match code {
         ExternalPackageWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
         ExternalPackageWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
@@ -156,6 +219,27 @@ fn format_warning_code(code: ExternalPackageWarningCodeValue) -> &'static str {
             "wtf_savedvariables_path_without_file"
         }
         ExternalPackageWarningCodeValue::UnsupportedWtfNestedAccountLayout => {
+            "unsupported_wtf_nested_account_layout"
+        }
+    }
+}
+
+fn format_config_warning_category(category: ConfigWarningCategoryValue) -> &'static str {
+    match category {
+        ConfigWarningCategoryValue::Addon => "addon",
+        ConfigWarningCategoryValue::Wtf => "wtf",
+    }
+}
+
+fn format_config_warning_code(code: ConfigWarningCodeValue) -> &'static str {
+    match code {
+        ConfigWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
+        ConfigWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
+        ConfigWarningCodeValue::WtfAccountPathWithoutFile => "wtf_account_path_without_file",
+        ConfigWarningCodeValue::WtfSavedVariablesPathWithoutFile => {
+            "wtf_savedvariables_path_without_file"
+        }
+        ConfigWarningCodeValue::UnsupportedWtfNestedAccountLayout => {
             "unsupported_wtf_nested_account_layout"
         }
     }

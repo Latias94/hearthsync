@@ -206,6 +206,8 @@ desktop work.
 - addon-lock CLI output now also follows the focused renderer layout with
   `cli::output::addon_lock::{plan,apply,inspection,diff,shared,tests}`, keeping the root module as
   the command-facing render export surface
+- config and external-package CLI output now share one warning-summary rendering template, reducing
+  duplicate warning text layout while preserving config-owned app DTO naming
 - addon CLI output is now split into addon-index, regular management, cache, shared formatter, and
   test modules, while `cli::output::addon` keeps the same render-function export surface
 - addon CLI output regression coverage now mirrors that split with focused addon-index,

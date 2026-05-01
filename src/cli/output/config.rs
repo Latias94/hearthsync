@@ -1,11 +1,8 @@
-use crate::core::app::{
-    ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ConfigPackageSummaryResult,
-    ConfigWarningCategoryValue, ConfigWarningCodeValue, ConfigWarningResult,
-};
+use crate::core::app::{ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult};
 
 use super::shared::{
-    format_bundle_characters, format_character_mapping_summary, format_discovered_accounts,
-    format_selected_accounts, format_string_list_or_none,
+    format_bundle_characters, format_character_mapping_summary, format_config_warnings,
+    format_discovered_accounts, format_selected_accounts, format_string_list_or_none,
 };
 
 pub(in crate::cli) fn render_config_analysis(item: &ConfigInspectionResult) -> String {
@@ -87,72 +84,6 @@ pub(in crate::cli) fn render_config_apply(item: &ConfigApplyResult) -> String {
             mapping_summary,
             backup
         )
-    }
-}
-
-fn format_config_warnings(
-    warnings: &[ConfigWarningResult],
-    summary: &ConfigPackageSummaryResult,
-) -> String {
-    if warnings.is_empty() {
-        return "none".to_string();
-    }
-
-    let groups = summary
-        .warning_groups
-        .iter()
-        .map(|group| {
-            format!(
-                "{}/{}={}",
-                format_config_warning_category(group.category),
-                format_config_warning_code(group.code),
-                group.count
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let details = warnings
-        .iter()
-        .map(|warning| {
-            format!(
-                "{}/{}: {}",
-                format_config_warning_category(warning.category),
-                format_config_warning_code(warning.code),
-                warning.source_path
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" | ");
-
-    format!(
-        "{} (addon: {}, wtf: {}; groups: [{}]) [{}]",
-        summary.warning_count,
-        summary.addon_warning_count,
-        summary.wtf_warning_count,
-        groups,
-        details
-    )
-}
-
-fn format_config_warning_category(category: ConfigWarningCategoryValue) -> &'static str {
-    match category {
-        ConfigWarningCategoryValue::Addon => "addon",
-        ConfigWarningCategoryValue::Wtf => "wtf",
-    }
-}
-
-fn format_config_warning_code(code: ConfigWarningCodeValue) -> &'static str {
-    match code {
-        ConfigWarningCodeValue::AddonRootNotDetected => "addon_root_not_detected",
-        ConfigWarningCodeValue::UnsupportedWtfLayout => "unsupported_wtf_layout",
-        ConfigWarningCodeValue::WtfAccountPathWithoutFile => "wtf_account_path_without_file",
-        ConfigWarningCodeValue::WtfSavedVariablesPathWithoutFile => {
-            "wtf_savedvariables_path_without_file"
-        }
-        ConfigWarningCodeValue::UnsupportedWtfNestedAccountLayout => {
-            "unsupported_wtf_nested_account_layout"
-        }
     }
 }
 

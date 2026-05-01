@@ -166,6 +166,9 @@ ways that a future frontend can depend on without learning internal domain seams
     inspection/write, diff/verify, shared package summary helpers, and renderer tests live under
     `cli::output::addon_lock::*`, while the root module stays as the command-facing render export
     surface.
+    Current cleanup: config and external-package CLI output now share one warning-summary rendering
+    template, so config-owned DTOs keep product naming without carrying a second copy of the same
+    warning text layout.
     Current cleanup: addon CLI output now follows the same ownership split. Addon-index,
     regular addon management, cache output, shared formatter helpers, and output tests live under
     `cli::output::addon::{index,manage,cache,shared,tests}`, leaving the module root as the stable
