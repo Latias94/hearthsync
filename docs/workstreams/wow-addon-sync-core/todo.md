@@ -154,6 +154,11 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: CLI service construction and installation-target resolution now share one
     `cli::app_support` helper, so command handlers no longer duplicate `ResolveInstallationRequest`
     assembly or drift on which app boundary they should enter through.
+    Current cleanup: `cli::app_support` now mirrors that boundary internally too. Runtime
+    construction, stable/extended service construction, installation/apply-target resolution, task
+    rendering wrappers, and runtime-construction regression tests live in focused child modules,
+    leaving the root as the explicit command-handler export surface instead of another mixed
+    orchestration file.
     Current cleanup: addon-lock CLI output now shares formatter helpers under `cli::output`, so
     repeated diff/verify/apply package rendering stays at the presentation edge instead of being
     copied across command handlers.
@@ -311,6 +316,10 @@ ways that a future frontend can depend on without learning internal domain seams
     directly instead of rebuilding fresh service wrappers from cloned runtime state on every
     internal accessor call, so the app boundary behaves more like a long-lived service contract
     and less like a service factory façade.
+    Current cleanup: the CLI app-support boundary is now split by runtime assembly, target
+    resolution, and presentation wrapper responsibilities, so future command or desktop entrypoints
+    can review which layer owns process state, install-target validation, and output rendering
+    without reading one broad helper file.
     Installation scan/inspect/resolve host policy is now also owned by runtime or request-side app
     helpers instead of being reassembled inside `InstallationService`, and the remaining thin
     installation-targeted read/plan projections now sit on app request contracts instead of

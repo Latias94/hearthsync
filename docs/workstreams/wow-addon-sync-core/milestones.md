@@ -196,6 +196,10 @@ desktop work.
 - CLI command handlers now share one `cli::app_support` entry helper for service construction and
   installation resolution, reducing duplicate app-boundary glue around both stable and extension
   flows
+- `cli::app_support` now mirrors that entry-helper boundary internally too: runtime construction,
+  stable/extended service construction, installation/apply-target resolution, task rendering
+  wrappers, and runtime-construction tests live in focused child modules while the root keeps the
+  command-handler export surface
 - addon-lock CLI output now shares formatter helpers in `cli::output`, keeping command handlers
   focused on app orchestration while repeated diff/verify/apply text rendering logic lives at the
   presentation edge
@@ -295,6 +299,9 @@ desktop work.
 - stable and extended app roots now also own constructed service instances directly instead of
   rebuilding new service wrappers from cloned runtime state on every accessor call, so the public
   app boundary behaves like a long-lived service contract rather than a service-factory façade
+- CLI app-support responsibilities are now split by runtime assembly, target resolution, and
+  presentation wrapper concerns, keeping process-state policy, install-target validation, and
+  output rendering reviewable as separate pre-GUI seams
 
 ## M4 - Portability and Optional-Helper Hardening
 
