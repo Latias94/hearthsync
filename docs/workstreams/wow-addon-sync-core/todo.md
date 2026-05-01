@@ -262,6 +262,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: large `core::app` modules now also keep tests in sibling `*/tests.rs`
     submodules instead of interleaving fixtures with production code, which makes the stable app
     boundary easier to review while keeping app-level regression coverage intact.
+    Current cleanup: app value contract tests now mirror the `types/*` ownership split too.
+    `core::app::types::tests` routes focused `install`, `addon`, and `bundle` coverage instead of
+    keeping every value-object contract assertion in one mixed test file.
     Current cleanup: those `core::app` sibling test modules now also import their owning service
     and contract types explicitly instead of depending on `super::*`, so app test coverage no
     longer relies on hidden parent-module import preludes either.

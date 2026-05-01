@@ -275,6 +275,8 @@ desktop work.
   owned by the install domain, while CLI-only display slugs remain crate-internal
 - large `core::app` modules now keep regression tests in sibling `*/tests.rs` files, so
   production contract/service code is easier to review without weakening app-layer coverage
+- app value contract tests now mirror the `types/*` ownership split with focused
+  `core::app::types::tests::{install,addon,bundle}` modules instead of one mixed value test file
 - runtime default/path projection helpers are crate-visible only again, and `ExtendedAppServices`
   now exposes an explicit stable bridge instead of `Deref<Target = StableAppServices>`
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
