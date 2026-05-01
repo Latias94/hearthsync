@@ -243,6 +243,9 @@ desktop work.
 - external-package response contracts now split bundle-handle lifetime results, normalized entry
   DTOs, warning/summary DTOs, analysis DTOs, and apply plan/apply DTOs under focused
   `response::external_package::*` child modules
+- config response contracts now mirror the config-owned projection boundary with source-kind,
+  normalized entry, warning/summary, inspection, and apply DTOs under focused
+  `response::config::*` child modules
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior

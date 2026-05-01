@@ -213,6 +213,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: external-package response contracts now split bundle-handle lifetime results,
     normalized entry DTOs, warning/summary DTOs, analysis DTOs, and apply plan/apply DTOs under
     focused `response::external_package::*` child modules.
+    Current cleanup: config response contracts now mirror the config-owned projection boundary with
+    source-kind, normalized entry, warning/summary, inspection, and apply DTOs under focused
+    `response::config::*` child modules.
     Current cleanup: `core::app::task_support` now also owns the shared direct/collecting/callback
     service-task wrappers, so addon/addon-index/addon-lock/backup/bundle/external-package services
     no longer repeat the same closure shells just to forward into their `*_task(...)` methods.
