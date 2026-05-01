@@ -240,6 +240,9 @@ ways that a future frontend can depend on without learning internal domain seams
     conversions. Crate-internal projection now lives on explicit `into_domain_*` helpers so the
     stable frontend boundary no longer advertises domain request types as part of its public trait
     surface.
+    Current cleanup: config request contracts also stopped exposing public `From<external-package
+    request>` conversions. Config still projects into the external-package engine internally, but
+    its runtime defaults and stable request shape are now product-owned at the app boundary.
     Current cleanup: app value contracts now follow the same rule. Domain projection is expressed
     through crate-internal `from_domain()` / `into_domain()` helpers instead of public
     `From<domain>` / `From<value>` trait impls, so CLI and services can still assemble domain

@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use super::RuntimeDefaultableRequest;
+use super::{
+    RuntimeDefaultableRequest, apply_backup_output_default, apply_bundle_output_default,
+    apply_source_platform_default,
+};
 use crate::core::app::request::external_package::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
     CreateExternalPackageBundleAppRequest, PlanExternalPackageApplyAppRequest,
@@ -23,14 +26,6 @@ impl InspectConfigAppRequest {
     }
 }
 
-impl From<AnalyzeExternalPackageAppRequest> for InspectConfigAppRequest {
-    fn from(value: AnalyzeExternalPackageAppRequest) -> Self {
-        Self {
-            source_path: value.source_path,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ConfigPackageAppRequest {
     pub source_path: PathBuf,
@@ -46,8 +41,10 @@ pub struct ConfigPackageAppRequest {
 }
 
 impl RuntimeDefaultableRequest for ConfigPackageAppRequest {
-    fn apply_runtime_defaults(self, runtime: &AppRuntime) -> Self {
-        Self::from(self.into_external_request().apply_runtime_defaults(runtime))
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        apply_source_platform_default(runtime, &mut self.source_platform);
+        apply_bundle_output_default(runtime, &mut self.output_path);
+        self
     }
 }
 
@@ -68,23 +65,6 @@ impl ConfigPackageAppRequest {
     }
 }
 
-impl From<CreateExternalPackageBundleAppRequest> for ConfigPackageAppRequest {
-    fn from(value: CreateExternalPackageBundleAppRequest) -> Self {
-        Self {
-            source_path: value.source_path,
-            source_flavor: value.source_flavor,
-            source_platform: value.source_platform,
-            supported_targets: value.supported_targets,
-            output_path: value.output_path,
-            package_id: value.package_id,
-            package_name: value.package_name,
-            created_by: value.created_by,
-            description: value.description,
-            apply_defaults: value.apply_defaults,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PlanConfigApplyAppRequest {
     pub config_package: ConfigPackageAppRequest,
@@ -93,8 +73,9 @@ pub struct PlanConfigApplyAppRequest {
 }
 
 impl RuntimeDefaultableRequest for PlanConfigApplyAppRequest {
-    fn apply_runtime_defaults(self, runtime: &AppRuntime) -> Self {
-        Self::from(self.into_external_request().apply_runtime_defaults(runtime))
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.config_package = self.config_package.apply_runtime_defaults(runtime);
+        self
     }
 }
 
@@ -104,16 +85,6 @@ impl PlanConfigApplyAppRequest {
             external_package: self.config_package.into_external_request(),
             installation: self.installation,
             apply_mappings: self.apply_mappings,
-        }
-    }
-}
-
-impl From<PlanExternalPackageApplyAppRequest> for PlanConfigApplyAppRequest {
-    fn from(value: PlanExternalPackageApplyAppRequest) -> Self {
-        Self {
-            config_package: ConfigPackageAppRequest::from(value.external_package),
-            installation: value.installation,
-            apply_mappings: value.apply_mappings,
         }
     }
 }
@@ -128,8 +99,10 @@ pub struct ApplyConfigAppRequest {
 }
 
 impl RuntimeDefaultableRequest for ApplyConfigAppRequest {
-    fn apply_runtime_defaults(self, runtime: &AppRuntime) -> Self {
-        Self::from(self.into_external_request().apply_runtime_defaults(runtime))
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.config_package = self.config_package.apply_runtime_defaults(runtime);
+        apply_backup_output_default(runtime, &mut self.backup_output_path);
+        self
     }
 }
 
@@ -141,18 +114,6 @@ impl ApplyConfigAppRequest {
             dry_run: self.dry_run,
             backup_output_path: self.backup_output_path,
             apply_mappings: self.apply_mappings,
-        }
-    }
-}
-
-impl From<ApplyExternalPackageAppRequest> for ApplyConfigAppRequest {
-    fn from(value: ApplyExternalPackageAppRequest) -> Self {
-        Self {
-            config_package: ConfigPackageAppRequest::from(value.external_package),
-            installation: value.installation,
-            dry_run: value.dry_run,
-            backup_output_path: value.backup_output_path,
-            apply_mappings: value.apply_mappings,
         }
     }
 }

@@ -258,6 +258,9 @@ desktop work.
 - app request contracts no longer rely on public `From<app request> for domain request` trait
   impls; domain projection now stays on crate-internal helper methods, matching the response-side
   boundary cleanup and reducing visible frontend coupling to domain request types
+- config request contracts no longer expose public `From<external-package request>` conversions;
+  config still reuses the external-package engine internally, but its runtime defaults and request
+  shape are owned at the app boundary
 - app value contracts now also use crate-internal `from_domain()` / `into_domain()` helpers instead
   of public domain conversion trait impls, so frontend-facing value shapes no longer advertise
   domain types as part of their stable contract surface
