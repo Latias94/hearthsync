@@ -998,6 +998,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current cleanup: the UTF-8 Lua text rewriter production code now mirrors its real responsibilities
   too. `lua_patch::text` keeps the public `rewrite_lua_text` entrypoint, while scoped identity
   rewrites, profile-key rewrites, and range-application helpers live in focused child modules.
+  Current cleanup: the non-UTF-8 Lua byte fallback now follows the same module ownership rule.
+  `lua_patch::bytes` keeps the fallback entrypoint while encoding variants, shared byte rewrite
+  tables, scoped identity rewrites, profile-key rewrites, and range application live in focused
+  child modules.
   Current cleanup: Lua patch regression tests now follow the implementation split too. Direct
   `rewrite_lua_text` coverage lives in `lua_patch::tests::text`, byte-preview coverage is grouped
   under `lua_patch::tests::bytes::{boundary,scope,fixtures,encoding}`, and the root test module
