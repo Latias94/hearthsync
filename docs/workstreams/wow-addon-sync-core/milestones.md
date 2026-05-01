@@ -379,6 +379,9 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
   when creating new backups and when reading stored backup metadata.
 - backup creation now also rejects local directory/interface symlink entries instead of following
   link targets into the archive, keeping backup payloads bounded to the intended WoW tree
+- backup archive production code is now split into create/metadata/restore ownership: zip output
+  registration and source scanning live with creation, `backup.toml` loading and shape validation
+  live with metadata, and transactional checkpoint/rollback execution lives with restore
 - addon local-archive package preparation now also rejects zip symlink entries, so addon
   install/update flows share the same archive-metadata safety floor as backup restore and
   external-package ingest

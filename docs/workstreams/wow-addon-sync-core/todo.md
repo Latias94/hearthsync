@@ -560,6 +560,10 @@ enough that these rules live in one place.
   labels fail before catalog or restore-selection code consumes metadata.
   Current progress: backup labels now normalize before archive creation and must be portable
   filename segments both when creating new backups and when reading stored backup metadata.
+  Current cleanup: backup archive production code now owns explicit create/metadata/restore
+  modules instead of one mixed file. Backup creation keeps zip output registration and source
+  scanning, metadata owns `backup.toml` loading and shape validation, and restore owns
+  transactional checkpoint/rollback execution.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.
