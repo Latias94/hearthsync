@@ -164,6 +164,10 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: addon CLI output tests now mirror that renderer split too. The test root keeps
     shared fixtures/imports, while addon-index, regular management, and cache rendering assertions
     live in focused sibling modules.
+    Current cleanup: CLI argument parsing regression coverage now follows the same focused layout.
+    `cli::args::tests` keeps shared imports at the root while runtime, settings, config, addon, and
+    addon-index command parsing assertions live in sibling modules, leaving `cli::args` focused on
+    command shape definitions.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access now stay
     inside the `core::app` module boundary, so external callers stay on stable direct/task
     entrypoints instead of treating the stable boundary as another service factory.

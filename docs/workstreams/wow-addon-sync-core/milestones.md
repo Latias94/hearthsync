@@ -203,6 +203,9 @@ desktop work.
   test modules, while `cli::output::addon` keeps the same render-function export surface
 - addon CLI output regression coverage now mirrors that split with focused addon-index,
   management, and cache rendering test modules
+- CLI argument parsing regression coverage now mirrors the same focused module layout with
+  `cli::args::tests::{runtime,settings,config,addon,addon_index}`, leaving `cli::args` centered on
+  command shape definitions instead of carrying a large inline test block
 - raw `StableAppServices` service accessors and direct runtime access now stay inside the
   `core::app` module boundary, so the public stable boundary stays centered on direct/task
   entrypoints instead of leaking a second service-factory-style API
