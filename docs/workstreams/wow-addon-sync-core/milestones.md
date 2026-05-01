@@ -234,6 +234,9 @@ desktop work.
 - regular addon response contracts now mirror that shape under
   `response::addon::{source,tracked,inventory,operations,search,cache}`, so addon management,
   search, and cache DTOs no longer share one broad response file
+- addon-lock response contracts now split the lock package, inspection/write, diff snapshot,
+  verification, and sync plan/apply DTOs under focused `response::addon_lock::*` child modules
+  while preserving the same root export surface
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior

@@ -204,6 +204,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: regular addon response contracts now mirror that shape under
     `response::addon::{source,tracked,inventory,operations,search,cache}`, so addon management,
     search, and cache DTOs no longer share one broad response file.
+    Current cleanup: addon-lock response contracts now split the lock package, inspection/write,
+    diff snapshot, verification, and sync plan/apply DTOs under focused `response::addon_lock::*`
+    child modules while preserving the same root export surface.
     Current cleanup: `core::app::task_support` now also owns the shared direct/collecting/callback
     service-task wrappers, so addon/addon-index/addon-lock/backup/bundle/external-package services
     no longer repeat the same closure shells just to forward into their `*_task(...)` methods.
