@@ -382,6 +382,8 @@ Close the remaining cross-platform and optional-capability gaps on top of the cl
 - backup archive production code is now split into create/metadata/restore ownership: zip output
   registration and source scanning live with creation, `backup.toml` loading and shape validation
   live with metadata, and transactional checkpoint/rollback execution lives with restore
+- backup regression coverage is now split into `create`, `catalog`, `selection`, and `restore`
+  modules, leaving `core::backup::tests` as shared archive/install/progress fixture setup
 - addon local-archive package preparation now also rejects zip symlink entries, so addon
   install/update flows share the same archive-metadata safety floor as backup restore and
   external-package ingest

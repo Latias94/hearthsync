@@ -564,6 +564,9 @@ enough that these rules live in one place.
   modules instead of one mixed file. Backup creation keeps zip output registration and source
   scanning, metadata owns `backup.toml` loading and shape validation, and restore owns
   transactional checkpoint/rollback execution.
+  Current cleanup: backup regression coverage now mirrors that ownership split too. The
+  `core::backup::tests` root keeps shared archive/install/progress fixtures, while create,
+  catalog, selection, and restore behavior live in focused sibling modules.
   Current progress: external-package directory sources now reuse the same portable segment
   validation as zip sources, so reserved Windows names, trailing-dot/space segments, and similar
   non-portable entries fail consistently before normalization.
