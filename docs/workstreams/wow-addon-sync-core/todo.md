@@ -161,6 +161,9 @@ ways that a future frontend can depend on without learning internal domain seams
     regular addon management, cache output, shared formatter helpers, and output tests live under
     `cli::output::addon::{index,manage,cache,shared,tests}`, leaving the module root as the stable
     render-function export surface instead of another broad mixed renderer file.
+    Current cleanup: addon CLI output tests now mirror that renderer split too. The test root keeps
+    shared fixtures/imports, while addon-index, regular management, and cache rendering assertions
+    live in focused sibling modules.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access now stay
     inside the `core::app` module boundary, so external callers stay on stable direct/task
     entrypoints instead of treating the stable boundary as another service factory.

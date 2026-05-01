@@ -201,6 +201,8 @@ desktop work.
   presentation edge
 - addon CLI output is now split into addon-index, regular management, cache, shared formatter, and
   test modules, while `cli::output::addon` keeps the same render-function export surface
+- addon CLI output regression coverage now mirrors that split with focused addon-index,
+  management, and cache rendering test modules
 - raw `StableAppServices` service accessors and direct runtime access now stay inside the
   `core::app` module boundary, so the public stable boundary stays centered on direct/task
   entrypoints instead of leaking a second service-factory-style API
