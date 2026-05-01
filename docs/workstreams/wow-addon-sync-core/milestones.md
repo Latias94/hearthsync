@@ -206,6 +206,10 @@ desktop work.
 - CLI argument parsing regression coverage now mirrors the same focused module layout with
   `cli::args::tests::{runtime,settings,config,addon,addon_index}`, leaving `cli::args` centered on
   command shape definitions instead of carrying a large inline test block
+- CLI system output now mirrors the same presentation-edge split with
+  `cli::output::system::{installation,manifest,runtime,tests}`, keeping command handlers on the
+  same render-function export surface while separating installation, manifest, and diagnostics
+  formatting
 - raw `StableAppServices` service accessors and direct runtime access now stay inside the
   `core::app` module boundary, so the public stable boundary stays centered on direct/task
   entrypoints instead of leaking a second service-factory-style API

@@ -168,6 +168,10 @@ ways that a future frontend can depend on without learning internal domain seams
     `cli::args::tests` keeps shared imports at the root while runtime, settings, config, addon, and
     addon-index command parsing assertions live in sibling modules, leaving `cli::args` focused on
     command shape definitions.
+    Current cleanup: CLI system output now follows the same presentation-edge split. Installation
+    scan/inspection/health rendering, manifest helper rendering, runtime diagnostics rendering, and
+    their regression tests live under `cli::output::system::*`, while the root module only preserves
+    the existing render-function export surface for command handlers.
     Current cleanup: raw `StableAppServices` service accessors and direct runtime access now stay
     inside the `core::app` module boundary, so external callers stay on stable direct/task
     entrypoints instead of treating the stable boundary as another service factory.
