@@ -222,6 +222,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: `core::app::task_support` now also owns the shared direct/collecting/callback
     service-task wrappers, so addon/addon-index/addon-lock/backup/bundle/external-package services
     no longer repeat the same closure shells just to forward into their `*_task(...)` methods.
+    Current cleanup: config and external-package app services no longer keep unused direct
+    long-task convenience methods. Tests now cover the stable collected-progress path or the live
+    callback path, matching what CLI and future GUI callers actually consume.
     Current cleanup: request contracts now follow the same domain split under
     `request/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`, and the
     remaining external-package `apply_runtime_defaults()` helpers are crate-visible again rather

@@ -50,10 +50,11 @@ fn config_service_inspects_relative_source_against_runtime_base() {
             .expect("runtime"),
     ));
     let result = service
-        .inspect(InspectConfigAppRequest {
+        .inspect_collecting_progress(InspectConfigAppRequest {
             source_path: PathBuf::from("AuthorPack"),
         })
-        .expect("inspect relative config source");
+        .expect("inspect relative config source")
+        .result;
 
     assert_eq!(result.source_path, package_root);
     assert_eq!(result.resources.addons, vec!["WeakAuras".to_string()]);

@@ -249,6 +249,9 @@ desktop work.
 - external-package source kind and addon-lock sync action kind are now app-owned response enums
   instead of leaked domain enums, so stable result serialization no longer depends on bundle or
   addon-lock internals
+- config and external-package app services no longer keep unused direct long-task convenience
+  methods; regression coverage now exercises collected-progress or live-callback paths that match
+  CLI and future GUI consumption
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior

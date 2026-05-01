@@ -14,16 +14,6 @@ impl ConfigService {
         Self { external_packages }
     }
 
-    #[allow(dead_code)]
-    pub(super) fn inspect(
-        &self,
-        request: InspectConfigAppRequest,
-    ) -> AppResult<ConfigInspectionResult> {
-        self.external_packages
-            .analyze(request.into_external_request())
-            .map(ConfigInspectionResult::from_external)
-    }
-
     pub(super) fn inspect_collecting_progress(
         &self,
         request: InspectConfigAppRequest,
@@ -37,7 +27,6 @@ impl ConfigService {
             })
     }
 
-    #[allow(dead_code)]
     pub(super) fn inspect_with_callbacks<FCancel, FProgress>(
         &self,
         request: InspectConfigAppRequest,
@@ -53,16 +42,6 @@ impl ConfigService {
             .map(ConfigInspectionResult::from_external)
     }
 
-    #[allow(dead_code)]
-    pub(super) fn plan_apply(
-        &self,
-        request: PlanConfigApplyAppRequest,
-    ) -> AppResult<ConfigApplyPlanResult> {
-        self.external_packages
-            .plan_apply(request.into_external_request())
-            .map(ConfigApplyPlanResult::from_external)
-    }
-
     pub(super) fn plan_apply_collecting_progress(
         &self,
         request: PlanConfigApplyAppRequest,
@@ -76,7 +55,6 @@ impl ConfigService {
             })
     }
 
-    #[allow(dead_code)]
     pub(super) fn plan_apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: PlanConfigApplyAppRequest,
@@ -92,16 +70,6 @@ impl ConfigService {
             .map(ConfigApplyPlanResult::from_external)
     }
 
-    #[allow(dead_code)]
-    pub(super) fn apply(
-        &self,
-        request: crate::core::app::ApplyConfigAppRequest,
-    ) -> AppResult<ConfigApplyResult> {
-        self.external_packages
-            .apply(request.into_external_request())
-            .map(ConfigApplyResult::from_external)
-    }
-
     pub(super) fn apply_collecting_progress(
         &self,
         request: crate::core::app::ApplyConfigAppRequest,
@@ -115,7 +83,6 @@ impl ConfigService {
             })
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: crate::core::app::ApplyConfigAppRequest,

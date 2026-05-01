@@ -30,14 +30,6 @@ impl ExternalPackageService {
         &self.runtime
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn analyze(
-        &self,
-        request: AnalyzeExternalPackageAppRequest,
-    ) -> AppResult<ExternalPackageAnalysisResult> {
-        task_support::run_service_task_direct(self, request, Self::analyze_task)
-    }
-
     pub(super) fn analyze_task<TCancel, TProgress>(
         &self,
         request: AnalyzeExternalPackageAppRequest,
@@ -63,7 +55,6 @@ impl ExternalPackageService {
         task_support::run_service_task_collecting(self, request, Self::analyze_task)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn analyze_with_callbacks<FCancel, FProgress>(
         &self,
         request: AnalyzeExternalPackageAppRequest,
@@ -89,14 +80,6 @@ impl ExternalPackageService {
     ) -> AppResult<ExternalPackageBundleHandle> {
         let bundle = create_external_package_bundle(request.into_domain_request(&self.runtime)?)?;
         Ok(ExternalPackageBundleHandle::from_domain(bundle))
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn plan_apply(
-        &self,
-        request: PlanExternalPackageApplyAppRequest,
-    ) -> AppResult<ExternalPackageApplyPlanResult> {
-        task_support::run_service_task_direct(self, request, Self::plan_apply_task)
     }
 
     pub(super) fn plan_apply_task<TCancel, TProgress>(
@@ -127,7 +110,6 @@ impl ExternalPackageService {
         task_support::run_service_task_collecting(self, request, Self::plan_apply_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn plan_apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: PlanExternalPackageApplyAppRequest,
@@ -145,14 +127,6 @@ impl ExternalPackageService {
             on_progress,
             Self::plan_apply_task,
         )
-    }
-
-    #[allow(dead_code)]
-    pub(super) fn apply(
-        &self,
-        request: ApplyExternalPackageAppRequest,
-    ) -> AppResult<ExternalPackageApplyResult> {
-        task_support::run_service_task_direct(self, request, Self::apply_task)
     }
 
     pub(super) fn apply_task<TCancel, TProgress>(
@@ -180,7 +154,6 @@ impl ExternalPackageService {
         task_support::run_service_task_collecting(self, request, Self::apply_task)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: ApplyExternalPackageAppRequest,

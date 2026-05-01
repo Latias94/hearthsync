@@ -21,10 +21,11 @@ fn external_package_service_analyzes_minimal_source_package() {
 
     let service = ExternalPackageService::new();
     let analysis = service
-        .analyze(AnalyzeExternalPackageAppRequest {
+        .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: package_root,
         })
-        .expect("analyze package");
+        .expect("analyze package")
+        .result;
 
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
     assert_eq!(analysis.summary.warning_count, 0);
@@ -42,10 +43,11 @@ fn external_package_service_analyzes_relative_source_against_runtime_base() {
             .expect("runtime"),
     );
     let analysis = service
-        .analyze(AnalyzeExternalPackageAppRequest {
+        .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: PathBuf::from("AuthorPack"),
         })
-        .expect("analyze relative package source");
+        .expect("analyze relative package source")
+        .result;
 
     assert_eq!(analysis.source_path, package_root);
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
@@ -54,7 +56,7 @@ fn external_package_service_analyzes_relative_source_against_runtime_base() {
 #[test]
 fn external_package_service_rejects_relative_source_without_runtime_base() {
     let error = ExternalPackageService::new()
-        .analyze(AnalyzeExternalPackageAppRequest {
+        .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: PathBuf::from("AuthorPack"),
         })
         .expect_err("relative package source without base should fail");
@@ -201,7 +203,7 @@ fn external_package_service_plan_apply_reports_runtime_helper_strategy() {
     let target_installation = create_empty_installation(target.path());
 
     let plan = ExternalPackageService::new()
-        .plan_apply(PlanExternalPackageApplyAppRequest {
+        .plan_apply_collecting_progress(PlanExternalPackageApplyAppRequest {
             external_package: CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
                 source_flavor: WowFlavorValue::Retail,
@@ -217,7 +219,8 @@ fn external_package_service_plan_apply_reports_runtime_helper_strategy() {
             installation: target_installation,
             apply_mappings: BundleApplyMappingsValue::default(),
         })
-        .expect("plan apply");
+        .expect("plan apply")
+        .result;
 
     assert_eq!(plan.helper_strategy, HelperStrategyValue::NativeRust);
 }
