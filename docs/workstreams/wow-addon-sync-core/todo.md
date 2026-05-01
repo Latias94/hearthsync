@@ -628,12 +628,15 @@ enough that these rules live in one place.
   `provider::validation` module. GitHub owns asset-to-validator projection, CurseForge owns
   file-to-validator projection, and the shared module keeps only provider-agnostic cache and
   transport helpers.
+  Current cleanup: GitHub provider internals now follow the same split. The provider root keeps
+  release fetch, release/asset selection, cache-validator projection, and transport headers, while
+  release/asset response validation and API unit coverage live in `github::{validation,tests}`.
   Current cleanup: default provider composition has moved out of `provider::mod` into
   `provider::default_provider`. The root provider module now stays focused on provider contracts,
   request/result shapes, context policy, source exports, and cache result exports, while retrying
   HTTP wrapping and default cache/materialization/search wiring live with the default implementation.
   Current cleanup: provider-owned pure boundary tests now live next to their implementation
-  modules. GitHub API fetch and release/asset selector coverage moved into `provider::github`,
+  modules. GitHub API fetch and release/asset selector coverage moved into `provider::github::tests`,
   CurseForge search/context/file-response API coverage moved into `provider::curseforge::api`,
   version-type/file-selection coverage moved into `provider::curseforge::select`,
   file-contract coverage moved into `provider::curseforge::file_validation`,

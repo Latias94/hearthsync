@@ -1061,6 +1061,9 @@ contracts for the future `egui` frontend.
   metadata, freshness policy, purge maintenance, remote repair, and cache tests live in sibling
   `provider::cache::*` modules while `provider::cache` keeps the same public/internal re-export
   surface for provider callers.
+- GitHub provider internals now follow the same ownership rule: the provider root keeps release
+  fetch, release/asset selection, cache-validator projection, and transport headers, while
+  release/asset response validation and API unit coverage live in `github::{validation,tests}`.
 - CurseForge selection and file-contract validation now follow the same provider ownership rule:
   `curseforge::select` owns version-type/latest-file choice, while `curseforge::file_validation`
   owns download URL, archive name, hash, sortable-version, release-type, and dependency-row
