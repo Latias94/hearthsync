@@ -749,6 +749,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
   and the remaining regular addon command coverage now lives in `registry`, `remove`, `adopt`,
   `relink`, `provider_helpers`, `update_basic`, `update_policy`, and `update_dependencies`,
   leaving the root addon test module as shared fixture setup only
+- regular addon execution production code now also lives in focused `install`, `update`,
+  `remove`, and shared `backup` modules below `core::addon::execution`, with the root preserving
+  the public command export surface
 - app-level addon-index service coverage now also lives in `inspect_validate`, `operations`,
   `curation`, `provider_runtime`, and `update` sibling modules, leaving
   `core::app::addon_index::tests` as shared fixtures/fake providers only

@@ -844,6 +844,9 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `registry`, `remove`, `adopt`, `relink`, `provider_helpers`, `update_basic`, `update_policy`,
   and `update_dependencies`, leaving `core::addon::tests` as a shared fixture module instead of a
   mixed 2k-line regression bucket.
+  Current cleanup: regular addon execution production code now follows the same lifecycle split.
+  `core::addon::execution` is a thin export root, while install, update, remove, and shared backup
+  orchestration live in focused sibling modules instead of one mixed command executor file.
   Current cleanup: app-level addon-index service coverage now also lives in focused sibling
   modules: `inspect_validate`, `operations`, `curation`, `provider_runtime`, and `update`, leaving
   `core::app::addon_index::tests` as shared service fixtures and fake providers instead of another
