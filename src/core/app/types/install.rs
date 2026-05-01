@@ -104,7 +104,7 @@ impl HealthStatusValue {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(crate) fn into_domain(self) -> DomainHealthStatus {
         match self {
             Self::Healthy => DomainHealthStatus::Healthy,

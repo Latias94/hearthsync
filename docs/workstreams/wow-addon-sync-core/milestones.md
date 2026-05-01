@@ -254,6 +254,8 @@ desktop work.
   CLI and future GUI consumption
 - addon, addon-index, addon-lock, backup, and bundle app services now follow the same long-task
   rule, and the obsolete direct task-support runner has been removed from `core::app`
+- `core::app` no longer carries dead-code allowances; test-only custom provider injection and
+  value round-trip helpers are explicitly gated with `#[cfg(test)]`
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior

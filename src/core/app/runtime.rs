@@ -35,6 +35,7 @@ pub struct AppRuntime {
 #[derive(Clone)]
 enum AppRuntimeAddonProviderConfig {
     Default(AddonProviderOptionsValue),
+    #[cfg(test)]
     Custom(SharedAddonProvider),
 }
 
@@ -81,7 +82,7 @@ impl AppRuntimeBuilder {
         self
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(crate) fn with_addon_provider<P>(mut self, provider: P) -> Self
     where
         P: AddonProvider + Send + Sync + 'static,
@@ -168,6 +169,7 @@ impl AppRuntimeBuilder {
                     Some(options),
                 )
             }
+            #[cfg(test)]
             AppRuntimeAddonProviderConfig::Custom(provider) => (provider, None),
         };
 
@@ -198,7 +200,7 @@ impl AppRuntime {
         Self::builder().with_addon_provider_options(options).build()
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(crate) fn with_addon_provider<P>(provider: P) -> Self
     where
         P: AddonProvider + Send + Sync + 'static,

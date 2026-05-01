@@ -210,7 +210,6 @@ impl AddonStateStorageValue {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn into_domain(self) -> DomainAddonStateStorageKind {
         match self {
             Self::AppData => DomainAddonStateStorageKind::AppData,
@@ -266,7 +265,7 @@ impl Default for AddonProviderRetryPolicyValue {
 }
 
 impl AddonProviderRetryPolicyValue {
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(crate) fn from_domain(value: DomainAddonProviderRetryPolicy) -> Self {
         Self {
             max_attempts: value.max_attempts,
@@ -300,6 +299,7 @@ impl Default for HttpNoValidatorCachePolicyValue {
 }
 
 impl HttpNoValidatorCachePolicyValue {
+    #[cfg(test)]
     pub(crate) fn from_domain(value: DomainHttpNoValidatorCachePolicy) -> Self {
         match value {
             DomainHttpNoValidatorCachePolicy::AlwaysRefresh => Self::AlwaysRefresh,
@@ -337,7 +337,7 @@ pub struct AddonProviderOptionsValue {
 }
 
 impl AddonProviderOptionsValue {
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub(crate) fn from_domain(value: DomainAddonProviderOptions) -> Self {
         Self {
             download_cache_dir: value.download_cache_dir,

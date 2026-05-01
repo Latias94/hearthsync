@@ -7,7 +7,6 @@ use crate::core::error::AppResult;
 
 #[derive(Debug, Clone, Default)]
 pub(super) struct AddonPolicyService {
-    #[allow(dead_code)]
     runtime: AppRuntime,
 }
 
