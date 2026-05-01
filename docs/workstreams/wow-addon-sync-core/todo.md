@@ -265,6 +265,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: app value contract tests now mirror the `types/*` ownership split too.
     `core::app::types::tests` routes focused `install`, `addon`, and `bundle` coverage instead of
     keeping every value-object contract assertion in one mixed test file.
+    Current cleanup: runtime settings service coverage now lives in
+    `core::app::runtime_settings::tests`, leaving the runtime settings implementation file focused
+    on service behavior, persistence, validation, and the test-only path guard.
     Current cleanup: those `core::app` sibling test modules now also import their owning service
     and contract types explicitly instead of depending on `super::*`, so app test coverage no
     longer relies on hidden parent-module import preludes either.

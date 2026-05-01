@@ -277,6 +277,9 @@ desktop work.
   production contract/service code is easier to review without weakening app-layer coverage
 - app value contract tests now mirror the `types/*` ownership split with focused
   `core::app::types::tests::{install,addon,bundle}` modules instead of one mixed value test file
+- runtime settings service coverage now also lives in `core::app::runtime_settings::tests`, so the
+  implementation file stays focused on service behavior, persistence, validation, and its test-only
+  path guard
 - runtime default/path projection helpers are crate-visible only again, and `ExtendedAppServices`
   now exposes an explicit stable bridge instead of `Deref<Target = StableAppServices>`
 - the remaining raw planner byte-reader seam is now test-only, so future `egui` integration can
