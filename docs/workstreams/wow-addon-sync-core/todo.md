@@ -854,6 +854,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current cleanup: addon-index matching/source-authority coverage now lives in
   `core::addon::index::tests::update_matching`, with shared provider fixtures for curated
   CurseForge source authority and GitHub source-family/display-name/exact-hint matching.
+  Current cleanup: addon-index matching production code now separates flow from strategy details.
+  `core::addon::index::matching` keeps the ordered full/preflight matching entrypoints, while
+  metadata, exact id, curated hint, source identity, source-family, display-name, and addon-directory
+  strategy implementations live in `matching::strategies`.
   Current cleanup: regular addon local-archive install coverage now lives in
   `core::addon::tests::install`, separating archive write, lock/registry persistence,
   variant-TOC, symlink rejection, and case-insensitive root-collision behavior from the remaining

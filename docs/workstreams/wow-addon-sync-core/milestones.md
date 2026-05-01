@@ -750,6 +750,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - addon-index matching/source-authority coverage now also lives in
   `core::addon::index::tests::update_matching`, using shared provider fixtures for curated source
   authority and GitHub source-family/display-name/exact-hint matching
+- addon-index matching production code now separates the ordered full/preflight matching flow from
+  individual metadata, exact-id, curated-hint, source, source-family, display-name, and
+  addon-directory strategy implementations under `matching::strategies`
 - regular addon local-archive install coverage now also lives in `core::addon::tests::install`,
   and the remaining regular addon command coverage now lives in `registry`, `remove`, `adopt`,
   `relink`, `provider_helpers`, `update_basic`, `update_policy`, and `update_dependencies`,
