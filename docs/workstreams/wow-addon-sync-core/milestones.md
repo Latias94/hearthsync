@@ -760,6 +760,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - regular addon execution production code now also lives in focused `install`, `update`,
   `remove`, and shared `backup` modules below `core::addon::execution`, with the root preserving
   the public command export surface
+- addon mutation support logic now follows the same ownership rule: `core::addon::mutation` keeps
+  install/update/remove transaction flow, while filesystem helpers and task-progress observation
+  live in focused `mutation::{fs,progress}` modules
 - app-level addon-index service coverage now also lives in `inspect_validate`, `operations`,
   `curation`, `provider_runtime`, and `update` sibling modules, leaving
   `core::app::addon_index::tests` as shared fixtures/fake providers only
