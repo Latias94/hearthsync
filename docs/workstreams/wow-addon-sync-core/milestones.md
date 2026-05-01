@@ -871,6 +871,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - UTF-8 text rewriting and non-UTF-8 byte rewriting now share one low-level Lua syntax scanner for
   table traversal and string/key parsing, reducing duplicate parser behavior while leaving their
   replacement encodings separate
+- UTF-8 Lua text rewriting production code now follows the same ownership split: `lua_patch::text`
+  keeps the public entrypoint while scoped identity, profile-key, and range-application logic live
+  in focused child modules
 - Lua patch regression tests now mirror the implementation split: direct text-rewrite coverage
   lives in `lua_patch::tests::text`, byte-preview coverage is grouped under
   `lua_patch::tests::bytes::{boundary,scope,fixtures,encoding}`, and the root test module keeps
