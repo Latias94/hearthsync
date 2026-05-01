@@ -216,6 +216,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: config response contracts now mirror the config-owned projection boundary with
     source-kind, normalized entry, warning/summary, inspection, and apply DTOs under focused
     `response::config::*` child modules.
+    Current cleanup: external-package source kind and addon-lock sync action kind are now app-owned
+    response enums instead of leaked domain enums, so CLI and future GUI callers can serialize those
+    stable result contracts without depending on bundle or addon-lock internals.
     Current cleanup: `core::app::task_support` now also owns the shared direct/collecting/callback
     service-task wrappers, so addon/addon-index/addon-lock/backup/bundle/external-package services
     no longer repeat the same closure shells just to forward into their `*_task(...)` methods.

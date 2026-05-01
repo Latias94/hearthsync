@@ -91,7 +91,8 @@ pub use response::addon_lock::{
     AddonLockApplyResult, AddonLockDiffResult, AddonLockFieldChangeResult,
     AddonLockInspectionResult, AddonLockPackageDiffResult, AddonLockPackageDirectoryIssueResult,
     AddonLockPackageResult, AddonLockPackageSnapshotResult, AddonLockPlanResult,
-    AddonLockSyncActionResult, AddonLockVerifyResult, AddonLockWriteResult,
+    AddonLockSyncActionKindResult, AddonLockSyncActionResult, AddonLockVerifyResult,
+    AddonLockWriteResult,
 };
 pub use response::addon_policy::{
     AddonPolicyInspectionResult, AddonPolicyMutationResult, AddonPolicyPackageResult,
@@ -116,7 +117,8 @@ pub use response::config::{
 pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
-    ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackageSourceKindResult, ExternalPackageSummaryResult,
+    ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
 };
 pub use response::installation::{
     InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,

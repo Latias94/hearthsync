@@ -11,10 +11,26 @@ use super::super::bundle::BundleResourcesResult;
 use super::entry::ExternalPackageEntryResult;
 use super::warning::{ExternalPackageSummaryResult, ExternalPackageWarningResult};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageSourceKindResult {
+    Directory,
+    ZipArchive,
+}
+
+impl ExternalPackageSourceKindResult {
+    pub(super) fn from_domain(value: ExternalPackageSourceKind) -> Self {
+        match value {
+            ExternalPackageSourceKind::Directory => Self::Directory,
+            ExternalPackageSourceKind::ZipArchive => Self::ZipArchive,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalPackageAnalysisResult {
     pub source_path: PathBuf,
-    pub source_kind: ExternalPackageSourceKind,
+    pub source_kind: ExternalPackageSourceKindResult,
     pub package_id: String,
     pub package_name: String,
     pub entry_count: usize,
@@ -30,7 +46,7 @@ impl ExternalPackageAnalysisResult {
 
         Self {
             source_path: value.source_path,
-            source_kind: value.source_kind,
+            source_kind: ExternalPackageSourceKindResult::from_domain(value.source_kind),
             package_id: value.package_id,
             package_name: value.package_name,
             entry_count,

@@ -11,6 +11,9 @@ pub use diff::{
 };
 pub use inspection::AddonLockInspectionResult;
 pub use package::AddonLockPackageResult;
-pub use sync::{AddonLockApplyResult, AddonLockPlanResult, AddonLockSyncActionResult};
+pub use sync::{
+    AddonLockApplyResult, AddonLockPlanResult, AddonLockSyncActionKindResult,
+    AddonLockSyncActionResult,
+};
 pub use verify::{AddonLockPackageDirectoryIssueResult, AddonLockVerifyResult};
 pub use write::AddonLockWriteResult;

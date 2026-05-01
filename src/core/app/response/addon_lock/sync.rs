@@ -6,16 +6,37 @@ use crate::core::addon::AddonProvider;
 use crate::core::addon::lock::{
     AddonLockApplyResult as DomainAddonLockApplyResult,
     AddonLockPlanResult as DomainAddonLockPlanResult,
-    AddonLockSyncAction as DomainAddonLockSyncAction, AddonLockSyncActionKind,
+    AddonLockSyncAction as DomainAddonLockSyncAction,
+    AddonLockSyncActionKind as DomainAddonLockSyncActionKind,
 };
 
 use super::super::super::map_owned_vec;
 use super::super::addon::AddonSourceResult;
 use super::verify::AddonLockVerifyResult;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonLockSyncActionKindResult {
+    Install,
+    Update,
+    Remove,
+    MetadataOnly,
+}
+
+impl AddonLockSyncActionKindResult {
+    fn from_domain(value: DomainAddonLockSyncActionKind) -> Self {
+        match value {
+            DomainAddonLockSyncActionKind::Install => Self::Install,
+            DomainAddonLockSyncActionKind::Update => Self::Update,
+            DomainAddonLockSyncActionKind::Remove => Self::Remove,
+            DomainAddonLockSyncActionKind::MetadataOnly => Self::MetadataOnly,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AddonLockSyncActionResult {
-    pub kind: AddonLockSyncActionKind,
+    pub kind: AddonLockSyncActionKindResult,
     pub comparison_key: String,
     pub package_id: String,
     pub name: Option<String>,
@@ -41,7 +62,7 @@ impl AddonLockSyncActionResult {
         let source_label = source.as_ref().map(|source| source.display_name.clone());
 
         Self {
-            kind: value.kind,
+            kind: AddonLockSyncActionKindResult::from_domain(value.kind),
             comparison_key: value.comparison_key,
             package_id: value.package_id,
             name: value.name,

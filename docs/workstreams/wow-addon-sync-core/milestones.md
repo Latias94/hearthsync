@@ -246,6 +246,9 @@ desktop work.
 - config response contracts now mirror the config-owned projection boundary with source-kind,
   normalized entry, warning/summary, inspection, and apply DTOs under focused
   `response::config::*` child modules
+- external-package source kind and addon-lock sync action kind are now app-owned response enums
+  instead of leaked domain enums, so stable result serialization no longer depends on bundle or
+  addon-lock internals
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior

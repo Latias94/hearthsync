@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::core::bundle::ExternalPackageSourceKind;
+use super::super::external_package::ExternalPackageSourceKindResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -10,10 +10,10 @@ pub enum ConfigPackageSourceKindResult {
 }
 
 impl ConfigPackageSourceKindResult {
-    pub(super) fn from_external(value: ExternalPackageSourceKind) -> Self {
+    pub(super) fn from_external(value: ExternalPackageSourceKindResult) -> Self {
         match value {
-            ExternalPackageSourceKind::Directory => Self::Directory,
-            ExternalPackageSourceKind::ZipArchive => Self::ZipArchive,
+            ExternalPackageSourceKindResult::Directory => Self::Directory,
+            ExternalPackageSourceKindResult::ZipArchive => Self::ZipArchive,
         }
     }
 }
