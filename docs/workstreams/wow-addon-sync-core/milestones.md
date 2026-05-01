@@ -237,6 +237,9 @@ desktop work.
 - addon-lock response contracts now split the lock package, inspection/write, diff snapshot,
   verification, and sync plan/apply DTOs under focused `response::addon_lock::*` child modules
   while preserving the same root export surface
+- bundle response contracts now split manifest/resource summaries, archive inspect/pack results,
+  local account and character mapping DTOs, apply plan/apply DTOs, and embedded addon-lock bridge
+  results under focused `response::bundle::*` child modules
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior
