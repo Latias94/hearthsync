@@ -231,6 +231,9 @@ desktop work.
 - addon-index response contracts now also split by responsibility under
   `response::addon_index::{package,inspection,attach,curation,operations,shared}`, while the root
   response module stays the single export surface for app callers
+- regular addon response contracts now mirror that shape under
+  `response::addon::{source,tracked,inventory,operations,search,cache}`, so addon management,
+  search, and cache DTOs no longer share one broad response file
 - app request contracts now follow the same `request/*` domain split, and the remaining
   external-package runtime-default helpers are crate-visible rather than public API, keeping
   runtime projection as internal app assembly behavior
