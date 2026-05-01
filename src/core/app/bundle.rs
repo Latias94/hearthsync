@@ -58,11 +58,6 @@ impl BundleService {
         ))
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn apply(&self, request: ApplyBundleAppRequest) -> AppResult<BundleApplyResult> {
-        task_support::run_service_task_direct(self, request, Self::apply_task)
-    }
-
     pub(super) fn plan_addon_lock(
         &self,
         request: PlanBundleAddonLockRequest,
@@ -115,7 +110,6 @@ impl BundleService {
         task_support::run_service_task_collecting(self, request, Self::apply_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn apply_with_callbacks<FCancel, FProgress>(
         &self,
         request: ApplyBundleAppRequest,

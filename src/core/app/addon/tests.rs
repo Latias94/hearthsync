@@ -17,9 +17,10 @@ use crate::core::addon::{
 use crate::core::app::{
     AddonDependencyResolutionCapabilityValue, AddonPackageMetadataValue, AddonPolicyService,
     AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonService, AdoptAddonsAppRequest,
-    AppRuntime, HttpNoValidatorCachePolicyValue, InstallAddonAppRequest, ListAddonsRequest,
-    RelinkAddonAppRequest, RemoveAddonAppRequest, ResolvedInstallationValue, SearchAddonsRequest,
-    SetAddonPolicyAppRequest, UpdateAddonAppRequest,
+    AppRuntime, HttpNoValidatorCachePolicyValue, InstallAddonAppRequest,
+    InstalledAddonPackageResult, ListAddonsRequest, RelinkAddonAppRequest, RemoveAddonAppRequest,
+    ResolvedInstallationValue, SearchAddonsRequest, SetAddonPolicyAppRequest,
+    UpdateAddonAppRequest, UpdatedAddonPackageResult,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};
@@ -31,6 +32,23 @@ mod catalog;
 mod install;
 mod registry;
 mod tasks;
+
+trait AddonServiceTaskTestExt {
+    fn install(&self, request: InstallAddonAppRequest) -> AppResult<InstalledAddonPackageResult>;
+    fn update(&self, request: UpdateAddonAppRequest) -> AppResult<UpdatedAddonPackageResult>;
+}
+
+impl AddonServiceTaskTestExt for AddonService {
+    fn install(&self, request: InstallAddonAppRequest) -> AppResult<InstalledAddonPackageResult> {
+        self.install_collecting_progress(request)
+            .map(|run| run.result)
+    }
+
+    fn update(&self, request: UpdateAddonAppRequest) -> AppResult<UpdatedAddonPackageResult> {
+        self.update_collecting_progress(request)
+            .map(|run| run.result)
+    }
+}
 
 fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
     let product_root = root.join("World of Warcraft");

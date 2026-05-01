@@ -28,7 +28,7 @@ fn addon_policy_service_set_and_inspect_roundtrip() {
     );
 
     AddonService::new()
-        .install(InstallAddonAppRequest {
+        .install_collecting_progress(InstallAddonAppRequest {
             installation: installation.clone(),
             source: archive_path.display().to_string(),
             dry_run: false,
@@ -87,7 +87,7 @@ fn addon_policy_service_remove_clears_entry() {
     );
 
     AddonService::new()
-        .install(InstallAddonAppRequest {
+        .install_collecting_progress(InstallAddonAppRequest {
             installation: installation.clone(),
             source: archive_path.display().to_string(),
             dry_run: false,

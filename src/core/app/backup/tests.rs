@@ -6,11 +6,22 @@ use tempfile::tempdir;
 
 use crate::core::app::{
     AppRuntime, BackupService, CreateBackupAppRequest, ListBackupsRequest,
-    ResolvedInstallationValue, RestoreBackupAppRequest,
+    ResolvedInstallationValue, RestoreBackupAppRequest, RestoredBackupResult,
 };
-use crate::core::error::AppError;
+use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase, TaskProgressCode, TaskProgressEvent};
+
+trait BackupServiceTaskTestExt {
+    fn restore(&self, request: RestoreBackupAppRequest) -> AppResult<RestoredBackupResult>;
+}
+
+impl BackupServiceTaskTestExt for BackupService {
+    fn restore(&self, request: RestoreBackupAppRequest) -> AppResult<RestoredBackupResult> {
+        self.restore_collecting_progress(request)
+            .map(|run| run.result)
+    }
+}
 
 #[test]
 fn backup_service_restore_collecting_progress_returns_restore_task_events() {

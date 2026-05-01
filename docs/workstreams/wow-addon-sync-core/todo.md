@@ -225,6 +225,9 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: config and external-package app services no longer keep unused direct
     long-task convenience methods. Tests now cover the stable collected-progress path or the live
     callback path, matching what CLI and future GUI callers actually consume.
+    Current cleanup: the same direct long-task shortcut removal now covers addon, addon-index,
+    addon-lock, backup, and bundle services too. The obsolete direct task-support runner is gone,
+    leaving app long-task execution on collected-progress or live-callback contracts.
     Current cleanup: request contracts now follow the same domain split under
     `request/{installation,addon,addon_index,addon_lock,backup,bundle,external_package}`, and the
     remaining external-package `apply_runtime_defaults()` helpers are crate-visible again rather

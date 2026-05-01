@@ -15,11 +15,13 @@ use crate::core::addon::{
 };
 use crate::core::app::{
     AddonDependencyResolutionCapabilityValue, AddonIndexAttachPackageStatusResult,
-    AddonIndexInspectionWarningCodeResult, AddonIndexInspectionWarningSeverityResult,
-    AddonIndexPackageSuggestionStatusResult, AddonIndexScaffoldResult, AddonIndexService,
-    AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult, AddonPolicyService, AddonService,
-    AppRuntime, AttachAddonIndexAppRequest, InspectAddonIndexRequest, InstallAddonAppRequest,
-    InstallAddonIndexAppRequest, RelinkAddonIndexAppRequest, ResolvedInstallationValue,
+    AddonIndexAttachResult, AddonIndexInspectionWarningCodeResult,
+    AddonIndexInspectionWarningSeverityResult, AddonIndexInstallResult,
+    AddonIndexPackageSuggestionStatusResult, AddonIndexRelinkResult, AddonIndexScaffoldResult,
+    AddonIndexService, AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult,
+    AddonPolicyService, AddonService, AppRuntime, AttachAddonIndexAppRequest,
+    InspectAddonIndexRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
+    InstalledAddonPackageResult, RelinkAddonIndexAppRequest, ResolvedInstallationValue,
     ScaffoldAddonIndexRequest, SetAddonPolicyAppRequest, SuggestAddonIndexRequest,
     UpdateAddonIndexAppRequest,
 };
@@ -42,6 +44,46 @@ mod inspect_validate;
 mod operations;
 mod provider_runtime;
 mod update;
+
+trait AddonServiceTaskTestExt {
+    fn install(&self, request: InstallAddonAppRequest) -> AppResult<InstalledAddonPackageResult>;
+}
+
+impl AddonServiceTaskTestExt for AddonService {
+    fn install(&self, request: InstallAddonAppRequest) -> AppResult<InstalledAddonPackageResult> {
+        self.install_collecting_progress(request)
+            .map(|run| run.result)
+    }
+}
+
+trait AddonIndexServiceTaskTestExt {
+    fn attach(&self, request: AttachAddonIndexAppRequest) -> AppResult<AddonIndexAttachResult>;
+    fn install(&self, request: InstallAddonIndexAppRequest) -> AppResult<AddonIndexInstallResult>;
+    fn update(&self, request: UpdateAddonIndexAppRequest) -> AppResult<AddonIndexUpdateResult>;
+    fn relink(&self, request: RelinkAddonIndexAppRequest) -> AppResult<AddonIndexRelinkResult>;
+}
+
+impl AddonIndexServiceTaskTestExt for AddonIndexService {
+    fn attach(&self, request: AttachAddonIndexAppRequest) -> AppResult<AddonIndexAttachResult> {
+        self.attach_collecting_progress(request)
+            .map(|run| run.result)
+    }
+
+    fn install(&self, request: InstallAddonIndexAppRequest) -> AppResult<AddonIndexInstallResult> {
+        self.install_collecting_progress(request)
+            .map(|run| run.result)
+    }
+
+    fn update(&self, request: UpdateAddonIndexAppRequest) -> AppResult<AddonIndexUpdateResult> {
+        self.update_collecting_progress(request)
+            .map(|run| run.result)
+    }
+
+    fn relink(&self, request: RelinkAddonIndexAppRequest) -> AppResult<AddonIndexRelinkResult> {
+        self.relink_collecting_progress(request)
+            .map(|run| run.result)
+    }
+}
 
 fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
     let product_root = root.join("World of Warcraft");

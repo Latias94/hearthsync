@@ -82,14 +82,6 @@ impl AddonLockService {
         ))
     }
 
-    #[allow(dead_code)]
-    pub(super) fn apply_sync(
-        &self,
-        request: ApplyAddonLockAppRequest,
-    ) -> AppResult<AddonLockApplyResult> {
-        task_support::run_service_task_direct(self, request, Self::apply_sync_task)
-    }
-
     pub(super) fn apply_sync_task<TCancel, TProgress>(
         &self,
         request: ApplyAddonLockAppRequest,
@@ -119,7 +111,6 @@ impl AddonLockService {
         task_support::run_service_task_collecting(self, request, Self::apply_sync_task)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn apply_sync_with_callbacks<FCancel, FProgress>(
         &self,
         request: ApplyAddonLockAppRequest,

@@ -188,14 +188,15 @@ fn bundle_service_apply_uses_runtime_default_backup_dir() {
         .expect("pack bundle");
 
     let applied = service
-        .apply(ApplyBundleAppRequest {
+        .apply_collecting_progress(ApplyBundleAppRequest {
             bundle_path,
             installation: target_installation,
             dry_run: false,
             backup_output_path: None,
             apply_mappings: BundleApplyMappingsValue::default(),
         })
-        .expect("apply bundle with runtime backup dir");
+        .expect("apply bundle with runtime backup dir")
+        .result;
 
     assert_eq!(
         applied.backup_path.as_deref().and_then(Path::parent),
@@ -225,7 +226,7 @@ fn bundle_service_addon_lock_shortcuts_use_runtime_addon_state_storage() {
     );
 
     AddonService::with_runtime(runtime.clone())
-        .install(InstallAddonAppRequest {
+        .install_collecting_progress(InstallAddonAppRequest {
             installation: source_installation.clone(),
             source: archive_path.display().to_string(),
             dry_run: false,

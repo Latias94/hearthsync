@@ -70,14 +70,6 @@ impl AddonIndexService {
         Ok(AddonIndexScaffoldResult::from_domain(result))
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn attach(
-        &self,
-        request: AttachAddonIndexAppRequest,
-    ) -> AppResult<AddonIndexAttachResult> {
-        task_support::run_service_task_direct(self, request, Self::attach_task)
-    }
-
     pub(super) fn attach_task<TCancel, TProgress>(
         &self,
         request: AttachAddonIndexAppRequest,
@@ -107,7 +99,6 @@ impl AddonIndexService {
         task_support::run_service_task_collecting(self, request, Self::attach_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn attach_with_callbacks<FCancel, FProgress>(
         &self,
         request: AttachAddonIndexAppRequest,
@@ -125,14 +116,6 @@ impl AddonIndexService {
             on_progress,
             Self::attach_task,
         )
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn install(
-        &self,
-        request: InstallAddonIndexAppRequest,
-    ) -> AppResult<AddonIndexInstallResult> {
-        task_support::run_service_task_direct(self, request, Self::install_task)
     }
 
     pub(super) fn install_task<TCancel, TProgress>(
@@ -164,7 +147,6 @@ impl AddonIndexService {
         task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn install_with_callbacks<FCancel, FProgress>(
         &self,
         request: InstallAddonIndexAppRequest,
@@ -182,14 +164,6 @@ impl AddonIndexService {
             on_progress,
             Self::install_task,
         )
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn update(
-        &self,
-        request: UpdateAddonIndexAppRequest,
-    ) -> AppResult<AddonIndexUpdateResult> {
-        task_support::run_service_task_direct(self, request, Self::update_task)
     }
 
     pub(super) fn update_task<TCancel, TProgress>(
@@ -229,7 +203,6 @@ impl AddonIndexService {
         task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn update_with_callbacks<FCancel, FProgress>(
         &self,
         request: UpdateAddonIndexAppRequest,
@@ -247,14 +220,6 @@ impl AddonIndexService {
             on_progress,
             Self::update_task,
         )
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn relink(
-        &self,
-        request: RelinkAddonIndexAppRequest,
-    ) -> AppResult<AddonIndexRelinkResult> {
-        task_support::run_service_task_direct(self, request, Self::relink_task)
     }
 
     pub(super) fn relink_task<TCancel, TProgress>(
@@ -286,7 +251,6 @@ impl AddonIndexService {
         task_support::run_service_task_collecting(self, request, Self::relink_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn relink_with_callbacks<FCancel, FProgress>(
         &self,
         request: RelinkAddonIndexAppRequest,

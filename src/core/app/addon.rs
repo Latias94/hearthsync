@@ -96,14 +96,6 @@ impl AddonService {
             .map(AddonCacheRepairResult::from_domain)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn install(
-        &self,
-        request: InstallAddonAppRequest,
-    ) -> AppResult<InstalledAddonPackageResult> {
-        task_support::run_service_task_direct(self, request, Self::install_task)
-    }
-
     pub(super) fn install_task<TCancel, TProgress>(
         &self,
         request: InstallAddonAppRequest,
@@ -133,7 +125,6 @@ impl AddonService {
         task_support::run_service_task_collecting(self, request, Self::install_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn install_with_callbacks<FCancel, FProgress>(
         &self,
         request: InstallAddonAppRequest,
@@ -151,14 +142,6 @@ impl AddonService {
             on_progress,
             Self::install_task,
         )
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(super) fn update(
-        &self,
-        request: UpdateAddonAppRequest,
-    ) -> AppResult<UpdatedAddonPackageResult> {
-        task_support::run_service_task_direct(self, request, Self::update_task)
     }
 
     pub(super) fn update_task<TCancel, TProgress>(
@@ -198,7 +181,6 @@ impl AddonService {
         task_support::run_service_task_collecting(self, request, Self::update_task)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn update_with_callbacks<FCancel, FProgress>(
         &self,
         request: UpdateAddonAppRequest,
@@ -216,14 +198,6 @@ impl AddonService {
             on_progress,
             Self::update_task,
         )
-    }
-
-    #[allow(dead_code)]
-    pub(super) fn remove(
-        &self,
-        request: RemoveAddonAppRequest,
-    ) -> AppResult<RemovedAddonPackageResult> {
-        task_support::run_service_task_direct(self, request, Self::remove_task)
     }
 
     pub(super) fn remove_task<TCancel, TProgress>(
@@ -254,7 +228,6 @@ impl AddonService {
         task_support::run_service_task_collecting(self, request, Self::remove_task)
     }
 
-    #[allow(dead_code)]
     pub(super) fn remove_with_callbacks<FCancel, FProgress>(
         &self,
         request: RemoveAddonAppRequest,
