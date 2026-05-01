@@ -971,9 +971,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   scanner for table ranges, direct table entries, string keys, string literals, and brace matching.
   This removes duplicated parser logic without changing the separate replacement semantics for
   `str` and raw-byte payloads.
-  Current cleanup: Lua patch regression tests are starting to follow the implementation split too;
-  direct `rewrite_lua_text` coverage now lives in `lua_patch::tests::text`, leaving the root test
-  module focused on byte-preview fixtures and shared mapping/fixture helpers.
+  Current cleanup: Lua patch regression tests now follow the implementation split too. Direct
+  `rewrite_lua_text` coverage lives in `lua_patch::tests::text`, byte-preview coverage is grouped
+  under `lua_patch::tests::bytes::{boundary,scope,fixtures,encoding}`, and the root test module
+  only keeps shared mapping and fixture helpers.
   Current progress: fixture breadth now also covers a realistic BigWigs-style profile-key payload
   where `profileKeys` should migrate but descriptive boss/profile notes must remain untouched, plus
   a realistic Baganator-style recent-character cache that stays fail-closed instead of rewriting
