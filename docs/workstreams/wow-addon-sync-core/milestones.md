@@ -766,6 +766,9 @@ that would otherwise force `egui` to invent its own config-sync semantics or add
 - addon-index domain operations are now split into `install`, `attach`, `relink`, `update`, and
   `shared` modules, with the `operations` root preserving the public export surface while removing
   the former single-file install/attach/relink/update orchestration bucket
+- addon-index attach now also splits its internal lifecycle below that operation root: the public
+  attach task entrypoints stay in `operations::attach`, while planning, registry execution, and
+  result/status/message construction live in focused child modules
 - `addon index validate` now also exists as an explicit curator gate, returning a structured
   validation result while making the CLI fail fast only on blocking addon-index curation warnings
 - `addon index suggest` now also exists as the first explicit curator authoring helper: it reuses
