@@ -7,7 +7,6 @@ mod service;
 mod tests;
 
 pub use accounts::discover_local_accounts;
-#[allow(unused_imports)]
 pub use model::{
     DetectedFlavorInstallation, HealthStatus, HostPlatform, InstallationHealth, LocalWowAccount,
     LocalWowCharacter, ProductInstallInspection, WowFlavor,

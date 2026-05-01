@@ -1226,6 +1226,10 @@ place.
   context/request objects for dependency collection, package preparation, lock-source preparation,
   addon mutation execution, bundle plan assembly, index attach result creation, and task byte
   progress payloads.
+  Current cleanup: the remaining stale lint suppressions are gone too. Backup/install model exports,
+  bundle apply action/group enums, and CurseForge provider internals now compile cleanly without
+  `allow(dead_code)` or `allow(unused_imports)`, and the CurseForge root no longer re-exports
+  child-module-only model and selector helpers.
 
 Exit criteria:
 

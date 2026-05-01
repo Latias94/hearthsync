@@ -1119,6 +1119,10 @@ contracts for the future `egui` frontend.
 - sixth progress is also complete: `cargo clippy --all-targets -- -D warnings` now passes. The
   cleanup kept mechanical style fixes separate from real boundary fixes, and the meaningful
   long-argument warnings now use request/context payloads instead of broad lint suppression.
+- the remaining stale lint suppressions are now gone too: backup/install model exports, bundle
+  apply action/group enums, and CurseForge provider internals no longer need `allow(dead_code)` or
+  `allow(unused_imports)`, and the CurseForge root export surface has been narrowed to real parent
+  module contracts
 
 ## M10 - Pre-GUI Boundary Contract Hardening
 

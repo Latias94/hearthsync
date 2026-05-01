@@ -6,7 +6,6 @@ mod storage;
 mod tests;
 
 pub use archive::{create_backup, restore_backup};
-#[allow(unused_imports)]
 pub use model::{
     BackupCatalog, BackupCatalogEntry, BackupGroup, BackupMetadata, BackupRequest, CreatedBackup,
     RestoreBackupRequest, RestoredBackup,

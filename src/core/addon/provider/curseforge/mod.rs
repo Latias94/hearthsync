@@ -10,19 +10,12 @@ use api::{
     search_curseforge_mods_with_client as search_curseforge_mod_payloads_with_client,
 };
 pub(crate) use file_validation::validate_curseforge_file;
-use model::CurseForgeSearchMod;
-#[allow(unused_imports)]
-pub(crate) use model::{
-    CurseForgeFile, CurseForgeFileDependency, CurseForgeFileHash, CurseForgeGameVersionType,
-    CurseForgeSortableGameVersion,
-};
+use model::{CurseForgeFile, CurseForgeSearchMod};
 pub(crate) use policy::CurseForgeFileReleaseType;
 pub(super) use policy::{
     remote_validators_for_curseforge_file, required_dependency_mod_ids_for_curseforge_file,
 };
-use select::ensure_curseforge_file_matches_version_type;
-#[allow(unused_imports)]
-pub(crate) use select::{select_curseforge_version_type, select_latest_curseforge_file};
+use select::{ensure_curseforge_file_matches_version_type, select_latest_curseforge_file};
 
 use super::http::HttpClient;
 use super::{AddonSearchResult, AddonSourceRef};
