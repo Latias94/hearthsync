@@ -621,6 +621,9 @@ enough that these rules live in one place.
   `curseforge::file_validation` owns file download URL, archive name, hash, sortable-version,
   release-type, and dependency-row validation before provider API responses reach cache or
   materialization code.
+  Current cleanup: CurseForge API context/search response validation now also lives below the API
+  module in `curseforge::api::validation`, leaving the API root focused on request construction,
+  authentication headers, response decoding, and high-level fetch/search orchestration.
   Current cleanup: provider-specific cache validator projection moved out of the mixed
   `provider::validation` module. GitHub owns asset-to-validator projection, CurseForge owns
   file-to-validator projection, and the shared module keeps only provider-agnostic cache and

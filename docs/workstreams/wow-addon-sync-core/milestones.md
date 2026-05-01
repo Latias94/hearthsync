@@ -1065,6 +1065,9 @@ contracts for the future `egui` frontend.
   `curseforge::select` owns version-type/latest-file choice, while `curseforge::file_validation`
   owns download URL, archive name, hash, sortable-version, release-type, and dependency-row
   validation before provider responses reach cache or materialization code.
+- CurseForge API context/search response validation now also lives in
+  `curseforge::api::validation`, leaving the API root focused on request construction,
+  authentication headers, response decoding, and fetch/search orchestration.
 - fifth progress is also in place: `core::app::AppLiveTask` is the stable live-task input contract,
   and stable/extended services now expose public `*_live` entrypoints for long-running operations.
   These entrypoints reuse the same cancellation polling and `TaskProgressEvent` stream as the
