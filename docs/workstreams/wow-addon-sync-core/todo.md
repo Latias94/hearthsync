@@ -169,6 +169,10 @@ ways that a future frontend can depend on without learning internal domain seams
     Current cleanup: config and external-package CLI output now share one warning-summary rendering
     template, so config-owned DTOs keep product naming without carrying a second copy of the same
     warning text layout.
+    Current cleanup: the shared CLI output helper root now mirrors those responsibilities in code.
+    Account/character summaries, list/path helpers, warning summaries, and warning formatter tests
+    live under `cli::output::shared::*`, leaving the root as the export surface for renderer
+    modules.
     Current cleanup: addon CLI output now follows the same ownership split. Addon-index,
     regular addon management, cache output, shared formatter helpers, and output tests live under
     `cli::output::addon::{index,manage,cache,shared,tests}`, leaving the module root as the stable

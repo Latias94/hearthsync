@@ -208,6 +208,9 @@ desktop work.
   the command-facing render export surface
 - config and external-package CLI output now share one warning-summary rendering template, reducing
   duplicate warning text layout while preserving config-owned app DTO naming
+- shared CLI output helpers now follow the same focused layout with
+  `cli::output::shared::{accounts,lists,warnings,tests}`, keeping account/character summaries,
+  list/path helpers, and warning summaries reviewable as separate presentation concerns
 - addon CLI output is now split into addon-index, regular management, cache, shared formatter, and
   test modules, while `cli::output::addon` keeps the same render-function export surface
 - addon CLI output regression coverage now mirrors that split with focused addon-index,
