@@ -81,8 +81,8 @@ mod tests {
     use crate::core::bundle::types::apply::ApplyGroup;
 
     use super::super::types::{
-        ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageSourceKind,
-        ExternalPackageSummary,
+        ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageLayout,
+        ExternalPackageSourceKind, ExternalPackageSummary,
     };
     use crate::core::manifest::BundleResources;
 
@@ -157,6 +157,7 @@ mod tests {
         ExternalPackageAnalysis {
             source_path: PathBuf::from("fixture"),
             source_kind: ExternalPackageSourceKind::Directory,
+            layout: ExternalPackageLayout::Generic,
             package_id: "fixture".to_string(),
             package_name: "fixture".to_string(),
             entries,

@@ -1,17 +1,50 @@
 use super::source_entry::SourceEntry;
 use super::types::{
-    ExternalPackageEntry, ExternalPackageWarning, ExternalPackageWarningCategory,
-    ExternalPackageWarningCode,
+    ExternalPackageEntry, ExternalPackageLayout, ExternalPackageWarning,
+    ExternalPackageWarningCategory, ExternalPackageWarningCode,
 };
 use crate::core::addon_layout::{
     AddonRootPrefixMatchKind, addon_root_prefix_match_kind,
     discover_addon_roots_from_entry_segments,
 };
 use crate::core::bundle::entry_layout::classify_bundle_archive_entry;
+use crate::core::bundle::shared::path::validate_plain_name;
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::HostPlatform;
 
 pub(super) fn classify_source_entries(
+    source_entries: &[SourceEntry],
+    layout: ExternalPackageLayout,
+    source_account: Option<&str>,
+    source_server: Option<&str>,
+    source_character: Option<&str>,
+) -> AppResult<(Vec<ExternalPackageEntry>, Vec<ExternalPackageWarning>)> {
+    match layout {
+        ExternalPackageLayout::Auto | ExternalPackageLayout::Generic => {
+            classify_generic_source_entries(source_entries)
+        }
+        ExternalPackageLayout::NewBeeBoxAddon => classify_generic_source_entries(source_entries),
+        ExternalPackageLayout::NewBeeBoxFont => {
+            classify_newbeebox_font_entries(source_entries).map(|entries| (entries, Vec::new()))
+        }
+        ExternalPackageLayout::NewBeeBoxMaterial => {
+            classify_newbeebox_material_entries(source_entries).map(|entries| (entries, Vec::new()))
+        }
+        ExternalPackageLayout::NewBeeBoxWtfAccount => {
+            classify_newbeebox_wtf_account_entries(source_entries, source_account)
+                .map(|entries| (entries, Vec::new()))
+        }
+        ExternalPackageLayout::NewBeeBoxWtfCharacter => classify_newbeebox_wtf_character_entries(
+            source_entries,
+            source_account,
+            source_server,
+            source_character,
+        )
+        .map(|entries| (entries, Vec::new())),
+    }
+}
+
+fn classify_generic_source_entries(
     source_entries: &[SourceEntry],
 ) -> AppResult<(Vec<ExternalPackageEntry>, Vec<ExternalPackageWarning>)> {
     let addon_roots = discover_addon_roots_from_entry_segments(
@@ -111,6 +144,218 @@ fn classify_non_addon_entry(source_entry: &SourceEntry) -> AppResult<ClassifiedE
     }
 
     Ok(ClassifiedExternalEntry::Ignored)
+}
+
+fn classify_newbeebox_font_entries(
+    source_entries: &[SourceEntry],
+) -> AppResult<Vec<ExternalPackageEntry>> {
+    let mut entries = Vec::new();
+
+    for source_entry in source_entries {
+        if source_entry.segments.is_empty() {
+            continue;
+        }
+
+        let normalized_path = if source_entry.segments[0].eq_ignore_ascii_case("Fonts") {
+            let rest = &source_entry.segments[1..];
+            if rest.is_empty() {
+                continue;
+            }
+            join_exact_normalized_segments(&["fonts"], rest)
+        } else if source_entry.segments.len() == 1 {
+            join_exact_normalized_segments(&["fonts"], &source_entry.segments)
+        } else {
+            continue;
+        };
+
+        entries.push(build_normalized_external_entry(
+            &source_entry.source_path,
+            normalized_path,
+        )?);
+    }
+
+    Ok(entries)
+}
+
+fn classify_newbeebox_material_entries(
+    source_entries: &[SourceEntry],
+) -> AppResult<Vec<ExternalPackageEntry>> {
+    let mut entries = Vec::new();
+
+    for source_entry in source_entries {
+        if source_entry.segments.is_empty() {
+            continue;
+        }
+
+        let normalized_path = if source_entry.segments[0].eq_ignore_ascii_case("Interface") {
+            let rest = &source_entry.segments[1..];
+            if rest.is_empty() || rest[0].eq_ignore_ascii_case("AddOns") {
+                continue;
+            }
+            join_exact_normalized_segments(&["interface"], rest)
+        } else {
+            join_exact_normalized_segments(&["interface"], &source_entry.segments)
+        };
+
+        entries.push(build_normalized_external_entry(
+            &source_entry.source_path,
+            normalized_path,
+        )?);
+    }
+
+    Ok(entries)
+}
+
+fn classify_newbeebox_wtf_account_entries(
+    source_entries: &[SourceEntry],
+    source_account: Option<&str>,
+) -> AppResult<Vec<ExternalPackageEntry>> {
+    let source_account = require_layout_segment(
+        source_account,
+        "source_account",
+        "NewBeeBox account WTF packages require `source_account`",
+    )?;
+    let mut entries = Vec::new();
+
+    for source_entry in source_entries {
+        if source_entry.segments.is_empty() {
+            continue;
+        }
+
+        let normalized_path = if source_entry.segments[0].eq_ignore_ascii_case("WTF") {
+            match classify_wtf_suffix(&source_entry.segments) {
+                WtfSuffixClassification::Recognized(normalized_path) => normalized_path,
+                WtfSuffixClassification::Warning(_) => continue,
+            }
+        } else if source_entry.segments[0].eq_ignore_ascii_case("SavedVariables") {
+            if source_entry.segments.len() < 2 {
+                continue;
+            }
+            join_exact_normalized_segments(
+                &["wtf", "common", "accounts", source_account],
+                &source_entry.segments,
+            )
+        } else {
+            join_exact_normalized_segments(
+                &["wtf", "common", "accounts", source_account],
+                &source_entry.segments,
+            )
+        };
+
+        entries.push(build_normalized_external_entry(
+            &source_entry.source_path,
+            normalized_path,
+        )?);
+    }
+
+    Ok(entries)
+}
+
+fn classify_newbeebox_wtf_character_entries(
+    source_entries: &[SourceEntry],
+    source_account: Option<&str>,
+    source_server: Option<&str>,
+    source_character: Option<&str>,
+) -> AppResult<Vec<ExternalPackageEntry>> {
+    let source_account = require_layout_segment(
+        source_account,
+        "source_account",
+        "NewBeeBox character WTF packages require `source_account`",
+    )?;
+    let source_server = require_layout_segment(
+        source_server,
+        "source_server",
+        "NewBeeBox character WTF packages require `source_server`",
+    )?;
+    let inferred_character = infer_newbeebox_source_character(source_entries, source_character)?;
+    let mut entries = Vec::new();
+
+    for source_entry in source_entries {
+        let rest = newbeebox_character_entry_rest(&source_entry.segments, &inferred_character);
+        if rest.is_empty() {
+            continue;
+        }
+
+        let normalized_path = join_exact_normalized_segments(
+            &[
+                "wtf",
+                "characters",
+                source_account,
+                source_server,
+                &inferred_character,
+            ],
+            rest,
+        );
+        entries.push(build_normalized_external_entry(
+            &source_entry.source_path,
+            normalized_path,
+        )?);
+    }
+
+    Ok(entries)
+}
+
+fn require_layout_segment<'a>(
+    value: Option<&'a str>,
+    field: &str,
+    message: &str,
+) -> AppResult<&'a str> {
+    let value = value
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| AppError::Validation(message.to_string()))?;
+    validate_plain_name(field, value)?;
+    Ok(value)
+}
+
+fn infer_newbeebox_source_character(
+    source_entries: &[SourceEntry],
+    source_character: Option<&str>,
+) -> AppResult<String> {
+    if let Some(source_character) = source_character.filter(|value| !value.trim().is_empty()) {
+        validate_plain_name("source_character", source_character)?;
+        return Ok(source_character.to_string());
+    }
+
+    let mut candidates = Vec::<&str>::new();
+    for source_entry in source_entries {
+        if source_entry.segments.len() < 2 {
+            return Err(AppError::Validation(
+                "NewBeeBox character WTF packages require `source_character` when entries are not wrapped in one character directory".to_string(),
+            ));
+        }
+
+        let candidate = source_entry.segments[0].as_str();
+        if !candidates
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case(candidate))
+        {
+            candidates.push(candidate);
+        }
+    }
+
+    if candidates.len() != 1 {
+        return Err(AppError::Validation(
+            "NewBeeBox character WTF packages must contain exactly one source character directory or provide `source_character`".to_string(),
+        ));
+    }
+
+    let source_character = candidates[0];
+    validate_plain_name("source_character", source_character)?;
+    Ok(source_character.to_string())
+}
+
+fn newbeebox_character_entry_rest<'a>(
+    segments: &'a [String],
+    source_character: &str,
+) -> &'a [String] {
+    if segments
+        .first()
+        .is_some_and(|segment| segment.eq_ignore_ascii_case(source_character))
+    {
+        &segments[1..]
+    } else {
+        segments
+    }
 }
 
 fn classify_wtf_entry(source_entry: &SourceEntry) -> AppResult<Option<ClassifiedExternalEntry>> {

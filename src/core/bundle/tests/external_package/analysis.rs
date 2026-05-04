@@ -7,10 +7,9 @@ fn analyze_external_package_zip_normalizes_wrapped_ui_layout() {
 
     create_external_package_fixture_archive(&package_path);
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path.clone(),
-    })
-    .expect("analyze external package");
+    let analysis =
+        analyze_external_package(AnalyzeExternalPackageRequest::new(package_path.clone()))
+            .expect("analyze external package");
 
     assert_eq!(analysis.source_path, package_path);
     assert_eq!(analysis.source_kind, ExternalPackageSourceKind::ZipArchive);
@@ -78,10 +77,8 @@ fn analyze_external_package_zip_ignores_macos_metadata_and_desktop_noise() {
         ],
     );
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect("analyze external package with archive noise");
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze external package with archive noise");
 
     assert_eq!(analysis.summary.total_files, 1);
     assert_eq!(analysis.summary.normalized_files, 1);
@@ -124,10 +121,8 @@ fn analyze_external_package_directory_ignores_appledouble_sidecars() {
     .expect("toc");
     fs::write(addon_root.join("._WeakAuras.toc"), "resource fork").expect("sidecar");
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_root,
-    })
-    .expect("analyze external package directory with sidecar");
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_root))
+        .expect("analyze external package directory with sidecar");
 
     assert_eq!(analysis.summary.total_files, 1);
     assert_eq!(analysis.summary.normalized_files, 1);
@@ -201,10 +196,8 @@ fn analyze_external_package_zip_handles_large_wrapped_author_package() {
     ]);
     create_archive_with_owned_raw_entries(&package_path, &entries);
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect("analyze large author package");
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze large author package");
 
     assert_eq!(analysis.source_kind, ExternalPackageSourceKind::ZipArchive);
     assert_eq!(analysis.summary.total_files, 114);
@@ -242,10 +235,9 @@ fn analyze_external_package_zip_handles_large_wrapped_author_package() {
 fn analyze_external_package_directory_fixture_normalizes_wrapped_ui_layout() {
     let package_root = external_package_fixture_root();
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_root.clone(),
-    })
-    .expect("analyze external package directory fixture");
+    let analysis =
+        analyze_external_package(AnalyzeExternalPackageRequest::new(package_root.clone()))
+            .expect("analyze external package directory fixture");
 
     assert_eq!(analysis.source_path, package_root);
     assert_eq!(analysis.source_kind, ExternalPackageSourceKind::Directory);
@@ -274,10 +266,9 @@ fn analyze_external_package_directory_fixture_normalizes_wrapped_ui_layout() {
 fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_supported_entries() {
     let package_root = external_package_dirty_fixture_root();
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_root.clone(),
-    })
-    .expect("analyze external package dirty fixture");
+    let analysis =
+        analyze_external_package(AnalyzeExternalPackageRequest::new(package_root.clone()))
+            .expect("analyze external package dirty fixture");
 
     assert_eq!(analysis.source_path, package_root);
     assert_eq!(analysis.source_kind, ExternalPackageSourceKind::Directory);
@@ -336,10 +327,9 @@ fn analyze_external_package_zip_dirty_fixture_matches_directory_behavior() {
     let package_path = temp.path().join("dirty-author-pack.zip");
     create_archive_from_directory(&external_package_dirty_fixture_root(), &package_path);
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path.clone(),
-    })
-    .expect("analyze dirty external package zip");
+    let analysis =
+        analyze_external_package(AnalyzeExternalPackageRequest::new(package_path.clone()))
+            .expect("analyze dirty external package zip");
 
     assert_eq!(analysis.source_path, package_path);
     assert_eq!(analysis.source_kind, ExternalPackageSourceKind::ZipArchive);
@@ -377,10 +367,8 @@ fn analyze_external_package_directory_accepts_variant_toc_names() {
     .expect("toc");
     fs::write(addon_root.join("Core.lua"), "print('dbm')").expect("lua");
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_root,
-    })
-    .expect("analyze external package with variant toc");
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_root))
+        .expect("analyze external package with variant toc");
 
     assert_eq!(analysis.resources.addons, vec!["DBM-Core".to_string()]);
     assert_eq!(analysis.summary.warning_count, 0);
@@ -421,10 +409,8 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
     fs::create_dir_all(package_root.join("Fonts")).expect("fonts dir");
     fs::write(package_root.join("Fonts").join("FRIZQT__.ttf"), "font").expect("font");
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_root,
-    })
-    .expect("analyze external package directory");
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_root))
+        .expect("analyze external package directory");
 
     assert_eq!(analysis.source_kind, ExternalPackageSourceKind::Directory);
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
@@ -441,4 +427,165 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
         entry.normalized_path == "wtf/common/root/SavedVariables/Broken.lua"
             && entry.wtf_scope == Some(WtfScope::RootSavedVariables)
     }));
+}
+
+#[test]
+fn analyze_external_package_auto_detects_newbeebox_addon_with_mixed_separators() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("unknown_plug-postal.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            (
+                "Postal/Postal.toc",
+                "## Interface: 110000\n## Title: Postal\n",
+            ),
+            ("Postal/Libs\\AceAddon-3.0\\AceAddon-3.0.lua", "ace"),
+        ],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze NewBeeBox addon package");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxAddon);
+    assert_eq!(analysis.resources.addons, vec!["Postal".to_string()]);
+    assert_eq!(analysis.summary.total_files, 2);
+    assert_eq!(analysis.summary.normalized_files, 2);
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.source_path == "Postal/Libs\\AceAddon-3.0\\AceAddon-3.0.lua"
+            && entry.normalized_path == "addons/Postal/Libs/AceAddon-3.0/AceAddon-3.0.lua"
+    }));
+}
+
+#[test]
+fn analyze_external_package_auto_detects_newbeebox_flat_font_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("font-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[("FRIZQT__.TTF", "font-a"), ("ARIALN.TTF", "font-b")],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze NewBeeBox font package");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxFont);
+    assert!(analysis.resources.fonts);
+    assert_eq!(analysis.summary.fonts, 2);
+    let normalized_paths = normalized_paths(&analysis);
+    assert!(normalized_paths.contains(&"fonts/FRIZQT__.TTF"));
+    assert!(normalized_paths.contains(&"fonts/ARIALN.TTF"));
+}
+
+#[test]
+fn analyze_external_package_auto_detects_newbeebox_flat_material_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("material-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("Icons/icon.blp", "icon"),
+            ("SimpleChatEmojis/Menu\\arrow.tga", "arrow"),
+        ],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze NewBeeBox material package");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxMaterial);
+    assert_eq!(
+        analysis.resources.interface_assets,
+        vec!["Icons".to_string(), "SimpleChatEmojis".to_string()]
+    );
+    let normalized_paths = normalized_paths(&analysis);
+    assert!(normalized_paths.contains(&"interface/Icons/icon.blp"));
+    assert!(normalized_paths.contains(&"interface/SimpleChatEmojis/Menu/arrow.tga"));
+}
+
+#[test]
+fn analyze_external_package_newbeebox_account_wtf_requires_source_account() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("wtfserve-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[("SavedVariables/Details.lua", "DetailsDB = {}")],
+    );
+
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect_err("account WTF package without source account should fail");
+
+    assert!(error.to_string().contains("source_account"));
+}
+
+#[test]
+fn analyze_external_package_auto_detects_newbeebox_flat_account_wtf_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("wtfserve-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("bindings-cache.wtf", "bindings"),
+            ("SavedVariables/Details.lua", "DetailsDB = {}"),
+        ],
+    );
+
+    let mut request = AnalyzeExternalPackageRequest::new(package_path);
+    request.source_account = Some("ACCOUNT".to_string());
+    let analysis = analyze_external_package(request).expect("analyze NewBeeBox account WTF");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxWtfAccount);
+    assert!(analysis.resources.wtf_common);
+    let normalized_paths = normalized_paths(&analysis);
+    assert!(normalized_paths.contains(&"wtf/common/accounts/ACCOUNT/bindings-cache.wtf"));
+    assert!(normalized_paths.contains(&"wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"));
+}
+
+#[test]
+fn analyze_external_package_auto_detects_newbeebox_flat_character_wtf_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_path = temp.path().join("wtfrole-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("Sourcechar/AddOns.txt", "addons"),
+            ("Sourcechar/SavedVariables\\Pawn.lua", "PawnOptions = {}"),
+        ],
+    );
+
+    let mut request = AnalyzeExternalPackageRequest::new(package_path);
+    request.source_account = Some("ACCOUNT".to_string());
+    request.source_server = Some("Illidan".to_string());
+    let analysis = analyze_external_package(request).expect("analyze NewBeeBox character WTF");
+
+    assert_eq!(
+        analysis.layout,
+        ExternalPackageLayout::NewBeeBoxWtfCharacter
+    );
+    assert_eq!(analysis.resources.wtf_characters.len(), 1);
+    assert_eq!(
+        analysis.resources.wtf_characters[0].source_account,
+        Some("ACCOUNT".to_string())
+    );
+    assert_eq!(
+        analysis.resources.wtf_characters[0].source_server,
+        "Illidan"
+    );
+    assert_eq!(
+        analysis.resources.wtf_characters[0].source_character,
+        "Sourcechar"
+    );
+    let normalized_paths = normalized_paths(&analysis);
+    assert!(normalized_paths.contains(&"wtf/characters/ACCOUNT/Illidan/Sourcechar/AddOns.txt"));
+    assert!(
+        normalized_paths
+            .contains(&"wtf/characters/ACCOUNT/Illidan/Sourcechar/SavedVariables/Pawn.lua")
+    );
+}
+
+fn normalized_paths(analysis: &ExternalPackageAnalysis) -> Vec<&str> {
+    analysis
+        .entries
+        .iter()
+        .map(|entry| entry.normalized_path.as_str())
+        .collect()
 }

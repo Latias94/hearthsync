@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 use super::shared::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
 
@@ -13,6 +13,8 @@ pub enum ExternalPackageCommands {
             help = "Path to an author-provided zip file or extracted directory"
         )]
         source: PathBuf,
+        #[command(flatten)]
+        source_layout: ExternalPackageSourceLayoutArgs,
     },
     #[command(about = "Build an apply plan for an external UI package without writing files")]
     Plan {
@@ -47,6 +49,8 @@ pub struct ExternalPackageBundleOptions {
         help = "Path to an author-provided zip file or extracted directory"
     )]
     pub source: PathBuf,
+    #[command(flatten)]
+    pub source_layout: ExternalPackageSourceLayoutArgs,
     #[arg(long, value_enum, help = "WoW flavor that the source package targets")]
     pub source_flavor: FlavorArg,
     #[arg(long, value_enum, help = "Source platform if known")]
@@ -82,6 +86,37 @@ pub struct ExternalPackageBundleOptions {
     pub interface_assets_policy: Option<ApplyPolicyArg>,
 }
 
+#[derive(Debug, Clone, Default, Args)]
+pub struct ExternalPackageSourceLayoutArgs {
+    #[arg(long, value_enum, help = "External package source layout")]
+    pub layout: Option<ExternalPackageLayoutArg>,
+    #[arg(long, help = "Source account for flat NewBeeBox WTF packages")]
+    pub source_account: Option<String>,
+    #[arg(long, help = "Source server for flat NewBeeBox character WTF packages")]
+    pub source_server: Option<String>,
+    #[arg(
+        long,
+        help = "Source character override for flat NewBeeBox character WTF packages"
+    )]
+    pub source_character: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ExternalPackageLayoutArg {
+    Auto,
+    Generic,
+    #[value(name = "newbeebox-addon")]
+    NewBeeBoxAddon,
+    #[value(name = "newbeebox-font")]
+    NewBeeBoxFont,
+    #[value(name = "newbeebox-material")]
+    NewBeeBoxMaterial,
+    #[value(name = "newbeebox-wtf-account")]
+    NewBeeBoxWtfAccount,
+    #[value(name = "newbeebox-wtf-character")]
+    NewBeeBoxWtfCharacter,
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -90,7 +125,7 @@ mod tests {
 
     use super::super::shared::{FlavorArg, PlatformArg};
     use super::super::{Cli, Commands};
-    use super::ExternalPackageCommands;
+    use super::{ExternalPackageCommands, ExternalPackageLayoutArg};
     use crate::cli::ApplyPolicyArg;
 
     #[test]
@@ -105,8 +140,54 @@ mod tests {
 
         match cli.command {
             Commands::ExternalPackage { command } => match command {
-                ExternalPackageCommands::Inspect { source } => {
+                ExternalPackageCommands::Inspect {
+                    source,
+                    source_layout,
+                } => {
                     assert_eq!(source, PathBuf::from("C:\\temp\\author-ui.zip"));
+                    assert_eq!(source_layout.layout, None);
+                }
+                _ => panic!("expected inspect command"),
+            },
+            _ => panic!("expected external-package command"),
+        }
+    }
+
+    #[test]
+    fn parses_external_package_inspect_with_newbeebox_layout_context() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "external-package",
+            "inspect",
+            "--source",
+            "C:\\temp\\wtfrole-example.zip",
+            "--layout",
+            "newbeebox-wtf-character",
+            "--source-account",
+            "ACCOUNT",
+            "--source-server",
+            "Illidan",
+            "--source-character",
+            "Sourcechar",
+        ]);
+
+        match cli.command {
+            Commands::ExternalPackage { command } => match command {
+                ExternalPackageCommands::Inspect {
+                    source,
+                    source_layout,
+                } => {
+                    assert_eq!(source, PathBuf::from("C:\\temp\\wtfrole-example.zip"));
+                    assert_eq!(
+                        source_layout.layout,
+                        Some(ExternalPackageLayoutArg::NewBeeBoxWtfCharacter)
+                    );
+                    assert_eq!(source_layout.source_account.as_deref(), Some("ACCOUNT"));
+                    assert_eq!(source_layout.source_server.as_deref(), Some("Illidan"));
+                    assert_eq!(
+                        source_layout.source_character.as_deref(),
+                        Some("Sourcechar")
+                    );
                 }
                 _ => panic!("expected inspect command"),
             },

@@ -4,15 +4,16 @@ use std::path::{Path, PathBuf};
 use super::super::shared::path::safe_file_part;
 use super::super::types::apply::ApplyGroup;
 use super::types::{
-    ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageSourceKind,
-    ExternalPackageSummary, ExternalPackageWarning, ExternalPackageWarningCategory,
-    ExternalPackageWarningGroup,
+    ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageLayout,
+    ExternalPackageSourceKind, ExternalPackageSummary, ExternalPackageWarning,
+    ExternalPackageWarningCategory, ExternalPackageWarningGroup,
 };
 use crate::core::manifest::{BundleResources, CharacterResource};
 
 pub(super) fn build_analysis(
     source_path: PathBuf,
     source_kind: ExternalPackageSourceKind,
+    layout: ExternalPackageLayout,
     total_source_files: usize,
     mut entries: Vec<ExternalPackageEntry>,
     mut warnings: Vec<ExternalPackageWarning>,
@@ -33,6 +34,7 @@ pub(super) fn build_analysis(
         package_name: package_name_from_source_path(&source_path),
         source_path,
         source_kind,
+        layout,
         entries,
         resources,
         summary,

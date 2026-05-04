@@ -7,6 +7,7 @@ use crate::core::bundle::{
 };
 
 use super::super::super::map_owned_vec;
+use super::super::super::types::external_package::ExternalPackageLayoutValue;
 use super::super::bundle::BundleResourcesResult;
 use super::entry::ExternalPackageEntryResult;
 use super::warning::{ExternalPackageSummaryResult, ExternalPackageWarningResult};
@@ -31,6 +32,7 @@ impl ExternalPackageSourceKindResult {
 pub struct ExternalPackageAnalysisResult {
     pub source_path: PathBuf,
     pub source_kind: ExternalPackageSourceKindResult,
+    pub layout: ExternalPackageLayoutValue,
     pub package_id: String,
     pub package_name: String,
     pub entry_count: usize,
@@ -47,6 +49,7 @@ impl ExternalPackageAnalysisResult {
         Self {
             source_path: value.source_path,
             source_kind: ExternalPackageSourceKindResult::from_domain(value.source_kind),
+            layout: ExternalPackageLayoutValue::from_domain(value.layout),
             package_id: value.package_id,
             package_name: value.package_name,
             entry_count,

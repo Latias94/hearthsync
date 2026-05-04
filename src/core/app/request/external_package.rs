@@ -6,8 +6,8 @@ use super::{
     apply_source_platform_default, resolve_app_input_path, resolve_optional_app_output_path,
 };
 use crate::core::app::{
-    AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
-    ResolvedInstallationValue, WowFlavorValue,
+    AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ExternalPackageLayoutValue,
+    HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
 };
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest as DomainAnalyzeExternalPackageRequest,
@@ -20,6 +20,10 @@ use crate::core::error::AppResult;
 #[derive(Debug, Clone)]
 pub struct AnalyzeExternalPackageAppRequest {
     pub source_path: PathBuf,
+    pub layout: ExternalPackageLayoutValue,
+    pub source_account: Option<String>,
+    pub source_server: Option<String>,
+    pub source_character: Option<String>,
 }
 
 impl AnalyzeExternalPackageAppRequest {
@@ -29,6 +33,10 @@ impl AnalyzeExternalPackageAppRequest {
     ) -> AppResult<DomainAnalyzeExternalPackageRequest> {
         Ok(DomainAnalyzeExternalPackageRequest {
             source_path: resolve_external_package_source_path(runtime, self.source_path)?,
+            layout: self.layout.into_domain(),
+            source_account: self.source_account,
+            source_server: self.source_server,
+            source_character: self.source_character,
         })
     }
 }
@@ -36,6 +44,10 @@ impl AnalyzeExternalPackageAppRequest {
 #[derive(Debug, Clone)]
 pub struct CreateExternalPackageBundleAppRequest {
     pub source_path: PathBuf,
+    pub layout: ExternalPackageLayoutValue,
+    pub source_account: Option<String>,
+    pub source_server: Option<String>,
+    pub source_character: Option<String>,
     pub source_flavor: WowFlavorValue,
     pub source_platform: Option<HostPlatformValue>,
     pub supported_targets: Vec<WowFlavorValue>,
@@ -71,6 +83,10 @@ impl CreateExternalPackageBundleAppRequest {
     ) -> AppResult<DomainCreateExternalPackageBundleRequest> {
         Ok(DomainCreateExternalPackageBundleRequest {
             source_path: resolve_external_package_source_path(runtime, self.source_path)?,
+            layout: self.layout.into_domain(),
+            source_account: self.source_account,
+            source_server: self.source_server,
+            source_character: self.source_character,
             source_flavor: self.source_flavor.into_domain(),
             source_platform: self.source_platform.map(HostPlatformValue::into_domain),
             supported_targets: map_owned_vec(self.supported_targets, WowFlavorValue::into_domain),

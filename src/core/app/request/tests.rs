@@ -22,8 +22,8 @@ use crate::core::app::{
     BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
     BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest,
-    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, HostPlatformValue,
-    InspectAddonPolicyRequest, InspectConfigAppRequest, InstallAddonAppRequest,
+    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, ExternalPackageLayoutValue,
+    HostPlatformValue, InspectAddonPolicyRequest, InspectConfigAppRequest, InstallAddonAppRequest,
     InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest,
     PlanAddonLockSyncRequest, PlanBundleApplyRequest, PlanConfigApplyAppRequest,
     PlanExternalPackageApplyAppRequest, RelinkAddonAppRequest, RelinkAddonIndexAppRequest,
@@ -139,6 +139,10 @@ fn sample_manifest() -> BundleManifestValue {
 fn sample_external_package_bundle_request() -> CreateExternalPackageBundleAppRequest {
     CreateExternalPackageBundleAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
+        layout: ExternalPackageLayoutValue::Auto,
+        source_account: None,
+        source_server: None,
+        source_character: None,
         source_flavor: WowFlavorValue::Retail,
         source_platform: None,
         supported_targets: vec![WowFlavorValue::Retail],

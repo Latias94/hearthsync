@@ -1,16 +1,25 @@
 use std::path::PathBuf;
 
-use crate::cli::ExternalPackageBundleOptions;
+use crate::cli::{
+    ExternalPackageBundleOptions, ExternalPackageLayoutArg, ExternalPackageSourceLayoutArgs,
+};
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
-    BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest,
+    BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest, ExternalPackageLayoutValue,
     PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
 };
 
 pub(in crate::cli) fn build_analyze_external_package_request(
     source_path: PathBuf,
+    source_layout: ExternalPackageSourceLayoutArgs,
 ) -> AnalyzeExternalPackageAppRequest {
-    AnalyzeExternalPackageAppRequest { source_path }
+    AnalyzeExternalPackageAppRequest {
+        source_path,
+        layout: source_layout.layout.unwrap_or_default().into(),
+        source_account: source_layout.source_account,
+        source_server: source_layout.source_server,
+        source_character: source_layout.source_character,
+    }
 }
 
 pub(in crate::cli) fn build_external_package_bundle_request(
@@ -20,6 +29,10 @@ pub(in crate::cli) fn build_external_package_bundle_request(
 
     CreateExternalPackageBundleAppRequest {
         source_path: options.source,
+        layout: options.source_layout.layout.unwrap_or_default().into(),
+        source_account: options.source_layout.source_account,
+        source_server: options.source_layout.source_server,
+        source_character: options.source_layout.source_character,
         source_flavor: options.source_flavor.into(),
         source_platform: options.source_platform.map(Into::into),
         supported_targets: if options.supported_targets.is_empty() {
@@ -37,6 +50,26 @@ pub(in crate::cli) fn build_external_package_bundle_request(
         created_by: options.created_by,
         description: options.description,
         apply_defaults,
+    }
+}
+
+impl Default for ExternalPackageLayoutArg {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+impl From<ExternalPackageLayoutArg> for ExternalPackageLayoutValue {
+    fn from(value: ExternalPackageLayoutArg) -> Self {
+        match value {
+            ExternalPackageLayoutArg::Auto => Self::Auto,
+            ExternalPackageLayoutArg::Generic => Self::Generic,
+            ExternalPackageLayoutArg::NewBeeBoxAddon => Self::NewBeeBoxAddon,
+            ExternalPackageLayoutArg::NewBeeBoxFont => Self::NewBeeBoxFont,
+            ExternalPackageLayoutArg::NewBeeBoxMaterial => Self::NewBeeBoxMaterial,
+            ExternalPackageLayoutArg::NewBeeBoxWtfAccount => Self::NewBeeBoxWtfAccount,
+            ExternalPackageLayoutArg::NewBeeBoxWtfCharacter => Self::NewBeeBoxWtfCharacter,
+        }
     }
 }
 
@@ -118,20 +151,22 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{
-        ExternalPackageBundleOptions, build_analyze_external_package_request,
-        build_apply_external_package_request, build_external_package_bundle_request,
-        build_plan_external_package_request,
+        ExternalPackageBundleOptions, ExternalPackageLayoutArg, ExternalPackageSourceLayoutArgs,
+        build_analyze_external_package_request, build_apply_external_package_request,
+        build_external_package_bundle_request, build_plan_external_package_request,
     };
     use crate::cli::test_support::sample_installation;
     use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
     use crate::core::app::{
-        BundleApplyMappingsValue, HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue,
+        BundleApplyMappingsValue, ExternalPackageLayoutValue, HostPlatformValue,
+        ResourceApplyPolicyValue, WowFlavorValue,
     };
 
     #[test]
     fn build_external_package_bundle_request_maps_metadata_and_policy_overrides() {
         let request = build_external_package_bundle_request(ExternalPackageBundleOptions {
             source: PathBuf::from("C:\\temp\\author-ui.zip"),
+            source_layout: ExternalPackageSourceLayoutArgs::default(),
             source_flavor: FlavorArg::Retail,
             source_platform: Some(PlatformArg::Windows),
             supported_targets: vec![FlavorArg::Retail, FlavorArg::Classic],
@@ -183,6 +218,7 @@ mod tests {
     fn build_external_package_bundle_request_skips_apply_defaults_without_overrides() {
         let request = build_external_package_bundle_request(ExternalPackageBundleOptions {
             source: PathBuf::from("C:\\temp\\author-ui.zip"),
+            source_layout: ExternalPackageSourceLayoutArgs::default(),
             source_flavor: FlavorArg::Retail,
             source_platform: None,
             supported_targets: Vec::new(),
@@ -205,6 +241,7 @@ mod tests {
     fn build_external_package_bundle_request_partial_overrides_inherit_author_package_defaults() {
         let request = build_external_package_bundle_request(ExternalPackageBundleOptions {
             source: PathBuf::from("C:\\temp\\author-ui.zip"),
+            source_layout: ExternalPackageSourceLayoutArgs::default(),
             source_flavor: FlavorArg::Retail,
             source_platform: None,
             supported_targets: Vec::new(),
@@ -240,9 +277,33 @@ mod tests {
 
     #[test]
     fn build_analyze_external_package_request_preserves_source_path() {
-        let request = build_analyze_external_package_request(PathBuf::from("C:\\temp\\author-ui"));
+        let request = build_analyze_external_package_request(
+            PathBuf::from("C:\\temp\\author-ui"),
+            ExternalPackageSourceLayoutArgs::default(),
+        );
 
         assert_eq!(request.source_path, PathBuf::from("C:\\temp\\author-ui"));
+    }
+
+    #[test]
+    fn build_analyze_external_package_request_maps_layout_context() {
+        let request = build_analyze_external_package_request(
+            PathBuf::from("C:\\temp\\wtfrole.zip"),
+            ExternalPackageSourceLayoutArgs {
+                layout: Some(ExternalPackageLayoutArg::NewBeeBoxWtfCharacter),
+                source_account: Some("ACCOUNT".to_string()),
+                source_server: Some("Illidan".to_string()),
+                source_character: Some("Sourcechar".to_string()),
+            },
+        );
+
+        assert_eq!(
+            request.layout,
+            ExternalPackageLayoutValue::NewBeeBoxWtfCharacter
+        );
+        assert_eq!(request.source_account.as_deref(), Some("ACCOUNT"));
+        assert_eq!(request.source_server.as_deref(), Some("Illidan"));
+        assert_eq!(request.source_character.as_deref(), Some("Sourcechar"));
     }
 
     #[test]
@@ -250,6 +311,7 @@ mod tests {
         let external_package =
             build_external_package_bundle_request(ExternalPackageBundleOptions {
                 source: PathBuf::from("C:\\temp\\author-ui.zip"),
+                source_layout: ExternalPackageSourceLayoutArgs::default(),
                 source_flavor: FlavorArg::Retail,
                 source_platform: None,
                 supported_targets: Vec::new(),

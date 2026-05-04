@@ -5,11 +5,11 @@ use walkdir::WalkDir;
 use zip::ZipArchive;
 
 use super::source_entry::SourceEntry;
-use super::types::ExternalPackageSourceKind;
+use super::types::{ExternalPackageLayout, ExternalPackageSourceKind};
 use crate::core::archive_io::{
     reject_unsupported_symlink_metadata, validated_zip_file_entry_segments,
 };
-use crate::core::archive_path::safe_relative_segments;
+use crate::core::archive_path::{safe_relative_segments, validate_portable_path_segment};
 use crate::core::bundle::shared::path::{should_skip_path, to_zip_path};
 use crate::core::error::{AppError, AppResult};
 
@@ -31,10 +31,11 @@ pub(super) fn detect_source_kind(path: &Path) -> AppResult<ExternalPackageSource
 pub(super) fn collect_source_entries(
     source_path: &Path,
     source_kind: ExternalPackageSourceKind,
+    layout: ExternalPackageLayout,
 ) -> AppResult<Vec<SourceEntry>> {
     let mut entries = match source_kind {
         ExternalPackageSourceKind::Directory => collect_directory_entries(source_path)?,
-        ExternalPackageSourceKind::ZipArchive => collect_zip_entries(source_path)?,
+        ExternalPackageSourceKind::ZipArchive => collect_zip_entries(source_path, layout)?,
     };
     entries.sort_by(|left, right| left.source_path.cmp(&right.source_path));
     Ok(entries)
@@ -76,7 +77,7 @@ fn collect_directory_entries(root: &Path) -> AppResult<Vec<SourceEntry>> {
     Ok(entries)
 }
 
-fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
+fn collect_zip_entries(path: &Path, layout: ExternalPackageLayout) -> AppResult<Vec<SourceEntry>> {
     let file = File::open(path)?;
     let mut archive = ZipArchive::new(file)?;
     let mut entries = Vec::new();
@@ -84,11 +85,11 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
         let entry_name = entry.name().to_string();
-        let Some(segments) = validated_zip_file_entry_segments(
-            "external package zip entry",
+        let Some(segments) = zip_file_entry_segments_for_layout(
             &entry_name,
             entry.is_symlink(),
             entry.is_dir(),
+            layout,
         )?
         else {
             continue;
@@ -97,8 +98,8 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
             continue;
         }
 
-        if Path::new(&entry_name)
-            .file_name()
+        if segments
+            .last()
             .is_some_and(|name| should_skip_path(Path::new(name)))
         {
             continue;
@@ -112,6 +113,48 @@ fn collect_zip_entries(path: &Path) -> AppResult<Vec<SourceEntry>> {
 
     Ok(entries)
 }
+
+fn zip_file_entry_segments_for_layout(
+    entry_name: &str,
+    is_symlink: bool,
+    is_dir: bool,
+    layout: ExternalPackageLayout,
+) -> AppResult<Option<Vec<String>>> {
+    if !layout_allows_mixed_zip_separators(layout) {
+        return validated_zip_file_entry_segments(
+            "external package zip entry",
+            entry_name,
+            is_symlink,
+            is_dir,
+        );
+    }
+
+    reject_unsupported_symlink_metadata("external package zip entry", entry_name, is_symlink)?;
+    if is_dir {
+        return Ok(None);
+    }
+
+    let mut segments = Vec::new();
+    for segment in entry_name.split(['/', '\\']) {
+        validate_portable_path_segment(segment, "external package zip entry path segment")
+            .map_err(|_| AppError::Validation(format!("unsafe archive path: `{entry_name}`")))?;
+        segments.push(segment.to_string());
+    }
+
+    Ok(Some(segments))
+}
+
+fn layout_allows_mixed_zip_separators(layout: ExternalPackageLayout) -> bool {
+    matches!(
+        layout,
+        ExternalPackageLayout::NewBeeBoxAddon
+            | ExternalPackageLayout::NewBeeBoxFont
+            | ExternalPackageLayout::NewBeeBoxMaterial
+            | ExternalPackageLayout::NewBeeBoxWtfAccount
+            | ExternalPackageLayout::NewBeeBoxWtfCharacter
+    )
+}
+
 fn should_ignore_source_segments(segments: &[String]) -> bool {
     segments
         .iter()

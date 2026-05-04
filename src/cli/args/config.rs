@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use super::external_package::ExternalPackageBundleOptions;
+use super::external_package::{ExternalPackageBundleOptions, ExternalPackageSourceLayoutArgs};
 use super::shared::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
 
 #[derive(Debug, Subcommand)]
@@ -85,6 +85,7 @@ impl From<ConfigPackageOptions> for ExternalPackageBundleOptions {
     fn from(value: ConfigPackageOptions) -> Self {
         Self {
             source: value.source,
+            source_layout: ExternalPackageSourceLayoutArgs::default(),
             source_flavor: value.source_flavor,
             source_platform: value.source_platform,
             supported_targets: value.supported_targets,

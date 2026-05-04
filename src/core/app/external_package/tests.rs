@@ -7,7 +7,7 @@ use tempfile::tempdir;
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, AppRuntime, ApplyExternalPackageAppRequest,
     BundleApplyDefaultsValue, BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest,
-    ExternalPackageService, HelperStrategyValue, HostPlatformValue,
+    ExternalPackageLayoutValue, ExternalPackageService, HelperStrategyValue, HostPlatformValue,
     PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
     WowFlavorValue,
 };
@@ -23,6 +23,10 @@ fn external_package_service_analyzes_minimal_source_package() {
     let analysis = service
         .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: package_root,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
         })
         .expect("analyze package")
         .result;
@@ -45,6 +49,10 @@ fn external_package_service_analyzes_relative_source_against_runtime_base() {
     let analysis = service
         .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: PathBuf::from("AuthorPack"),
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
         })
         .expect("analyze relative package source")
         .result;
@@ -58,6 +66,10 @@ fn external_package_service_rejects_relative_source_without_runtime_base() {
     let error = ExternalPackageService::new()
         .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: PathBuf::from("AuthorPack"),
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
         })
         .expect_err("relative package source without base should fail");
 
@@ -73,6 +85,10 @@ fn external_package_service_analyze_collecting_progress_returns_events() {
     let run = service
         .analyze_collecting_progress(AnalyzeExternalPackageAppRequest {
             source_path: package_root,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
         })
         .expect("analyze with collected progress");
 
@@ -119,6 +135,10 @@ fn external_package_service_analyze_with_callbacks_uses_plain_closures() {
         .analyze_with_callbacks(
             AnalyzeExternalPackageAppRequest {
                 source_path: package_root,
+                layout: ExternalPackageLayoutValue::Auto,
+                source_account: None,
+                source_server: None,
+                source_character: None,
             },
             || {
                 let next = cancellation_checks.get() + 1;
@@ -160,6 +180,10 @@ fn external_package_service_apply_task_uses_external_package_task_kind() {
             ApplyExternalPackageAppRequest {
                 external_package: CreateExternalPackageBundleAppRequest {
                     source_path: package_root,
+                    layout: ExternalPackageLayoutValue::Auto,
+                    source_account: None,
+                    source_server: None,
+                    source_character: None,
                     source_flavor: WowFlavorValue::Retail,
                     source_platform: Some(HostPlatformValue::Windows),
                     supported_targets: vec![WowFlavorValue::Retail],
@@ -206,6 +230,10 @@ fn external_package_service_plan_apply_reports_runtime_helper_strategy() {
         .plan_apply_collecting_progress(PlanExternalPackageApplyAppRequest {
             external_package: CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
+                layout: ExternalPackageLayoutValue::Auto,
+                source_account: None,
+                source_server: None,
+                source_character: None,
                 source_flavor: WowFlavorValue::Retail,
                 source_platform: Some(HostPlatformValue::Windows),
                 supported_targets: vec![WowFlavorValue::Retail],
@@ -237,6 +265,10 @@ fn external_package_service_apply_collecting_progress_returns_external_task_even
         .apply_collecting_progress(ApplyExternalPackageAppRequest {
             external_package: CreateExternalPackageBundleAppRequest {
                 source_path: package_root,
+                layout: ExternalPackageLayoutValue::Auto,
+                source_account: None,
+                source_server: None,
+                source_character: None,
                 source_flavor: WowFlavorValue::Retail,
                 source_platform: Some(HostPlatformValue::Windows),
                 supported_targets: vec![WowFlavorValue::Retail],
@@ -284,6 +316,10 @@ fn external_package_service_create_bundle_uses_runtime_platform_and_output_dir()
     let prepared = service
         .create_bundle(CreateExternalPackageBundleAppRequest {
             source_path: package_root,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: WowFlavorValue::Retail,
             source_platform: None,
             supported_targets: vec![WowFlavorValue::Retail],
@@ -329,6 +365,10 @@ fn external_package_service_create_bundle_resolves_relative_runtime_output_dir()
     let prepared = service
         .create_bundle(CreateExternalPackageBundleAppRequest {
             source_path: package_root,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: WowFlavorValue::Retail,
             source_platform: Some(HostPlatformValue::Windows),
             supported_targets: vec![WowFlavorValue::Retail],
@@ -367,6 +407,10 @@ fn external_package_service_create_bundle_keeps_temporary_bundle_alive_while_han
     let prepared = service
         .create_bundle(CreateExternalPackageBundleAppRequest {
             source_path: package_root,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: WowFlavorValue::Retail,
             source_platform: None,
             supported_targets: vec![WowFlavorValue::Retail],

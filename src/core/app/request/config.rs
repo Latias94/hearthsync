@@ -9,8 +9,8 @@ use crate::core::app::request::external_package::{
     CreateExternalPackageBundleAppRequest, PlanExternalPackageApplyAppRequest,
 };
 use crate::core::app::{
-    AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, HostPlatformValue,
-    ResolvedInstallationValue, WowFlavorValue,
+    AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ExternalPackageLayoutValue,
+    HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
 };
 
 #[derive(Debug, Clone)]
@@ -22,6 +22,10 @@ impl InspectConfigAppRequest {
     pub(crate) fn into_external_request(self) -> AnalyzeExternalPackageAppRequest {
         AnalyzeExternalPackageAppRequest {
             source_path: self.source_path,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
         }
     }
 }
@@ -52,6 +56,10 @@ impl ConfigPackageAppRequest {
     pub(crate) fn into_external_request(self) -> CreateExternalPackageBundleAppRequest {
         CreateExternalPackageBundleAppRequest {
             source_path: self.source_path,
+            layout: ExternalPackageLayoutValue::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: self.source_flavor,
             source_platform: self.source_platform,
             supported_targets: self.supported_targets,

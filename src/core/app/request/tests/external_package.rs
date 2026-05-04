@@ -7,6 +7,10 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
 
     let domain: DomainCreateExternalPackageBundleRequest = CreateExternalPackageBundleAppRequest {
         source_path: PathBuf::from("author-ui.zip"),
+        layout: ExternalPackageLayoutValue::Auto,
+        source_account: None,
+        source_server: None,
+        source_character: None,
         source_flavor: WowFlavorValue::Retail,
         source_platform: Some(HostPlatformValue::Windows),
         supported_targets: vec![WowFlavorValue::Retail, WowFlavorValue::Classic],

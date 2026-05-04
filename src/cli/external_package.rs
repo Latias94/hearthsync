@@ -23,10 +23,18 @@ pub(super) fn handle_external_package_command(
     let app = stable_services(runtime.clone());
 
     match command {
-        ExternalPackageCommands::Inspect { source } => {
+        ExternalPackageCommands::Inspect {
+            source,
+            source_layout,
+        } => {
             render_task_result(
                 json,
-                || app.analyze_external_package(build_analyze_external_package_request(source)),
+                || {
+                    app.analyze_external_package(build_analyze_external_package_request(
+                        source,
+                        source_layout,
+                    ))
+                },
                 render_external_package_analysis,
             )?;
         }

@@ -6,9 +6,7 @@ use super::manifest::build_external_manifest;
 use super::normalized::{
     build_external_package_entry_source_map, validate_unique_normalized_paths,
 };
-use super::types::{
-    AnalyzeExternalPackageRequest, CreateExternalPackageBundleRequest, ExternalPackageAnalysis,
-};
+use super::types::{CreateExternalPackageBundleRequest, ExternalPackageAnalysis};
 use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 use crate::core::manifest::BundleManifest;
@@ -22,9 +20,7 @@ pub(in crate::core::bundle::external_package) struct PreparedExternalPackageAppl
 pub(super) fn prepare_external_package_artifacts(
     request: &CreateExternalPackageBundleRequest,
 ) -> AppResult<(ExternalPackageAnalysis, BundleManifest)> {
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: request.source_path.clone(),
-    })?;
+    let analysis = analyze_external_package(request.analysis_request())?;
     validate_unique_normalized_paths(&analysis)?;
 
     let manifest = build_external_manifest(&analysis, request);

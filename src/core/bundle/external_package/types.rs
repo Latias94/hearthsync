@@ -14,11 +14,19 @@ use crate::core::manifest::{ApplyDefaults, BundleManifest, BundleResources};
 #[derive(Debug, Clone)]
 pub struct AnalyzeExternalPackageRequest {
     pub source_path: PathBuf,
+    pub layout: ExternalPackageLayout,
+    pub source_account: Option<String>,
+    pub source_server: Option<String>,
+    pub source_character: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CreateExternalPackageBundleRequest {
     pub source_path: PathBuf,
+    pub layout: ExternalPackageLayout,
+    pub source_account: Option<String>,
+    pub source_server: Option<String>,
+    pub source_character: Option<String>,
     pub source_flavor: WowFlavor,
     pub source_platform: Option<HostPlatform>,
     pub supported_targets: Vec<WowFlavor>,
@@ -28,6 +36,53 @@ pub struct CreateExternalPackageBundleRequest {
     pub created_by: Option<String>,
     pub description: Option<String>,
     pub apply_defaults: Option<ApplyDefaults>,
+}
+
+impl AnalyzeExternalPackageRequest {
+    pub fn new(source_path: PathBuf) -> Self {
+        Self {
+            source_path,
+            layout: ExternalPackageLayout::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
+        }
+    }
+}
+
+impl CreateExternalPackageBundleRequest {
+    pub fn analysis_request(&self) -> AnalyzeExternalPackageRequest {
+        AnalyzeExternalPackageRequest {
+            source_path: self.source_path.clone(),
+            layout: self.layout,
+            source_account: self.source_account.clone(),
+            source_server: self.source_server.clone(),
+            source_character: self.source_character.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageLayout {
+    Auto,
+    Generic,
+    #[serde(rename = "newbeebox_addon")]
+    NewBeeBoxAddon,
+    #[serde(rename = "newbeebox_font")]
+    NewBeeBoxFont,
+    #[serde(rename = "newbeebox_material")]
+    NewBeeBoxMaterial,
+    #[serde(rename = "newbeebox_wtf_account")]
+    NewBeeBoxWtfAccount,
+    #[serde(rename = "newbeebox_wtf_character")]
+    NewBeeBoxWtfCharacter,
+}
+
+impl Default for ExternalPackageLayout {
+    fn default() -> Self {
+        Self::Auto
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +166,7 @@ pub struct ExternalPackageWarningGroup {
 pub struct ExternalPackageAnalysis {
     pub source_path: PathBuf,
     pub source_kind: ExternalPackageSourceKind,
+    pub layout: ExternalPackageLayout,
     pub package_id: String,
     pub package_name: String,
     pub entries: Vec<ExternalPackageEntry>,

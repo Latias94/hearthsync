@@ -13,9 +13,10 @@ pub(in crate::cli) fn render_external_package_analysis(
     let warnings = format_external_package_warnings(&item.warnings, &item.summary);
 
     format!(
-        "Source: {}\nDetected kind: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
+        "Source: {}\nDetected kind: {:?}\nDetected layout: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
         item.source_path.display(),
         item.source_kind,
+        item.layout,
         item.package_id,
         item.package_name,
         item.summary.total_files,

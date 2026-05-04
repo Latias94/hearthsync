@@ -4,10 +4,8 @@ use super::*;
 fn analyze_external_package_conflict_fixture_exposes_duplicate_normalized_paths() {
     let package_root = external_package_conflict_fixture_root();
 
-    let analysis = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_root,
-    })
-    .expect("analyze external package conflict fixture");
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_root))
+        .expect("analyze external package conflict fixture");
 
     assert_eq!(analysis.summary.total_files, 2);
     assert_eq!(analysis.summary.normalized_files, 2);
@@ -91,10 +89,8 @@ fn analyze_external_package_rejects_zip_with_parent_directory_segments() {
         ],
     );
 
-    let error = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect_err("parent directory zip entry should be rejected");
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect_err("parent directory zip entry should be rejected");
 
     assert!(error.to_string().contains("unsafe archive path"));
 }
@@ -108,10 +104,8 @@ fn analyze_external_package_rejects_zip_with_backslash_segments() {
         &[("AuthorUI\\WTF\\Config.wtf", "SET locale enUS")],
     );
 
-    let error = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect_err("backslash zip entry should be rejected");
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect_err("backslash zip entry should be rejected");
 
     assert!(error.to_string().contains("unsafe archive path"));
 }
@@ -125,10 +119,8 @@ fn analyze_external_package_rejects_zip_with_empty_path_segments() {
         &[("AuthorUI//WTF/Config.wtf", "SET locale enUS")],
     );
 
-    let error = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect_err("empty path segment zip entry should be rejected");
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect_err("empty path segment zip entry should be rejected");
 
     assert!(error.to_string().contains("unsafe archive path"));
 }
@@ -142,10 +134,8 @@ fn analyze_external_package_rejects_zip_with_windows_reserved_segments() {
         &[("AuthorUI/Interface/AddOns/Weak:Auras/WeakAuras.toc", "toc")],
     );
 
-    let error = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect_err("reserved Windows path segment should be rejected");
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect_err("reserved Windows path segment should be rejected");
 
     assert!(error.to_string().contains("unsafe archive path"));
 }
@@ -160,10 +150,8 @@ fn analyze_external_package_rejects_zip_symlink_entries() {
         "../../outside.lua",
     );
 
-    let error = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path,
-    })
-    .expect_err("symlink zip entry should be rejected");
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect_err("symlink zip entry should be rejected");
 
     let message = error.to_string();
     assert!(message.contains("unsupported symlink metadata"));
@@ -176,10 +164,8 @@ fn analyze_external_package_rejects_non_archive_file_with_clear_error() {
     let package_path = temp.path().join("not-a-zip.bin");
     fs::write(&package_path, "plain text").expect("plain file");
 
-    let error = analyze_external_package(AnalyzeExternalPackageRequest {
-        source_path: package_path.clone(),
-    })
-    .expect_err("plain file should not be treated as zip");
+    let error = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path.clone()))
+        .expect_err("plain file should not be treated as zip");
 
     let message = error.to_string();
     assert!(message.contains("not a valid zip archive"));

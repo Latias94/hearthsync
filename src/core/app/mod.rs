@@ -147,7 +147,8 @@ pub use types::bundle::{
     CharacterMappingModeValue, ResourceApplyPolicyValue, WtfScopeValue,
 };
 pub use types::external_package::{
-    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+    ExternalPackageLayoutValue, ExternalPackageWarningCategoryValue,
+    ExternalPackageWarningCodeValue,
 };
 pub use types::install::{
     HealthStatusValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,

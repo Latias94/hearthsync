@@ -7,12 +7,12 @@ use crate::core::app::{
     BackupGroupValue, BackupMetadataResult, BundleApplyDefaultsValue, BundleCharacterResourceValue,
     BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesResult,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, CharacterMappingResult,
-    ExternalPackageAnalysisResult, ExternalPackageEntryResult, ExternalPackageSourceKindResult,
-    ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, ExternalPackageWarningGroupResult,
-    ExternalPackageWarningResult, GroupPolicyResult, HostPlatformValue, LocalWowAccountResult,
-    LocalWowCharacterResult, ResourceApplyPolicyValue, TrackedAddonPackageResult,
-    TrackedAddonResult, WowFlavorValue,
+    ExternalPackageAnalysisResult, ExternalPackageEntryResult, ExternalPackageLayoutValue,
+    ExternalPackageSourceKindResult, ExternalPackageSummaryResult,
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+    ExternalPackageWarningGroupResult, ExternalPackageWarningResult, GroupPolicyResult,
+    HostPlatformValue, LocalWowAccountResult, LocalWowCharacterResult, ResourceApplyPolicyValue,
+    TrackedAddonPackageResult, TrackedAddonResult, WowFlavorValue,
 };
 
 pub(super) use crate::cli::test_support::sample_installation;
@@ -231,6 +231,7 @@ pub(super) fn sample_external_package_analysis() -> ExternalPackageAnalysisResul
     ExternalPackageAnalysisResult {
         source_path: PathBuf::from("C:\\temp\\author-ui.zip"),
         source_kind: ExternalPackageSourceKindResult::ZipArchive,
+        layout: ExternalPackageLayoutValue::Generic,
         package_id: "author-ui".to_string(),
         package_name: "Author UI".to_string(),
         entry_count: 0,

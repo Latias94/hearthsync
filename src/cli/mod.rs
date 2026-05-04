@@ -31,7 +31,10 @@ pub(crate) use args::addon::{
 pub(crate) use args::backup::BackupCommands;
 pub(crate) use args::bundle::BundleCommands;
 pub(crate) use args::config::ConfigCommands;
-pub(crate) use args::external_package::{ExternalPackageBundleOptions, ExternalPackageCommands};
+pub(crate) use args::external_package::{
+    ExternalPackageBundleOptions, ExternalPackageCommands, ExternalPackageLayoutArg,
+    ExternalPackageSourceLayoutArgs,
+};
 pub(crate) use args::settings::SettingsCommands;
 pub(crate) use args::shared::AddonStateStorageArg;
 pub(crate) use args::shared::{

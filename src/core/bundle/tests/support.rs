@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-use crate::core::bundle::CreateExternalPackageBundleRequest;
+use crate::core::bundle::{CreateExternalPackageBundleRequest, ExternalPackageLayout};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 use crate::core::manifest::{
     ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
@@ -411,6 +411,10 @@ pub(super) fn sample_external_package_request_with_apply_defaults(
 ) -> CreateExternalPackageBundleRequest {
     CreateExternalPackageBundleRequest {
         source_path,
+        layout: ExternalPackageLayout::Auto,
+        source_account: None,
+        source_server: None,
+        source_character: None,
         source_flavor: WowFlavor::Retail,
         source_platform: Some(HostPlatform::Windows),
         supported_targets: vec![WowFlavor::Retail],

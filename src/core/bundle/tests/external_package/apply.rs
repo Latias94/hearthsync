@@ -33,6 +33,10 @@ fn apply_external_package_keeps_case_mixed_addon_subtree_on_macos_target() {
     let result = apply_external_package(ApplyExternalPackageRequest {
         external_package: CreateExternalPackageBundleRequest {
             source_path: package_root,
+            layout: ExternalPackageLayout::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: WowFlavor::Retail,
             source_platform: Some(HostPlatform::Windows),
             supported_targets: vec![WowFlavor::Retail],
@@ -95,6 +99,10 @@ fn plan_external_package_apply_wraps_normalization_and_bundle_planning() {
     let plan = plan_external_package_apply(PlanExternalPackageApplyRequest {
         external_package: CreateExternalPackageBundleRequest {
             source_path: package_path,
+            layout: ExternalPackageLayout::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: WowFlavor::Retail,
             source_platform: Some(HostPlatform::Windows),
             supported_targets: vec![WowFlavor::Retail],

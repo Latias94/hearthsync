@@ -9,6 +9,10 @@ fn analyze_external_package_task_reports_progress() {
     let analysis = analyze_external_package_task(
         AnalyzeExternalPackageRequest {
             source_path: package_root,
+            layout: ExternalPackageLayout::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
         },
         &cancellation,
         &mut progress,
@@ -45,6 +49,10 @@ fn plan_external_package_apply_task_reports_progress() {
         PlanExternalPackageApplyRequest {
             external_package: CreateExternalPackageBundleRequest {
                 source_path: package_path,
+                layout: ExternalPackageLayout::Auto,
+                source_account: None,
+                source_server: None,
+                source_character: None,
                 source_flavor: WowFlavor::Retail,
                 source_platform: Some(HostPlatform::Windows),
                 supported_targets: vec![WowFlavor::Retail],
@@ -98,6 +106,10 @@ fn apply_external_package_task_wraps_normalization_and_apply_progress() {
         ApplyExternalPackageRequest {
             external_package: CreateExternalPackageBundleRequest {
                 source_path: package_path,
+                layout: ExternalPackageLayout::Auto,
+                source_account: None,
+                source_server: None,
+                source_character: None,
                 source_flavor: WowFlavor::Retail,
                 source_platform: Some(HostPlatform::Windows),
                 supported_targets: vec![WowFlavor::Retail],
@@ -176,6 +188,10 @@ fn apply_external_package_task_wraps_normalization_and_apply_progress() {
     let direct_result = apply_external_package(ApplyExternalPackageRequest {
         external_package: CreateExternalPackageBundleRequest {
             source_path: source.path().join("author-ui-pack.zip"),
+            layout: ExternalPackageLayout::Auto,
+            source_account: None,
+            source_server: None,
+            source_character: None,
             source_flavor: WowFlavor::Retail,
             source_platform: Some(HostPlatform::Windows),
             supported_targets: vec![WowFlavor::Retail],

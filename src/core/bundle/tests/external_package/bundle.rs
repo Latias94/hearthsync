@@ -9,6 +9,10 @@ fn create_external_package_bundle_produces_reusable_first_party_bundle() {
 
     let prepared = create_external_package_bundle(CreateExternalPackageBundleRequest {
         source_path: package_path,
+        layout: ExternalPackageLayout::Auto,
+        source_account: None,
+        source_server: None,
+        source_character: None,
         source_flavor: WowFlavor::Retail,
         source_platform: Some(HostPlatform::Windows),
         supported_targets: vec![WowFlavor::Retail],
@@ -51,6 +55,10 @@ fn external_package_bundle_can_reuse_plan_and_unpack_pipeline() {
 
     let prepared = create_external_package_bundle(CreateExternalPackageBundleRequest {
         source_path: package_path,
+        layout: ExternalPackageLayout::Auto,
+        source_account: None,
+        source_server: None,
+        source_character: None,
         source_flavor: WowFlavor::Retail,
         source_platform: Some(HostPlatform::Windows),
         supported_targets: vec![WowFlavor::Retail],

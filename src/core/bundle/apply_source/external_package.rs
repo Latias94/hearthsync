@@ -4,12 +4,11 @@ use std::path::{Path, PathBuf};
 
 use zip::ZipArchive;
 
-use super::super::archive_read::entries::{
-    extract_archive_entry_to_path, read_bundle_entry_bytes_from_archive,
-};
+use super::super::archive_read::entries::read_bundle_entry_bytes_from_archive;
 use super::super::external_package::types::ExternalPackageSourceKind;
 use super::super::shared::path::resolve_zip_style_path;
 use super::reader::ApplySourceReader;
+use crate::core::archive_io::{copy_reader_to_path, reject_unsupported_symlink_metadata};
 use crate::core::error::{AppError, AppResult};
 
 pub(in crate::core::bundle::apply_source) fn logical_entry_names_from_external_package(
@@ -83,9 +82,30 @@ pub(in crate::core::bundle::apply_source) fn materialize_external_package_entry(
             let source_entry_name =
                 lookup_external_package_entry_source_path(entry_source_map, logical_name)?;
             let archive = expect_external_package_archive_reader(reader)?;
-            extract_archive_entry_to_path(archive, source_entry_name, destination)
+            extract_external_archive_entry_to_path(archive, source_entry_name, destination)
         }
     }
+}
+
+fn extract_external_archive_entry_to_path(
+    archive: &mut ZipArchive<File>,
+    archive_name: &str,
+    destination: &Path,
+) -> AppResult<()> {
+    let mut entry = archive.by_name(archive_name).map_err(|_| {
+        AppError::NotFound(format!("external package entry is missing: {archive_name}"))
+    })?;
+    reject_unsupported_symlink_metadata(
+        "external package zip entry",
+        entry.name(),
+        entry.is_symlink(),
+    )?;
+    if entry.is_dir() {
+        return Err(AppError::Validation(format!(
+            "external package entry cannot be materialized because it is a directory: {archive_name}"
+        )));
+    }
+    copy_reader_to_path(&mut entry, destination)
 }
 
 fn expect_external_package_archive_reader(
