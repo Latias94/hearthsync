@@ -10,7 +10,7 @@ use super::http::{
 };
 use super::registry::AddonProviderRegistry;
 use super::{
-    AddonDependencyResolutionCapability, AddonProvider, AddonProviderSourceCapability,
+    AddonDependencyResolutionCapability, AddonProvider, AddonProviderDescriptor,
     AddonSearchRequest, AddonSearchResult, AddonSourceRef, MaterializeSourceInputRequest,
     MaterializeSourceRefRequest, MaterializedAddonSource, ResolveAddonDependenciesRequest,
     ResolvedAddonDependencies,
@@ -168,8 +168,8 @@ where
         AddonProviderRegistry::new().dependency_resolution_capability(source)
     }
 
-    fn source_capabilities(&self) -> Vec<AddonProviderSourceCapability> {
-        AddonProviderRegistry::new().source_capabilities()
+    fn provider_descriptors(&self) -> Vec<AddonProviderDescriptor> {
+        AddonProviderRegistry::new().provider_descriptors()
     }
 
     fn resolve_addon_dependencies(
@@ -226,7 +226,7 @@ mod default_provider_tests {
     use zip::write::SimpleFileOptions;
 
     use super::super::http::HttpResponse;
-    use super::super::{AddonProviderContext, AddonSourceFamily};
+    use super::super::{AddonProviderContext, AddonProviderSourceCapability, AddonSourceFamily};
     use super::*;
 
     #[test]
@@ -254,11 +254,22 @@ mod default_provider_tests {
     #[test]
     fn default_addon_provider_reports_source_capabilities() {
         let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+        let descriptors = provider.provider_descriptors();
         let capabilities = provider.source_capabilities();
 
+        assert_eq!(descriptors.len(), 4);
         assert_eq!(capabilities.len(), 4);
+        assert_eq!(
+            capabilities,
+            descriptors
+                .iter()
+                .copied()
+                .map(AddonProviderDescriptor::source_capability)
+                .collect::<Vec<_>>()
+        );
+        assert_provider_descriptor_ids_are_unique(&descriptors);
 
-        let local = source_capability(&capabilities, AddonSourceFamily::LocalArchive, "local");
+        let local = source_capability(&capabilities, AddonSourceFamily::LOCAL_ARCHIVE, "local");
         assert!(local.can_parse_input);
         assert!(local.can_materialize);
         assert!(!local.can_search);
@@ -268,7 +279,7 @@ mod default_provider_tests {
         );
         assert!(!local.supports_remote_cache_validators);
 
-        let http = source_capability(&capabilities, AddonSourceFamily::HttpArchive, "http");
+        let http = source_capability(&capabilities, AddonSourceFamily::HTTP_ARCHIVE, "http");
         assert_eq!(http.input_prefix, Some("http:// or https://"));
         assert!(http.can_parse_input);
         assert!(http.can_materialize);
@@ -277,7 +288,7 @@ mod default_provider_tests {
 
         let curseforge = source_capability(
             &capabilities,
-            AddonSourceFamily::CurseForgeMod,
+            AddonSourceFamily::CURSEFORGE_MOD,
             "curseforge",
         );
         assert_eq!(curseforge.input_prefix, Some("curseforge:"));
@@ -294,7 +305,7 @@ mod default_provider_tests {
         assert!(curseforge.supports_file_id_pin);
         assert!(curseforge.supports_remote_cache_validators);
 
-        let github = source_capability(&capabilities, AddonSourceFamily::GitHubRelease, "github");
+        let github = source_capability(&capabilities, AddonSourceFamily::GITHUB_RELEASE, "github");
         assert_eq!(github.input_prefix, Some("github:"));
         assert!(github.can_parse_input);
         assert!(github.can_materialize);
@@ -308,6 +319,20 @@ mod default_provider_tests {
         assert!(github.supports_version_pin);
         assert!(!github.supports_file_id_pin);
         assert!(github.supports_remote_cache_validators);
+    }
+
+    fn assert_provider_descriptor_ids_are_unique(descriptors: &[AddonProviderDescriptor]) {
+        let mut ids = Vec::new();
+        for descriptor in descriptors {
+            assert!(!descriptor.provider_id.trim().is_empty());
+            assert!(!descriptor.source_family.id().trim().is_empty());
+            assert!(
+                ids.iter().all(|id| *id != descriptor.provider_id),
+                "provider id `{}` should be unique",
+                descriptor.provider_id
+            );
+            ids.push(descriptor.provider_id);
+        }
     }
 
     fn source_capability<'a>(

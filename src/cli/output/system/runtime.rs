@@ -1,8 +1,8 @@
 use crate::core::app::{
     AddonDependencyResolutionCapabilityValue, AddonProviderSourceCapabilityValue,
-    AddonSourceFamilyValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
-    AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperPolicyValue,
-    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    AddonStateStorageValue, AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue,
+    ExternalHelperAvailabilityValue, ExternalHelperPolicyValue, HelperStrategyValue,
+    HostPlatformValue, HttpNoValidatorCachePolicyValue,
 };
 
 pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsValue) -> String {
@@ -138,7 +138,7 @@ fn format_addon_source_capabilities(values: &[AddonProviderSourceCapabilityValue
             format!(
                 "{}:{} parse={} materialize={} search={} dependencies={} policy={} pin={} validators={}",
                 value.provider_id,
-                format_addon_source_family(value.source_family),
+                value.source_family.as_str(),
                 value.can_parse_input,
                 value.can_materialize,
                 value.can_search,
@@ -150,15 +150,6 @@ fn format_addon_source_capabilities(values: &[AddonProviderSourceCapabilityValue
         })
         .collect::<Vec<_>>()
         .join("; ")
-}
-
-fn format_addon_source_family(value: AddonSourceFamilyValue) -> &'static str {
-    match value {
-        AddonSourceFamilyValue::LocalArchive => "local_archive",
-        AddonSourceFamilyValue::HttpArchive => "http_archive",
-        AddonSourceFamilyValue::CurseForgeMod => "curseforge_mod",
-        AddonSourceFamilyValue::GitHubRelease => "github_release",
-    }
 }
 
 fn format_dependency_capability(value: AddonDependencyResolutionCapabilityValue) -> &'static str {

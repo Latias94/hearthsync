@@ -248,23 +248,17 @@ pub struct AddonManagementCapabilitiesValue {
     pub managed_mode_requires_state: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AddonSourceFamilyValue {
-    LocalArchive,
-    HttpArchive,
-    CurseForgeMod,
-    GitHubRelease,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AddonSourceFamilyValue(String);
 
 impl AddonSourceFamilyValue {
     pub(crate) fn from_domain(value: DomainAddonSourceFamily) -> Self {
-        match value {
-            DomainAddonSourceFamily::LocalArchive => Self::LocalArchive,
-            DomainAddonSourceFamily::HttpArchive => Self::HttpArchive,
-            DomainAddonSourceFamily::CurseForgeMod => Self::CurseForgeMod,
-            DomainAddonSourceFamily::GitHubRelease => Self::GitHubRelease,
-        }
+        Self(value.id().to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 

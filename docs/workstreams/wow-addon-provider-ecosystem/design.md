@@ -125,6 +125,19 @@ Recommended approach:
 
 This keeps existing `addons.toml`, `lock.toml`, and addon index files usable during the refactor.
 
+The second registry slice keeps that persistence decision intact but changes capability discovery
+to be descriptor-driven:
+
+- `AddonProviderDescriptor` is the provider-facing shape for source family id, provider id,
+  provider name, input prefix, supported operations, and policy support.
+- `AddonProviderSourceCapability` remains the app-facing flattened projection used by CLI and
+  future GUI surfaces.
+- `AddonSourceFamily` is a stable string-backed id value rather than an app-facing closed enum, so
+  future source family ids such as Wago, WoWInterface, or custom catalogs can cross the runtime
+  capability boundary before a schema-v2 source payload is chosen.
+- Built-in providers are registered as adapter entries. The adapter list currently contains local
+  archive, HTTP archive, CurseForge, and GitHub Releases.
+
 ## Provider Capability Model
 
 Each provider should advertise capabilities explicitly:

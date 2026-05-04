@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use crate::core::addon::policy::{AddonPolicyPin, AddonReleaseChannel};
 use crate::core::addon::{
     AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy, AddonStatePaths,
@@ -9,7 +11,8 @@ use crate::core::app::{
     AddonDependencyResolutionCapabilityValue, AddonDependencyResolutionStrategyValue,
     AddonManagementCapabilitiesValue, AddonPackageMetadataValue, AddonPolicyPinValue,
     AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonReleaseChannelValue,
-    AddonStatePathsValue, AddonStateStorageValue, HttpNoValidatorCachePolicyValue,
+    AddonSourceFamilyValue, AddonStatePathsValue, AddonStateStorageValue,
+    HttpNoValidatorCachePolicyValue,
 };
 
 #[test]
@@ -148,6 +151,23 @@ fn addon_management_capabilities_value_exposes_scan_only_and_managed_contract() 
     assert_eq!(value.state_storage, AddonStateStorageValue::AppData);
     assert!(value.scan_only_without_managed_state);
     assert!(value.managed_mode_requires_state);
+}
+
+#[test]
+fn addon_source_family_value_accepts_future_provider_family_ids() {
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct SourceFamilyFixture {
+        source_family: AddonSourceFamilyValue,
+    }
+
+    let fixture: SourceFamilyFixture =
+        toml::from_str(r#"source_family = "wago_addon""#).expect("source family fixture");
+
+    assert_eq!(fixture.source_family.as_str(), "wago_addon");
+    assert_eq!(
+        toml::to_string(&fixture).expect("serialize source family"),
+        "source_family = \"wago_addon\"\n"
+    );
 }
 
 #[test]

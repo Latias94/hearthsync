@@ -14,7 +14,10 @@ use super::materialize::{
     materialize_local_archive_source,
 };
 use super::parse::{parse_curseforge_source, parse_github_source};
-use super::source::{canonicalize_local_archive_path, validate_absolute_local_archive_source_path};
+use super::source::{
+    addon_source_input_is_local_archive, canonicalize_local_archive_path, source_kind_label,
+    validate_absolute_local_archive_source_path,
+};
 use super::source_adapter::{
     curseforge_release_type_limit, github_allows_prerelease, resolve_source_dependencies_impl,
     search_addons_impl,
@@ -27,21 +30,84 @@ use super::{
 use crate::core::boundary_validation::is_http_url;
 use crate::core::error::{AppError, AppResult};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AddonSourceFamily {
-    LocalArchive,
-    HttpArchive,
-    CurseForgeMod,
-    GitHubRelease,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AddonSourceFamily {
+    id: &'static str,
 }
 
 impl AddonSourceFamily {
+    pub const LOCAL_ARCHIVE: Self = Self {
+        id: "local_archive",
+    };
+    pub const HTTP_ARCHIVE: Self = Self { id: "http_archive" };
+    pub const CURSEFORGE_MOD: Self = Self {
+        id: "curseforge_mod",
+    };
+    pub const GITHUB_RELEASE: Self = Self {
+        id: "github_release",
+    };
+
+    pub const fn from_static_id(id: &'static str) -> Self {
+        Self { id }
+    }
+
+    pub const fn id(self) -> &'static str {
+        self.id
+    }
+
     pub fn from_source(source: &AddonSourceRef) -> Self {
         match source {
-            AddonSourceRef::LocalArchive { .. } => Self::LocalArchive,
-            AddonSourceRef::HttpArchive { .. } => Self::HttpArchive,
-            AddonSourceRef::CurseForgeMod { .. } => Self::CurseForgeMod,
-            AddonSourceRef::GitHubRelease { .. } => Self::GitHubRelease,
+            AddonSourceRef::LocalArchive { .. } => Self::LOCAL_ARCHIVE,
+            AddonSourceRef::HttpArchive { .. } => Self::HTTP_ARCHIVE,
+            AddonSourceRef::CurseForgeMod { .. } => Self::CURSEFORGE_MOD,
+            AddonSourceRef::GitHubRelease { .. } => Self::GITHUB_RELEASE,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AddonProviderOperationCapabilities {
+    pub can_parse_input: bool,
+    pub can_materialize: bool,
+    pub can_search: bool,
+    pub dependency_resolution: AddonDependencyResolutionCapability,
+    pub supports_remote_cache_validators: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AddonProviderPolicyCapabilities {
+    pub supports_release_channel: bool,
+    pub supports_prerelease: bool,
+    pub supports_version_pin: bool,
+    pub supports_file_id_pin: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AddonProviderDescriptor {
+    pub source_family: AddonSourceFamily,
+    pub provider_id: &'static str,
+    pub provider_name: &'static str,
+    pub input_prefix: Option<&'static str>,
+    pub operations: AddonProviderOperationCapabilities,
+    pub policy: AddonProviderPolicyCapabilities,
+}
+
+impl AddonProviderDescriptor {
+    pub fn source_capability(self) -> AddonProviderSourceCapability {
+        AddonProviderSourceCapability {
+            source_family: self.source_family,
+            provider_id: self.provider_id,
+            provider_name: self.provider_name,
+            input_prefix: self.input_prefix,
+            can_parse_input: self.operations.can_parse_input,
+            can_materialize: self.operations.can_materialize,
+            can_search: self.operations.can_search,
+            dependency_resolution: self.operations.dependency_resolution,
+            supports_release_channel: self.policy.supports_release_channel,
+            supports_prerelease: self.policy.supports_prerelease,
+            supports_version_pin: self.policy.supports_version_pin,
+            supports_file_id_pin: self.policy.supports_file_id_pin,
+            supports_remote_cache_validators: self.operations.supports_remote_cache_validators,
         }
     }
 }
@@ -66,88 +132,265 @@ pub struct AddonProviderSourceCapability {
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct AddonProviderRegistry;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuiltinAddonProviderAdapter {
+    LocalArchive,
+    HttpArchive,
+    CurseForge,
+    GitHub,
+}
+
+const BUILTIN_PROVIDER_ADAPTERS: &[BuiltinAddonProviderAdapter] = &[
+    BuiltinAddonProviderAdapter::LocalArchive,
+    BuiltinAddonProviderAdapter::HttpArchive,
+    BuiltinAddonProviderAdapter::CurseForge,
+    BuiltinAddonProviderAdapter::GitHub,
+];
+
+impl BuiltinAddonProviderAdapter {
+    fn descriptor(self) -> AddonProviderDescriptor {
+        match self {
+            Self::LocalArchive => AddonProviderDescriptor {
+                source_family: AddonSourceFamily::LOCAL_ARCHIVE,
+                provider_id: "local",
+                provider_name: "Local archive",
+                input_prefix: None,
+                operations: AddonProviderOperationCapabilities {
+                    can_parse_input: true,
+                    can_materialize: true,
+                    can_search: false,
+                    dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
+                    supports_remote_cache_validators: false,
+                },
+                policy: AddonProviderPolicyCapabilities {
+                    supports_release_channel: false,
+                    supports_prerelease: false,
+                    supports_version_pin: false,
+                    supports_file_id_pin: false,
+                },
+            },
+            Self::HttpArchive => AddonProviderDescriptor {
+                source_family: AddonSourceFamily::HTTP_ARCHIVE,
+                provider_id: "http",
+                provider_name: "HTTP archive",
+                input_prefix: Some("http:// or https://"),
+                operations: AddonProviderOperationCapabilities {
+                    can_parse_input: true,
+                    can_materialize: true,
+                    can_search: false,
+                    dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
+                    supports_remote_cache_validators: true,
+                },
+                policy: AddonProviderPolicyCapabilities {
+                    supports_release_channel: false,
+                    supports_prerelease: false,
+                    supports_version_pin: false,
+                    supports_file_id_pin: false,
+                },
+            },
+            Self::CurseForge => AddonProviderDescriptor {
+                source_family: AddonSourceFamily::CURSEFORGE_MOD,
+                provider_id: "curseforge",
+                provider_name: "CurseForge",
+                input_prefix: Some("curseforge:"),
+                operations: AddonProviderOperationCapabilities {
+                    can_parse_input: true,
+                    can_materialize: true,
+                    can_search: true,
+                    dependency_resolution:
+                        AddonDependencyResolutionCapability::missing_required_only(),
+                    supports_remote_cache_validators: true,
+                },
+                policy: AddonProviderPolicyCapabilities {
+                    supports_release_channel: true,
+                    supports_prerelease: true,
+                    supports_version_pin: false,
+                    supports_file_id_pin: true,
+                },
+            },
+            Self::GitHub => AddonProviderDescriptor {
+                source_family: AddonSourceFamily::GITHUB_RELEASE,
+                provider_id: "github",
+                provider_name: "GitHub Releases",
+                input_prefix: Some("github:"),
+                operations: AddonProviderOperationCapabilities {
+                    can_parse_input: true,
+                    can_materialize: true,
+                    can_search: false,
+                    dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
+                    supports_remote_cache_validators: true,
+                },
+                policy: AddonProviderPolicyCapabilities {
+                    supports_release_channel: true,
+                    supports_prerelease: true,
+                    supports_version_pin: true,
+                    supports_file_id_pin: false,
+                },
+            },
+        }
+    }
+
+    fn matches_source(self, source: &AddonSourceRef) -> bool {
+        self.descriptor().source_family == AddonSourceFamily::from_source(source)
+    }
+
+    fn accepts_source_input(self, source: &str) -> bool {
+        match self {
+            Self::LocalArchive => addon_source_input_is_local_archive(source),
+            Self::HttpArchive => is_http_url(source),
+            Self::CurseForge => source.starts_with("curseforge:"),
+            Self::GitHub => source.starts_with("github:"),
+        }
+    }
+
+    fn parse_source_input(self, source: &str) -> AppResult<Option<AddonSourceRef>> {
+        if !self.descriptor().operations.can_parse_input || !self.accepts_source_input(source) {
+            return Ok(None);
+        }
+
+        match self {
+            Self::LocalArchive => {
+                let path = canonicalize_local_archive_path(Path::new(source))?;
+                Ok(Some(AddonSourceRef::LocalArchive { path }))
+            }
+            Self::HttpArchive => Ok(Some(AddonSourceRef::HttpArchive {
+                url: source.to_string(),
+            })),
+            Self::CurseForge => parse_curseforge_source(source),
+            Self::GitHub => parse_github_source(source),
+        }
+    }
+
+    fn materialize_source_ref(
+        self,
+        registry: AddonProviderRegistry,
+        http_client: &impl HttpClient,
+        source: &AddonSourceRef,
+        stage_root: &Path,
+        context: AddonProviderContext<'_>,
+        options: &AddonProviderOptions,
+    ) -> AppResult<MaterializedAddonSource> {
+        match (self, source) {
+            (Self::LocalArchive, AddonSourceRef::LocalArchive { path }) => {
+                materialize_local_archive_source(source, path)
+            }
+            (Self::HttpArchive, AddonSourceRef::HttpArchive { url }) => {
+                materialize_http_archive_source(
+                    http_client,
+                    source,
+                    url,
+                    stage_root,
+                    context.cancellation,
+                    context.download_progress,
+                    options,
+                )
+            }
+            (Self::CurseForge, AddonSourceRef::CurseForgeMod { mod_id, file_id }) => {
+                let artifact = registry.resolve_curseforge_artifact(
+                    http_client,
+                    *mod_id,
+                    *file_id,
+                    context,
+                )?;
+                let archive_path = materialize_downloaded_archive(
+                    http_client,
+                    artifact,
+                    stage_root,
+                    context.cancellation,
+                    context.download_progress,
+                    options,
+                )?;
+                Ok(MaterializedAddonSource {
+                    source_ref: source.clone(),
+                    archive_path,
+                })
+            }
+            (
+                Self::GitHub,
+                AddonSourceRef::GitHubRelease {
+                    owner,
+                    repo,
+                    tag,
+                    asset_name,
+                },
+            ) => {
+                let artifact = registry.resolve_github_artifact(
+                    http_client,
+                    owner,
+                    repo,
+                    tag.as_deref(),
+                    asset_name.as_deref(),
+                    context,
+                )?;
+                let archive_path = materialize_downloaded_archive(
+                    http_client,
+                    artifact,
+                    stage_root,
+                    context.cancellation,
+                    context.download_progress,
+                    options,
+                )?;
+                Ok(MaterializedAddonSource {
+                    source_ref: source.clone(),
+                    archive_path,
+                })
+            }
+            _ => Err(AppError::Validation(format!(
+                "addon source `{}` is not handled by provider `{}`",
+                source.display_name(),
+                self.descriptor().provider_id
+            ))),
+        }
+    }
+
+    fn resolve_addon_dependencies(
+        self,
+        http_client: &impl HttpClient,
+        request: ResolveAddonDependenciesRequest<'_>,
+    ) -> AppResult<ResolvedAddonDependencies> {
+        match self {
+            Self::CurseForge => {
+                resolve_source_dependencies_impl(http_client, request.source, request.context)
+            }
+            Self::LocalArchive | Self::HttpArchive | Self::GitHub => {
+                Err(unsupported_dependency_error(request.source))
+            }
+        }
+    }
+
+    fn search_addons(
+        self,
+        http_client: &impl HttpClient,
+        request: AddonSearchRequest<'_>,
+    ) -> AppResult<Vec<AddonSearchResult>> {
+        match self {
+            Self::CurseForge => {
+                search_addons_impl(http_client, request.query, request.flavor, request.limit)
+            }
+            Self::LocalArchive | Self::HttpArchive | Self::GitHub => Ok(Vec::new()),
+        }
+    }
+}
+
 impl AddonProviderRegistry {
     pub(super) fn new() -> Self {
         Self
     }
 
-    pub(super) fn source_capabilities(&self) -> Vec<AddonProviderSourceCapability> {
-        vec![
-            AddonProviderSourceCapability {
-                source_family: AddonSourceFamily::LocalArchive,
-                provider_id: "local",
-                provider_name: "Local archive",
-                input_prefix: None,
-                can_parse_input: true,
-                can_materialize: true,
-                can_search: false,
-                dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
-                supports_release_channel: false,
-                supports_prerelease: false,
-                supports_version_pin: false,
-                supports_file_id_pin: false,
-                supports_remote_cache_validators: false,
-            },
-            AddonProviderSourceCapability {
-                source_family: AddonSourceFamily::HttpArchive,
-                provider_id: "http",
-                provider_name: "HTTP archive",
-                input_prefix: Some("http:// or https://"),
-                can_parse_input: true,
-                can_materialize: true,
-                can_search: false,
-                dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
-                supports_release_channel: false,
-                supports_prerelease: false,
-                supports_version_pin: false,
-                supports_file_id_pin: false,
-                supports_remote_cache_validators: true,
-            },
-            AddonProviderSourceCapability {
-                source_family: AddonSourceFamily::CurseForgeMod,
-                provider_id: "curseforge",
-                provider_name: "CurseForge",
-                input_prefix: Some("curseforge:"),
-                can_parse_input: true,
-                can_materialize: true,
-                can_search: true,
-                dependency_resolution: AddonDependencyResolutionCapability::missing_required_only(),
-                supports_release_channel: true,
-                supports_prerelease: true,
-                supports_version_pin: false,
-                supports_file_id_pin: true,
-                supports_remote_cache_validators: true,
-            },
-            AddonProviderSourceCapability {
-                source_family: AddonSourceFamily::GitHubRelease,
-                provider_id: "github",
-                provider_name: "GitHub Releases",
-                input_prefix: Some("github:"),
-                can_parse_input: true,
-                can_materialize: true,
-                can_search: false,
-                dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
-                supports_release_channel: true,
-                supports_prerelease: true,
-                supports_version_pin: true,
-                supports_file_id_pin: false,
-                supports_remote_cache_validators: true,
-            },
-        ]
+    pub(super) fn provider_descriptors(&self) -> Vec<AddonProviderDescriptor> {
+        self.provider_adapters()
+            .iter()
+            .map(|adapter| adapter.descriptor())
+            .collect()
     }
 
     pub(super) fn dependency_resolution_capability(
         &self,
         source: &AddonSourceRef,
     ) -> AddonDependencyResolutionCapability {
-        match AddonSourceFamily::from_source(source) {
-            AddonSourceFamily::CurseForgeMod => {
-                AddonDependencyResolutionCapability::missing_required_only()
-            }
-            AddonSourceFamily::LocalArchive
-            | AddonSourceFamily::HttpArchive
-            | AddonSourceFamily::GitHubRelease => AddonDependencyResolutionCapability::Unsupported,
-        }
+        self.provider_for_source(source)
+            .map(|adapter| adapter.descriptor().operations.dependency_resolution)
+            .unwrap_or(AddonDependencyResolutionCapability::Unsupported)
     }
 
     pub(super) fn materialize_source_input(
@@ -170,61 +413,14 @@ impl AddonProviderRegistry {
         context: AddonProviderContext<'_>,
         options: &AddonProviderOptions,
     ) -> AppResult<MaterializedAddonSource> {
-        match source {
-            AddonSourceRef::LocalArchive { path } => materialize_local_archive_source(source, path),
-            AddonSourceRef::HttpArchive { url } => materialize_http_archive_source(
-                http_client,
-                source,
-                url,
-                stage_root,
-                context.cancellation,
-                context.download_progress,
-                options,
-            ),
-            AddonSourceRef::CurseForgeMod { mod_id, file_id } => {
-                let artifact =
-                    self.resolve_curseforge_artifact(http_client, *mod_id, *file_id, context)?;
-                let archive_path = materialize_downloaded_archive(
-                    http_client,
-                    artifact,
-                    stage_root,
-                    context.cancellation,
-                    context.download_progress,
-                    options,
-                )?;
-                Ok(MaterializedAddonSource {
-                    source_ref: source.clone(),
-                    archive_path,
-                })
-            }
-            AddonSourceRef::GitHubRelease {
-                owner,
-                repo,
-                tag,
-                asset_name,
-            } => {
-                let artifact = self.resolve_github_artifact(
-                    http_client,
-                    owner,
-                    repo,
-                    tag.as_deref(),
-                    asset_name.as_deref(),
-                    context,
-                )?;
-                let archive_path = materialize_downloaded_archive(
-                    http_client,
-                    artifact,
-                    stage_root,
-                    context.cancellation,
-                    context.download_progress,
-                    options,
-                )?;
-                Ok(MaterializedAddonSource {
-                    source_ref: source.clone(),
-                    archive_path,
-                })
-            }
-        }
+        self.provider_for_source(source)?.materialize_source_ref(
+            *self,
+            http_client,
+            source,
+            stage_root,
+            context,
+            options,
+        )
     }
 
     pub(super) fn resolve_addon_dependencies(
@@ -232,7 +428,8 @@ impl AddonProviderRegistry {
         http_client: &impl HttpClient,
         request: ResolveAddonDependenciesRequest<'_>,
     ) -> AppResult<ResolvedAddonDependencies> {
-        resolve_source_dependencies_impl(http_client, request.source, request.context)
+        self.provider_for_source(request.source)?
+            .resolve_addon_dependencies(http_client, request)
     }
 
     pub(super) fn search_addons(
@@ -240,26 +437,46 @@ impl AddonProviderRegistry {
         http_client: &impl HttpClient,
         request: AddonSearchRequest<'_>,
     ) -> AppResult<Vec<AddonSearchResult>> {
-        search_addons_impl(http_client, request.query, request.flavor, request.limit)
+        let mut results = Vec::new();
+        for adapter in self.provider_adapters() {
+            if !adapter.descriptor().operations.can_search {
+                continue;
+            }
+            results.extend(adapter.search_addons(http_client, request)?);
+        }
+        Ok(results)
     }
 
     fn parse_source_input(&self, source: &str) -> AppResult<AddonSourceRef> {
-        if let Some(source_ref) = parse_curseforge_source(source)? {
-            return Ok(source_ref);
+        for adapter in self.provider_adapters() {
+            if let Some(source_ref) = adapter.parse_source_input(source)? {
+                return Ok(source_ref);
+            }
         }
 
-        if let Some(source_ref) = parse_github_source(source)? {
-            return Ok(source_ref);
-        }
+        Err(AppError::Validation(format!(
+            "addon source input is not supported by any registered provider: {source}"
+        )))
+    }
 
-        if is_http_url(source) {
-            return Ok(AddonSourceRef::HttpArchive {
-                url: source.to_string(),
-            });
-        }
+    fn provider_adapters(&self) -> &'static [BuiltinAddonProviderAdapter] {
+        BUILTIN_PROVIDER_ADAPTERS
+    }
 
-        let path = canonicalize_local_archive_path(Path::new(source))?;
-        Ok(AddonSourceRef::LocalArchive { path })
+    fn provider_for_source(
+        &self,
+        source: &AddonSourceRef,
+    ) -> AppResult<BuiltinAddonProviderAdapter> {
+        self.provider_adapters()
+            .iter()
+            .copied()
+            .find(|adapter| adapter.matches_source(source))
+            .ok_or_else(|| {
+                AppError::Validation(format!(
+                    "addon source family `{}` is not handled by any registered provider",
+                    AddonSourceFamily::from_source(source).id()
+                ))
+            })
     }
 
     fn resolve_curseforge_artifact(
@@ -335,4 +552,12 @@ pub(super) fn http_archive_artifact_name(url: &str) -> String {
 
 pub(super) fn validate_persisted_local_source(path: &Path) -> AppResult<()> {
     validate_absolute_local_archive_source_path(path)
+}
+
+fn unsupported_dependency_error(source: &AddonSourceRef) -> AppError {
+    AppError::Validation(format!(
+        "addon dependency installation is currently only supported for CurseForge sources, but `{}` uses `{}`",
+        source.display_name(),
+        source_kind_label(source),
+    ))
 }

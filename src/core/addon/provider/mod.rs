@@ -25,7 +25,10 @@ pub use self::cache::{
 pub use self::default_provider::{
     AddonProviderOptions, AddonProviderRetryPolicy, DefaultAddonProvider,
 };
-pub use self::registry::{AddonProviderSourceCapability, AddonSourceFamily};
+pub use self::registry::{
+    AddonProviderDescriptor, AddonProviderOperationCapabilities, AddonProviderPolicyCapabilities,
+    AddonProviderSourceCapability, AddonSourceFamily,
+};
 pub use self::source::AddonSourceRef;
 pub(crate) use self::source::{
     addon_source_input_is_local_archive, canonicalize_local_archive_path,
@@ -232,8 +235,15 @@ pub trait AddonProvider {
         AddonDependencyResolutionCapability::Unsupported
     }
 
-    fn source_capabilities(&self) -> Vec<AddonProviderSourceCapability> {
+    fn provider_descriptors(&self) -> Vec<AddonProviderDescriptor> {
         Vec::new()
+    }
+
+    fn source_capabilities(&self) -> Vec<AddonProviderSourceCapability> {
+        self.provider_descriptors()
+            .into_iter()
+            .map(AddonProviderDescriptor::source_capability)
+            .collect()
     }
 
     fn resolve_addon_dependencies(

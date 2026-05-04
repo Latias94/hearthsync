@@ -30,11 +30,12 @@ use self::provider::AddonSearchRequest as ProviderAddonSearchRequest;
 pub use self::provider::{
     AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy,
     AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult, AddonDownloadProgressObserver,
-    AddonProvider, AddonProviderContext, AddonProviderOptions, AddonProviderRetryPolicy,
-    AddonProviderSourceCapability, AddonSearchRequest, AddonSearchResult, AddonSourceFamily,
-    AddonSourceRef, AddonSourceResolutionPolicy, DefaultAddonProvider, HttpNoValidatorCachePolicy,
-    MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
-    ResolvedAddonDependencies,
+    AddonProvider, AddonProviderContext, AddonProviderDescriptor,
+    AddonProviderOperationCapabilities, AddonProviderOptions, AddonProviderPolicyCapabilities,
+    AddonProviderRetryPolicy, AddonProviderSourceCapability, AddonSearchRequest, AddonSearchResult,
+    AddonSourceFamily, AddonSourceRef, AddonSourceResolutionPolicy, DefaultAddonProvider,
+    HttpNoValidatorCachePolicy, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
+    MaterializedAddonSource, ResolvedAddonDependencies,
 };
 use self::registry::registry_path;
 pub use self::relink::relink_addon;

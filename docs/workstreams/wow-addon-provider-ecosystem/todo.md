@@ -2,8 +2,9 @@
 
 ## Current Focus
 
-Build a provider registry and capability model that lets HearthSync add more addon sources without
-turning `AddonSourceRef` and `DefaultAddonProvider` into a growing cross-cutting dispatch hub.
+Evolve the provider registry from the first skeleton into descriptor-backed adapters, so current
+sources stay compatible while future Wago, WoWInterface, and custom catalog providers have a stable
+registration shape to target.
 
 ## Refactor Rules
 
@@ -30,17 +31,36 @@ Exit criteria:
 Goal: route current provider families through one registry-oriented interface while preserving
 existing behavior.
 
-- [ ] Define provider ids and source family ids.
-- [ ] Add a registry object that owns source parser and materializer dispatch.
-- [ ] Move current local archive, HTTP archive, GitHub, and CurseForge source dispatch behind
+- [x] Define provider ids and source family ids.
+- [x] Add a registry object that owns source parser and materializer dispatch.
+- [x] Move current local archive, HTTP archive, GitHub, and CurseForge source dispatch behind
   registry adapters.
-- [ ] Keep existing `AddonSourceRef` serialization compatible.
-- [ ] Keep current install/update/index/lock tests passing without behavioral changes.
+- [x] Keep existing `AddonSourceRef` serialization compatible.
+- [x] Keep current install/update/index/lock tests passing without behavioral changes.
 
 Exit criteria:
 
 - Adding a new provider does not require editing install/update execution modules.
 - Current source kinds continue to parse, serialize, materialize, and update as before.
+
+## P1.5 - Descriptor-Backed Registry
+
+Goal: make registry entries self-describing before adding a new real provider.
+
+- [x] Add provider descriptors separate from app-facing capability projection.
+- [x] Route source parsing/materialization through registered built-in provider adapters.
+- [x] Make source family ids string-backed so future provider family ids can cross the app boundary
+  without another DTO enum expansion.
+- [x] Derive source capabilities from descriptors rather than maintaining a separate hard-coded
+  capability table.
+- [x] Preserve current local archive, HTTP archive, GitHub Releases, and CurseForge behavior.
+
+Exit criteria:
+
+- Runtime capability output is descriptor-derived.
+- Provider descriptor ids and source family ids are stable, non-empty, and tested.
+- Future provider work can start from a new adapter descriptor without changing install/update
+  execution modules.
 
 ## P2 - Capability-Owned Policy
 
