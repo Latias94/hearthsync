@@ -8,10 +8,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::error::{AppError, AppResult};
+use crate::core::error::AppResult;
 use crate::core::install::DetectedFlavorInstallation;
 
-use super::provider::AddonSourceResolutionPolicy;
+use super::provider::{AddonProvider, AddonSourceResolutionPolicy, ApplyAddonSourcePolicyRequest};
 use super::{AddonSourceRef, AddonStatePaths, TrackedAddonPackage};
 
 pub(crate) use self::storage::load_addon_policy_state;
@@ -216,14 +216,25 @@ impl AddonUpdatePolicySnapshot {
         })
     }
 
-    pub(crate) fn provider_update_policy(
+    pub(crate) fn provider_update_policy<P>(
         &self,
+        provider: &P,
         package: &TrackedAddonPackage,
-    ) -> AppResult<ProviderAddonUpdatePolicy> {
+    ) -> AppResult<ProviderAddonUpdatePolicy>
+    where
+        P: AddonProvider + ?Sized,
+    {
         let entry = self.entry_for_package(package);
+        let resolution_policy = provider_resolution_policy(entry);
+        let applied = provider.apply_source_policy(ApplyAddonSourcePolicyRequest {
+            source: &package.source,
+            pin: entry.and_then(|value| value.pin.as_ref()),
+            resolution_policy,
+        })?;
+
         Ok(ProviderAddonUpdatePolicy {
-            effective_source: apply_source_policy(&package.source, entry)?,
-            resolution_policy: provider_resolution_policy(entry),
+            effective_source: applied.source,
+            resolution_policy: applied.resolution_policy,
             install_dependencies: entry
                 .and_then(|value| value.install_dependencies)
                 .unwrap_or(false),
@@ -252,59 +263,6 @@ impl AddonUpdatePolicySnapshot {
     fn entry_for_package(&self, package: &TrackedAddonPackage) -> Option<&AddonPolicyPackageEntry> {
         self.entries
             .get(&normalize_package_key(&package.package_id))
-    }
-}
-
-fn apply_source_policy(
-    source: &AddonSourceRef,
-    entry: Option<&AddonPolicyPackageEntry>,
-) -> AppResult<AddonSourceRef> {
-    let Some(entry) = entry else {
-        return Ok(source.clone());
-    };
-    let Some(pin) = &entry.pin else {
-        return Ok(source.clone());
-    };
-
-    match (source, pin) {
-        (AddonSourceRef::CurseForgeMod { mod_id, .. }, AddonPolicyPin::FileId { value }) => {
-            Ok(AddonSourceRef::CurseForgeMod {
-                mod_id: *mod_id,
-                file_id: Some(*value),
-            })
-        }
-        (
-            AddonSourceRef::GitHubRelease {
-                owner,
-                repo,
-                asset_name,
-                ..
-            },
-            AddonPolicyPin::Version { value },
-        ) => Ok(AddonSourceRef::GitHubRelease {
-            owner: owner.clone(),
-            repo: repo.clone(),
-            tag: Some(value.clone()),
-            asset_name: asset_name.clone(),
-        }),
-        (AddonSourceRef::CurseForgeMod { .. }, AddonPolicyPin::Version { .. }) => {
-            Err(AppError::Validation(
-                "addon policy pinned version is not supported for CurseForge sources yet"
-                    .to_string(),
-            ))
-        }
-        (AddonSourceRef::GitHubRelease { .. }, AddonPolicyPin::FileId { .. }) => {
-            Err(AppError::Validation(
-                "addon policy pinned file id is not supported for GitHub release sources"
-                    .to_string(),
-            ))
-        }
-        (AddonSourceRef::LocalArchive { .. }, _) | (AddonSourceRef::HttpArchive { .. }, _) => {
-            Err(AppError::Validation(
-                "addon policy pinning is only supported for provider-backed addon sources"
-                    .to_string(),
-            ))
-        }
     }
 }
 

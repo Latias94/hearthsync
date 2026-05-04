@@ -11,9 +11,9 @@ use super::http::{
 use super::registry::AddonProviderRegistry;
 use super::{
     AddonDependencyResolutionCapability, AddonProvider, AddonProviderDescriptor,
-    AddonSearchRequest, AddonSearchResult, AddonSourceRef, MaterializeSourceInputRequest,
-    MaterializeSourceRefRequest, MaterializedAddonSource, ResolveAddonDependenciesRequest,
-    ResolvedAddonDependencies,
+    AddonSearchRequest, AddonSearchResult, AddonSourceRef, AppliedAddonSourcePolicy,
+    ApplyAddonSourcePolicyRequest, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
+    MaterializedAddonSource, ResolveAddonDependenciesRequest, ResolvedAddonDependencies,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
@@ -172,6 +172,13 @@ where
         AddonProviderRegistry::new().provider_descriptors()
     }
 
+    fn apply_source_policy(
+        &self,
+        request: ApplyAddonSourcePolicyRequest<'_>,
+    ) -> AppResult<AppliedAddonSourcePolicy> {
+        AddonProviderRegistry::new().apply_source_policy(request)
+    }
+
     fn resolve_addon_dependencies(
         &self,
         request: ResolveAddonDependenciesRequest<'_>,
@@ -226,8 +233,12 @@ mod default_provider_tests {
     use zip::write::SimpleFileOptions;
 
     use super::super::http::HttpResponse;
-    use super::super::{AddonProviderContext, AddonProviderSourceCapability, AddonSourceFamily};
+    use super::super::{
+        AddonProviderContext, AddonProviderSourceCapability, AddonSourceFamily,
+        AddonSourceResolutionPolicy,
+    };
     use super::*;
+    use crate::core::addon::policy::{AddonPolicyPin, AddonReleaseChannel};
 
     #[test]
     fn default_addon_provider_reports_dependency_resolution_capability_by_source_kind() {
@@ -351,6 +362,122 @@ mod default_provider_tests {
                     source_family
                 )
             })
+    }
+
+    #[test]
+    fn default_addon_provider_applies_source_policy_through_provider_capabilities() {
+        let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+        let curseforge_source = AddonSourceRef::CurseForgeMod {
+            mod_id: 42,
+            file_id: None,
+        };
+        let curseforge_file_pin = AddonPolicyPin::FileId { value: 777 };
+        let release_policy = AddonSourceResolutionPolicy {
+            release_channel: Some(AddonReleaseChannel::Alpha),
+            allow_prerelease: Some(true),
+        };
+
+        let applied = provider
+            .apply_source_policy(ApplyAddonSourcePolicyRequest {
+                source: &curseforge_source,
+                pin: Some(&curseforge_file_pin),
+                resolution_policy: release_policy,
+            })
+            .expect("apply curseforge policy");
+
+        assert_eq!(
+            applied.source,
+            AddonSourceRef::CurseForgeMod {
+                mod_id: 42,
+                file_id: Some(777),
+            }
+        );
+        assert_eq!(applied.resolution_policy, release_policy);
+
+        let github_source = AddonSourceRef::GitHubRelease {
+            owner: "owner".to_string(),
+            repo: "repo".to_string(),
+            tag: None,
+            asset_name: Some("addon.zip".to_string()),
+        };
+        let github_version_pin = AddonPolicyPin::Version {
+            value: "v2.0.0".to_string(),
+        };
+
+        let applied = provider
+            .apply_source_policy(ApplyAddonSourcePolicyRequest {
+                source: &github_source,
+                pin: Some(&github_version_pin),
+                resolution_policy: release_policy,
+            })
+            .expect("apply github policy");
+
+        assert_eq!(
+            applied.source,
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: Some("v2.0.0".to_string()),
+                asset_name: Some("addon.zip".to_string()),
+            }
+        );
+        assert_eq!(applied.resolution_policy, release_policy);
+    }
+
+    #[test]
+    fn default_addon_provider_rejects_unsupported_source_policy_before_materialization() {
+        let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+        let github_source = AddonSourceRef::GitHubRelease {
+            owner: "owner".to_string(),
+            repo: "repo".to_string(),
+            tag: None,
+            asset_name: Some("addon.zip".to_string()),
+        };
+        let file_pin = AddonPolicyPin::FileId { value: 777 };
+
+        let error = provider
+            .apply_source_policy(ApplyAddonSourcePolicyRequest {
+                source: &github_source,
+                pin: Some(&file_pin),
+                resolution_policy: AddonSourceResolutionPolicy::default(),
+            })
+            .expect_err("github file id pin should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("pinned file id is not supported")
+        );
+        assert!(error.to_string().contains("provider: github"));
+        assert!(error.to_string().contains("capability: file id pin"));
+
+        let local_source = AddonSourceRef::LocalArchive {
+            path: std::path::PathBuf::from("C:\\addons\\WeakAuras.zip"),
+        };
+        let error = provider
+            .apply_source_policy(ApplyAddonSourcePolicyRequest {
+                source: &local_source,
+                pin: None,
+                resolution_policy: AddonSourceResolutionPolicy {
+                    release_channel: Some(AddonReleaseChannel::Stable),
+                    allow_prerelease: None,
+                },
+            })
+            .expect_err("local release channel should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("release channel is not supported")
+        );
+        assert!(error.to_string().contains("provider: local"));
+        assert!(
+            error
+                .to_string()
+                .contains("capability: release channel policy")
+        );
     }
 
     #[test]

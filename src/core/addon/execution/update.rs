@@ -180,7 +180,7 @@ where
     let mut dependency_prepared_packages = Vec::new();
     let mut planned_dependency_keys = BTreeSet::new();
     for package in &selected_packages {
-        let package_policy = policies.provider_update_policy(package)?;
+        let package_policy = policies.provider_update_policy(provider, package)?;
         let mut prepared = prepare_package_from_source_ref_task_with_provider(
             provider,
             PreparePackageFromSourceRefTaskRequest::new(

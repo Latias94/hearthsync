@@ -34,7 +34,7 @@ pub(crate) use self::source::{
     addon_source_input_is_local_archive, canonicalize_local_archive_path,
     validate_absolute_local_archive_source_path, validate_addon_source_ref,
 };
-use super::policy::AddonReleaseChannel;
+use super::policy::{AddonPolicyPin, AddonReleaseChannel};
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::WowFlavor;
 use crate::core::task::CancellationToken;
@@ -63,6 +63,19 @@ pub struct MaterializeSourceRefRequest<'a> {
 pub struct ResolveAddonDependenciesRequest<'a> {
     pub source: &'a AddonSourceRef,
     pub context: AddonProviderContext<'a>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ApplyAddonSourcePolicyRequest<'a> {
+    pub source: &'a AddonSourceRef,
+    pub pin: Option<&'a AddonPolicyPin>,
+    pub resolution_policy: AddonSourceResolutionPolicy,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedAddonSourcePolicy {
+    pub source: AddonSourceRef,
+    pub resolution_policy: AddonSourceResolutionPolicy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -246,6 +259,13 @@ pub trait AddonProvider {
             .collect()
     }
 
+    fn apply_source_policy(
+        &self,
+        request: ApplyAddonSourcePolicyRequest<'_>,
+    ) -> AppResult<AppliedAddonSourcePolicy> {
+        apply_builtin_source_policy(request)
+    }
+
     fn resolve_addon_dependencies(
         &self,
         _request: ResolveAddonDependenciesRequest<'_>,
@@ -268,4 +288,64 @@ pub trait AddonProvider {
     }
 
     fn search_addons(&self, request: AddonSearchRequest<'_>) -> AppResult<Vec<AddonSearchResult>>;
+}
+
+fn apply_builtin_source_policy(
+    request: ApplyAddonSourcePolicyRequest<'_>,
+) -> AppResult<AppliedAddonSourcePolicy> {
+    let source = match request.pin {
+        Some(AddonPolicyPin::FileId { value }) => apply_builtin_file_id_pin(request.source, *value),
+        Some(AddonPolicyPin::Version { value }) => {
+            apply_builtin_version_pin(request.source, value.clone())
+        }
+        None => Ok(request.source.clone()),
+    }?;
+
+    Ok(AppliedAddonSourcePolicy {
+        source,
+        resolution_policy: request.resolution_policy,
+    })
+}
+
+fn apply_builtin_file_id_pin(source: &AddonSourceRef, value: u32) -> AppResult<AddonSourceRef> {
+    match source {
+        AddonSourceRef::CurseForgeMod { mod_id, .. } => Ok(AddonSourceRef::CurseForgeMod {
+            mod_id: *mod_id,
+            file_id: Some(value),
+        }),
+        AddonSourceRef::GitHubRelease { .. } => Err(AppError::Validation(
+            "addon policy pinned file id is not supported for GitHub release sources".to_string(),
+        )),
+        AddonSourceRef::LocalArchive { .. } | AddonSourceRef::HttpArchive { .. } => {
+            Err(AppError::Validation(
+                "addon policy pinning is only supported for provider-backed addon sources"
+                    .to_string(),
+            ))
+        }
+    }
+}
+
+fn apply_builtin_version_pin(source: &AddonSourceRef, value: String) -> AppResult<AddonSourceRef> {
+    match source {
+        AddonSourceRef::GitHubRelease {
+            owner,
+            repo,
+            asset_name,
+            ..
+        } => Ok(AddonSourceRef::GitHubRelease {
+            owner: owner.clone(),
+            repo: repo.clone(),
+            tag: Some(value),
+            asset_name: asset_name.clone(),
+        }),
+        AddonSourceRef::CurseForgeMod { .. } => Err(AppError::Validation(
+            "addon policy pinned version is not supported for CurseForge sources yet".to_string(),
+        )),
+        AddonSourceRef::LocalArchive { .. } | AddonSourceRef::HttpArchive { .. } => {
+            Err(AppError::Validation(
+                "addon policy pinning is only supported for provider-backed addon sources"
+                    .to_string(),
+            ))
+        }
+    }
 }

@@ -33,9 +33,10 @@ pub use self::provider::{
     AddonProvider, AddonProviderContext, AddonProviderDescriptor,
     AddonProviderOperationCapabilities, AddonProviderOptions, AddonProviderPolicyCapabilities,
     AddonProviderRetryPolicy, AddonProviderSourceCapability, AddonSearchRequest, AddonSearchResult,
-    AddonSourceFamily, AddonSourceRef, AddonSourceResolutionPolicy, DefaultAddonProvider,
-    HttpNoValidatorCachePolicy, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
-    MaterializedAddonSource, ResolvedAddonDependencies,
+    AddonSourceFamily, AddonSourceRef, AddonSourceResolutionPolicy, AppliedAddonSourcePolicy,
+    ApplyAddonSourcePolicyRequest, DefaultAddonProvider, HttpNoValidatorCachePolicy,
+    MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
+    ResolvedAddonDependencies,
 };
 use self::registry::registry_path;
 pub use self::relink::relink_addon;

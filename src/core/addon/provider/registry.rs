@@ -24,9 +24,11 @@ use super::source_adapter::{
 };
 use super::{
     AddonDependencyResolutionCapability, AddonProviderContext, AddonProviderOptions,
-    AddonSearchRequest, AddonSearchResult, AddonSourceRef, MaterializedAddonSource,
+    AddonSearchRequest, AddonSearchResult, AddonSourceRef, AddonSourceResolutionPolicy,
+    AppliedAddonSourcePolicy, ApplyAddonSourcePolicyRequest, MaterializedAddonSource,
     ResolveAddonDependenciesRequest, ResolvedAddonDependencies,
 };
+use crate::core::addon::policy::AddonPolicyPin;
 use crate::core::boundary_validation::is_http_url;
 use crate::core::error::{AppError, AppResult};
 
@@ -358,6 +360,85 @@ impl BuiltinAddonProviderAdapter {
         }
     }
 
+    fn apply_source_policy(
+        self,
+        request: ApplyAddonSourcePolicyRequest<'_>,
+    ) -> AppResult<AppliedAddonSourcePolicy> {
+        let descriptor = self.descriptor();
+        validate_resolution_policy_support(descriptor, request.source, request.resolution_policy)?;
+        let source = match request.pin {
+            Some(pin) => self.apply_source_pin(request.source, pin)?,
+            None => request.source.clone(),
+        };
+
+        Ok(AppliedAddonSourcePolicy {
+            source,
+            resolution_policy: request.resolution_policy,
+        })
+    }
+
+    fn apply_source_pin(
+        self,
+        source: &AddonSourceRef,
+        pin: &AddonPolicyPin,
+    ) -> AppResult<AddonSourceRef> {
+        let descriptor = self.descriptor();
+        match (self, source, pin) {
+            (
+                Self::CurseForge,
+                AddonSourceRef::CurseForgeMod { mod_id, .. },
+                AddonPolicyPin::FileId { value },
+            ) if descriptor.policy.supports_file_id_pin => Ok(AddonSourceRef::CurseForgeMod {
+                mod_id: *mod_id,
+                file_id: Some(*value),
+            }),
+            (
+                Self::GitHub,
+                AddonSourceRef::GitHubRelease {
+                    owner,
+                    repo,
+                    asset_name,
+                    ..
+                },
+                AddonPolicyPin::Version { value },
+            ) if descriptor.policy.supports_version_pin => Ok(AddonSourceRef::GitHubRelease {
+                owner: owner.clone(),
+                repo: repo.clone(),
+                tag: Some(value.clone()),
+                asset_name: asset_name.clone(),
+            }),
+            (
+                Self::CurseForge,
+                AddonSourceRef::CurseForgeMod { .. },
+                AddonPolicyPin::Version { .. },
+            ) => Err(unsupported_policy_error(
+                descriptor,
+                source,
+                "version pin",
+                "addon policy pinned version is not supported for CurseForge sources yet",
+            )),
+            (Self::GitHub, AddonSourceRef::GitHubRelease { .. }, AddonPolicyPin::FileId { .. }) => {
+                Err(unsupported_policy_error(
+                    descriptor,
+                    source,
+                    "file id pin",
+                    "addon policy pinned file id is not supported for GitHub release sources",
+                ))
+            }
+            (Self::LocalArchive | Self::HttpArchive, _, _) => Err(unsupported_policy_error(
+                descriptor,
+                source,
+                "pinning",
+                "addon policy pinning is only supported for provider-backed addon sources",
+            )),
+            _ => Err(AppError::Validation(format!(
+                "addon source `{}` is not handled by provider `{}`",
+                source.display_name(),
+                descriptor.provider_id
+            ))),
+        }
+    }
+
     fn search_addons(
         self,
         http_client: &impl HttpClient,
@@ -430,6 +511,14 @@ impl AddonProviderRegistry {
     ) -> AppResult<ResolvedAddonDependencies> {
         self.provider_for_source(request.source)?
             .resolve_addon_dependencies(http_client, request)
+    }
+
+    pub(super) fn apply_source_policy(
+        &self,
+        request: ApplyAddonSourcePolicyRequest<'_>,
+    ) -> AppResult<AppliedAddonSourcePolicy> {
+        self.provider_for_source(request.source)?
+            .apply_source_policy(request)
     }
 
     pub(super) fn search_addons(
@@ -559,5 +648,45 @@ fn unsupported_dependency_error(source: &AddonSourceRef) -> AppError {
         "addon dependency installation is currently only supported for CurseForge sources, but `{}` uses `{}`",
         source.display_name(),
         source_kind_label(source),
+    ))
+}
+
+fn validate_resolution_policy_support(
+    descriptor: AddonProviderDescriptor,
+    source: &AddonSourceRef,
+    policy: AddonSourceResolutionPolicy,
+) -> AppResult<()> {
+    if policy.release_channel.is_some() && !descriptor.policy.supports_release_channel {
+        return Err(unsupported_policy_error(
+            descriptor,
+            source,
+            "release channel policy",
+            "addon policy release channel is not supported for this source provider",
+        ));
+    }
+
+    if policy.allow_prerelease.is_some() && !descriptor.policy.supports_prerelease {
+        return Err(unsupported_policy_error(
+            descriptor,
+            source,
+            "prerelease policy",
+            "addon policy prerelease selection is not supported for this source provider",
+        ));
+    }
+
+    Ok(())
+}
+
+fn unsupported_policy_error(
+    descriptor: AddonProviderDescriptor,
+    source: &AddonSourceRef,
+    capability: &str,
+    message: &str,
+) -> AppError {
+    AppError::Validation(format!(
+        "{message} (provider: {}, source_family: {}, source: {}, capability: {capability})",
+        descriptor.provider_id,
+        descriptor.source_family.id(),
+        source.display_name(),
     ))
 }

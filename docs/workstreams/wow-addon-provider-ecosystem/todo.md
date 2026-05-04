@@ -66,11 +66,11 @@ Exit criteria:
 
 Goal: move provider-specific update policy semantics out of broad generic matches.
 
-- [ ] Model provider support for release channel and prerelease selection.
-- [ ] Model provider support for exact version/file/artifact pinning.
-- [ ] Move CurseForge file-id pin handling into the CurseForge adapter.
-- [ ] Move GitHub tag pin handling into the GitHub adapter.
-- [ ] Return structured unsupported-policy errors before package preparation.
+- [x] Model provider support for release channel and prerelease selection.
+- [x] Model provider support for exact version/file/artifact pinning.
+- [x] Move CurseForge file-id pin handling into the CurseForge adapter.
+- [x] Move GitHub tag pin handling into the GitHub adapter.
+- [x] Return structured unsupported-policy errors before package preparation.
 
 Exit criteria:
 

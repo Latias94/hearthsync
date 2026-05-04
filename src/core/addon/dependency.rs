@@ -155,7 +155,7 @@ where
     }
 
     for package in &selected_packages {
-        let package_policy = policies.provider_update_policy(package)?;
+        let package_policy = policies.provider_update_policy(provider, package)?;
         if !package_policy.install_dependencies {
             continue;
         }

@@ -138,6 +138,16 @@ to be descriptor-driven:
 - Built-in providers are registered as adapter entries. The adapter list currently contains local
   archive, HTTP archive, CurseForge, and GitHub Releases.
 
+Provider-owned policy is layered on top of those descriptors:
+
+- addon policy storage still records generic pins and release/prerelease preferences
+- `AddonProvider::apply_source_policy` resolves those generic preferences against provider
+  capabilities before package preparation
+- CurseForge owns file-id pin application
+- GitHub Releases owns version/tag pin application
+- unsupported policy errors include provider id, source family id, source display name, and the
+  unsupported capability
+
 ## Provider Capability Model
 
 Each provider should advertise capabilities explicitly:
