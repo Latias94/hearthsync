@@ -1,0 +1,116 @@
+# WoW Addon Provider Ecosystem TODO
+
+## Current Focus
+
+Build a provider registry and capability model that lets HearthSync add more addon sources without
+turning `AddonSourceRef` and `DefaultAddonProvider` into a growing cross-cutting dispatch hub.
+
+## Refactor Rules
+
+- Preserve the archive-to-prepared-package boundary.
+- Preserve existing source serialization while the registry refactor lands.
+- Fail unsupported provider capabilities before expensive work when possible.
+- Keep source attribution intact.
+- Keep provider-specific policy semantics inside provider modules.
+- Do not introduce a generic live-directory source that points back at the mutable WoW install.
+
+## P0 - Baseline Review
+
+- [x] Review current source/provider/download/update boundaries.
+- [x] Confirm install/update execution after package preparation is not the main refactor target.
+- [x] Record this provider workstream as separate from general bundle/config core safety work.
+
+Exit criteria:
+
+- The team agrees that the first provider slice targets source parsing, artifact resolution, cache,
+  search, and dependency capability rather than addon mutation execution.
+
+## P1 - Provider Registry Skeleton
+
+Goal: route current provider families through one registry-oriented interface while preserving
+existing behavior.
+
+- [ ] Define provider ids and source family ids.
+- [ ] Add a registry object that owns source parser and materializer dispatch.
+- [ ] Move current local archive, HTTP archive, GitHub, and CurseForge source dispatch behind
+  registry adapters.
+- [ ] Keep existing `AddonSourceRef` serialization compatible.
+- [ ] Keep current install/update/index/lock tests passing without behavioral changes.
+
+Exit criteria:
+
+- Adding a new provider does not require editing install/update execution modules.
+- Current source kinds continue to parse, serialize, materialize, and update as before.
+
+## P2 - Capability-Owned Policy
+
+Goal: move provider-specific update policy semantics out of broad generic matches.
+
+- [ ] Model provider support for release channel and prerelease selection.
+- [ ] Model provider support for exact version/file/artifact pinning.
+- [ ] Move CurseForge file-id pin handling into the CurseForge adapter.
+- [ ] Move GitHub tag pin handling into the GitHub adapter.
+- [ ] Return structured unsupported-policy errors before package preparation.
+
+Exit criteria:
+
+- Provider-specific pin logic lives with the provider that understands the remote artifact model.
+- App results can explain which policy capabilities a source supports.
+
+## P3 - Catalog Aggregation
+
+Goal: make addon search a multi-provider catalog query instead of a CurseForge-only adapter.
+
+- [ ] Define catalog provider capability.
+- [ ] Support provider-scoped search requests.
+- [ ] Support aggregate search across configured catalog providers.
+- [ ] Preserve current CurseForge search behavior.
+- [ ] Project partial provider failures into app-facing results without hiding successful providers.
+
+Exit criteria:
+
+- Search can return results from more than one provider family.
+- Future GUI screens can show provider-specific availability and failure details.
+
+## P4 - Dependency Capability
+
+Goal: keep dependency installation provider-owned and explicit.
+
+- [ ] Move current CurseForge dependency strategy behind a provider adapter.
+- [ ] Keep unsupported dependency capability as a first-class result.
+- [ ] Add preflight checks for index/lock/update flows through the registry.
+- [ ] Keep missing-required-only semantics explicit.
+
+Exit criteria:
+
+- Dependency behavior is advertised by source provider, not inferred from generic source enum
+  matching scattered through update/index/lock paths.
+
+## P5 - Source Schema Evolution Decision
+
+Goal: decide whether the existing closed source enum remains good enough after the registry exists.
+
+- [ ] Inventory the edits required to add Wago through the registry.
+- [ ] Inventory the edits required to add WoWInterface through the registry.
+- [ ] Decide whether to keep explicit typed enum variants or add a schema-v2 provider payload.
+- [ ] If schema-v2 is needed, design migration and legacy read compatibility before writing new
+  source files.
+
+Exit criteria:
+
+- Source persistence evolves deliberately rather than as a side effect of the first new provider.
+
+## P6 - New Provider Slice
+
+Goal: add one new real provider only after the registry and capability seams are in place.
+
+- [ ] Research Wago source identity, official endpoints, artifact download rules, and terms.
+- [ ] Research WoWInterface source identity, official endpoints, artifact download rules, and terms.
+- [ ] Pick one provider based on stable metadata availability and attribution safety.
+- [ ] Add provider contract tests beside the provider module.
+- [ ] Add app/CLI tests for install/update/search behavior where supported.
+
+Exit criteria:
+
+- The first new provider lands without expanding central dispatch modules in a way that recreates
+  the old coupling.
