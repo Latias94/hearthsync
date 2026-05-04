@@ -2,8 +2,8 @@
 
 ## Current Focus
 
-P3 catalog aggregation is implemented structurally. The next provider work should move dependency
-resolution behind explicit provider capability before adding the first new real provider.
+P4 dependency capability is implemented structurally. The next provider work should decide whether
+the closed source enum remains good enough before adding Wago, WoWInterface, or custom catalogs.
 
 ## Refactor Rules
 
@@ -95,10 +95,10 @@ Exit criteria:
 
 Goal: keep dependency installation provider-owned and explicit.
 
-- [ ] Move current CurseForge dependency strategy behind a provider adapter.
-- [ ] Keep unsupported dependency capability as a first-class result.
-- [ ] Add preflight checks for index/lock/update flows through the registry.
-- [ ] Keep missing-required-only semantics explicit.
+- [x] Move current CurseForge dependency strategy behind a provider adapter.
+- [x] Keep unsupported dependency capability as a first-class result.
+- [x] Add preflight checks for index/lock/update flows through the registry.
+- [x] Keep missing-required-only semantics explicit.
 
 Exit criteria:
 

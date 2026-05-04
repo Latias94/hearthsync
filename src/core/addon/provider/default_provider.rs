@@ -273,6 +273,28 @@ mod default_provider_tests {
     }
 
     #[test]
+    fn default_addon_provider_rejects_unsupported_dependency_resolution_by_provider() {
+        let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+        let source = AddonSourceRef::GitHubRelease {
+            owner: "owner".to_string(),
+            repo: "repo".to_string(),
+            tag: None,
+            asset_name: Some("addon.zip".to_string()),
+        };
+
+        let error = provider
+            .resolve_addon_dependencies(ResolveAddonDependenciesRequest {
+                source: &source,
+                context: AddonProviderContext::default(),
+            })
+            .expect_err("github dependency resolution should fail before HTTP");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("provider `github`"));
+        assert!(error.to_string().contains("source family `github_release`"));
+    }
+
+    #[test]
     fn default_addon_provider_reports_source_capabilities() {
         let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
         let descriptors = provider.provider_descriptors();

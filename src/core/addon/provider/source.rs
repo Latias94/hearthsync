@@ -192,15 +192,6 @@ pub(super) fn source_cache_namespace(source: &AddonSourceRef) -> &'static str {
     }
 }
 
-pub(super) fn source_kind_label(source: &AddonSourceRef) -> &'static str {
-    match source {
-        AddonSourceRef::LocalArchive { .. } => "local_archive",
-        AddonSourceRef::HttpArchive { .. } => "http_archive",
-        AddonSourceRef::CurseForgeMod { .. } => "curseforge_mod",
-        AddonSourceRef::GitHubRelease { .. } => "github_release",
-    }
-}
-
 pub(super) fn short_hash(value: &str) -> String {
     use std::fmt::Write as _;
 

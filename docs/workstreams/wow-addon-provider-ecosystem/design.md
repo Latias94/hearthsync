@@ -200,6 +200,18 @@ contract:
 - App and CLI results expose `provider_id`, `failure_count`, and provider failure details; the CLI
   supports `addon search --provider <id>`.
 
+## Dependency Capability Model
+
+Dependency installation is provider-owned rather than inferred from generic source matching:
+
+- `AddonProviderDescriptor.operations.dependency_resolution` advertises support and strategy.
+- CurseForge owns required-dependency extraction from file metadata.
+- The currently supported strategy remains explicitly `MissingRequiredOnly`.
+- Unsupported dependency resolution is still projected as a first-class app capability.
+- Addon update and addon-index update preflight dependency support before package preparation.
+- Addon lock apply does not have dependency policy semantics; it applies the exact lock package
+  source set and still routes source materialization through the provider registry.
+
 ## Non-Goals
 
 - Rewriting addon file mutation and rollback.

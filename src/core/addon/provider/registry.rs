@@ -2,11 +2,12 @@ use std::path::Path;
 
 use super::cache::guess_archive_name_from_url;
 use super::curseforge::{
-    remote_validators_for_curseforge_file, resolve_curseforge_file_with_client,
+    curseforge_release_type_limit, remote_validators_for_curseforge_file,
+    resolve_curseforge_dependencies_with_client, resolve_curseforge_file_with_client,
     search_curseforge_mods_with_client,
 };
 use super::github::{
-    fetch_github_release_with_client, fetch_github_releases_with_client,
+    fetch_github_release_with_client, fetch_github_releases_with_client, github_allows_prerelease,
     remote_validators_for_github_asset, select_github_release, select_github_release_asset,
 };
 use super::http::HttpClient;
@@ -16,11 +17,8 @@ use super::materialize::{
 };
 use super::parse::{parse_curseforge_source, parse_github_source};
 use super::source::{
-    addon_source_input_is_local_archive, canonicalize_local_archive_path, source_kind_label,
+    addon_source_input_is_local_archive, canonicalize_local_archive_path,
     validate_absolute_local_archive_source_path,
-};
-use super::source_adapter::{
-    curseforge_release_type_limit, github_allows_prerelease, resolve_source_dependencies_impl,
 };
 use super::{
     AddonDependencyResolutionCapability, AddonProviderContext, AddonProviderOptions,
@@ -351,13 +349,25 @@ impl BuiltinAddonProviderAdapter {
         http_client: &impl HttpClient,
         request: ResolveAddonDependenciesRequest<'_>,
     ) -> AppResult<ResolvedAddonDependencies> {
-        match self {
-            Self::CurseForge => {
-                resolve_source_dependencies_impl(http_client, request.source, request.context)
+        let descriptor = self.descriptor();
+        match (self, request.source) {
+            (Self::CurseForge, AddonSourceRef::CurseForgeMod { mod_id, file_id }) => {
+                resolve_curseforge_dependencies_with_client(
+                    http_client,
+                    *mod_id,
+                    *file_id,
+                    request.context.target_flavor,
+                    curseforge_release_type_limit(request.context.resolution_policy),
+                )
             }
-            Self::LocalArchive | Self::HttpArchive | Self::GitHub => {
-                Err(unsupported_dependency_error(request.source))
+            (adapter, source) if adapter.matches_source(source) => {
+                Err(unsupported_dependency_error(descriptor, source))
             }
+            (_, source) => Err(AppError::Validation(format!(
+                "addon source `{}` is not handled by provider `{}`",
+                source.display_name(),
+                descriptor.provider_id
+            ))),
         }
     }
 
@@ -709,11 +719,15 @@ pub(super) fn validate_persisted_local_source(path: &Path) -> AppResult<()> {
     validate_absolute_local_archive_source_path(path)
 }
 
-fn unsupported_dependency_error(source: &AddonSourceRef) -> AppError {
+fn unsupported_dependency_error(
+    descriptor: AddonProviderDescriptor,
+    source: &AddonSourceRef,
+) -> AppError {
     AppError::Validation(format!(
-        "addon dependency installation is currently only supported for CurseForge sources, but `{}` uses `{}`",
+        "addon dependency installation is not supported by provider `{}` for source family `{}` and source `{}`",
+        descriptor.provider_id,
+        descriptor.source_family.id(),
         source.display_name(),
-        source_kind_label(source),
     ))
 }
 

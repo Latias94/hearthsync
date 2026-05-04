@@ -10,8 +10,10 @@ mod tests;
 use self::validation::{
     validate_github_download_asset, validate_github_release, validate_github_releases,
 };
+use super::AddonSourceResolutionPolicy;
 use super::http::{HttpClient, HttpHeader, HttpRequest};
 use super::validation::RemoteArchiveValidators;
+use crate::core::addon::policy::AddonReleaseChannel;
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const GITHUB_API_VERSION: &str = "2022-11-28";
@@ -72,6 +74,16 @@ pub(super) fn select_github_release(
                 "GitHub repository does not expose a published stable release".to_string()
             })
         })
+}
+
+pub(super) fn github_allows_prerelease(policy: AddonSourceResolutionPolicy) -> bool {
+    match policy.allow_prerelease {
+        Some(value) => value,
+        None => matches!(
+            policy.release_channel,
+            Some(AddonReleaseChannel::Beta | AddonReleaseChannel::Alpha)
+        ),
+    }
 }
 
 pub(super) fn select_github_release_asset<'a>(
