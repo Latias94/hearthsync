@@ -1,7 +1,8 @@
 use crate::core::app::{
-    AddonStateStorageValue, AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue,
-    ExternalHelperAvailabilityValue, ExternalHelperPolicyValue, HelperStrategyValue,
-    HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    AddonDependencyResolutionCapabilityValue, AddonProviderSourceCapabilityValue,
+    AddonSourceFamilyValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
+    AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperPolicyValue,
+    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
 };
 
 pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsValue) -> String {
@@ -107,6 +108,10 @@ pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsVal
         format_addon_provider_mode(&item.capabilities)
     ));
     lines.push(format!(
+        "Addon source capabilities: {}",
+        format_addon_source_capabilities(&item.capabilities.addon_source_capabilities)
+    ));
+    lines.push(format!(
         "External helper policy: {}",
         format_external_helper_policy(item.capabilities.external_helper.policy)
     ));
@@ -120,6 +125,79 @@ pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsVal
     ));
 
     lines.join("\n")
+}
+
+fn format_addon_source_capabilities(values: &[AddonProviderSourceCapabilityValue]) -> String {
+    if values.is_empty() {
+        return "none".to_string();
+    }
+
+    values
+        .iter()
+        .map(|value| {
+            format!(
+                "{}:{} parse={} materialize={} search={} dependencies={} policy={} pin={} validators={}",
+                value.provider_id,
+                format_addon_source_family(value.source_family),
+                value.can_parse_input,
+                value.can_materialize,
+                value.can_search,
+                format_dependency_capability(value.dependency_resolution),
+                format_source_policy_capabilities(value),
+                format_source_pin_capabilities(value),
+                value.supports_remote_cache_validators,
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+fn format_addon_source_family(value: AddonSourceFamilyValue) -> &'static str {
+    match value {
+        AddonSourceFamilyValue::LocalArchive => "local_archive",
+        AddonSourceFamilyValue::HttpArchive => "http_archive",
+        AddonSourceFamilyValue::CurseForgeMod => "curseforge_mod",
+        AddonSourceFamilyValue::GitHubRelease => "github_release",
+    }
+}
+
+fn format_dependency_capability(value: AddonDependencyResolutionCapabilityValue) -> &'static str {
+    match value {
+        AddonDependencyResolutionCapabilityValue::Unsupported => "unsupported",
+        AddonDependencyResolutionCapabilityValue::Supported { .. } => "supported",
+    }
+}
+
+fn format_source_policy_capabilities(value: &AddonProviderSourceCapabilityValue) -> String {
+    let mut capabilities = Vec::new();
+    if value.supports_release_channel {
+        capabilities.push("release_channel");
+    }
+    if value.supports_prerelease {
+        capabilities.push("prerelease");
+    }
+
+    if capabilities.is_empty() {
+        "none".to_string()
+    } else {
+        capabilities.join("+")
+    }
+}
+
+fn format_source_pin_capabilities(value: &AddonProviderSourceCapabilityValue) -> String {
+    let mut capabilities = Vec::new();
+    if value.supports_version_pin {
+        capabilities.push("version");
+    }
+    if value.supports_file_id_pin {
+        capabilities.push("file_id");
+    }
+
+    if capabilities.is_empty() {
+        "none".to_string()
+    } else {
+        capabilities.join("+")
+    }
 }
 
 fn format_platform(value: HostPlatformValue) -> &'static str {

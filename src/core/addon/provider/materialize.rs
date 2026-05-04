@@ -1,72 +1,38 @@
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
+use super::AddonProviderContext;
 use super::cache::{
     cached_archive_metadata_if_local_file_matches, download_to_path_with_headers,
-    guess_archive_name_from_url, resolve_archive_path, should_reuse_cached_archive,
+    resolve_archive_path, should_reuse_cached_archive,
     should_reuse_cached_http_archive_without_transport_validators, write_cached_archive_metadata,
 };
-use super::curseforge::{
-    remote_validators_for_curseforge_file, resolve_curseforge_file_with_client,
-};
-use super::github::{
-    fetch_github_release_with_client, fetch_github_releases_with_client,
-    remote_validators_for_github_asset, select_github_release, select_github_release_asset,
-};
 use super::http::{HttpClient, HttpDownloadProgress, HttpDownloadProgressObserver, HttpHeader};
-use super::parse::{parse_curseforge_source, parse_github_source};
-use super::source::{canonicalize_local_archive_path, validate_absolute_local_archive_source_path};
-use super::source_adapter::{curseforge_release_type_limit, github_allows_prerelease};
+#[cfg(test)]
+use super::registry::AddonProviderRegistry;
+use super::registry::{http_archive_artifact_name, validate_persisted_local_source};
 use super::validation::{
     RemoteArchiveValidators, conditional_request_headers_for_transport_validators,
     remote_validators_for_http_headers,
 };
 use super::{
-    AddonDownloadProgressObserver, AddonProviderContext, AddonProviderOptions, AddonSourceRef,
-    MaterializedAddonSource,
+    AddonDownloadProgressObserver, AddonProviderOptions, AddonSourceRef, MaterializedAddonSource,
 };
-use crate::core::boundary_validation::is_http_url;
-use crate::core::error::{AppError, AppResult};
+#[cfg(test)]
+use crate::core::error::AppError;
+use crate::core::error::AppResult;
 use crate::core::task::CancellationToken;
 
 #[derive(Debug, Clone)]
-struct ResolvedDownloadArtifact {
-    cache_source_ref: AddonSourceRef,
-    download_url: String,
-    archive_name: String,
-    headers: Vec<HttpHeader>,
-    remote_validators: RemoteArchiveValidators,
+pub(super) struct ResolvedDownloadArtifact {
+    pub(super) cache_source_ref: AddonSourceRef,
+    pub(super) download_url: String,
+    pub(super) archive_name: String,
+    pub(super) headers: Vec<HttpHeader>,
+    pub(super) remote_validators: RemoteArchiveValidators,
 }
 
-pub(super) fn materialize_source_input_impl(
-    http_client: &impl HttpClient,
-    source: &str,
-    stage_root: &Path,
-    context: AddonProviderContext<'_>,
-    options: &AddonProviderOptions,
-) -> AppResult<MaterializedAddonSource> {
-    if let Some(source_ref) = parse_curseforge_source(source)? {
-        return materialize_source_ref_impl(http_client, &source_ref, stage_root, context, options);
-    }
-
-    if let Some(source_ref) = parse_github_source(source)? {
-        return materialize_source_ref_impl(http_client, &source_ref, stage_root, context, options);
-    }
-
-    if is_http_url(source) {
-        let source_ref = AddonSourceRef::HttpArchive {
-            url: source.to_string(),
-        };
-        return materialize_source_ref_impl(http_client, &source_ref, stage_root, context, options);
-    }
-
-    let path = canonicalize_local_archive_path(Path::new(source))?;
-
-    Ok(MaterializedAddonSource {
-        source_ref: AddonSourceRef::LocalArchive { path: path.clone() },
-        archive_path: path,
-    })
-}
-
+#[cfg(test)]
 pub(super) fn materialize_source_ref_impl(
     http_client: &impl HttpClient,
     source: &AddonSourceRef,
@@ -74,110 +40,51 @@ pub(super) fn materialize_source_ref_impl(
     context: AddonProviderContext<'_>,
     options: &AddonProviderOptions,
 ) -> AppResult<MaterializedAddonSource> {
-    match source {
-        AddonSourceRef::LocalArchive { path } => {
-            validate_absolute_local_archive_source_path(path)?;
-            Ok(MaterializedAddonSource {
-                source_ref: source.clone(),
-                archive_path: path.clone(),
-            })
-        }
-        AddonSourceRef::HttpArchive { url } => {
-            let archive_path = materialize_http_archive(
-                http_client,
-                source,
-                url,
-                stage_root,
-                context.cancellation,
-                context.download_progress,
-                options,
-            )?;
-            Ok(MaterializedAddonSource {
-                source_ref: source.clone(),
-                archive_path,
-            })
-        }
-        AddonSourceRef::CurseForgeMod { mod_id, file_id } => {
-            let file = resolve_curseforge_file_with_client(
-                http_client,
-                *mod_id,
-                *file_id,
-                context.target_flavor,
-                curseforge_release_type_limit(context.resolution_policy),
-            )?;
-            let download_url = file.download_url.clone().ok_or_else(|| {
-                AppError::Validation(format!(
-                    "CurseForge file `{}` does not provide a download URL",
-                    file.id
-                ))
-            })?;
-            let artifact = ResolvedDownloadArtifact {
-                cache_source_ref: AddonSourceRef::CurseForgeMod {
-                    mod_id: *mod_id,
-                    file_id: Some(file.id),
-                },
-                download_url,
-                archive_name: file.file_name.clone(),
-                headers: Vec::new(),
-                remote_validators: remote_validators_for_curseforge_file(&file),
-            };
-            let archive_path = materialize_downloaded_archive(
-                http_client,
-                artifact,
-                stage_root,
-                context.cancellation,
-                context.download_progress,
-                options,
-            )?;
-            Ok(MaterializedAddonSource {
-                source_ref: source.clone(),
-                archive_path,
-            })
-        }
-        AddonSourceRef::GitHubRelease {
-            owner,
-            repo,
-            tag,
-            asset_name,
-        } => {
-            let release = match tag.as_deref() {
-                Some(tag) => fetch_github_release_with_client(http_client, owner, repo, Some(tag))?,
-                None if github_allows_prerelease(context.resolution_policy) => {
-                    let releases = fetch_github_releases_with_client(http_client, owner, repo)?;
-                    select_github_release(&releases, true)?.clone()
-                }
-                None => fetch_github_release_with_client(http_client, owner, repo, None)?,
-            };
-            let asset = select_github_release_asset(&release, asset_name.as_deref())?;
-            let artifact = ResolvedDownloadArtifact {
-                cache_source_ref: AddonSourceRef::GitHubRelease {
-                    owner: owner.clone(),
-                    repo: repo.clone(),
-                    tag: Some(release.tag_name.clone()),
-                    asset_name: Some(asset.name.clone()),
-                },
-                download_url: asset.browser_download_url.clone(),
-                archive_name: asset.name.clone(),
-                headers: Vec::new(),
-                remote_validators: remote_validators_for_github_asset(asset),
-            };
-            let archive_path = materialize_downloaded_archive(
-                http_client,
-                artifact,
-                stage_root,
-                context.cancellation,
-                context.download_progress,
-                options,
-            )?;
-            Ok(MaterializedAddonSource {
-                source_ref: source.clone(),
-                archive_path,
-            })
-        }
-    }
+    AddonProviderRegistry::new().materialize_source_ref(
+        http_client,
+        source,
+        stage_root,
+        context,
+        options,
+    )
 }
 
-fn materialize_downloaded_archive(
+pub(super) fn materialize_local_archive_source(
+    source: &AddonSourceRef,
+    path: &Path,
+) -> AppResult<MaterializedAddonSource> {
+    validate_persisted_local_source(path)?;
+    Ok(MaterializedAddonSource {
+        source_ref: source.clone(),
+        archive_path: path.to_path_buf(),
+    })
+}
+
+pub(super) fn materialize_http_archive_source(
+    http_client: &impl HttpClient,
+    source: &AddonSourceRef,
+    url: &str,
+    stage_root: &Path,
+    cancellation: Option<&dyn CancellationToken>,
+    download_progress: Option<&dyn AddonDownloadProgressObserver>,
+    options: &AddonProviderOptions,
+) -> AppResult<MaterializedAddonSource> {
+    let archive_path = materialize_http_archive(
+        http_client,
+        source,
+        url,
+        stage_root,
+        cancellation,
+        download_progress,
+        options,
+    )?;
+    Ok(MaterializedAddonSource {
+        source_ref: source.clone(),
+        archive_path,
+    })
+}
+
+pub(super) fn materialize_downloaded_archive(
     http_client: &impl HttpClient,
     artifact: ResolvedDownloadArtifact,
     stage_root: &Path,
@@ -236,8 +143,7 @@ fn materialize_http_archive(
     download_progress: Option<&dyn AddonDownloadProgressObserver>,
     options: &AddonProviderOptions,
 ) -> AppResult<PathBuf> {
-    let archive_name =
-        guess_archive_name_from_url(url).unwrap_or_else(|| "downloaded-addon.zip".to_string());
+    let archive_name = http_archive_artifact_name(url);
     let archive_path = resolve_archive_path(source, &archive_name, stage_root, options);
     let provider_progress =
         download_progress.map(|observer| ForwardAddonDownloadProgressObserver {

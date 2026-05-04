@@ -118,6 +118,7 @@ fn extended_app_services_exposes_runtime_capabilities_as_app_owned_value() {
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                 },
             },
+            addon_source_capabilities: AppRuntime::new().capabilities().addon_source_capabilities,
             addon_management: AddonManagementCapabilitiesValue {
                 state_storage: AddonStateStorageValue::AppData,
                 scan_only_without_managed_state: true,

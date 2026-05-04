@@ -153,6 +153,7 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
                 },
             },
+            addon_source_capabilities: default_addon_source_capabilities(),
             addon_management: AddonManagementCapabilitiesValue {
                 state_storage: AddonStateStorageValue::AppData,
                 scan_only_without_managed_state: true,
@@ -249,6 +250,7 @@ fn runtime_capabilities_report_internal_custom_provider_when_injected() {
         runtime.capabilities(),
         AppRuntimeCapabilitiesValue {
             addon_provider: AddonProviderModeValue::InternalCustom,
+            addon_source_capabilities: default_addon_source_capabilities(),
             addon_management: AddonManagementCapabilitiesValue {
                 state_storage: AddonStateStorageValue::AppData,
                 scan_only_without_managed_state: true,
@@ -276,6 +278,7 @@ fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_s
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                 },
             },
+            addon_source_capabilities: default_addon_source_capabilities(),
             addon_management: AddonManagementCapabilitiesValue {
                 state_storage: AddonStateStorageValue::AppData,
                 scan_only_without_managed_state: true,
@@ -292,6 +295,11 @@ fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_s
         AppRuntime::new().helper_strategy(),
         HelperStrategyValue::NativeRust
     );
+}
+
+fn default_addon_source_capabilities() -> Vec<crate::core::app::AddonProviderSourceCapabilityValue>
+{
+    AppRuntime::new().capabilities().addon_source_capabilities
 }
 
 #[test]

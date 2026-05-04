@@ -136,8 +136,9 @@ pub use types::addon::{
     AddonDependencyResolutionCapabilityValue, AddonDependencyResolutionStrategyValue,
     AddonManagementCapabilitiesValue, AddonPackageMetadataValue, AddonPolicyPinValue,
     AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-    AddonReleaseChannelValue, AddonStatePathsValue, AddonStateStorageValue,
-    AppRuntimeCapabilitiesValue, HttpNoValidatorCachePolicyValue,
+    AddonProviderSourceCapabilityValue, AddonReleaseChannelValue, AddonSourceFamilyValue,
+    AddonStatePathsValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
+    HttpNoValidatorCachePolicyValue,
 };
 pub use types::backup::BackupGroupValue;
 pub use types::bundle::{

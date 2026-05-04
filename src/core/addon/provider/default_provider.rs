@@ -8,12 +8,12 @@ use super::http::{
     HttpClient, HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse,
     HttpRequest, HttpResponse, ReqwestHttpClient,
 };
-use super::materialize::{materialize_source_input_impl, materialize_source_ref_impl};
-use super::source_adapter::{resolve_source_dependencies_impl, search_addons_impl};
+use super::registry::AddonProviderRegistry;
 use super::{
-    AddonDependencyResolutionCapability, AddonProvider, AddonSearchRequest, AddonSearchResult,
-    AddonSourceRef, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
-    MaterializedAddonSource, ResolveAddonDependenciesRequest, ResolvedAddonDependencies,
+    AddonDependencyResolutionCapability, AddonProvider, AddonProviderSourceCapability,
+    AddonSearchRequest, AddonSearchResult, AddonSourceRef, MaterializeSourceInputRequest,
+    MaterializeSourceRefRequest, MaterializedAddonSource, ResolveAddonDependenciesRequest,
+    ResolvedAddonDependencies,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
@@ -138,7 +138,7 @@ where
         request: MaterializeSourceInputRequest<'_>,
     ) -> AppResult<MaterializedAddonSource> {
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
-        materialize_source_input_impl(
+        AddonProviderRegistry::new().materialize_source_input(
             &http_client,
             request.source,
             request.stage_root,
@@ -152,7 +152,7 @@ where
         request: MaterializeSourceRefRequest<'_>,
     ) -> AppResult<MaterializedAddonSource> {
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
-        materialize_source_ref_impl(
+        AddonProviderRegistry::new().materialize_source_ref(
             &http_client,
             request.source,
             request.stage_root,
@@ -165,12 +165,11 @@ where
         &self,
         source: &AddonSourceRef,
     ) -> AddonDependencyResolutionCapability {
-        match source {
-            AddonSourceRef::CurseForgeMod { .. } => {
-                AddonDependencyResolutionCapability::missing_required_only()
-            }
-            _ => AddonDependencyResolutionCapability::Unsupported,
-        }
+        AddonProviderRegistry::new().dependency_resolution_capability(source)
+    }
+
+    fn source_capabilities(&self) -> Vec<AddonProviderSourceCapability> {
+        AddonProviderRegistry::new().source_capabilities()
     }
 
     fn resolve_addon_dependencies(
@@ -178,7 +177,7 @@ where
         request: ResolveAddonDependenciesRequest<'_>,
     ) -> AppResult<ResolvedAddonDependencies> {
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
-        resolve_source_dependencies_impl(&http_client, request.source, request.context)
+        AddonProviderRegistry::new().resolve_addon_dependencies(&http_client, request)
     }
 
     fn purge_download_cache(&self) -> AppResult<AddonDownloadCachePurgeResult> {
@@ -196,7 +195,7 @@ where
 
     fn search_addons(&self, request: AddonSearchRequest<'_>) -> AppResult<Vec<AddonSearchResult>> {
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
-        search_addons_impl(&http_client, request.query, request.flavor, request.limit)
+        AddonProviderRegistry::new().search_addons(&http_client, request)
     }
 }
 
@@ -226,8 +225,8 @@ mod default_provider_tests {
     use zip::ZipWriter;
     use zip::write::SimpleFileOptions;
 
-    use super::super::AddonProviderContext;
     use super::super::http::HttpResponse;
+    use super::super::{AddonProviderContext, AddonSourceFamily};
     use super::*;
 
     #[test]
@@ -250,6 +249,83 @@ mod default_provider_tests {
             }),
             AddonDependencyResolutionCapability::Unsupported
         );
+    }
+
+    #[test]
+    fn default_addon_provider_reports_source_capabilities() {
+        let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+        let capabilities = provider.source_capabilities();
+
+        assert_eq!(capabilities.len(), 4);
+
+        let local = source_capability(&capabilities, AddonSourceFamily::LocalArchive, "local");
+        assert!(local.can_parse_input);
+        assert!(local.can_materialize);
+        assert!(!local.can_search);
+        assert_eq!(
+            local.dependency_resolution,
+            AddonDependencyResolutionCapability::Unsupported
+        );
+        assert!(!local.supports_remote_cache_validators);
+
+        let http = source_capability(&capabilities, AddonSourceFamily::HttpArchive, "http");
+        assert_eq!(http.input_prefix, Some("http:// or https://"));
+        assert!(http.can_parse_input);
+        assert!(http.can_materialize);
+        assert!(!http.can_search);
+        assert!(http.supports_remote_cache_validators);
+
+        let curseforge = source_capability(
+            &capabilities,
+            AddonSourceFamily::CurseForgeMod,
+            "curseforge",
+        );
+        assert_eq!(curseforge.input_prefix, Some("curseforge:"));
+        assert!(curseforge.can_parse_input);
+        assert!(curseforge.can_materialize);
+        assert!(curseforge.can_search);
+        assert_eq!(
+            curseforge.dependency_resolution,
+            AddonDependencyResolutionCapability::missing_required_only()
+        );
+        assert!(curseforge.supports_release_channel);
+        assert!(curseforge.supports_prerelease);
+        assert!(!curseforge.supports_version_pin);
+        assert!(curseforge.supports_file_id_pin);
+        assert!(curseforge.supports_remote_cache_validators);
+
+        let github = source_capability(&capabilities, AddonSourceFamily::GitHubRelease, "github");
+        assert_eq!(github.input_prefix, Some("github:"));
+        assert!(github.can_parse_input);
+        assert!(github.can_materialize);
+        assert!(!github.can_search);
+        assert_eq!(
+            github.dependency_resolution,
+            AddonDependencyResolutionCapability::Unsupported
+        );
+        assert!(github.supports_release_channel);
+        assert!(github.supports_prerelease);
+        assert!(github.supports_version_pin);
+        assert!(!github.supports_file_id_pin);
+        assert!(github.supports_remote_cache_validators);
+    }
+
+    fn source_capability<'a>(
+        capabilities: &'a [AddonProviderSourceCapability],
+        source_family: AddonSourceFamily,
+        provider_id: &str,
+    ) -> &'a AddonProviderSourceCapability {
+        capabilities
+            .iter()
+            .find(|capability| {
+                capability.source_family == source_family && capability.provider_id == provider_id
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing source capability `{provider_id}` for {:?}",
+                    source_family
+                )
+            })
     }
 
     #[test]

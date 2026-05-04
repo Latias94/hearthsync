@@ -11,7 +11,9 @@ use crate::core::addon::{
     AddonPackageMetadata as DomainAddonPackageMetadata,
     AddonProviderOptions as DomainAddonProviderOptions,
     AddonProviderRetryPolicy as DomainAddonProviderRetryPolicy,
-    AddonStatePaths as DomainAddonStatePaths, AddonStateStorageKind as DomainAddonStateStorageKind,
+    AddonProviderSourceCapability as DomainAddonProviderSourceCapability,
+    AddonSourceFamily as DomainAddonSourceFamily, AddonStatePaths as DomainAddonStatePaths,
+    AddonStateStorageKind as DomainAddonStateStorageKind,
     HttpNoValidatorCachePolicy as DomainHttpNoValidatorCachePolicy,
 };
 use crate::core::error::{AppError, AppResult};
@@ -246,9 +248,69 @@ pub struct AddonManagementCapabilitiesValue {
     pub managed_mode_requires_state: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonSourceFamilyValue {
+    LocalArchive,
+    HttpArchive,
+    CurseForgeMod,
+    GitHubRelease,
+}
+
+impl AddonSourceFamilyValue {
+    pub(crate) fn from_domain(value: DomainAddonSourceFamily) -> Self {
+        match value {
+            DomainAddonSourceFamily::LocalArchive => Self::LocalArchive,
+            DomainAddonSourceFamily::HttpArchive => Self::HttpArchive,
+            DomainAddonSourceFamily::CurseForgeMod => Self::CurseForgeMod,
+            DomainAddonSourceFamily::GitHubRelease => Self::GitHubRelease,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddonProviderSourceCapabilityValue {
+    pub source_family: AddonSourceFamilyValue,
+    pub provider_id: String,
+    pub provider_name: String,
+    pub input_prefix: Option<String>,
+    pub can_parse_input: bool,
+    pub can_materialize: bool,
+    pub can_search: bool,
+    pub dependency_resolution: AddonDependencyResolutionCapabilityValue,
+    pub supports_release_channel: bool,
+    pub supports_prerelease: bool,
+    pub supports_version_pin: bool,
+    pub supports_file_id_pin: bool,
+    pub supports_remote_cache_validators: bool,
+}
+
+impl AddonProviderSourceCapabilityValue {
+    pub(crate) fn from_domain(value: DomainAddonProviderSourceCapability) -> Self {
+        Self {
+            source_family: AddonSourceFamilyValue::from_domain(value.source_family),
+            provider_id: value.provider_id.to_string(),
+            provider_name: value.provider_name.to_string(),
+            input_prefix: value.input_prefix.map(str::to_string),
+            can_parse_input: value.can_parse_input,
+            can_materialize: value.can_materialize,
+            can_search: value.can_search,
+            dependency_resolution: AddonDependencyResolutionCapabilityValue::from_domain(
+                value.dependency_resolution,
+            ),
+            supports_release_channel: value.supports_release_channel,
+            supports_prerelease: value.supports_prerelease,
+            supports_version_pin: value.supports_version_pin,
+            supports_file_id_pin: value.supports_file_id_pin,
+            supports_remote_cache_validators: value.supports_remote_cache_validators,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppRuntimeCapabilitiesValue {
     pub addon_provider: AddonProviderModeValue,
+    pub addon_source_capabilities: Vec<AddonProviderSourceCapabilityValue>,
     pub addon_management: AddonManagementCapabilitiesValue,
     pub external_helper: ExternalHelperCapabilitiesValue,
 }

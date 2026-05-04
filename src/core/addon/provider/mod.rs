@@ -5,6 +5,7 @@ mod github;
 mod http;
 mod materialize;
 mod parse;
+mod registry;
 mod source;
 mod source_adapter;
 #[cfg(test)]
@@ -24,6 +25,7 @@ pub use self::cache::{
 pub use self::default_provider::{
     AddonProviderOptions, AddonProviderRetryPolicy, DefaultAddonProvider,
 };
+pub use self::registry::{AddonProviderSourceCapability, AddonSourceFamily};
 pub use self::source::AddonSourceRef;
 pub(crate) use self::source::{
     addon_source_input_is_local_archive, canonicalize_local_archive_path,
@@ -228,6 +230,10 @@ pub trait AddonProvider {
         _source: &AddonSourceRef,
     ) -> AddonDependencyResolutionCapability {
         AddonDependencyResolutionCapability::Unsupported
+    }
+
+    fn source_capabilities(&self) -> Vec<AddonProviderSourceCapability> {
+        Vec::new()
     }
 
     fn resolve_addon_dependencies(

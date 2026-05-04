@@ -8,7 +8,7 @@ use crate::cli::output::test_support::sample_installation;
 use crate::cli::system::{ManifestExampleResult, ManifestValidationResult};
 use crate::core::app::{
     AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AddonStatePathsValue, AddonStateStorageValue,
+    AddonProviderRetryPolicyValue, AddonStatePathsValue, AddonStateStorageValue, AppRuntime,
     AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue,
     ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HealthStatusValue,
     HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
@@ -116,6 +116,7 @@ fn render_runtime_diagnostics_reports_runtime_settings_and_capabilities() {
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
                 },
             },
+            addon_source_capabilities: default_addon_source_capabilities(),
             addon_management: AddonManagementCapabilitiesValue {
                 state_storage: AddonStateStorageValue::AppData,
                 scan_only_without_managed_state: true,
@@ -148,6 +149,9 @@ fn render_runtime_diagnostics_reports_runtime_settings_and_capabilities() {
     assert!(rendered.contains("cache: E:\\Cache"));
     assert!(rendered.contains("max_attempts: 3"));
     assert!(rendered.contains("no_validator_http_cache: reuse_within_window(600s)"));
+    assert!(rendered.contains("Addon source capabilities:"));
+    assert!(rendered.contains("curseforge:curseforge_mod"));
+    assert!(rendered.contains("github:github_release"));
     assert!(rendered.contains("External helper policy: prefer_external"));
     assert!(rendered.contains("External helper availability: unavailable"));
     assert!(rendered.contains("Active helper strategy: native_rust"));
@@ -167,6 +171,7 @@ fn render_runtime_diagnostics_without_installation_context_emits_operator_hint()
             addon_provider: AddonProviderModeValue::ConfiguredDefault {
                 options: AddonProviderOptionsValue::default(),
             },
+            addon_source_capabilities: Vec::new(),
             addon_management: AddonManagementCapabilitiesValue {
                 state_storage: AddonStateStorageValue::AppData,
                 scan_only_without_managed_state: true,
@@ -186,4 +191,10 @@ fn render_runtime_diagnostics_without_installation_context_emits_operator_hint()
             "Managed addon state paths: resolve with --install to inspect exact locations"
         )
     );
+    assert!(rendered.contains("Addon source capabilities: none"));
+}
+
+fn default_addon_source_capabilities() -> Vec<crate::core::app::AddonProviderSourceCapabilityValue>
+{
+    AppRuntime::new().capabilities().addon_source_capabilities
 }

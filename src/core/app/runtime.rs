@@ -18,9 +18,10 @@ use self::path_resolution::{
 };
 use super::{
     AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonStatePathsValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
-    AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-    ExternalHelperPolicyValue, HelperStrategyValue, HostPlatformValue, ResolvedInstallationValue,
+    AddonProviderSourceCapabilityValue, AddonStatePathsValue, AddonStateStorageValue,
+    AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue,
+    ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HelperStrategyValue,
+    HostPlatformValue, ResolvedInstallationValue,
 };
 
 type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
@@ -242,6 +243,12 @@ impl AppRuntime {
 
         AppRuntimeCapabilitiesValue {
             addon_provider,
+            addon_source_capabilities: self
+                .addon_provider
+                .source_capabilities()
+                .into_iter()
+                .map(AddonProviderSourceCapabilityValue::from_domain)
+                .collect(),
             addon_management: self.addon_management_capabilities(),
             external_helper: self.external_helper_capabilities(),
         }
