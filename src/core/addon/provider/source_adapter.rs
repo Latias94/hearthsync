@@ -1,26 +1,14 @@
 use super::curseforge::{
     CurseForgeFileReleaseType, required_dependency_mod_ids_for_curseforge_file,
-    resolve_curseforge_file_with_client, search_curseforge_mods_with_client,
+    resolve_curseforge_file_with_client,
 };
 use super::http::HttpClient;
 use super::source::source_kind_label;
 use super::{
-    AddonProviderContext, AddonSearchResult, AddonSourceRef, AddonSourceResolutionPolicy,
-    ResolvedAddonDependencies,
+    AddonProviderContext, AddonSourceRef, AddonSourceResolutionPolicy, ResolvedAddonDependencies,
 };
 use crate::core::addon::policy::AddonReleaseChannel;
 use crate::core::error::{AppError, AppResult};
-use crate::core::install::WowFlavor;
-
-pub(super) fn search_addons_impl(
-    http_client: &impl HttpClient,
-    query: &str,
-    flavor: WowFlavor,
-    limit: usize,
-) -> AppResult<Vec<AddonSearchResult>> {
-    search_curseforge_mods_with_client(http_client, query, flavor, limit)
-}
-
 pub(super) fn resolve_source_dependencies_impl(
     http_client: &impl HttpClient,
     source: &AddonSourceRef,

@@ -11,6 +11,6 @@ pub use operations::{
     AdoptedAddonPackageResult, InstalledAddonPackageResult, RelinkedAddonPackageResult,
     RemovedAddonPackageResult, UpdatedAddonPackageResult,
 };
-pub use search::{AddonSearchCatalogResult, AddonSearchResult};
+pub use search::{AddonSearchCatalogResult, AddonSearchProviderFailureResult, AddonSearchResult};
 pub use source::{AddonSourceKindResult, AddonSourceResult};
 pub use tracked::{TrackedAddonPackageResult, TrackedAddonResult};

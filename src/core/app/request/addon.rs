@@ -19,6 +19,7 @@ pub struct SearchAddonsRequest {
     pub installation: ResolvedInstallationValue,
     pub query: String,
     pub limit: usize,
+    pub provider_id: Option<String>,
 }
 
 impl SearchAddonsRequest {
@@ -27,6 +28,7 @@ impl SearchAddonsRequest {
             installation: self.installation.into_domain()?,
             query: self.query,
             limit: self.limit,
+            provider_id: self.provider_id,
         })
     }
 }

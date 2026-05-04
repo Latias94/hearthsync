@@ -20,9 +20,9 @@ use crate::core::app::{
     AddonIndexPackageSuggestionResult, AddonIndexPackageSuggestionStatusResult,
     AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSuggestionResult,
     AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult, AddonIndexValidationResult,
-    AddonInventoryResult, AddonSearchCatalogResult, AddonSearchResult, AdoptedAddonPackageResult,
-    InstalledAddonPackageResult, RelinkedAddonPackageResult, RemovedAddonPackageResult,
-    UpdatedAddonPackageResult,
+    AddonInventoryResult, AddonSearchCatalogResult, AddonSearchProviderFailureResult,
+    AddonSearchResult, AdoptedAddonPackageResult, InstalledAddonPackageResult,
+    RelinkedAddonPackageResult, RemovedAddonPackageResult, UpdatedAddonPackageResult,
 };
 
 mod cache;

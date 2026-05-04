@@ -188,6 +188,18 @@ Search aggregation must keep provider failures structured. One provider being un
 not necessarily hide results from other providers unless the caller requested that provider
 explicitly.
 
+The P3 implementation keeps the current CurseForge result projection but changes the search
+contract:
+
+- `AddonSearchRequest` carries an optional provider id.
+- `AddonProvider::search_addon_catalog` returns successful results plus provider-level failures.
+- `DefaultAddonProvider` routes catalog search through descriptor-backed registry adapters whose
+  `can_search` operation is the catalog provider capability.
+- Aggregate search records partial provider failures while preserving the existing all-failed
+  CurseForge error behavior.
+- App and CLI results expose `provider_id`, `failure_count`, and provider failure details; the CLI
+  supports `addon search --provider <id>`.
+
 ## Non-Goals
 
 - Rewriting addon file mutation and rollback.

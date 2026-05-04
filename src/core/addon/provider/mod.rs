@@ -215,6 +215,7 @@ pub struct AddonSearchRequest<'a> {
     pub query: &'a str,
     pub flavor: WowFlavor,
     pub limit: usize,
+    pub provider_id: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -228,6 +229,29 @@ pub struct AddonSearchResult {
     pub provider_project_id: Option<u32>,
     pub provider_file_id: Option<u32>,
     pub download_count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct AddonSearchProviderFailure {
+    pub provider_id: String,
+    pub provider_name: String,
+    pub source_family: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct AddonSearchProviderCatalog {
+    pub results: Vec<AddonSearchResult>,
+    pub failures: Vec<AddonSearchProviderFailure>,
+}
+
+impl AddonSearchProviderCatalog {
+    pub fn from_results(results: Vec<AddonSearchResult>) -> Self {
+        Self {
+            results,
+            failures: Vec::new(),
+        }
+    }
 }
 
 pub trait AddonProvider {
@@ -285,6 +309,14 @@ pub trait AddonProvider {
         Err(AppError::Validation(
             "addon provider does not support download cache management".to_string(),
         ))
+    }
+
+    fn search_addon_catalog(
+        &self,
+        request: AddonSearchRequest<'_>,
+    ) -> AppResult<AddonSearchProviderCatalog> {
+        self.search_addons(request)
+            .map(AddonSearchProviderCatalog::from_results)
     }
 
     fn search_addons(&self, request: AddonSearchRequest<'_>) -> AppResult<Vec<AddonSearchResult>>;

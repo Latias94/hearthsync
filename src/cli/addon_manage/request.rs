@@ -9,11 +9,13 @@ pub(super) fn build_search_addons_request(
     installation: ResolvedInstallationValue,
     query: String,
     limit: usize,
+    provider_id: Option<String>,
 ) -> SearchAddonsRequest {
     SearchAddonsRequest {
         installation,
         query,
         limit,
+        provider_id,
     }
 }
 
@@ -104,9 +106,23 @@ mod tests {
 
     use super::{
         build_adopt_addons_request, build_install_addon_request, build_relink_addon_request,
-        build_remove_addons_request, build_update_addons_request,
+        build_remove_addons_request, build_search_addons_request, build_update_addons_request,
     };
     use crate::cli::test_support::sample_installation;
+
+    #[test]
+    fn build_search_addons_request_preserves_provider_scope() {
+        let request = build_search_addons_request(
+            sample_installation(),
+            "WeakAuras".to_string(),
+            25,
+            Some("curseforge".to_string()),
+        );
+
+        assert_eq!(request.query, "WeakAuras");
+        assert_eq!(request.limit, 25);
+        assert_eq!(request.provider_id.as_deref(), Some("curseforge"));
+    }
 
     #[test]
     fn build_adopt_addons_request_preserves_explicit_inputs() {

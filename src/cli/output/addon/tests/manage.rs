@@ -4,7 +4,9 @@ use super::*;
 fn render_addon_search_catalog_lists_results() {
     let rendered = render_addon_search_catalog(&AddonSearchCatalogResult {
         query: "weakauras".to_string(),
+        provider_id: None,
         result_count: 1,
+        failure_count: 0,
         results: vec![AddonSearchResult {
             provider: "curseforge".to_string(),
             name: "WeakAuras".to_string(),
@@ -17,12 +19,36 @@ fn render_addon_search_catalog_lists_results() {
             provider_file_id: Some(456),
             download_count: 999,
         }],
+        failures: Vec::new(),
     });
 
     assert!(rendered.contains("Query: weakauras"));
     assert!(rendered.contains("Found 1 result(s):"));
     assert!(rendered.contains("WeakAuras | provider: curseforge"));
     assert!(rendered.contains("summary: Aura tracking"));
+}
+
+#[test]
+fn render_addon_search_catalog_lists_partial_failures() {
+    let rendered = render_addon_search_catalog(&AddonSearchCatalogResult {
+        query: "weakauras".to_string(),
+        provider_id: Some("curseforge".to_string()),
+        result_count: 0,
+        failure_count: 1,
+        results: Vec::new(),
+        failures: vec![AddonSearchProviderFailureResult {
+            provider_id: "curseforge".to_string(),
+            provider_name: "CurseForge".to_string(),
+            source_family: "curseforge_mod".to_string(),
+            message: "fixture failure".to_string(),
+        }],
+    });
+
+    assert!(rendered.contains("Provider: curseforge"));
+    assert!(rendered.contains("No addons found."));
+    assert!(rendered.contains("Provider failures: 1"));
+    assert!(rendered.contains("CurseForge (curseforge)"));
+    assert!(rendered.contains("fixture failure"));
 }
 
 #[test]

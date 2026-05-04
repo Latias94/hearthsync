@@ -10,9 +10,9 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
 use crate::core::addon::{
-    AddonProvider, AddonSearchRequest as ProviderAddonSearchRequest, AddonSearchResult,
-    AddonSourceRef, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
-    MaterializedAddonSource,
+    AddonProvider, AddonSearchProviderCatalog, AddonSearchProviderFailure,
+    AddonSearchRequest as ProviderAddonSearchRequest, AddonSearchResult, AddonSourceRef,
+    MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
 };
 use crate::core::app::{
     AddonDependencyResolutionCapabilityValue, AddonPackageMetadataValue, AddonPolicyService,

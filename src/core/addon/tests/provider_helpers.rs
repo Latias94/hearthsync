@@ -38,6 +38,7 @@ fn search_addons_can_use_fake_provider() {
             assert_eq!(request.query, "WeakAuras");
             assert_eq!(request.flavor, WowFlavor::Retail);
             assert_eq!(request.limit, 5);
+            assert_eq!(request.provider_id, None);
             Ok(vec![AddonSearchResult {
                 provider: "fake",
                 name: "WeakAuras".to_string(),
@@ -61,6 +62,7 @@ fn search_addons_can_use_fake_provider() {
             installation,
             query: "WeakAuras".to_string(),
             limit: 5,
+            provider_id: None,
         },
     )
     .expect("search through fake provider");
@@ -68,6 +70,50 @@ fn search_addons_can_use_fake_provider() {
     assert_eq!(catalog.query, "WeakAuras");
     assert_eq!(catalog.results.len(), 1);
     assert_eq!(catalog.results[0].provider, "fake");
+    assert!(catalog.failures.is_empty());
+}
+
+#[test]
+fn search_addons_forwards_provider_scope_to_provider() {
+    struct FakeProvider;
+
+    impl AddonProvider for FakeProvider {
+        fn materialize_source_input(
+            &self,
+            _request: MaterializeSourceInputRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            panic!("materialize_source_input should not be called in this test")
+        }
+
+        fn materialize_source_ref(
+            &self,
+            _request: MaterializeSourceRefRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            panic!("materialize_source_ref should not be called in this test")
+        }
+
+        fn search_addons(
+            &self,
+            request: ProviderAddonSearchRequest<'_>,
+        ) -> AppResult<Vec<AddonSearchResult>> {
+            assert_eq!(request.provider_id, Some("fake"));
+            Ok(Vec::new())
+        }
+    }
+
+    let installation = create_fixture_installation(tempdir().expect("temp dir").path());
+    let catalog = search_addons_with_provider(
+        &FakeProvider,
+        SearchAddonRequest {
+            installation,
+            query: "WeakAuras".to_string(),
+            limit: 5,
+            provider_id: Some("fake".to_string()),
+        },
+    )
+    .expect("search through fake provider");
+
+    assert_eq!(catalog.provider_id.as_deref(), Some("fake"));
 }
 
 #[test]

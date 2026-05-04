@@ -22,6 +22,7 @@ pub(super) fn handle_addon_search(
     install_target: crate::cli::InstallTargetArgs,
     query: String,
     limit: usize,
+    provider: Option<String>,
 ) -> AppResult<()> {
     let app = stable_services(runtime);
 
@@ -29,7 +30,7 @@ pub(super) fn handle_addon_search(
         json,
         &app,
         install_target,
-        |installation| build_search_addons_request(installation, query, limit),
+        |installation| build_search_addons_request(installation, query, limit, provider),
         |request| app.search_addons(request),
         render_addon_search_catalog,
     )

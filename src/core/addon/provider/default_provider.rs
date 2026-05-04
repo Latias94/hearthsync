@@ -11,9 +11,10 @@ use super::http::{
 use super::registry::AddonProviderRegistry;
 use super::{
     AddonDependencyResolutionCapability, AddonProvider, AddonProviderDescriptor,
-    AddonSearchRequest, AddonSearchResult, AddonSourceRef, AppliedAddonSourcePolicy,
-    ApplyAddonSourcePolicyRequest, MaterializeSourceInputRequest, MaterializeSourceRefRequest,
-    MaterializedAddonSource, ResolveAddonDependenciesRequest, ResolvedAddonDependencies,
+    AddonSearchProviderCatalog, AddonSearchRequest, AddonSearchResult, AddonSourceRef,
+    AppliedAddonSourcePolicy, ApplyAddonSourcePolicyRequest, MaterializeSourceInputRequest,
+    MaterializeSourceRefRequest, MaterializedAddonSource, ResolveAddonDependenciesRequest,
+    ResolvedAddonDependencies,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
@@ -200,6 +201,14 @@ where
         )
     }
 
+    fn search_addon_catalog(
+        &self,
+        request: AddonSearchRequest<'_>,
+    ) -> AppResult<AddonSearchProviderCatalog> {
+        let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
+        AddonProviderRegistry::new().search_addon_catalog(&http_client, request)
+    }
+
     fn search_addons(&self, request: AddonSearchRequest<'_>) -> AppResult<Vec<AddonSearchResult>> {
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
         AddonProviderRegistry::new().search_addons(&http_client, request)
@@ -239,6 +248,7 @@ mod default_provider_tests {
     };
     use super::*;
     use crate::core::addon::policy::{AddonPolicyPin, AddonReleaseChannel};
+    use crate::core::install::WowFlavor;
 
     #[test]
     fn default_addon_provider_reports_dependency_resolution_capability_by_source_kind() {
@@ -330,6 +340,27 @@ mod default_provider_tests {
         assert!(github.supports_version_pin);
         assert!(!github.supports_file_id_pin);
         assert!(github.supports_remote_cache_validators);
+    }
+
+    #[test]
+    fn default_addon_provider_rejects_search_scoped_to_non_catalog_provider() {
+        let provider = DefaultAddonProvider::with_http_client(ReqwestHttpClient::default());
+
+        let error = provider
+            .search_addon_catalog(AddonSearchRequest {
+                query: "weak",
+                flavor: WowFlavor::Retail,
+                limit: 10,
+                provider_id: Some("github"),
+            })
+            .expect_err("github catalog search should fail before HTTP");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("does not support catalog search")
+        );
     }
 
     fn assert_provider_descriptor_ids_are_unique(descriptors: &[AddonProviderDescriptor]) {

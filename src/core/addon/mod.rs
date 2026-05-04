@@ -32,8 +32,9 @@ pub use self::provider::{
     AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult, AddonDownloadProgressObserver,
     AddonProvider, AddonProviderContext, AddonProviderDescriptor,
     AddonProviderOperationCapabilities, AddonProviderOptions, AddonProviderPolicyCapabilities,
-    AddonProviderRetryPolicy, AddonProviderSourceCapability, AddonSearchRequest, AddonSearchResult,
-    AddonSourceFamily, AddonSourceRef, AddonSourceResolutionPolicy, AppliedAddonSourcePolicy,
+    AddonProviderRetryPolicy, AddonProviderSourceCapability, AddonSearchProviderCatalog,
+    AddonSearchProviderFailure, AddonSearchRequest, AddonSearchResult, AddonSourceFamily,
+    AddonSourceRef, AddonSourceResolutionPolicy, AppliedAddonSourcePolicy,
     ApplyAddonSourcePolicyRequest, DefaultAddonProvider, HttpNoValidatorCachePolicy,
     MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
     ResolvedAddonDependencies,
@@ -170,12 +171,15 @@ pub struct SearchAddonRequest {
     pub installation: DetectedFlavorInstallation,
     pub query: String,
     pub limit: usize,
+    pub provider_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AddonSearchCatalog {
     pub query: String,
+    pub provider_id: Option<String>,
     pub results: Vec<AddonSearchResult>,
+    pub failures: Vec<AddonSearchProviderFailure>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -368,14 +372,25 @@ pub(crate) fn search_addons_with_provider<P>(
 where
     P: AddonProvider + ?Sized,
 {
-    let results = provider.search_addons(ProviderAddonSearchRequest {
-        query: &request.query,
-        flavor: request.installation.flavor,
-        limit: request.limit,
-    })?;
+    let SearchAddonRequest {
+        installation,
+        query,
+        limit,
+        provider_id,
+    } = request;
+    let provider_catalog: AddonSearchProviderCatalog =
+        provider.search_addon_catalog(ProviderAddonSearchRequest {
+            query: &query,
+            flavor: installation.flavor,
+            limit,
+            provider_id: provider_id.as_deref(),
+        })?;
+
     Ok(AddonSearchCatalog {
-        query: request.query,
-        results,
+        query,
+        provider_id,
+        results: provider_catalog.results,
+        failures: provider_catalog.failures,
     })
 }
 

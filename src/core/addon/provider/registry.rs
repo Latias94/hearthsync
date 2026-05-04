@@ -3,6 +3,7 @@ use std::path::Path;
 use super::cache::guess_archive_name_from_url;
 use super::curseforge::{
     remote_validators_for_curseforge_file, resolve_curseforge_file_with_client,
+    search_curseforge_mods_with_client,
 };
 use super::github::{
     fetch_github_release_with_client, fetch_github_releases_with_client,
@@ -20,13 +21,13 @@ use super::source::{
 };
 use super::source_adapter::{
     curseforge_release_type_limit, github_allows_prerelease, resolve_source_dependencies_impl,
-    search_addons_impl,
 };
 use super::{
     AddonDependencyResolutionCapability, AddonProviderContext, AddonProviderOptions,
-    AddonSearchRequest, AddonSearchResult, AddonSourceRef, AddonSourceResolutionPolicy,
-    AppliedAddonSourcePolicy, ApplyAddonSourcePolicyRequest, MaterializedAddonSource,
-    ResolveAddonDependenciesRequest, ResolvedAddonDependencies,
+    AddonSearchProviderCatalog, AddonSearchProviderFailure, AddonSearchRequest, AddonSearchResult,
+    AddonSourceRef, AddonSourceResolutionPolicy, AppliedAddonSourcePolicy,
+    ApplyAddonSourcePolicyRequest, MaterializedAddonSource, ResolveAddonDependenciesRequest,
+    ResolvedAddonDependencies,
 };
 use crate::core::addon::policy::AddonPolicyPin;
 use crate::core::boundary_validation::is_http_url;
@@ -445,9 +446,12 @@ impl BuiltinAddonProviderAdapter {
         request: AddonSearchRequest<'_>,
     ) -> AppResult<Vec<AddonSearchResult>> {
         match self {
-            Self::CurseForge => {
-                search_addons_impl(http_client, request.query, request.flavor, request.limit)
-            }
+            Self::CurseForge => search_curseforge_mods_with_client(
+                http_client,
+                request.query,
+                request.flavor,
+                request.limit,
+            ),
             Self::LocalArchive | Self::HttpArchive | Self::GitHub => Ok(Vec::new()),
         }
     }
@@ -526,14 +530,41 @@ impl AddonProviderRegistry {
         http_client: &impl HttpClient,
         request: AddonSearchRequest<'_>,
     ) -> AppResult<Vec<AddonSearchResult>> {
+        Ok(self.search_addon_catalog(http_client, request)?.results)
+    }
+
+    pub(super) fn search_addon_catalog(
+        &self,
+        http_client: &impl HttpClient,
+        request: AddonSearchRequest<'_>,
+    ) -> AppResult<AddonSearchProviderCatalog> {
         let mut results = Vec::new();
-        for adapter in self.provider_adapters() {
-            if !adapter.descriptor().operations.can_search {
-                continue;
+        let mut failures = Vec::new();
+        let mut first_error = None;
+        let mut successful_provider_count = 0usize;
+
+        for adapter in self.catalog_provider_adapters(request.provider_id)? {
+            match adapter.search_addons(http_client, request) {
+                Ok(mut provider_results) => {
+                    successful_provider_count += 1;
+                    results.append(&mut provider_results);
+                }
+                Err(error) => {
+                    failures.push(search_provider_failure(adapter.descriptor(), &error));
+                    if first_error.is_none() {
+                        first_error = Some(error);
+                    }
+                }
             }
-            results.extend(adapter.search_addons(http_client, request)?);
         }
-        Ok(results)
+
+        if successful_provider_count == 0 && !failures.is_empty() {
+            return Err(first_error.unwrap_or_else(|| {
+                AppError::Validation("addon catalog search failed".to_string())
+            }));
+        }
+
+        Ok(AddonSearchProviderCatalog { results, failures })
     }
 
     fn parse_source_input(&self, source: &str) -> AppResult<AddonSourceRef> {
@@ -550,6 +581,41 @@ impl AddonProviderRegistry {
 
     fn provider_adapters(&self) -> &'static [BuiltinAddonProviderAdapter] {
         BUILTIN_PROVIDER_ADAPTERS
+    }
+
+    fn catalog_provider_adapters(
+        &self,
+        provider_id: Option<&str>,
+    ) -> AppResult<Vec<BuiltinAddonProviderAdapter>> {
+        match provider_id {
+            Some(provider_id) => {
+                let adapter = self
+                    .provider_adapters()
+                    .iter()
+                    .copied()
+                    .find(|adapter| adapter.descriptor().provider_id == provider_id)
+                    .ok_or_else(|| {
+                        AppError::Validation(format!(
+                            "addon catalog provider `{provider_id}` is not registered"
+                        ))
+                    })?;
+                let descriptor = adapter.descriptor();
+                if !descriptor.operations.can_search {
+                    return Err(AppError::Validation(format!(
+                        "addon provider `{}` does not support catalog search",
+                        descriptor.provider_id
+                    )));
+                }
+
+                Ok(vec![adapter])
+            }
+            None => Ok(self
+                .provider_adapters()
+                .iter()
+                .copied()
+                .filter(|adapter| adapter.descriptor().operations.can_search)
+                .collect()),
+        }
     }
 
     fn provider_for_source(
@@ -689,4 +755,16 @@ fn unsupported_policy_error(
         descriptor.source_family.id(),
         source.display_name(),
     ))
+}
+
+fn search_provider_failure(
+    descriptor: AddonProviderDescriptor,
+    error: &AppError,
+) -> AddonSearchProviderFailure {
+    AddonSearchProviderFailure {
+        provider_id: descriptor.provider_id.to_string(),
+        provider_name: descriptor.provider_name.to_string(),
+        source_family: descriptor.source_family.id().to_string(),
+        message: error.to_string(),
+    }
 }

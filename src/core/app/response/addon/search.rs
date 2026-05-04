@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use crate::core::addon::{
     AddonProvider, AddonSearchCatalog as DomainAddonSearchCatalog,
+    AddonSearchProviderFailure as DomainAddonSearchProviderFailure,
     AddonSearchResult as DomainAddonSearchResult,
 };
 
@@ -46,10 +47,32 @@ impl AddonSearchResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct AddonSearchProviderFailureResult {
+    pub provider_id: String,
+    pub provider_name: String,
+    pub source_family: String,
+    pub message: String,
+}
+
+impl AddonSearchProviderFailureResult {
+    pub(crate) fn from_domain(value: DomainAddonSearchProviderFailure) -> Self {
+        Self {
+            provider_id: value.provider_id,
+            provider_name: value.provider_name,
+            source_family: value.source_family,
+            message: value.message,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AddonSearchCatalogResult {
     pub query: String,
+    pub provider_id: Option<String>,
     pub result_count: usize,
+    pub failure_count: usize,
     pub results: Vec<AddonSearchResult>,
+    pub failures: Vec<AddonSearchProviderFailureResult>,
 }
 
 impl AddonSearchCatalogResult {
@@ -61,13 +84,20 @@ impl AddonSearchCatalogResult {
         P: AddonProvider + ?Sized,
     {
         let result_count = value.results.len();
+        let failure_count = value.failures.len();
 
         Self {
             query: value.query,
+            provider_id: value.provider_id,
             result_count,
+            failure_count,
             results: map_owned_vec(value.results, |value| {
                 AddonSearchResult::from_domain_with_provider(value, provider)
             }),
+            failures: map_owned_vec(
+                value.failures,
+                AddonSearchProviderFailureResult::from_domain,
+            ),
         }
     }
 }

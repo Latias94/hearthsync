@@ -1,13 +1,15 @@
 use super::*;
 
 pub(in crate::cli) fn render_addon_search_catalog(item: &AddonSearchCatalogResult) -> String {
+    let mut lines = vec![format!("Query: {}", item.query)];
+    if let Some(provider_id) = &item.provider_id {
+        lines.push(format!("Provider: {provider_id}"));
+    }
+
     if item.results.is_empty() {
-        format!("Query: {}\nNo addons found.", item.query)
+        lines.push("No addons found.".to_string());
     } else {
-        let mut lines = vec![
-            format!("Query: {}", item.query),
-            format!("Found {} result(s):", item.result_count),
-        ];
+        lines.push(format!("Found {} result(s):", item.result_count));
         for result in &item.results {
             lines.push(format!(
                 "- {} | provider: {} | source: {} | downloads: {} | website: {}{}",
@@ -23,8 +25,19 @@ pub(in crate::cli) fn render_addon_search_catalog(item: &AddonSearchCatalogResul
                     .unwrap_or_default()
             ));
         }
-        lines.join("\n")
     }
+
+    if !item.failures.is_empty() {
+        lines.push(format!("Provider failures: {}", item.failure_count));
+        for failure in &item.failures {
+            lines.push(format!(
+                "- {} ({}) | source_family: {} | error: {}",
+                failure.provider_name, failure.provider_id, failure.source_family, failure.message
+            ));
+        }
+    }
+
+    lines.join("\n")
 }
 
 pub(in crate::cli) fn render_addon_inventory(item: &AddonInventoryResult) -> String {

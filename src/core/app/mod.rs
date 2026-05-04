@@ -74,9 +74,10 @@ pub use request::installation::{InspectInstallationRequest, ResolveInstallationR
 pub use request::runtime_settings::SetRuntimeSettingsAppRequest;
 pub use response::addon::{
     AddonCachePurgeResult, AddonCacheRepairResult, AddonInventoryResult, AddonSearchCatalogResult,
-    AddonSearchResult, AddonSourceKindResult, AddonSourceResult, AdoptedAddonPackageResult,
-    InstalledAddonPackageResult, RelinkedAddonPackageResult, RemovedAddonPackageResult,
-    TrackedAddonPackageResult, TrackedAddonResult, UpdatedAddonPackageResult,
+    AddonSearchProviderFailureResult, AddonSearchResult, AddonSourceKindResult, AddonSourceResult,
+    AdoptedAddonPackageResult, InstalledAddonPackageResult, RelinkedAddonPackageResult,
+    RemovedAddonPackageResult, TrackedAddonPackageResult, TrackedAddonResult,
+    UpdatedAddonPackageResult,
 };
 pub use response::addon_index::{
     AddonIndexAttachPackageResult, AddonIndexAttachPackageStatusResult, AddonIndexAttachResult,

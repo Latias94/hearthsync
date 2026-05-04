@@ -33,6 +33,11 @@ pub enum AddonCommands {
         query: String,
         #[arg(long, default_value_t = 10)]
         limit: usize,
+        #[arg(
+            long,
+            help = "Restrict catalog search to one provider id, for example curseforge"
+        )]
+        provider: Option<String>,
     },
     List {
         #[command(flatten)]

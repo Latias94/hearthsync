@@ -2,9 +2,8 @@
 
 ## Current Focus
 
-Evolve the provider registry from the first skeleton into descriptor-backed adapters, so current
-sources stay compatible while future Wago, WoWInterface, and custom catalog providers have a stable
-registration shape to target.
+P3 catalog aggregation is implemented structurally. The next provider work should move dependency
+resolution behind explicit provider capability before adding the first new real provider.
 
 ## Refactor Rules
 
@@ -81,11 +80,11 @@ Exit criteria:
 
 Goal: make addon search a multi-provider catalog query instead of a CurseForge-only adapter.
 
-- [ ] Define catalog provider capability.
-- [ ] Support provider-scoped search requests.
-- [ ] Support aggregate search across configured catalog providers.
-- [ ] Preserve current CurseForge search behavior.
-- [ ] Project partial provider failures into app-facing results without hiding successful providers.
+- [x] Define catalog provider capability.
+- [x] Support provider-scoped search requests.
+- [x] Support aggregate search across configured catalog providers.
+- [x] Preserve current CurseForge search behavior.
+- [x] Project partial provider failures into app-facing results without hiding successful providers.
 
 Exit criteria:
 

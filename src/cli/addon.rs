@@ -24,7 +24,8 @@ pub(super) fn handle_addon_command(
             install_target,
             query,
             limit,
-        } => handle_addon_search(json, runtime, install_target, query, limit)?,
+            provider,
+        } => handle_addon_search(json, runtime, install_target, query, limit, provider)?,
         AddonCommands::List { install_target } => handle_addon_list(json, runtime, install_target)?,
         AddonCommands::Adopt {
             install_target,
