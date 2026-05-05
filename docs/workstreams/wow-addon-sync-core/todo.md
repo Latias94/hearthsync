@@ -400,6 +400,11 @@ enough that these rules live in one place.
   compatibility floor. `NewBeeBoxCache/modules/*.zip` resolves to `newbeebox_addon`, allowing the
   mixed `/` and `\` zip entry separators observed in the live MeetingStone cache package while the
   generic zip layout still rejects backslash archive paths as unsafe.
+  Current evidence: representative read-only NewBeeBox WTF cache inspections also pass with default
+  auto-detection when supplied synthetic source identity context. A real `wtfserve-*.zip` account
+  package normalized 89/89 entries as `newbeebox_wtf_account`, and a real `wtfrole-*.zip`
+  character package normalized 59/59 entries as `newbeebox_wtf_character`; both reported 0 warnings
+  and `public_sharing.status=review_required`.
   Current cleanup: external-package regression coverage now lives in focused sibling modules:
   `analysis`, `validation`, `bundle`, `progress`, `apply`, and `serialization`, leaving the root
   `core::bundle::tests::external_package` module as shared imports and module ownership rather
@@ -1207,6 +1212,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `C:\Program Files\NewBeeBox\NewBeeBoxCache\modules\11225-7685_164-MeetingStone.zip` defaults to
   `newbeebox_addon`, normalizes 408/408 entries, reports 0 warnings, and maps
   `MeetingStone\addon_version.txt` to `addons/MeetingStone/addon_version.txt`.
+  Current evidence: NewBeeBox `wowWtfCache` account and character package shapes were also checked
+  read-only. A representative `wtfserve-*.zip` defaulted to `newbeebox_wtf_account`, normalized
+  89/89 entries, and reported 0 warnings; a representative `wtfrole-*.zip` defaulted to
+  `newbeebox_wtf_character`, normalized 59/59 entries, reported 0 warnings, and detected the source
+  character from the archive layout.
   Current verification:
   `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passes with 98/98
   tests after the NewBeeBox module-cache auto-detection change.

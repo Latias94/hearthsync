@@ -29,7 +29,7 @@ The MVP is complete only when HearthSync can:
 | Open, multi-source addon download/update | `src/core/addon/provider/source.rs` defines `LocalArchive`, `HttpArchive`, `CurseForgeMod`, `GitHubRelease`, and `WagoAddon`; provider/update tests cover local archives, HTTP, CurseForge, GitHub, Wago, cache, and dependency policies. | Covered for core MVP | Provider depth exists, but live provider credentials/network behavior remains environment-dependent. |
 | Addon index and lock reproducibility | `src/core/addon/lock.rs`, `src/core/addon/lock/*`, `src/core/addon/index/*`, bundle sidecar tests in `src/core/app/bundle/tests.rs`, and addon lock apply/verify tests. | Covered for core MVP | Lock/index state is separated from mutable policy state in the current architecture. |
 | Config export as first-class app flow | `src/core/app/request/config.rs` has `ExportConfigBundleAppRequest`; `src/core/app/response/config/bundle.rs` has `ConfigBundleResult`; `src/core/app/config.rs` reuses the external-package engine internally; `src/core/app/stable.rs` exposes `export_config`; `src/cli/config.rs` calls that app boundary. `src/cli/config/tests.rs::config_cli_exported_bundle_applies_through_bundle_cli` verifies the exported artifact can be inspected, planned, dry-run unpacked, and applied through the first-party bundle CLI. | Covered | This directly supports future egui reuse without making GUI code depend on external-package request shapes. |
-| External package/config bundle creation | `src/core/bundle/external_package/create_bundle.rs`, `src/core/app/external_package.rs`, `src/cli/external_package.rs`, `src/cli/config.rs`; docs ADR-093/ADR-095 record the design. `src/core/bundle/external_package/analyze.rs` now auto-detects real `NewBeeBoxCache/modules/*.zip` addon cache packages as `newbeebox_addon`, with regression coverage in `src/core/bundle/tests/external_package/analysis.rs::analyze_external_package_auto_detects_newbeebox_module_cache_addon_with_mixed_separators`. | Covered | Public sharing gate is part of bundle creation rather than only CLI output. NewBeeBox-specific mixed separator support stays scoped to explicit or auto-detected NewBeeBox layouts; generic zip archives still reject backslash paths. |
+| External package/config bundle creation | `src/core/bundle/external_package/create_bundle.rs`, `src/core/app/external_package.rs`, `src/cli/external_package.rs`, `src/cli/config.rs`; docs ADR-093/ADR-095 record the design. `src/core/bundle/external_package/analyze.rs` now auto-detects real `NewBeeBoxCache/modules/*.zip` addon cache packages as `newbeebox_addon`, with regression coverage in `src/core/bundle/tests/external_package/analysis.rs::analyze_external_package_auto_detects_newbeebox_module_cache_addon_with_mixed_separators`. Read-only live inspection also covers real NewBeeBox account and character WTF cache packages. | Covered | Public sharing gate is part of bundle creation rather than only CLI output. NewBeeBox-specific mixed separator support stays scoped to explicit or auto-detected NewBeeBox layouts; generic zip archives still reject backslash paths. |
 | AddOns, WTF, Fonts, Interface resources | `src/core/app/config/tests.rs::config_service_plans_and_applies_shareable_package_with_mapping_backup_and_rewrite` verifies AddOns cleanup/write, `WTF/Config.wtf`, root, account, and character SavedVariables, Fonts, and Interface resources. `src/cli/config/tests.rs::config_cli_runs_export_plan_dry_run_and_apply_with_mapping` verifies the same resource groups through the CLI handler boundary. `src/core/bundle/tests/external_package/analysis.rs::analyze_external_package_directory_detects_direct_addons_and_root_savedvariables` covers root-level `WTF/SavedVariables` layouts. | Covered by integration tests | Synthetic fixture plus root-layout regression coverage, now exercised through both the shared app facade and CLI handler path. |
 | Preview/plan/apply behavior | Config plan/apply tests, external-package plan/apply tests, exported bundle plan/apply test `stable_app_exports_config_bundle_and_applies_exported_bundle`, CLI handler test `config_cli_runs_export_plan_dry_run_and_apply_with_mapping`, and exported-bundle CLI test `config_cli_exported_bundle_applies_through_bundle_cli`. | Covered | The exported artifact is planned and applied through the first-party bundle path at both service and CLI handler levels, while the direct config CLI path covers inspect, export, plan, dry-run apply, and real apply. |
 | Backup and rollback | `src/core/app/config/tests.rs::config_service_rolls_back_shareable_package_apply_when_resource_write_fails`, `src/cli/config/tests.rs::config_cli_apply_rolls_back_when_resource_write_fails`, `src/core/bundle/tests/apply/execution.rs::unpack_bundle_rolls_back_when_apply_fails`, `src/core/backup/tests/restore.rs::restore_backup_rolls_back_to_pre_restore_state_when_apply_fails`, addon lock rollback tests, and config apply backup assertions. | Covered | Rollback evidence now includes config facade apply rollback, CLI handler rollback, bundle, backup restore, addon lock, and addon dependency update paths. |
@@ -61,6 +61,13 @@ The MVP is complete only when HearthSync can:
   with default `Auto` layout. The summary reported `layout=newbeebox_addon`, `entry_count=408`,
   `addons=MeetingStone`, `normalized_files=408`, `warning_count=0`, and normalized
   `MeetingStone\addon_version.txt` to `addons/MeetingStone/addon_version.txt`.
+- Read-only live `external-package inspect` runs against NewBeeBox WTF cache packages also succeed
+  with default `Auto` layout when supplied synthetic source identity context. A representative
+  `wtfserve-*.zip` account package reported `layout=newbeebox_wtf_account`, `entry_count=89`,
+  `normalized_files=89`, `warning_count=0`, and `public_sharing.status=review_required`. A
+  representative `wtfrole-*.zip` character package reported `layout=newbeebox_wtf_character`,
+  `entry_count=59`, `normalized_files=59`, `warning_count=0`,
+  `public_sharing.status=review_required`, and one detected source character.
 - `cargo fmt --check` passed.
 - `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings` passed.
 - `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` passed after adding the CLI handler acceptance
@@ -100,10 +107,11 @@ The goal should not be marked complete yet.
    aggregate local shape findings, but it still does not include full live SavedVariables content or
    provenance-backed replay of the user's private files.
 3. The current audit has now performed read-only local structure scans, a read-only live
-   `config inspect` pass against `E:\Games\World of Warcraft\_retail_`, and a read-only live
-   `external-package inspect` pass against one real NewBeeBox addon module zip. It still did not
-   ingest, sanitize, or run the apply pipeline against those live private contents. That is
-   acceptable for privacy, but not enough to claim broad real-world author-package compatibility.
+   `config inspect` pass against `E:\Games\World of Warcraft\_retail_`, and read-only live
+   `external-package inspect` passes against representative real NewBeeBox addon, account WTF, and
+   character WTF cache zips. It still did not ingest, sanitize, or run the apply pipeline against
+   those live private contents. That is acceptable for privacy, but not enough to claim broad
+   real-world author-package compatibility.
 4. Full-suite verification is now green after the new Lua fixtures, root SavedVariables fix, and
    config-facade rollback test, but green tests still do not cover live-package provenance or broad
    real-world SavedVariables migration safety by themselves.
