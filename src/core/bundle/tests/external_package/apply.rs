@@ -502,6 +502,246 @@ fn apply_external_package_respects_policy_overrides_on_macos_target() {
 }
 
 #[test]
+fn apply_external_package_applies_newbeebox_account_wtf_zip_to_selected_account() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let package_dir = source.path().join("NewBeeBoxCache").join("wowWtfCache");
+    fs::create_dir_all(&package_dir).expect("NewBeeBox WTF cache dir");
+    let package_path = package_dir.join("wtfserve-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            (
+                "SavedVariables/Details.lua",
+                r#"DetailsDB = {
+  ["profileKeys"] = {
+    ["Sourcechar - Sourcerealm"] = "Default",
+  },
+}
+"#,
+            ),
+            ("bindings-cache.wtf", "source bindings"),
+        ],
+    );
+
+    let target_installation =
+        create_fixture_installation_on_platform(target.path(), false, HostPlatform::MacOs);
+    let target_account_dir = target_installation
+        .wtf_dir
+        .join("Account")
+        .join("TARGET_ACCOUNT");
+    fs::create_dir_all(target_account_dir.join("SavedVariables")).expect("target account sv");
+    fs::write(target_account_dir.join("stale-account.txt"), "stale").expect("stale account file");
+
+    let mut request = sample_external_package_request_with_apply_defaults(package_path, None);
+    request.source_account = Some("SOURCE_ACCOUNT".to_string());
+
+    let result = apply_external_package(ApplyExternalPackageRequest {
+        external_package: request,
+        installation: target_installation.clone(),
+        dry_run: false,
+        backup_output_path: Some(target.path().join("backups")),
+        apply_mappings: BundleApplyMappings {
+            selected_accounts: vec!["TARGET_ACCOUNT".to_string()],
+            ..BundleApplyMappings::default()
+        },
+    })
+    .expect("apply NewBeeBox account WTF package");
+
+    assert_eq!(
+        result.analysis.layout,
+        ExternalPackageLayout::NewBeeBoxWtfAccount
+    );
+    assert!(result.analysis.resources.wtf_common);
+    assert!(result.backup_path.is_some());
+    assert_eq!(
+        result.selected_target_accounts,
+        vec!["TARGET_ACCOUNT".to_string()]
+    );
+    assert_eq!(result.written_files, 2);
+    assert_eq!(result.rewritten_files, 0);
+
+    let target_details = target_account_dir
+        .join("SavedVariables")
+        .join("Details.lua");
+    assert_eq!(
+        fs::read_to_string(target_details).expect("target account details"),
+        r#"DetailsDB = {
+  ["profileKeys"] = {
+    ["Sourcechar - Sourcerealm"] = "Default",
+  },
+}
+"#
+    );
+    assert_eq!(
+        fs::read_to_string(target_account_dir.join("bindings-cache.wtf")).expect("target bindings"),
+        "source bindings"
+    );
+    assert_eq!(
+        fs::read_to_string(target_account_dir.join("stale-account.txt")).expect("stale preserved"),
+        "stale"
+    );
+}
+
+#[test]
+fn apply_external_package_applies_newbeebox_character_wtf_zip_with_rewrite_and_backup() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let package_dir = source.path().join("NewBeeBoxCache").join("wowWtfCache");
+    fs::create_dir_all(&package_dir).expect("NewBeeBox WTF cache dir");
+    let package_path = package_dir.join("wtfrole-example.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("Sourcechar/AddOns.txt", "WeakAuras: enabled"),
+            (
+                "Sourcechar/SavedVariables\\Pawn.lua",
+                r#"PawnOptions = {
+  ["LastPlayerFullName"] = "Sourcechar",
+  ["LastRealm"] = "Sourcerealm",
+  ["note"] = "Sourcechar - Sourcerealm should stay in notes",
+}
+"#,
+            ),
+        ],
+    );
+
+    let target_installation =
+        create_fixture_installation_on_platform(target.path(), false, HostPlatform::MacOs);
+    let target_character_dir = target_installation
+        .wtf_dir
+        .join("Account")
+        .join("TARGET_ACCOUNT")
+        .join("Stormrage")
+        .join("Targetmage");
+    fs::create_dir_all(target_character_dir.join("SavedVariables"))
+        .expect("target character saved variables");
+    fs::write(target_character_dir.join("StaleCharacter.txt"), "stale")
+        .expect("stale character file");
+
+    let mut request = sample_external_package_request_with_apply_defaults(package_path, None);
+    request.source_account = Some("SOURCE_ACCOUNT".to_string());
+    request.source_server = Some("Sourcerealm".to_string());
+
+    let result = apply_external_package(ApplyExternalPackageRequest {
+        external_package: request,
+        installation: target_installation.clone(),
+        dry_run: false,
+        backup_output_path: Some(target.path().join("backups")),
+        apply_mappings: BundleApplyMappings {
+            target_account: Some("TARGET_ACCOUNT".to_string()),
+            target_server: Some("Stormrage".to_string()),
+            target_character: Some("Targetmage".to_string()),
+            ..BundleApplyMappings::default()
+        },
+    })
+    .expect("apply NewBeeBox character WTF package");
+
+    assert_eq!(
+        result.analysis.layout,
+        ExternalPackageLayout::NewBeeBoxWtfCharacter
+    );
+    assert_eq!(result.analysis.resources.wtf_characters.len(), 1);
+    assert!(result.backup_path.is_some());
+    assert_eq!(result.character_mappings.len(), 1);
+    assert_eq!(result.written_files, 2);
+    assert_eq!(result.rewritten_files, 1);
+    assert_eq!(result.plan_summary.paths_to_remove, 1);
+
+    assert!(!target_character_dir.join("StaleCharacter.txt").exists());
+    assert_eq!(
+        fs::read_to_string(target_character_dir.join("AddOns.txt")).expect("addons state"),
+        "WeakAuras: enabled"
+    );
+
+    let pawn = fs::read_to_string(target_character_dir.join("SavedVariables").join("Pawn.lua"))
+        .expect("target pawn");
+    assert!(pawn.contains(r#"["LastPlayerFullName"] = "Targetmage""#));
+    assert!(pawn.contains(r#"["LastRealm"] = "Stormrage""#));
+    assert!(pawn.contains("Sourcechar - Sourcerealm should stay in notes"));
+    assert!(!pawn.contains(r#"["LastPlayerFullName"] = "Sourcechar""#));
+    assert!(!pawn.contains(r#"["LastRealm"] = "Sourcerealm""#));
+}
+
+#[test]
+fn apply_external_package_rolls_back_newbeebox_character_wtf_zip_when_write_fails() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let package_dir = source.path().join("NewBeeBoxCache").join("wowWtfCache");
+    fs::create_dir_all(&package_dir).expect("NewBeeBox WTF cache dir");
+    let package_path = package_dir.join("wtfrole-rollback.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("Sourcechar/AddOns.txt", "WeakAuras: enabled"),
+            (
+                "Sourcechar/SavedVariables\\Pawn.lua",
+                r#"PawnOptions = {
+  ["LastPlayerFullName"] = "Sourcechar",
+  ["LastRealm"] = "Sourcerealm",
+}
+"#,
+            ),
+        ],
+    );
+
+    let target_installation =
+        create_fixture_installation_on_platform(target.path(), false, HostPlatform::MacOs);
+    let target_character_dir = target_installation
+        .wtf_dir
+        .join("Account")
+        .join("TARGET_ACCOUNT")
+        .join("Stormrage")
+        .join("Targetmage");
+    fs::create_dir_all(&target_character_dir).expect("target character dir");
+    let blocking_saved_variables = target_character_dir.join("SavedVariables");
+    fs::write(&blocking_saved_variables, "blocking saved variables file")
+        .expect("blocking saved variables file");
+
+    let mut request = sample_external_package_request_with_apply_defaults(
+        package_path,
+        Some(ApplyDefaults {
+            create_backup: true,
+            addons: ResourceApplyPolicy::Preserve,
+            wtf_common: ResourceApplyPolicy::Preserve,
+            wtf_characters: ResourceApplyPolicy::Share,
+            fonts: ResourceApplyPolicy::Preserve,
+            interface_assets: ResourceApplyPolicy::Preserve,
+        }),
+    );
+    request.source_account = Some("SOURCE_ACCOUNT".to_string());
+    request.source_server = Some("Sourcerealm".to_string());
+
+    let error = apply_external_package(ApplyExternalPackageRequest {
+        external_package: request,
+        installation: target_installation.clone(),
+        dry_run: false,
+        backup_output_path: Some(target.path().join("backups")),
+        apply_mappings: BundleApplyMappings {
+            target_account: Some("TARGET_ACCOUNT".to_string()),
+            target_server: Some("Stormrage".to_string()),
+            target_character: Some("Targetmage".to_string()),
+            ..BundleApplyMappings::default()
+        },
+    })
+    .expect_err("NewBeeBox character WTF apply should fail and roll back");
+
+    assert!(error.to_string().contains("rollback restored"));
+    assert!(!target_character_dir.join("AddOns.txt").exists());
+    assert!(blocking_saved_variables.is_file());
+    assert_eq!(
+        fs::read_to_string(&blocking_saved_variables).expect("restored blocking file"),
+        "blocking saved variables file"
+    );
+    assert!(
+        !target_character_dir
+            .join("SavedVariables")
+            .join("Pawn.lua")
+            .exists()
+    );
+}
+
+#[test]
 fn apply_external_package_applies_complex_windows_author_zip_to_macos_target() {
     let source = tempdir().expect("source temp dir");
     let target = tempdir().expect("target temp dir");

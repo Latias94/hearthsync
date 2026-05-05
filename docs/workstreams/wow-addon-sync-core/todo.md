@@ -405,6 +405,15 @@ enough that these rules live in one place.
   package normalized 89/89 entries as `newbeebox_wtf_account`, and a real `wtfrole-*.zip`
   character package normalized 59/59 entries as `newbeebox_wtf_character`; both reported 0 warnings
   and `public_sharing.status=review_required`.
+  Current progress: NewBeeBox WTF cache package compatibility now reaches apply coverage too.
+  `apply_external_package_applies_newbeebox_account_wtf_zip_to_selected_account` verifies an
+  account WTF zip is applied to a selected target account with backup while staying conservative
+  about Lua rewrite, because account-only NewBeeBox packages do not carry a source character
+  resource. `apply_external_package_applies_newbeebox_character_wtf_zip_with_rewrite_and_backup`
+  verifies a character WTF zip infers the source character, accepts mixed archive separators,
+  maps to a macOS target character, rewrites Lua identity fields, and creates a backup.
+  `apply_external_package_rolls_back_newbeebox_character_wtf_zip_when_write_fails` verifies a
+  partial NewBeeBox character-WTF write rolls back after a forced `SavedVariables` path failure.
   Current cleanup: external-package regression coverage now lives in focused sibling modules:
   `analysis`, `validation`, `bundle`, `progress`, `apply`, and `serialization`, leaving the root
   `core::bundle::tests::external_package` module as shared imports and module ownership rather
@@ -1218,8 +1227,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `newbeebox_wtf_character`, normalized 59/59 entries, reported 0 warnings, and detected the source
   character from the archive layout.
   Current verification:
-  `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passes with 98/98
-  tests after the NewBeeBox module-cache auto-detection change.
+  `CARGO_BUILD_JOBS=1 cargo nextest run newbeebox -j 1 --no-fail-fast` passes with 12/12 tests
+  after the NewBeeBox WTF account/character apply and rollback additions.
+  Current verification:
+  `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passes with 101/101
+  tests after the NewBeeBox module-cache auto-detection and WTF apply/rollback coverage.
   Current progress: malformed Lua SavedVariables behavior now has explicit byte-level regression
   coverage. Incomplete `profileKeys` tables fail closed without broad fallback replacement, and
   incomplete identity-key containers do not rewrite keys while explicit allowlisted identity fields
@@ -1242,10 +1254,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   passes with 44/44 tests after the malformed-Lua regressions, invalid UTF-8 DBM compact-key
   fixture, and DBM scalar identity-table coverage.
   Current verification: after the new fixture, CLI acceptance, NewBeeBox module-cache
-  auto-detection, DBM scalar identity-table coverage, and audit changes,
+  auto-detection, DBM scalar identity-table coverage, NewBeeBox WTF apply/rollback coverage, and
+  audit changes,
   `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 774/774 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 777/777 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
   code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
   fixture corpus still needs controlled provenance reductions and more addon-family coverage before
