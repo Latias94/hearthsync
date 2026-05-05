@@ -1217,19 +1217,25 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current progress: non-UTF-8 identity-key coverage now includes a DBM compact-key byte fixture.
   `dbm_core_invalid_utf8_compact_keys.lua.escape` verifies byte fallback rewrites table-valued
   compact DBM identities while preserving scalar popup/cache keys and Latin-1 bytes.
+  Current progress: DBM scalar identity-table coverage now reflects another aggregate local shape
+  finding. `DBM_UsedProfile`, `DBM_UseDualProfile`, and `DBM_CharSavedRevision` are treated as
+  explicit DBM character identity tables even when their values are scalars, while unrelated scalar
+  popup/cache tables such as `DBM_AnnoyingPopupDisables` remain fail-closed. The coverage includes
+  both UTF-8 controlled reduction and invalid UTF-8 byte fallback assertions.
   Current verification:
   `cargo nextest run preview_lua_bytes_rewrite_rewrites_invalid_utf8_identity_key_fixture -j 1 --no-fail-fast`
   passes with 1/1 tests.
   Current verification:
   `cargo nextest run preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields -j 1 --no-fail-fast`
   passes with 2/2 tests.
-  Current verification: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1` passes with
-  43/43 tests after the malformed-Lua regressions and invalid UTF-8 DBM compact-key fixture.
+  Current verification: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast`
+  passes with 44/44 tests after the malformed-Lua regressions, invalid UTF-8 DBM compact-key
+  fixture, and DBM scalar identity-table coverage.
   Current verification: after the new fixture, CLI acceptance, NewBeeBox module-cache
-  auto-detection, and audit changes,
+  auto-detection, DBM scalar identity-table coverage, and audit changes,
   `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 773/773 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 774/774 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
   code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
   fixture corpus still needs controlled provenance reductions and more addon-family coverage before

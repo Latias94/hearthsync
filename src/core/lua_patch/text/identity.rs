@@ -138,6 +138,20 @@ fn collect_identity_key_replacements(
         rewrites,
         replacements,
     );
+    for table_name in [
+        "DBM_CharSavedRevision",
+        "DBM_UsedProfile",
+        "DBM_UseDualProfile",
+    ] {
+        collect_named_table_identity_key_replacements(
+            content,
+            table_name,
+            COMBINED,
+            None,
+            rewrites,
+            replacements,
+        );
+    }
     collect_named_realm_character_map_replacements(content, "faction", mappings, replacements);
 }
 

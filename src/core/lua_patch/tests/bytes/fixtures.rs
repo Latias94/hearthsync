@@ -395,6 +395,20 @@ fn preview_lua_bytes_rewrite_covers_controlled_shape_reductions() {
             ],
         },
         Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/DBM-Core.lua",
+            fixture: "dbm_core_scalar_identity_tables_utf8.lua",
+            expected: &[
+                r#"["Targetmage-Stormrage"] = "Default""#,
+                r#"["Targetmage-Stormrage"] = false"#,
+                r#"["Targetmage-Stormrage"] = 20260505"#,
+                r#"["Targetmage-Stormrage"] = {"#,
+            ],
+            preserved: &[
+                "Examplemage-Illidan should remain in DBM option text",
+                r#"["Examplemage-Illidan"] = true"#,
+            ],
+        },
+        Case {
             path: "wtf/common/accounts/ACCOUNT/SavedVariables/EventsTracker.lua",
             fixture: "eventstracker_value_reduced_utf8.lua",
             expected: &[

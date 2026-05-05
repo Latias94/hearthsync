@@ -124,6 +124,46 @@ fn preview_lua_bytes_rewrite_rewrites_invalid_utf8_identity_key_fixture() {
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_rewrites_invalid_utf8_dbm_scalar_identity_tables() {
+    let payload = b"prefix\xff DBM_UsedProfile = { [\"Examplemage-Illidan\"] = \"Default\" }\nDBM_UseDualProfile = { [\"Examplemage-Illidan\"] = false }\nDBM_CharSavedRevision = { [\"Examplemage-Illidan\"] = 20260505 }\nDBM_AnnoyingPopupDisables = { [\"Examplemage-Illidan\"] = true }\xffsuffix";
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/DBM-Core.lua"),
+        payload,
+        &[sample_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: false,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview")
+    .expect("rewritten bytes");
+
+    assert!(rewritten.contains(&0xff));
+    assert!(
+        rewritten
+            .windows(br#"["Targetmage-Stormrage"] = "Default""#.len())
+            .any(|window| window == br#"["Targetmage-Stormrage"] = "Default""#)
+    );
+    assert!(
+        rewritten
+            .windows(br#"["Targetmage-Stormrage"] = false"#.len())
+            .any(|window| window == br#"["Targetmage-Stormrage"] = false"#)
+    );
+    assert!(
+        rewritten
+            .windows(br#"["Targetmage-Stormrage"] = 20260505"#.len())
+            .any(|window| window == br#"["Targetmage-Stormrage"] = 20260505"#)
+    );
+    assert!(
+        rewritten
+            .windows(br#"DBM_AnnoyingPopupDisables = { ["Examplemage-Illidan"] = true }"#.len())
+            .any(|window| {
+                window == br#"DBM_AnnoyingPopupDisables = { ["Examplemage-Illidan"] = true }"#
+            })
+    );
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_supports_latin1_strings() {
     let rewritten = preview_lua_bytes_rewrite(
         Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),
