@@ -812,6 +812,9 @@ addon update, addon-lock sync, and frontend-facing dry-run behavior feel trustwo
   `storage`, `inspect`, `diff_verify`, `plan`, and `apply`, leaving
   `core::addon::lock::tests` as shared lock-sync fixtures and cancellation/progress fakes instead
   of a single mixed lock lifecycle bucket.
+  Current hardening: explicit addon-lock source override comparison keys now use the same
+  fail-closed whitespace rule as sidecar `sources.toml`, so a typo such as `" addons:x "` cannot be
+  accepted as a valid override key that later fails to match any planned action.
 - [x] decide whether default public planning stays rewrite-aware and compare-heavy or whether the
   product should split logical planning from deeper content-compare preview
   Completed: default public plan is now logical and conservative. `bundle plan` and

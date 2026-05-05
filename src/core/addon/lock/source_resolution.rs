@@ -39,6 +39,12 @@ pub(super) fn resolved_source_override_map(
                 "addon lock source override comparison key must not be empty".to_string(),
             ));
         }
+        if source_override.comparison_key.trim() != source_override.comparison_key {
+            return Err(AppError::Validation(format!(
+                "addon lock source override comparison key must not have surrounding whitespace: {}",
+                source_override.comparison_key
+            )));
+        }
         if !explicit_keys.insert(source_override.comparison_key.clone()) {
             return Err(AppError::Validation(format!(
                 "duplicate addon lock source override for `{}`",
@@ -212,6 +218,22 @@ mod tests {
                 .expect("portable sidecar path"),
             vec!["sources", "providers", "curseforge", "WeakAuras.zip"]
         );
+    }
+
+    #[test]
+    fn resolved_source_override_map_rejects_whitespace_explicit_keys() {
+        let temp = tempdir().expect("temp dir");
+        let error = resolved_source_override_map(
+            &temp.path().join("lock.toml"),
+            &[AddonLockSourceOverride {
+                comparison_key: " addons:weakauras ".to_string(),
+                archive_path: temp.path().join("sources").join("WeakAuras.zip"),
+            }],
+        )
+        .expect_err("whitespace explicit source override key should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("surrounding whitespace"));
     }
 
     #[test]
