@@ -1166,9 +1166,24 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   outputting paths or values. Follow-up fixtures now reflect those findings: compact DBM identities,
   compact `Details_MythicPlus.lua` profiles, TinyTooltip realm fields, and a fail-closed WeakAuras
   no-identity sample.
+  Current progress: controlled reduction fixtures now preserve only aggregate local shape findings
+  while replacing all private strings with synthetic data. The new reductions cover DBM-Core compact
+  table keys, EventsTracker `value`, HandyNotes `value`, MeetingStone character profiles and
+  search history, SavedInstances compact `Toons`, and WorldQuestTracker realm/profile shapes.
+  Current progress: read-only `config inspect` against the local `_retail_` tree now normalizes
+  root-level `WTF/SavedVariables/*.lua` files instead of warning on them as unsupported layouts. The
+  post-fix run produced 59,839 normalized entries and 0 warnings without writing or committing any
+  private SavedVariables content.
+  Current progress: the config facade fixture now includes root SavedVariables too. Successful
+  config apply and exported-bundle apply assert `WTF/SavedVariables/Blizzard_Console.lua` lands at
+  target `WTF/Account/SavedVariables`, while rollback asserts it is removed again when apply fails.
+  Current progress: config facade rollback is now covered directly. A shareable config package apply
+  is forced to fail after AddOns, Interface, and Fonts writes have started by blocking
+  `WTF/Account/<target>/SavedVariables`; the test verifies addon, WTF, font, interface, and blocking
+  file state are restored.
   Current verification: after the new fixture and audit changes, `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 764/764 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 766/766 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
   code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
   fixture corpus still needs controlled provenance reductions and more addon-family coverage before

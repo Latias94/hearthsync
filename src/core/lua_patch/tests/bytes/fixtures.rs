@@ -376,6 +376,111 @@ fn preview_lua_bytes_rewrite_covers_second_shape_identity_policy_fixtures() {
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_covers_controlled_shape_reductions() {
+    struct Case {
+        path: &'static str,
+        fixture: &'static str,
+        expected: &'static [&'static str],
+        preserved: &'static [&'static str],
+    }
+
+    let cases = [
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/DBM-Core.lua",
+            fixture: "dbm_core_reduced_compact_keys_utf8.lua",
+            expected: &[r#"["Targetmage-Stormrage"] = {"#],
+            preserved: &[
+                "Examplemage-Illidan should remain in DBM option text",
+                r#"["Examplemage-Illidan"] = true"#,
+            ],
+        },
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/EventsTracker.lua",
+            fixture: "eventstracker_value_reduced_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = {"#,
+                r#"["Targetmage-Stormrage"] = 7"#,
+            ],
+            preserved: &[r#"["Examplemage - Illidan"] = "historical event text""#],
+        },
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/HandyNotes_Dragonflight.lua",
+            fixture: "handynotes_dragonflight_value_reduced_utf8.lua",
+            expected: &[r#"["Targetmage - Stormrage"] = {"#],
+            preserved: &[r#"["Examplemage - Illidan"] = "map note owner text""#],
+        },
+        Case {
+            path: "wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua",
+            fixture: "meetingstone_character_reduced_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = "Default""#,
+                r#"["Targetmage - Stormrage"] = {"#,
+                r#"["Targetmage-Stormrage"] = {"#,
+            ],
+            preserved: &[r#"["Examplemage-Illidan"] = 1234"#],
+        },
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/SavedInstances.lua",
+            fixture: "savedinstances_reduced_toon_compact_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = {"#,
+                r#"["Targetmage-Stormrage"] = {"#,
+            ],
+            preserved: &[
+                r#"["Examplemage - Illidan"] = "historical lockout text""#,
+                r#"["Examplemage-Illidan"] = 99"#,
+            ],
+        },
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/WorldQuestTracker.lua",
+            fixture: "worldquesttracker_reduced_realm_profiles_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = "Default""#,
+                r#"["Targetmage - Stormrage"] = {"#,
+                r#"["realm"] = "Stormrage""#,
+            ],
+            preserved: &[
+                "Illidan should stay in quest note",
+                r#"["Illidan"] = {"#,
+                r#"["Examplemage"] = "historical quest owner""#,
+            ],
+        },
+    ];
+
+    for case in cases {
+        let payload = load_text_fixture_bytes(case.fixture);
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new(case.path),
+            &payload,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: true,
+            },
+        )
+        .unwrap_or_else(|error| panic!("preview {}: {error}", case.fixture))
+        .unwrap_or_else(|| panic!("{} should produce rewritten bytes", case.fixture));
+
+        let rewritten_text = String::from_utf8(rewritten)
+            .unwrap_or_else(|error| panic!("{} should remain utf8: {error}", case.fixture));
+        for expected in case.expected {
+            assert!(
+                rewritten_text.contains(expected),
+                "{} should contain {expected}",
+                case.fixture
+            );
+        }
+        for preserved in case.preserved {
+            assert!(
+                rewritten_text.contains(preserved),
+                "{} should preserve {preserved}",
+                case.fixture
+            );
+        }
+    }
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_keeps_weakauras_without_identity_markers_fail_closed() {
     let payload = load_text_fixture_bytes("weakauras_no_identity_utf8.lua");
     let rewritten = preview_lua_bytes_rewrite(

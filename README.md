@@ -155,6 +155,38 @@ cargo run -- bundle plan --bundle .\my-ui.zip --install "E:\Games\World of Warcr
 cargo run -- bundle unpack --bundle .\my-ui.zip --install "E:\Games\World of Warcraft" --flavor retail --dry-run
 ```
 
+## Config Package Workflow
+
+Config packages are author-style UI setup folders or zips that may contain `Interface/AddOns`,
+`WTF`, `Fonts`, and additional `Interface` resources. The `config` commands are a product-facing
+alias over the same safe external-package and bundle pipeline used by portable bundles.
+
+Inspect a package before sharing or applying it:
+
+```powershell
+cargo run -- config inspect --source .\AuthorUI
+```
+
+Export a reusable HearthSync bundle from a config package:
+
+```powershell
+cargo run -- config export --source .\AuthorUI --source-flavor retail --source-platform windows --output .\author-ui.hearthsync.zip
+```
+
+Public sharing is blocked until review-required WTF and SavedVariables risks are explicitly
+accepted:
+
+```powershell
+cargo run -- config export --source .\AuthorUI --source-flavor retail --output .\author-ui-public.hearthsync.zip --sharing-mode public --allow-public-sharing-risks
+```
+
+Preview and apply a config package with account, realm, and character mapping:
+
+```powershell
+cargo run -- config plan --source .\AuthorUI --source-flavor retail --source-platform windows --install "E:\Games\World of Warcraft" --flavor retail --target-account ACCOUNT --target-server Illidan --target-character Examplemage
+cargo run -- config apply --source .\AuthorUI --source-flavor retail --source-platform windows --install "E:\Games\World of Warcraft" --flavor retail --backup-output .\backups --target-account ACCOUNT --target-server Illidan --target-character Examplemage
+```
+
 ## Addon Source Formats
 
 HearthSync currently supports:

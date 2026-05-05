@@ -163,7 +163,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |file| file.kind == ConfigSensitiveWtfFileKindValue::SavedVariables
                     && file.severity == ConfigPublicSharingSeverityValue::ReviewRequired
-                    && file.count == 3
+                    && file.count == 4
             )
     );
     assert!(
@@ -204,7 +204,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
                     && reason.code == ConfigPublicSharingReasonCodeValue::HighRiskWtfScope
-                    && reason.count == 2
+                    && reason.count == 3
             )
     );
     assert!(
@@ -228,7 +228,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
                     && reason.code == ConfigPublicSharingReasonCodeValue::SensitiveWtfFile
-                    && reason.count == 3
+                    && reason.count == 4
             )
     );
 
@@ -292,6 +292,17 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
     assert!(meetingstone_lua.contains(r#"["Targetmage - Stormrage"] = {"#));
     assert!(meetingstone_lua.contains(r#"["Examplemage - Illidan"] = "activity label text""#));
 
+    let root_lua = fs::read_to_string(
+        installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join("Blizzard_Console.lua"),
+    )
+    .expect("root saved variables");
+    assert!(root_lua.contains("BlizzardConsoleDB"));
+    assert!(root_lua.contains("console setting stays global"));
+
     let character_root = installation
         .wtf_dir
         .join("Account")
@@ -324,6 +335,112 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .interface_dir
             .join("SharedXML")
             .join("old.blp")
+            .exists()
+    );
+}
+
+#[test]
+fn config_service_rolls_back_shareable_package_apply_when_resource_write_fails() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let backup = tempdir().expect("backup temp dir");
+    let package_root = create_shareable_config_source(source.path());
+    let installation = create_empty_installation_on_platform(target.path(), HostPlatform::MacOs);
+    seed_config_target(&installation);
+
+    let stale_addon = installation.addon_dir.join("WeakAuras").join("Stale.lua");
+    let original_stale_addon = fs::read_to_string(&stale_addon).expect("original stale addon");
+    let original_config =
+        fs::read_to_string(installation.wtf_dir.join("Config.wtf")).expect("original config");
+    let original_font =
+        fs::read_to_string(installation.fonts_dir.join("FRIZQT__.ttf")).expect("original font");
+    let old_texture = installation.interface_dir.join("SharedXML").join("old.blp");
+    let original_old_texture = fs::read_to_string(&old_texture).expect("original old texture");
+    let character_root = installation
+        .wtf_dir
+        .join("Account")
+        .join("TARGETACC")
+        .join("Stormrage")
+        .join("Targetmage");
+
+    let account_saved_variables = installation
+        .wtf_dir
+        .join("Account")
+        .join("TARGETACC")
+        .join("SavedVariables");
+    fs::write(&account_saved_variables, "blocking saved variables file")
+        .expect("blocking account saved variables file");
+
+    let service = ConfigService::default();
+    let error = service
+        .apply_collecting_progress(ApplyConfigAppRequest {
+            config_package: sample_shareable_config_package(package_root),
+            installation: installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(backup.path().to_path_buf()),
+            apply_mappings: BundleApplyMappingsValue {
+                target_account: Some("TARGETACC".to_string()),
+                target_server: Some("Stormrage".to_string()),
+                target_character: Some("Targetmage".to_string()),
+                ..BundleApplyMappingsValue::default()
+            },
+        })
+        .expect_err("config apply should fail and roll back");
+
+    assert!(error.to_string().contains("rollback restored"));
+    assert_eq!(
+        fs::read_to_string(&stale_addon).expect("restored stale addon"),
+        original_stale_addon
+    );
+    assert!(
+        !installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc")
+            .exists()
+    );
+    assert_eq!(
+        fs::read_to_string(installation.wtf_dir.join("Config.wtf")).expect("restored config"),
+        original_config
+    );
+    assert_eq!(
+        fs::read_to_string(installation.fonts_dir.join("FRIZQT__.ttf")).expect("restored font"),
+        original_font
+    );
+    assert!(character_root.join("StaleCharacter.txt").exists());
+    assert!(
+        character_root
+            .join("SavedVariables")
+            .join("Old.lua")
+            .exists()
+    );
+    assert!(
+        !character_root
+            .join("SavedVariables")
+            .join("Pawn.lua")
+            .exists()
+    );
+    assert_eq!(
+        fs::read_to_string(&account_saved_variables).expect("restored blocking file"),
+        "blocking saved variables file"
+    );
+    assert_eq!(
+        fs::read_to_string(&old_texture).expect("restored old texture"),
+        original_old_texture
+    );
+    assert!(
+        !installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join("Blizzard_Console.lua")
+            .exists()
+    );
+    assert!(
+        !installation
+            .interface_dir
+            .join("SharedXML")
+            .join("texture.blp")
             .exists()
     );
 }
@@ -364,7 +481,7 @@ fn stable_app_exports_config_bundle_and_applies_exported_bundle() {
             .iter()
             .any(
                 |file| file.kind == ConfigSensitiveWtfFileKindValue::SavedVariables
-                    && file.count == 3
+                    && file.count == 4
             )
     );
 
@@ -433,6 +550,15 @@ fn stable_app_exports_config_bundle_and_applies_exported_bundle() {
     )
     .expect("meetingstone saved variables");
     assert!(meetingstone_lua.contains(r#"["Targetmage - Stormrage"] = {"#));
+    let root_lua = fs::read_to_string(
+        installation
+            .wtf_dir
+            .join("Account")
+            .join("SavedVariables")
+            .join("Blizzard_Console.lua"),
+    )
+    .expect("root saved variables");
+    assert!(root_lua.contains("BlizzardConsoleDB"));
     let character_lua = fs::read_to_string(
         installation
             .wtf_dir
@@ -515,6 +641,17 @@ fn create_shareable_config_source(root: &Path) -> PathBuf {
         "SET locale enUS",
     )
     .expect("config");
+    let root_saved_variables = package_root.join("WTF").join("SavedVariables");
+    fs::create_dir_all(&root_saved_variables).expect("root saved variables");
+    fs::write(
+        root_saved_variables.join("Blizzard_Console.lua"),
+        r#"
+BlizzardConsoleDB = {
+  ["note"] = "console setting stays global",
+}
+"#,
+    )
+    .expect("root saved variables file");
     let account_dir = package_root.join("WTF").join("Account").join("ACCOUNT");
     fs::create_dir_all(account_dir.join("SavedVariables")).expect("account saved variables");
     fs::write(

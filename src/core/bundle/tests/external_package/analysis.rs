@@ -452,6 +452,23 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
         "## Interface: 110000",
     )
     .expect("addon toc");
+    fs::create_dir_all(package_root.join("WTF").join("SavedVariables")).expect("root saved dir");
+    fs::write(
+        package_root
+            .join("WTF")
+            .join("SavedVariables")
+            .join("Blizzard_Console.lua"),
+        "Console = true",
+    )
+    .expect("root saved variables file");
+    fs::write(
+        package_root
+            .join("WTF")
+            .join("SavedVariables")
+            .join("Blizzard_Console.lua.bak"),
+        "ConsoleBackup = true",
+    )
+    .expect("root saved variables backup");
     fs::create_dir_all(
         package_root
             .join("WTF")
@@ -478,13 +495,21 @@ fn analyze_external_package_directory_detects_direct_addons_and_root_savedvariab
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
     assert!(analysis.resources.fonts);
     assert!(analysis.resources.wtf_common);
-    assert_eq!(analysis.summary.total_files, 3);
-    assert_eq!(analysis.summary.normalized_files, 3);
+    assert_eq!(analysis.summary.total_files, 5);
+    assert_eq!(analysis.summary.normalized_files, 5);
     assert_eq!(analysis.summary.ignored_files, 0);
     assert_eq!(analysis.summary.warning_count, 0);
     assert_eq!(analysis.summary.wtf_warning_count, 0);
     assert!(analysis.summary.warning_groups.is_empty());
     assert!(analysis.warnings.is_empty());
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.normalized_path == "wtf/common/root/SavedVariables/Blizzard_Console.lua"
+            && entry.wtf_scope == Some(WtfScope::RootSavedVariables)
+    }));
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.normalized_path == "wtf/common/root/SavedVariables/Blizzard_Console.lua.bak"
+            && entry.wtf_scope == Some(WtfScope::RootSavedVariables)
+    }));
     assert!(analysis.entries.iter().any(|entry| {
         entry.normalized_path == "wtf/common/root/SavedVariables/Broken.lua"
             && entry.wtf_scope == Some(WtfScope::RootSavedVariables)

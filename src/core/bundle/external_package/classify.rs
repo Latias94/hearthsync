@@ -388,6 +388,24 @@ fn classify_wtf_suffix(suffix: &[String]) -> WtfSuffixClassification {
         return WtfSuffixClassification::Recognized("wtf/common/Config.wtf".to_string());
     }
 
+    if suffix.len() < 2 {
+        return WtfSuffixClassification::Warning(WtfWarningKind::UnsupportedLayout);
+    }
+
+    if suffix[1].eq_ignore_ascii_case("SavedVariables") {
+        let rest = &suffix[2..];
+        if rest.is_empty() {
+            return WtfSuffixClassification::Warning(
+                WtfWarningKind::RootSavedVariablesPathWithoutFile,
+            );
+        }
+
+        return WtfSuffixClassification::Recognized(join_exact_normalized_segments(
+            &["wtf", "common", "root", "SavedVariables"],
+            rest,
+        ));
+    }
+
     if suffix.len() < 4 || !suffix[1].eq_ignore_ascii_case("Account") {
         return WtfSuffixClassification::Warning(WtfWarningKind::UnsupportedLayout);
     }
@@ -730,11 +748,14 @@ mod tests {
 
     #[test]
     fn classify_wtf_suffix_recognizes_root_saved_variables_layout() {
-        let suffix = segments(&["WTF", "Account", "SavedVariables", "Broken.lua"]);
+        let suffix = segments(&["WTF", "SavedVariables", "Blizzard_Console.lua"]);
 
         match classify_wtf_suffix(&suffix) {
             WtfSuffixClassification::Recognized(normalized_path) => {
-                assert_eq!(normalized_path, "wtf/common/root/SavedVariables/Broken.lua");
+                assert_eq!(
+                    normalized_path,
+                    "wtf/common/root/SavedVariables/Blizzard_Console.lua"
+                );
             }
             WtfSuffixClassification::Warning(_) => {
                 panic!("root saved variables file should be recognized")
