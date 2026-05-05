@@ -112,16 +112,20 @@ pub use response::bundle::{
 };
 pub use response::config::{
     ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ConfigPackageEntryResult,
-    ConfigPackageSourceKindResult, ConfigPackageSummaryResult, ConfigSourceCharacterResult,
+    ConfigPackageSourceKindResult, ConfigPackageSummaryResult, ConfigPublicSharingReasonCodeValue,
+    ConfigPublicSharingReasonResult, ConfigPublicSharingSeverityValue,
+    ConfigPublicSharingStatusValue, ConfigPublicSharingSummaryResult, ConfigSourceCharacterResult,
     ConfigSourceIdentityResult, ConfigWarningCategoryValue, ConfigWarningCodeValue,
     ConfigWarningGroupResult, ConfigWarningResult, ConfigWtfScopeSummaryResult,
 };
 pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
-    ExternalPackageSourceCharacterResult, ExternalPackageSourceIdentityResult,
-    ExternalPackageSourceKindResult, ExternalPackageSummaryResult,
-    ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackagePublicSharingReasonCodeValue, ExternalPackagePublicSharingReasonResult,
+    ExternalPackagePublicSharingSeverityValue, ExternalPackagePublicSharingStatusValue,
+    ExternalPackagePublicSharingSummaryResult, ExternalPackageSourceCharacterResult,
+    ExternalPackageSourceIdentityResult, ExternalPackageSourceKindResult,
+    ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
     ExternalPackageWtfScopeSummaryResult,
 };
 pub use response::installation::{
@@ -152,8 +156,8 @@ pub use types::bundle::{
     CharacterMappingModeValue, ResourceApplyPolicyValue, WtfScopeRiskValue, WtfScopeValue,
 };
 pub use types::external_package::{
-    ExternalPackageLayoutValue, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue,
+    ExternalPackageLayoutValue, ExternalPackageSharingModeValue,
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
 };
 pub use types::install::{
     HealthStatusValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,

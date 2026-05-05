@@ -6,7 +6,8 @@ use crate::cli::{
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest, BundleApplyDefaultsValue,
     BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest, ExternalPackageLayoutValue,
-    PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
+    ExternalPackageSharingModeValue, PlanExternalPackageApplyAppRequest, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, WtfScopeValue,
 };
 
 pub(in crate::cli) fn build_analyze_external_package_request(
@@ -24,6 +25,29 @@ pub(in crate::cli) fn build_analyze_external_package_request(
 
 pub(in crate::cli) fn build_external_package_bundle_request(
     options: ExternalPackageBundleOptions,
+) -> CreateExternalPackageBundleAppRequest {
+    build_external_package_bundle_request_with_output(options, None)
+}
+
+pub(in crate::cli) fn build_external_package_bundle_request_with_output(
+    options: ExternalPackageBundleOptions,
+    output_path: Option<PathBuf>,
+) -> CreateExternalPackageBundleAppRequest {
+    build_external_package_bundle_export_request(
+        options,
+        output_path,
+        crate::cli::SharingModeArg::Private,
+        false,
+        Vec::new(),
+    )
+}
+
+pub(in crate::cli) fn build_external_package_bundle_export_request(
+    options: ExternalPackageBundleOptions,
+    output_path: Option<PathBuf>,
+    sharing_mode: crate::cli::SharingModeArg,
+    allow_public_sharing_risks: bool,
+    excluded_wtf_scopes: Vec<crate::cli::WtfScopeArg>,
 ) -> CreateExternalPackageBundleAppRequest {
     let apply_defaults = build_external_package_apply_defaults(&options);
 
@@ -44,18 +68,42 @@ pub(in crate::cli) fn build_external_package_bundle_request(
                 .map(Into::into)
                 .collect()
         },
-        output_path: None,
+        output_path,
         package_id: options.package_id,
         package_name: options.package_name,
         created_by: options.created_by,
         description: options.description,
         apply_defaults,
+        sharing_mode: ExternalPackageSharingModeValue::from(sharing_mode),
+        allow_public_sharing_risks,
+        excluded_wtf_scopes: excluded_wtf_scopes
+            .into_iter()
+            .map(WtfScopeValue::from)
+            .collect(),
     }
 }
 
-impl Default for ExternalPackageLayoutArg {
-    fn default() -> Self {
-        Self::Auto
+impl From<crate::cli::SharingModeArg> for ExternalPackageSharingModeValue {
+    fn from(value: crate::cli::SharingModeArg) -> Self {
+        match value {
+            crate::cli::SharingModeArg::Private => Self::Private,
+            crate::cli::SharingModeArg::Public => Self::Public,
+        }
+    }
+}
+
+impl From<crate::cli::WtfScopeArg> for WtfScopeValue {
+    fn from(value: crate::cli::WtfScopeArg) -> Self {
+        match value {
+            crate::cli::WtfScopeArg::GlobalConfig => Self::GlobalConfig,
+            crate::cli::WtfScopeArg::RootSavedVariables => Self::RootSavedVariables,
+            crate::cli::WtfScopeArg::AccountRootFile => Self::AccountRootFile,
+            crate::cli::WtfScopeArg::AccountSavedVariables => Self::AccountSavedVariables,
+            crate::cli::WtfScopeArg::CharacterSavedVariables => Self::CharacterSavedVariables,
+            crate::cli::WtfScopeArg::CharacterState => Self::CharacterState,
+            crate::cli::WtfScopeArg::CacheLike => Self::CacheLike,
+            crate::cli::WtfScopeArg::Unknown => Self::Unknown,
+        }
     }
 }
 
@@ -153,13 +201,14 @@ mod tests {
     use super::{
         ExternalPackageBundleOptions, ExternalPackageLayoutArg, ExternalPackageSourceLayoutArgs,
         build_analyze_external_package_request, build_apply_external_package_request,
-        build_external_package_bundle_request, build_plan_external_package_request,
+        build_external_package_bundle_export_request, build_external_package_bundle_request,
+        build_plan_external_package_request,
     };
     use crate::cli::test_support::sample_installation;
-    use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg};
+    use crate::cli::{ApplyPolicyArg, FlavorArg, PlatformArg, SharingModeArg, WtfScopeArg};
     use crate::core::app::{
-        BundleApplyMappingsValue, ExternalPackageLayoutValue, HostPlatformValue,
-        ResourceApplyPolicyValue, WowFlavorValue,
+        BundleApplyMappingsValue, ExternalPackageLayoutValue, ExternalPackageSharingModeValue,
+        HostPlatformValue, ResourceApplyPolicyValue, WowFlavorValue, WtfScopeValue,
     };
 
     #[test]
@@ -235,6 +284,47 @@ mod tests {
         });
 
         assert!(request.apply_defaults.is_none());
+    }
+
+    #[test]
+    fn build_external_package_bundle_request_preserves_output_path_for_export() {
+        let request = build_external_package_bundle_export_request(
+            ExternalPackageBundleOptions {
+                source: PathBuf::from("C:\\temp\\author-ui.zip"),
+                source_layout: ExternalPackageSourceLayoutArgs::default(),
+                source_flavor: FlavorArg::Retail,
+                source_platform: None,
+                supported_targets: Vec::new(),
+                package_id: None,
+                package_name: None,
+                created_by: None,
+                description: None,
+                no_backup: false,
+                addons_policy: None,
+                wtf_common_policy: None,
+                wtf_characters_policy: None,
+                fonts_policy: None,
+                interface_assets_policy: None,
+            },
+            Some(PathBuf::from("C:\\temp\\author-ui.hearthsync.zip")),
+            SharingModeArg::Public,
+            true,
+            vec![WtfScopeArg::AccountSavedVariables],
+        );
+
+        assert_eq!(
+            request.output_path,
+            Some(PathBuf::from("C:\\temp\\author-ui.hearthsync.zip"))
+        );
+        assert_eq!(
+            request.sharing_mode,
+            ExternalPackageSharingModeValue::Public
+        );
+        assert!(request.allow_public_sharing_risks);
+        assert_eq!(
+            request.excluded_wtf_scopes,
+            vec![WtfScopeValue::AccountSavedVariables]
+        );
     }
 
     #[test]

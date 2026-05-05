@@ -1,5 +1,6 @@
 use super::format_external_package_warnings;
 use crate::core::app::{
+    ExternalPackagePublicSharingStatusValue, ExternalPackagePublicSharingSummaryResult,
     ExternalPackageSourceIdentityResult, ExternalPackageSummaryResult,
     ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
     ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
@@ -49,6 +50,13 @@ fn format_external_package_warnings_renders_groups_and_details() {
             entries_with_source_account: 0,
             entries_with_source_character: 0,
         },
+        public_sharing: ExternalPackagePublicSharingSummaryResult {
+            status: ExternalPackagePublicSharingStatusValue::Ready,
+            public_ready: true,
+            review_required_count: 0,
+            advisory_count: 0,
+            reasons: Vec::new(),
+        },
         total_files: 0,
         normalized_files: 0,
         ignored_files: 0,
@@ -96,6 +104,13 @@ fn format_external_package_warnings_returns_none_for_empty_warnings() {
                 source_characters: Vec::new(),
                 entries_with_source_account: 0,
                 entries_with_source_character: 0,
+            },
+            public_sharing: ExternalPackagePublicSharingSummaryResult {
+                status: ExternalPackagePublicSharingStatusValue::Ready,
+                public_ready: true,
+                review_required_count: 0,
+                advisory_count: 0,
+                reasons: Vec::new(),
             },
         },
     );

@@ -9,7 +9,10 @@ use crate::core::app::{
 };
 
 use super::super::external_package::{
-    ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackagePublicSharingReasonCodeValue, ExternalPackagePublicSharingReasonResult,
+    ExternalPackagePublicSharingSeverityValue, ExternalPackagePublicSharingStatusValue,
+    ExternalPackagePublicSharingSummaryResult, ExternalPackageSummaryResult,
+    ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
     ExternalPackageWtfScopeSummaryResult,
 };
 
@@ -110,6 +113,120 @@ impl ConfigWtfScopeSummaryResult {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigPublicSharingStatusValue {
+    Ready,
+    Advisory,
+    ReviewRequired,
+}
+
+impl ConfigPublicSharingStatusValue {
+    fn from_external(value: ExternalPackagePublicSharingStatusValue) -> Self {
+        match value {
+            ExternalPackagePublicSharingStatusValue::Ready => Self::Ready,
+            ExternalPackagePublicSharingStatusValue::Advisory => Self::Advisory,
+            ExternalPackagePublicSharingStatusValue::ReviewRequired => Self::ReviewRequired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigPublicSharingSeverityValue {
+    Advisory,
+    ReviewRequired,
+}
+
+impl ConfigPublicSharingSeverityValue {
+    fn from_external(value: ExternalPackagePublicSharingSeverityValue) -> Self {
+        match value {
+            ExternalPackagePublicSharingSeverityValue::Advisory => Self::Advisory,
+            ExternalPackagePublicSharingSeverityValue::ReviewRequired => Self::ReviewRequired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigPublicSharingReasonCodeValue {
+    NormalizationWarnings,
+    HighRiskWtfScope,
+    MediumRiskWtfScope,
+    LowRiskWtfScope,
+    UnknownRiskWtfScope,
+    SourceAccountIdentity,
+    SourceCharacterIdentity,
+}
+
+impl ConfigPublicSharingReasonCodeValue {
+    fn from_external(value: ExternalPackagePublicSharingReasonCodeValue) -> Self {
+        match value {
+            ExternalPackagePublicSharingReasonCodeValue::NormalizationWarnings => {
+                Self::NormalizationWarnings
+            }
+            ExternalPackagePublicSharingReasonCodeValue::HighRiskWtfScope => Self::HighRiskWtfScope,
+            ExternalPackagePublicSharingReasonCodeValue::MediumRiskWtfScope => {
+                Self::MediumRiskWtfScope
+            }
+            ExternalPackagePublicSharingReasonCodeValue::LowRiskWtfScope => Self::LowRiskWtfScope,
+            ExternalPackagePublicSharingReasonCodeValue::UnknownRiskWtfScope => {
+                Self::UnknownRiskWtfScope
+            }
+            ExternalPackagePublicSharingReasonCodeValue::SourceAccountIdentity => {
+                Self::SourceAccountIdentity
+            }
+            ExternalPackagePublicSharingReasonCodeValue::SourceCharacterIdentity => {
+                Self::SourceCharacterIdentity
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigPublicSharingReasonResult {
+    pub severity: ConfigPublicSharingSeverityValue,
+    pub code: ConfigPublicSharingReasonCodeValue,
+    pub count: usize,
+    pub message: String,
+}
+
+impl ConfigPublicSharingReasonResult {
+    fn from_external(value: ExternalPackagePublicSharingReasonResult) -> Self {
+        Self {
+            severity: ConfigPublicSharingSeverityValue::from_external(value.severity),
+            code: ConfigPublicSharingReasonCodeValue::from_external(value.code),
+            count: value.count,
+            message: value.message,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigPublicSharingSummaryResult {
+    pub status: ConfigPublicSharingStatusValue,
+    pub public_ready: bool,
+    pub review_required_count: usize,
+    pub advisory_count: usize,
+    pub reasons: Vec<ConfigPublicSharingReasonResult>,
+}
+
+impl ConfigPublicSharingSummaryResult {
+    fn from_external(value: ExternalPackagePublicSharingSummaryResult) -> Self {
+        Self {
+            status: ConfigPublicSharingStatusValue::from_external(value.status),
+            public_ready: value.public_ready,
+            review_required_count: value.review_required_count,
+            advisory_count: value.advisory_count,
+            reasons: value
+                .reasons
+                .into_iter()
+                .map(ConfigPublicSharingReasonResult::from_external)
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ConfigSourceCharacterResult {
     pub source_account: Option<String>,
@@ -166,6 +283,7 @@ pub struct ConfigPackageSummaryResult {
     pub warning_groups: Vec<ConfigWarningGroupResult>,
     pub wtf_scopes: Vec<ConfigWtfScopeSummaryResult>,
     pub source_identities: ConfigSourceIdentityResult,
+    pub public_sharing: ConfigPublicSharingSummaryResult,
 }
 
 impl ConfigPackageSummaryResult {
@@ -193,6 +311,7 @@ impl ConfigPackageSummaryResult {
                 .map(ConfigWtfScopeSummaryResult::from_external)
                 .collect(),
             source_identities: ConfigSourceIdentityResult::from_external(value.source_identities),
+            public_sharing: ConfigPublicSharingSummaryResult::from_external(value.public_sharing),
         }
     }
 }

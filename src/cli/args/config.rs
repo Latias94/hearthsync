@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use super::external_package::{ExternalPackageBundleOptions, ExternalPackageSourceLayoutArgs};
+use super::external_package::{
+    ExternalPackageBundleOptions, ExternalPackageSourceLayoutArgs, SharingModeArg, WtfScopeArg,
+};
 use super::shared::{ApplyMappingArgs, ApplyPolicyArg, FlavorArg, InstallTargetArgs, PlatformArg};
 
 #[derive(Debug, Subcommand)]
@@ -14,6 +16,31 @@ pub enum ConfigCommands {
             help = "Path to a config package zip file or extracted directory"
         )]
         source: PathBuf,
+    },
+    #[command(about = "Export a config package as a reusable HearthSync bundle")]
+    Export {
+        #[command(flatten)]
+        config_options: ConfigPackageOptions,
+        #[arg(long, help = "Output bundle zip path")]
+        output: PathBuf,
+        #[arg(
+            long,
+            value_enum,
+            default_value = "private",
+            help = "Sharing policy mode for export review"
+        )]
+        sharing_mode: SharingModeArg,
+        #[arg(
+            long,
+            help = "Allow public export even when sharing review reports required risks"
+        )]
+        allow_public_sharing_risks: bool,
+        #[arg(
+            long = "exclude-wtf-scope",
+            value_enum,
+            help = "Exclude normalized WTF entries with this scope from the exported bundle"
+        )]
+        excluded_wtf_scopes: Vec<WtfScopeArg>,
     },
     #[command(about = "Build a config-sync apply plan without writing files")]
     Plan {
@@ -111,7 +138,7 @@ mod tests {
 
     use super::super::shared::{FlavorArg, PlatformArg};
     use super::super::{Cli, Commands};
-    use super::ConfigCommands;
+    use super::{ConfigCommands, SharingModeArg, WtfScopeArg};
     use crate::cli::ApplyPolicyArg;
 
     #[test]
@@ -185,6 +212,53 @@ mod tests {
                     assert_eq!(apply_mapping.selected_accounts, vec!["ACCOUNT".to_string()]);
                 }
                 _ => panic!("expected apply command"),
+            },
+            _ => panic!("expected config command"),
+        }
+    }
+
+    #[test]
+    fn parses_config_export_command_with_output() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "config",
+            "export",
+            "--source",
+            "C:\\temp\\author-ui.zip",
+            "--source-flavor",
+            "retail",
+            "--output",
+            "C:\\temp\\author-ui.hearthsync.zip",
+            "--sharing-mode",
+            "public",
+            "--allow-public-sharing-risks",
+            "--exclude-wtf-scope",
+            "account-saved-variables",
+        ]);
+
+        match cli.command {
+            Commands::Config { command } => match command {
+                ConfigCommands::Export {
+                    config_options,
+                    output,
+                    sharing_mode,
+                    allow_public_sharing_risks,
+                    excluded_wtf_scopes,
+                } => {
+                    assert_eq!(
+                        config_options.source,
+                        PathBuf::from("C:\\temp\\author-ui.zip")
+                    );
+                    assert_eq!(config_options.source_flavor, FlavorArg::Retail);
+                    assert_eq!(output, PathBuf::from("C:\\temp\\author-ui.hearthsync.zip"));
+                    assert_eq!(sharing_mode, SharingModeArg::Public);
+                    assert!(allow_public_sharing_risks);
+                    assert_eq!(
+                        excluded_wtf_scopes,
+                        vec![WtfScopeArg::AccountSavedVariables]
+                    );
+                }
+                _ => panic!("expected export command"),
             },
             _ => panic!("expected config command"),
         }

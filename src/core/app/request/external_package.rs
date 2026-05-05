@@ -7,7 +7,8 @@ use super::{
 };
 use crate::core::app::{
     AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ExternalPackageLayoutValue,
-    HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
+    ExternalPackageSharingModeValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
+    WtfScopeValue,
 };
 use crate::core::bundle::{
     AnalyzeExternalPackageRequest as DomainAnalyzeExternalPackageRequest,
@@ -57,6 +58,9 @@ pub struct CreateExternalPackageBundleAppRequest {
     pub created_by: Option<String>,
     pub description: Option<String>,
     pub apply_defaults: Option<BundleApplyDefaultsValue>,
+    pub sharing_mode: ExternalPackageSharingModeValue,
+    pub allow_public_sharing_risks: bool,
+    pub excluded_wtf_scopes: Vec<WtfScopeValue>,
 }
 
 impl RuntimeDefaultableRequest for CreateExternalPackageBundleAppRequest {
@@ -102,6 +106,12 @@ impl CreateExternalPackageBundleAppRequest {
             apply_defaults: self
                 .apply_defaults
                 .map(BundleApplyDefaultsValue::into_domain),
+            sharing_mode: self.sharing_mode.into_domain(),
+            allow_public_sharing_risks: self.allow_public_sharing_risks,
+            excluded_wtf_scopes: map_owned_vec(
+                self.excluded_wtf_scopes,
+                WtfScopeValue::into_domain,
+            ),
         })
     }
 }

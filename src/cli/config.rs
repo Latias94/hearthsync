@@ -1,8 +1,11 @@
 use super::ConfigCommands;
 use super::app_support::{
-    CliAppContext, render_task_result, render_with_apply_target_task_result, stable_services,
+    CliAppContext, render_task_result, render_with_apply_target_task_result, render_with_value,
+    stable_services,
 };
-use super::output::config::{render_config_analysis, render_config_apply, render_config_plan};
+use super::output::config::{
+    render_config_analysis, render_config_apply, render_config_bundle, render_config_plan,
+};
 use crate::core::app::{
     AppRuntime, ApplyConfigAppRequest, BundleApplyDefaultsValue, ConfigPackageAppRequest,
     InspectConfigAppRequest, PlanConfigApplyAppRequest, ResourceApplyPolicyValue,
@@ -28,6 +31,29 @@ pub(super) fn handle_config_command(
                 render_config_analysis,
             )?;
         }
+        ConfigCommands::Export {
+            config_options,
+            output,
+            sharing_mode,
+            allow_public_sharing_risks,
+            excluded_wtf_scopes,
+        } => {
+            render_with_value(
+                json,
+                || {
+                    let mut request =
+                        build_config_package_request_with_output(config_options, Some(output))
+                            .into_external_request();
+                    request.sharing_mode = sharing_mode.into();
+                    request.allow_public_sharing_risks = allow_public_sharing_risks;
+                    request.excluded_wtf_scopes =
+                        excluded_wtf_scopes.into_iter().map(Into::into).collect();
+                    let handle = app.create_external_package_bundle(request)?;
+                    Ok(handle.as_ref().clone())
+                },
+                render_config_bundle,
+            )?;
+        }
         ConfigCommands::Plan {
             config_options,
             install_target,
@@ -39,7 +65,7 @@ pub(super) fn handle_config_command(
                 install_target,
                 apply_mapping,
                 |target| PlanConfigApplyAppRequest {
-                    config_package: build_config_package_request(config_options),
+                    config_package: build_config_package_request_with_output(config_options, None),
                     installation: target.installation,
                     apply_mappings: target.apply_mappings,
                 },
@@ -60,7 +86,7 @@ pub(super) fn handle_config_command(
                 install_target,
                 apply_mapping,
                 |target| ApplyConfigAppRequest {
-                    config_package: build_config_package_request(config_options),
+                    config_package: build_config_package_request_with_output(config_options, None),
                     installation: target.installation,
                     dry_run,
                     backup_output_path: backup_output,
@@ -75,8 +101,9 @@ pub(super) fn handle_config_command(
     Ok(())
 }
 
-fn build_config_package_request(
+fn build_config_package_request_with_output(
     options: super::args::config::ConfigPackageOptions,
+    output_path: Option<std::path::PathBuf>,
 ) -> ConfigPackageAppRequest {
     let apply_defaults = build_config_apply_defaults(&options);
 
@@ -93,7 +120,7 @@ fn build_config_package_request(
                 .map(Into::into)
                 .collect()
         },
-        output_path: None,
+        output_path,
         package_id: options.package_id,
         package_name: options.package_name,
         created_by: options.created_by,

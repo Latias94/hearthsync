@@ -10,7 +10,7 @@ use crate::core::app::request::external_package::{
 };
 use crate::core::app::{
     AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ExternalPackageLayoutValue,
-    HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
+    ExternalPackageSharingModeValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
 };
 
 #[derive(Debug, Clone)]
@@ -69,6 +69,9 @@ impl ConfigPackageAppRequest {
             created_by: self.created_by,
             description: self.description,
             apply_defaults: self.apply_defaults,
+            sharing_mode: ExternalPackageSharingModeValue::Private,
+            allow_public_sharing_risks: false,
+            excluded_wtf_scopes: Vec::new(),
         }
     }
 }

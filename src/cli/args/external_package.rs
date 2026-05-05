@@ -16,6 +16,31 @@ pub enum ExternalPackageCommands {
         #[command(flatten)]
         source_layout: ExternalPackageSourceLayoutArgs,
     },
+    #[command(about = "Create a reusable HearthSync bundle from an external UI package")]
+    Bundle {
+        #[command(flatten)]
+        bundle_options: ExternalPackageBundleOptions,
+        #[arg(long, help = "Output bundle zip path")]
+        output: PathBuf,
+        #[arg(
+            long,
+            value_enum,
+            default_value = "private",
+            help = "Sharing policy mode for export review"
+        )]
+        sharing_mode: SharingModeArg,
+        #[arg(
+            long,
+            help = "Allow public export even when sharing review reports required risks"
+        )]
+        allow_public_sharing_risks: bool,
+        #[arg(
+            long = "exclude-wtf-scope",
+            value_enum,
+            help = "Exclude normalized WTF entries with this scope from the exported bundle"
+        )]
+        excluded_wtf_scopes: Vec<WtfScopeArg>,
+    },
     #[command(about = "Build an apply plan for an external UI package without writing files")]
     Plan {
         #[command(flatten)]
@@ -101,8 +126,9 @@ pub struct ExternalPackageSourceLayoutArgs {
     pub source_character: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
 pub enum ExternalPackageLayoutArg {
+    #[default]
     Auto,
     Generic,
     #[value(name = "newbeebox-addon")]
@@ -117,6 +143,25 @@ pub enum ExternalPackageLayoutArg {
     NewBeeBoxWtfCharacter,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
+pub enum SharingModeArg {
+    #[default]
+    Private,
+    Public,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum WtfScopeArg {
+    GlobalConfig,
+    RootSavedVariables,
+    AccountRootFile,
+    AccountSavedVariables,
+    CharacterSavedVariables,
+    CharacterState,
+    CacheLike,
+    Unknown,
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -125,7 +170,7 @@ mod tests {
 
     use super::super::shared::{FlavorArg, PlatformArg};
     use super::super::{Cli, Commands};
-    use super::{ExternalPackageCommands, ExternalPackageLayoutArg};
+    use super::{ExternalPackageCommands, ExternalPackageLayoutArg, SharingModeArg, WtfScopeArg};
     use crate::cli::ApplyPolicyArg;
 
     #[test]
@@ -190,6 +235,53 @@ mod tests {
                     );
                 }
                 _ => panic!("expected inspect command"),
+            },
+            _ => panic!("expected external-package command"),
+        }
+    }
+
+    #[test]
+    fn parses_external_package_bundle_command_with_output() {
+        let cli = Cli::parse_from([
+            "hearthsync",
+            "external-package",
+            "bundle",
+            "--source",
+            "C:\\temp\\author-ui.zip",
+            "--source-flavor",
+            "retail",
+            "--output",
+            "C:\\temp\\author-ui.hearthsync.zip",
+            "--sharing-mode",
+            "public",
+            "--allow-public-sharing-risks",
+            "--exclude-wtf-scope",
+            "account-saved-variables",
+        ]);
+
+        match cli.command {
+            Commands::ExternalPackage { command } => match command {
+                ExternalPackageCommands::Bundle {
+                    bundle_options,
+                    output,
+                    sharing_mode,
+                    allow_public_sharing_risks,
+                    excluded_wtf_scopes,
+                } => {
+                    assert_eq!(
+                        bundle_options.source,
+                        PathBuf::from("C:\\temp\\author-ui.zip")
+                    );
+                    assert_eq!(bundle_options.source_flavor, FlavorArg::Retail);
+                    assert_eq!(output, PathBuf::from("C:\\temp\\author-ui.hearthsync.zip"));
+                    assert_eq!(sharing_mode, SharingModeArg::Public);
+                    assert!(allow_public_sharing_risks);
+                    assert_eq!(
+                        excluded_wtf_scopes,
+                        vec![WtfScopeArg::AccountSavedVariables]
+                    );
+                }
+                _ => panic!("expected bundle command"),
             },
             _ => panic!("expected external-package command"),
         }

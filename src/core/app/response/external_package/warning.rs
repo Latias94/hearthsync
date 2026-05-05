@@ -5,6 +5,11 @@ use crate::core::app::{
     WtfScopeValue,
 };
 use crate::core::bundle::{
+    ExternalPackagePublicSharingReason as DomainExternalPackagePublicSharingReason,
+    ExternalPackagePublicSharingReasonCode as DomainExternalPackagePublicSharingReasonCode,
+    ExternalPackagePublicSharingSeverity as DomainExternalPackagePublicSharingSeverity,
+    ExternalPackagePublicSharingStatus as DomainExternalPackagePublicSharingStatus,
+    ExternalPackagePublicSharingSummary as DomainExternalPackagePublicSharingSummary,
     ExternalPackageSourceCharacterSummary as DomainExternalPackageSourceCharacterSummary,
     ExternalPackageSourceIdentitySummary as DomainExternalPackageSourceIdentitySummary,
     ExternalPackageSummary as DomainExternalPackageSummary,
@@ -68,6 +73,122 @@ impl ExternalPackageWtfScopeSummaryResult {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackagePublicSharingStatusValue {
+    Ready,
+    Advisory,
+    ReviewRequired,
+}
+
+impl ExternalPackagePublicSharingStatusValue {
+    pub(crate) fn from_domain(value: DomainExternalPackagePublicSharingStatus) -> Self {
+        match value {
+            DomainExternalPackagePublicSharingStatus::Ready => Self::Ready,
+            DomainExternalPackagePublicSharingStatus::Advisory => Self::Advisory,
+            DomainExternalPackagePublicSharingStatus::ReviewRequired => Self::ReviewRequired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackagePublicSharingSeverityValue {
+    Advisory,
+    ReviewRequired,
+}
+
+impl ExternalPackagePublicSharingSeverityValue {
+    pub(crate) fn from_domain(value: DomainExternalPackagePublicSharingSeverity) -> Self {
+        match value {
+            DomainExternalPackagePublicSharingSeverity::Advisory => Self::Advisory,
+            DomainExternalPackagePublicSharingSeverity::ReviewRequired => Self::ReviewRequired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackagePublicSharingReasonCodeValue {
+    NormalizationWarnings,
+    HighRiskWtfScope,
+    MediumRiskWtfScope,
+    LowRiskWtfScope,
+    UnknownRiskWtfScope,
+    SourceAccountIdentity,
+    SourceCharacterIdentity,
+}
+
+impl ExternalPackagePublicSharingReasonCodeValue {
+    pub(crate) fn from_domain(value: DomainExternalPackagePublicSharingReasonCode) -> Self {
+        match value {
+            DomainExternalPackagePublicSharingReasonCode::NormalizationWarnings => {
+                Self::NormalizationWarnings
+            }
+            DomainExternalPackagePublicSharingReasonCode::HighRiskWtfScope => {
+                Self::HighRiskWtfScope
+            }
+            DomainExternalPackagePublicSharingReasonCode::MediumRiskWtfScope => {
+                Self::MediumRiskWtfScope
+            }
+            DomainExternalPackagePublicSharingReasonCode::LowRiskWtfScope => Self::LowRiskWtfScope,
+            DomainExternalPackagePublicSharingReasonCode::UnknownRiskWtfScope => {
+                Self::UnknownRiskWtfScope
+            }
+            DomainExternalPackagePublicSharingReasonCode::SourceAccountIdentity => {
+                Self::SourceAccountIdentity
+            }
+            DomainExternalPackagePublicSharingReasonCode::SourceCharacterIdentity => {
+                Self::SourceCharacterIdentity
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackagePublicSharingReasonResult {
+    pub severity: ExternalPackagePublicSharingSeverityValue,
+    pub code: ExternalPackagePublicSharingReasonCodeValue,
+    pub count: usize,
+    pub message: String,
+}
+
+impl ExternalPackagePublicSharingReasonResult {
+    pub(crate) fn from_domain(value: DomainExternalPackagePublicSharingReason) -> Self {
+        Self {
+            severity: ExternalPackagePublicSharingSeverityValue::from_domain(value.severity),
+            code: ExternalPackagePublicSharingReasonCodeValue::from_domain(value.code),
+            count: value.count,
+            message: value.message,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackagePublicSharingSummaryResult {
+    pub status: ExternalPackagePublicSharingStatusValue,
+    pub public_ready: bool,
+    pub review_required_count: usize,
+    pub advisory_count: usize,
+    pub reasons: Vec<ExternalPackagePublicSharingReasonResult>,
+}
+
+impl ExternalPackagePublicSharingSummaryResult {
+    pub(crate) fn from_domain(value: DomainExternalPackagePublicSharingSummary) -> Self {
+        Self {
+            status: ExternalPackagePublicSharingStatusValue::from_domain(value.status),
+            public_ready: value.public_ready,
+            review_required_count: value.review_required_count,
+            advisory_count: value.advisory_count,
+            reasons: value
+                .reasons
+                .into_iter()
+                .map(ExternalPackagePublicSharingReasonResult::from_domain)
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalPackageSourceCharacterResult {
     pub source_account: Option<String>,
@@ -124,6 +245,7 @@ pub struct ExternalPackageSummaryResult {
     pub warning_groups: Vec<ExternalPackageWarningGroupResult>,
     pub wtf_scopes: Vec<ExternalPackageWtfScopeSummaryResult>,
     pub source_identities: ExternalPackageSourceIdentityResult,
+    pub public_sharing: ExternalPackagePublicSharingSummaryResult,
 }
 
 impl ExternalPackageSummaryResult {
@@ -150,6 +272,9 @@ impl ExternalPackageSummaryResult {
             ),
             source_identities: ExternalPackageSourceIdentityResult::from_domain(
                 value.source_identities,
+            ),
+            public_sharing: ExternalPackagePublicSharingSummaryResult::from_domain(
+                value.public_sharing,
             ),
         }
     }

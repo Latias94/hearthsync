@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-use crate::core::bundle::{CreateExternalPackageBundleRequest, ExternalPackageLayout};
+use crate::core::bundle::{
+    CreateExternalPackageBundleRequest, ExternalPackageLayout, ExternalPackageSharingMode,
+};
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, WowFlavor};
 use crate::core::manifest::{
     ApplyDefaults, BundleManifest, BundleResources, CharacterMappingMode, CharacterResource,
@@ -424,5 +426,8 @@ pub(super) fn sample_external_package_request_with_apply_defaults(
         created_by: Some("hearthsync-test".to_string()),
         description: Some("fixture external package".to_string()),
         apply_defaults,
+        sharing_mode: ExternalPackageSharingMode::Private,
+        allow_public_sharing_risks: false,
+        excluded_wtf_scopes: Vec::new(),
     }
 }

@@ -23,13 +23,14 @@ use crate::core::app::{
     BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest,
     CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, ExternalPackageLayoutValue,
-    HostPlatformValue, InspectAddonPolicyRequest, InspectConfigAppRequest, InstallAddonAppRequest,
-    InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest,
-    PlanAddonLockSyncRequest, PlanBundleApplyRequest, PlanConfigApplyAppRequest,
-    PlanExternalPackageApplyAppRequest, RelinkAddonAppRequest, RelinkAddonIndexAppRequest,
-    RemoveAddonAppRequest, RemoveAddonPolicyAppRequest, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, RestoreBackupAppRequest, SetAddonPolicyAppRequest,
-    UpdateAddonAppRequest, UpdateAddonIndexAppRequest, WowFlavorValue,
+    ExternalPackageSharingModeValue, HostPlatformValue, InspectAddonPolicyRequest,
+    InspectConfigAppRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
+    ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
+    PlanBundleApplyRequest, PlanConfigApplyAppRequest, PlanExternalPackageApplyAppRequest,
+    RelinkAddonAppRequest, RelinkAddonIndexAppRequest, RemoveAddonAppRequest,
+    RemoveAddonPolicyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
+    RestoreBackupAppRequest, SetAddonPolicyAppRequest, UpdateAddonAppRequest,
+    UpdateAddonIndexAppRequest, WowFlavorValue, WtfScopeValue,
 };
 use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
@@ -152,6 +153,9 @@ fn sample_external_package_bundle_request() -> CreateExternalPackageBundleAppReq
         created_by: Some("tester".to_string()),
         description: Some("fixture".to_string()),
         apply_defaults: None,
+        sharing_mode: ExternalPackageSharingModeValue::Private,
+        allow_public_sharing_risks: false,
+        excluded_wtf_scopes: Vec::new(),
     }
 }
 

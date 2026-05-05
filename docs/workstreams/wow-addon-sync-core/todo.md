@@ -467,6 +467,20 @@ enough that these rules live in one place.
   WTF entries by `WtfScope` with a stable risk level, so CLI and future GUI callers can review
   account-wide SavedVariables, character SavedVariables, cache-like files, and unknown WTF shapes
   without walking every normalized entry themselves.
+  Current progress: external-package and config analysis summaries now also derive a
+  machine-readable `public_sharing` readiness summary from normalization warnings, WTF scope risk,
+  source account identity exposure, and source character identity exposure. The first pass renders in
+  CLI analysis output and remains a review signal rather than an apply gate.
+  Current progress: the CLI now exposes durable bundle creation through `external-package bundle`
+  and the user-facing `config export` alias. Both commands reuse the existing external-package
+  normalization/create-bundle service, require an explicit output path, and render public-sharing
+  readiness at export time.
+  Current progress: export now has a first public/private policy gate. `private` is the default;
+  `public` export fails when `public_sharing` reports review-required risks unless the caller passes
+  an explicit post-review override. Plan/apply still use private mode for internal temporary bundles.
+  Current progress: export now also supports repeated `--exclude-wtf-scope` filters. Filtering runs
+  after normalization and before manifest creation, so the exported bundle, returned analysis,
+  resources, and public-sharing readiness describe the same filtered artifact.
   Current progress: external-package warning taxonomy no longer carries the unreachable
   `unsupported_wtf_root_savedvariables` code; root `WTF/Account/SavedVariables/<file>` entries are
   recognized as supported common root saved variables, while the remaining warning codes now map to

@@ -37,6 +37,9 @@ pub struct CreateExternalPackageBundleRequest {
     pub created_by: Option<String>,
     pub description: Option<String>,
     pub apply_defaults: Option<ApplyDefaults>,
+    pub sharing_mode: ExternalPackageSharingMode,
+    pub allow_public_sharing_risks: bool,
+    pub excluded_wtf_scopes: Vec<WtfScope>,
 }
 
 impl AnalyzeExternalPackageRequest {
@@ -63,9 +66,10 @@ impl CreateExternalPackageBundleRequest {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExternalPackageLayout {
+    #[default]
     Auto,
     Generic,
     #[serde(rename = "newbeebox_addon")]
@@ -80,10 +84,12 @@ pub enum ExternalPackageLayout {
     NewBeeBoxWtfCharacter,
 }
 
-impl Default for ExternalPackageLayout {
-    fn default() -> Self {
-        Self::Auto
-    }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageSharingMode {
+    #[default]
+    Private,
+    Public,
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +176,76 @@ pub struct ExternalPackageWtfScopeSummary {
     pub count: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackagePublicSharingStatus {
+    Ready,
+    Advisory,
+    ReviewRequired,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackagePublicSharingSeverity {
+    Advisory,
+    ReviewRequired,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackagePublicSharingReasonCode {
+    NormalizationWarnings,
+    HighRiskWtfScope,
+    MediumRiskWtfScope,
+    LowRiskWtfScope,
+    UnknownRiskWtfScope,
+    SourceAccountIdentity,
+    SourceCharacterIdentity,
+}
+
+impl ExternalPackagePublicSharingReasonCode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::NormalizationWarnings => "normalization_warnings",
+            Self::HighRiskWtfScope => "high_risk_wtf_scope",
+            Self::MediumRiskWtfScope => "medium_risk_wtf_scope",
+            Self::LowRiskWtfScope => "low_risk_wtf_scope",
+            Self::UnknownRiskWtfScope => "unknown_risk_wtf_scope",
+            Self::SourceAccountIdentity => "source_account_identity",
+            Self::SourceCharacterIdentity => "source_character_identity",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct ExternalPackagePublicSharingReason {
+    pub severity: ExternalPackagePublicSharingSeverity,
+    pub code: ExternalPackagePublicSharingReasonCode,
+    pub count: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ExternalPackagePublicSharingSummary {
+    pub status: ExternalPackagePublicSharingStatus,
+    pub public_ready: bool,
+    pub review_required_count: usize,
+    pub advisory_count: usize,
+    pub reasons: Vec<ExternalPackagePublicSharingReason>,
+}
+
+impl Default for ExternalPackagePublicSharingSummary {
+    fn default() -> Self {
+        Self {
+            status: ExternalPackagePublicSharingStatus::Ready,
+            public_ready: true,
+            review_required_count: 0,
+            advisory_count: 0,
+            reasons: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct ExternalPackageSourceCharacterSummary {
     pub source_account: Option<String>,
@@ -225,6 +301,7 @@ pub struct ExternalPackageSummary {
     pub warning_groups: Vec<ExternalPackageWarningGroup>,
     pub wtf_scopes: Vec<ExternalPackageWtfScopeSummary>,
     pub source_identities: ExternalPackageSourceIdentitySummary,
+    pub public_sharing: ExternalPackagePublicSharingSummary,
 }
 
 #[derive(Debug)]

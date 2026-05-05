@@ -1,9 +1,11 @@
 use super::ExternalPackageCommands;
 use super::app_support::{
-    CliAppContext, render_task_result, render_with_apply_target_task_result, stable_services,
+    CliAppContext, render_task_result, render_with_apply_target_task_result, render_with_value,
+    stable_services,
 };
 use super::output::external_package::{
-    render_external_package_analysis, render_external_package_apply, render_external_package_plan,
+    render_external_package_analysis, render_external_package_apply,
+    render_external_package_bundle, render_external_package_plan,
 };
 use crate::core::app::AppRuntime;
 use crate::core::error::AppResult;
@@ -12,7 +14,8 @@ mod request;
 
 pub(in crate::cli) use request::{
     build_analyze_external_package_request, build_apply_external_package_request,
-    build_external_package_bundle_request, build_plan_external_package_request,
+    build_external_package_bundle_export_request, build_external_package_bundle_request,
+    build_plan_external_package_request,
 };
 
 pub(super) fn handle_external_package_command(
@@ -36,6 +39,30 @@ pub(super) fn handle_external_package_command(
                     ))
                 },
                 render_external_package_analysis,
+            )?;
+        }
+        ExternalPackageCommands::Bundle {
+            bundle_options,
+            output,
+            sharing_mode,
+            allow_public_sharing_risks,
+            excluded_wtf_scopes,
+        } => {
+            render_with_value(
+                json,
+                || {
+                    let handle = app.create_external_package_bundle(
+                        build_external_package_bundle_export_request(
+                            bundle_options,
+                            Some(output),
+                            sharing_mode,
+                            allow_public_sharing_risks,
+                            excluded_wtf_scopes,
+                        ),
+                    )?;
+                    Ok(handle.as_ref().clone())
+                },
+                render_external_package_bundle,
             )?;
         }
         ExternalPackageCommands::Plan {

@@ -27,12 +27,24 @@ fn create_external_package_request_converts_app_owned_apply_defaults() {
             fonts: ResourceApplyPolicyValue::Preserve,
             interface_assets: ResourceApplyPolicyValue::Sync,
         }),
+        sharing_mode: ExternalPackageSharingModeValue::Public,
+        allow_public_sharing_risks: true,
+        excluded_wtf_scopes: vec![WtfScopeValue::AccountSavedVariables],
     }
     .into_domain_request(&runtime)
     .expect("external package request");
 
     assert_eq!(domain.source_path, base.join("author-ui.zip"));
     assert_eq!(domain.output_path, Some(base.join("out")));
+    assert_eq!(
+        domain.sharing_mode,
+        crate::core::bundle::ExternalPackageSharingMode::Public
+    );
+    assert!(domain.allow_public_sharing_risks);
+    assert_eq!(
+        domain.excluded_wtf_scopes,
+        vec![crate::core::bundle::WtfScope::AccountSavedVariables]
+    );
     let apply_defaults = domain.apply_defaults.expect("apply defaults");
     assert!(!apply_defaults.create_backup);
     assert_eq!(apply_defaults.addons, ResourceApplyPolicy::Mirror);

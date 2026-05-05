@@ -7,9 +7,9 @@ use tempfile::tempdir;
 use crate::core::app::{
     AnalyzeExternalPackageAppRequest, AppRuntime, ApplyExternalPackageAppRequest,
     BundleApplyDefaultsValue, BundleApplyMappingsValue, CreateExternalPackageBundleAppRequest,
-    ExternalPackageLayoutValue, ExternalPackageService, HelperStrategyValue, HostPlatformValue,
-    PlanExternalPackageApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
-    WowFlavorValue,
+    ExternalPackageLayoutValue, ExternalPackageService, ExternalPackageSharingModeValue,
+    HelperStrategyValue, HostPlatformValue, PlanExternalPackageApplyAppRequest,
+    ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{NeverCancel, TaskKind, TaskPhase, TaskProgressCode, VecTaskProgressSink};
@@ -193,6 +193,9 @@ fn external_package_service_apply_task_uses_external_package_task_kind() {
                     created_by: None,
                     description: None,
                     apply_defaults: None,
+                    sharing_mode: ExternalPackageSharingModeValue::Private,
+                    allow_public_sharing_risks: false,
+                    excluded_wtf_scopes: Vec::new(),
                 },
                 installation: target_installation.clone(),
                 dry_run: true,
@@ -243,6 +246,9 @@ fn external_package_service_plan_apply_reports_runtime_helper_strategy() {
                 created_by: None,
                 description: None,
                 apply_defaults: None,
+                sharing_mode: ExternalPackageSharingModeValue::Private,
+                allow_public_sharing_risks: false,
+                excluded_wtf_scopes: Vec::new(),
             },
             installation: target_installation,
             apply_mappings: BundleApplyMappingsValue::default(),
@@ -278,6 +284,9 @@ fn external_package_service_apply_collecting_progress_returns_external_task_even
                 created_by: None,
                 description: None,
                 apply_defaults: None,
+                sharing_mode: ExternalPackageSharingModeValue::Private,
+                allow_public_sharing_risks: false,
+                excluded_wtf_scopes: Vec::new(),
             },
             installation: target_installation,
             dry_run: true,
@@ -336,6 +345,9 @@ fn external_package_service_create_bundle_uses_runtime_platform_and_output_dir()
                 fonts: ResourceApplyPolicyValue::Preserve,
                 interface_assets: ResourceApplyPolicyValue::Mirror,
             }),
+            sharing_mode: ExternalPackageSharingModeValue::Private,
+            allow_public_sharing_risks: false,
+            excluded_wtf_scopes: Vec::new(),
         })
         .expect("create bundle with runtime defaults");
     let prepared = prepared.as_ref();
@@ -378,6 +390,9 @@ fn external_package_service_create_bundle_resolves_relative_runtime_output_dir()
             created_by: None,
             description: None,
             apply_defaults: None,
+            sharing_mode: ExternalPackageSharingModeValue::Private,
+            allow_public_sharing_risks: false,
+            excluded_wtf_scopes: Vec::new(),
         })
         .expect("create bundle with relative runtime output dir");
 
@@ -420,6 +435,9 @@ fn external_package_service_create_bundle_keeps_temporary_bundle_alive_while_han
             created_by: None,
             description: None,
             apply_defaults: None,
+            sharing_mode: ExternalPackageSharingModeValue::Private,
+            allow_public_sharing_risks: false,
+            excluded_wtf_scopes: Vec::new(),
         })
         .expect("create temporary bundle");
 

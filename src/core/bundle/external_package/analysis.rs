@@ -5,10 +5,14 @@ use super::super::shared::path::safe_file_part;
 use super::super::types::apply::ApplyGroup;
 use super::types::{
     ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageLayout,
-    ExternalPackageSourceCharacterSummary, ExternalPackageSourceIdentitySummary,
-    ExternalPackageSourceKind, ExternalPackageSummary, ExternalPackageWarning,
-    ExternalPackageWarningCategory, ExternalPackageWarningGroup, ExternalPackageWtfScopeSummary,
+    ExternalPackagePublicSharingReason, ExternalPackagePublicSharingReasonCode,
+    ExternalPackagePublicSharingSeverity, ExternalPackagePublicSharingStatus,
+    ExternalPackagePublicSharingSummary, ExternalPackageSourceCharacterSummary,
+    ExternalPackageSourceIdentitySummary, ExternalPackageSourceKind, ExternalPackageSummary,
+    ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningGroup,
+    ExternalPackageWtfScopeSummary,
 };
+use crate::core::bundle::types::apply::WtfScopeRisk;
 use crate::core::manifest::{BundleResources, CharacterResource};
 
 pub(super) fn build_analysis(
@@ -80,6 +84,23 @@ fn build_summary(
         }
     }
 
+    let wtf_scopes = wtf_scope_groups
+        .into_iter()
+        .map(|(scope, count)| ExternalPackageWtfScopeSummary {
+            scope,
+            risk: scope.risk(),
+            count,
+        })
+        .collect::<Vec<_>>();
+    let source_identities = ExternalPackageSourceIdentitySummary {
+        source_accounts: source_accounts.into_iter().collect(),
+        source_characters: source_characters.into_iter().collect(),
+        entries_with_source_account,
+        entries_with_source_character,
+    };
+    let public_sharing =
+        build_public_sharing_summary(warnings.len(), &wtf_scopes, &source_identities);
+
     let mut summary = ExternalPackageSummary {
         total_files,
         normalized_files: entries.len(),
@@ -101,20 +122,9 @@ fn build_summary(
                 count,
             })
             .collect(),
-        wtf_scopes: wtf_scope_groups
-            .into_iter()
-            .map(|(scope, count)| ExternalPackageWtfScopeSummary {
-                scope,
-                risk: scope.risk(),
-                count,
-            })
-            .collect(),
-        source_identities: ExternalPackageSourceIdentitySummary {
-            source_accounts: source_accounts.into_iter().collect(),
-            source_characters: source_characters.into_iter().collect(),
-            entries_with_source_account,
-            entries_with_source_character,
-        },
+        wtf_scopes,
+        source_identities,
+        public_sharing,
         ..ExternalPackageSummary::default()
     };
 
@@ -130,6 +140,115 @@ fn build_summary(
     }
 
     summary
+}
+
+fn build_public_sharing_summary(
+    warning_count: usize,
+    wtf_scopes: &[ExternalPackageWtfScopeSummary],
+    source_identities: &ExternalPackageSourceIdentitySummary,
+) -> ExternalPackagePublicSharingSummary {
+    let mut reasons = Vec::new();
+
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::NormalizationWarnings,
+        warning_count,
+        "package normalization produced warnings; review ignored or unsupported files before public sharing",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::HighRiskWtfScope,
+        count_wtf_risk(wtf_scopes, WtfScopeRisk::High),
+        "package contains account-wide SavedVariables or other high-risk WTF data",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::UnknownRiskWtfScope,
+        count_wtf_risk(wtf_scopes, WtfScopeRisk::Unknown),
+        "package contains WTF data with unknown sharing risk",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::MediumRiskWtfScope,
+        count_wtf_risk(wtf_scopes, WtfScopeRisk::Medium),
+        "package contains global, account-root, character SavedVariables, or character-state WTF data",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::Advisory,
+        ExternalPackagePublicSharingReasonCode::LowRiskWtfScope,
+        count_wtf_risk(wtf_scopes, WtfScopeRisk::Low),
+        "package contains cache-like WTF data; it is low risk but still worth reviewing",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::SourceAccountIdentity,
+        source_identities.entries_with_source_account,
+        "package paths expose source account identity",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::SourceCharacterIdentity,
+        source_identities.entries_with_source_character,
+        "package paths expose source character and realm identity",
+    );
+
+    let review_required_count = reasons
+        .iter()
+        .filter(|reason| reason.severity == ExternalPackagePublicSharingSeverity::ReviewRequired)
+        .count();
+    let advisory_count = reasons
+        .iter()
+        .filter(|reason| reason.severity == ExternalPackagePublicSharingSeverity::Advisory)
+        .count();
+    let status = if review_required_count > 0 {
+        ExternalPackagePublicSharingStatus::ReviewRequired
+    } else if advisory_count > 0 {
+        ExternalPackagePublicSharingStatus::Advisory
+    } else {
+        ExternalPackagePublicSharingStatus::Ready
+    };
+
+    ExternalPackagePublicSharingSummary {
+        status,
+        public_ready: review_required_count == 0,
+        review_required_count,
+        advisory_count,
+        reasons,
+    }
+}
+
+fn count_wtf_risk(wtf_scopes: &[ExternalPackageWtfScopeSummary], risk: WtfScopeRisk) -> usize {
+    wtf_scopes
+        .iter()
+        .filter(|scope| scope.risk == risk)
+        .map(|scope| scope.count)
+        .sum()
+}
+
+fn push_reason(
+    reasons: &mut Vec<ExternalPackagePublicSharingReason>,
+    severity: ExternalPackagePublicSharingSeverity,
+    code: ExternalPackagePublicSharingReasonCode,
+    count: usize,
+    message: &str,
+) {
+    if count == 0 {
+        return;
+    }
+
+    reasons.push(ExternalPackagePublicSharingReason {
+        severity,
+        code,
+        count,
+        message: message.to_string(),
+    });
 }
 
 fn build_resources(entries: &[ExternalPackageEntry]) -> BundleResources {

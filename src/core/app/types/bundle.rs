@@ -393,6 +393,19 @@ impl WtfScopeValue {
             DomainWtfScope::Unknown => Self::Unknown,
         }
     }
+
+    pub(crate) fn into_domain(self) -> DomainWtfScope {
+        match self {
+            Self::GlobalConfig => DomainWtfScope::GlobalConfig,
+            Self::RootSavedVariables => DomainWtfScope::RootSavedVariables,
+            Self::AccountRootFile => DomainWtfScope::AccountRootFile,
+            Self::AccountSavedVariables => DomainWtfScope::AccountSavedVariables,
+            Self::CharacterSavedVariables => DomainWtfScope::CharacterSavedVariables,
+            Self::CharacterState => DomainWtfScope::CharacterState,
+            Self::CacheLike => DomainWtfScope::CacheLike,
+            Self::Unknown => DomainWtfScope::Unknown,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -6,9 +6,10 @@ use tempfile::tempdir;
 
 use crate::core::app::{
     AppRuntime, ApplyConfigAppRequest, BundleApplyMappingsValue, ConfigPackageAppRequest,
-    ConfigService, ExternalPackageService, HostPlatformValue, InspectConfigAppRequest,
-    PlanConfigApplyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue, WowFlavorValue,
-    WtfScopeRiskValue, WtfScopeValue,
+    ConfigPublicSharingReasonCodeValue, ConfigPublicSharingSeverityValue,
+    ConfigPublicSharingStatusValue, ConfigService, ExternalPackageService, HostPlatformValue,
+    InspectConfigAppRequest, PlanConfigApplyAppRequest, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, WowFlavorValue, WtfScopeRiskValue, WtfScopeValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};
@@ -159,6 +160,39 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .source_characters
             .len(),
         1
+    );
+    assert_eq!(
+        plan.inspection.summary.public_sharing.status,
+        ConfigPublicSharingStatusValue::ReviewRequired
+    );
+    assert!(!plan.inspection.summary.public_sharing.public_ready);
+    assert_eq!(
+        plan.inspection.summary.public_sharing.review_required_count,
+        4
+    );
+    assert!(
+        plan.inspection
+            .summary
+            .public_sharing
+            .reasons
+            .iter()
+            .any(
+                |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
+                    && reason.code == ConfigPublicSharingReasonCodeValue::HighRiskWtfScope
+                    && reason.count == 1
+            )
+    );
+    assert!(
+        plan.inspection
+            .summary
+            .public_sharing
+            .reasons
+            .iter()
+            .any(
+                |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
+                    && reason.code == ConfigPublicSharingReasonCodeValue::SourceCharacterIdentity
+                    && reason.count == 2
+            )
     );
 
     let applied = service

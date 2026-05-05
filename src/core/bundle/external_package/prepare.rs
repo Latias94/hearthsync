@@ -1,6 +1,7 @@
 use super::super::apply_model::prepared::{PreparedApplySource, PreparedBundleApply};
 use super::super::planner::pipeline::prepare_apply_from_source;
 use super::super::types::apply::BundleApplyMappings;
+use super::analysis::build_analysis;
 use super::analyze::analyze_external_package;
 use super::manifest::build_external_manifest;
 use super::normalized::{
@@ -20,13 +21,44 @@ pub(in crate::core::bundle::external_package) struct PreparedExternalPackageAppl
 pub(super) fn prepare_external_package_artifacts(
     request: &CreateExternalPackageBundleRequest,
 ) -> AppResult<(ExternalPackageAnalysis, BundleManifest)> {
-    let analysis = analyze_external_package(request.analysis_request())?;
+    let analysis = filter_analysis_for_request(
+        analyze_external_package(request.analysis_request())?,
+        request,
+    );
     validate_unique_normalized_paths(&analysis)?;
 
     let manifest = build_external_manifest(&analysis, request);
     manifest.validate()?;
 
     Ok((analysis, manifest))
+}
+
+fn filter_analysis_for_request(
+    analysis: ExternalPackageAnalysis,
+    request: &CreateExternalPackageBundleRequest,
+) -> ExternalPackageAnalysis {
+    if request.excluded_wtf_scopes.is_empty() {
+        return analysis;
+    }
+
+    let entries = analysis
+        .entries
+        .into_iter()
+        .filter(|entry| {
+            entry
+                .wtf_scope
+                .is_none_or(|scope| !request.excluded_wtf_scopes.contains(&scope))
+        })
+        .collect();
+
+    build_analysis(
+        analysis.source_path,
+        analysis.source_kind,
+        analysis.layout,
+        analysis.summary.total_files,
+        entries,
+        analysis.warnings,
+    )
 }
 
 pub(in crate::core::bundle::external_package) fn prepare_external_package_apply(

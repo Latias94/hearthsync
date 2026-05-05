@@ -2,13 +2,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::bundle::{
     ExternalPackageLayout as DomainExternalPackageLayout,
+    ExternalPackageSharingMode as DomainExternalPackageSharingMode,
     ExternalPackageWarningCategory as DomainExternalPackageWarningCategory,
     ExternalPackageWarningCode as DomainExternalPackageWarningCode,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExternalPackageLayoutValue {
+    #[default]
     Auto,
     Generic,
     #[serde(rename = "newbeebox_addon")]
@@ -21,12 +23,6 @@ pub enum ExternalPackageLayoutValue {
     NewBeeBoxWtfAccount,
     #[serde(rename = "newbeebox_wtf_character")]
     NewBeeBoxWtfCharacter,
-}
-
-impl Default for ExternalPackageLayoutValue {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl ExternalPackageLayoutValue {
@@ -51,6 +47,23 @@ impl ExternalPackageLayoutValue {
             DomainExternalPackageLayout::NewBeeBoxMaterial => Self::NewBeeBoxMaterial,
             DomainExternalPackageLayout::NewBeeBoxWtfAccount => Self::NewBeeBoxWtfAccount,
             DomainExternalPackageLayout::NewBeeBoxWtfCharacter => Self::NewBeeBoxWtfCharacter,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageSharingModeValue {
+    #[default]
+    Private,
+    Public,
+}
+
+impl ExternalPackageSharingModeValue {
+    pub(crate) fn into_domain(self) -> DomainExternalPackageSharingMode {
+        match self {
+            Self::Private => DomainExternalPackageSharingMode::Private,
+            Self::Public => DomainExternalPackageSharingMode::Public,
         }
     }
 }

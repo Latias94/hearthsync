@@ -85,6 +85,12 @@ fn analyze_external_package_zip_ignores_macos_metadata_and_desktop_noise() {
     assert_eq!(analysis.summary.ignored_files, 0);
     assert_eq!(analysis.summary.warning_count, 0);
     assert_eq!(analysis.resources.addons, vec!["WeakAuras".to_string()]);
+    assert_eq!(
+        analysis.summary.public_sharing.status,
+        ExternalPackagePublicSharingStatus::Ready
+    );
+    assert!(analysis.summary.public_sharing.public_ready);
+    assert!(analysis.summary.public_sharing.reasons.is_empty());
     assert_eq!(analysis.entries.len(), 1);
     assert_eq!(
         analysis.entries[0].normalized_path,

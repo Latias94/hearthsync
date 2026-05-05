@@ -2323,3 +2323,114 @@ Specifically:
 - The risk taxonomy stays in the core contract instead of becoming duplicated UI logic.
 - The field is intentionally descriptive, not an apply-policy gate; later public-sharing policies can
   build on this summary without changing current import execution semantics.
+
+## ADR-090: Public Sharing Readiness Is a Core Analysis Signal
+
+Accepted on 2026-05-05
+
+### Decision
+
+External-package and config analysis summaries must expose a `public_sharing` review summary derived
+from normalized warnings, WTF scope risk, and source identity exposure.
+
+Specifically:
+
+- `ExternalPackageSummary.public_sharing` reports a stable `ready`, `advisory`, or
+  `review_required` status.
+- Review reasons are machine-readable and counted. The first pass covers normalization warnings,
+  high/medium/low/unknown WTF-scope risk, source account identities, and source character
+  identities.
+- App-owned external-package and config DTOs project the same summary so CLI and future GUI callers
+  do not need to duplicate risk inference.
+- CLI analysis output renders the public-sharing summary beside WTF scope and source identity
+  summaries.
+
+### Consequences
+
+- A future public/private sharing mode can reuse the same reason codes instead of inventing a second
+  privacy policy model.
+- Current config apply behavior remains unchanged; the summary is a review signal, not an execution
+  gate.
+- Low-risk cache-like WTF data is advisory, while warnings, medium/high/unknown WTF data, and source
+  identity exposure require review before public sharing.
+
+## ADR-091: Config Export Uses the External Package Bundle Pipeline
+
+Accepted on 2026-05-05
+
+### Decision
+
+The first CLI export path for shareable config packages should reuse the existing external-package
+normalization and bundle creation pipeline instead of introducing a separate config archive writer.
+
+Specifically:
+
+- `external-package bundle` creates a reusable HearthSync bundle from any supported author package
+  layout and requires an explicit output path.
+- `config export` is the user-facing config alias over the same create-bundle service, with config
+  terminology in text output.
+- Both commands render the public-sharing readiness summary from package analysis so users see
+  privacy/review status at export time.
+- Plan/apply commands continue to create temporary bundles internally and do not grow a persistent
+  output side effect.
+
+### Consequences
+
+- Export, plan, apply, and future GUI flows keep one normalization contract for AddOns, WTF, Fonts,
+  Interface assets, source identities, and sharing review.
+- The CLI can now produce a durable bundle artifact for sharing without requiring users to hand-write
+  a manifest.
+- Future public/private sharing policies can be added to the shared create-bundle request path rather
+  than duplicated between config and external-package commands.
+
+## ADR-092: Public Export Requires Explicit Risk Review
+
+Accepted on 2026-05-05
+
+### Decision
+
+Public sharing mode must be enforced at external-package create-bundle time, while private sharing
+remains the default and plan/apply behavior remains unchanged.
+
+Specifically:
+
+- `CreateExternalPackageBundleRequest` carries `sharing_mode` and
+  `allow_public_sharing_risks`.
+- `private` mode is the default and never blocks bundle creation based on sharing review.
+- `public` mode fails before staging/packing when `public_sharing.public_ready` is false.
+- CLI export commands expose `--sharing-mode private|public` and
+  `--allow-public-sharing-risks` for explicit post-review override.
+- Plan/apply requests keep using private mode for their internal temporary bundles.
+
+### Consequences
+
+- Users cannot accidentally create a public sharing artifact from account-wide or character-specific
+  WTF data without seeing and acknowledging the review-required reasons.
+- Existing private transfer and direct apply flows keep their current behavior.
+- The policy uses the same machine-readable reason codes rendered by analysis/export output, so GUI
+  confirmation flows can share the same contract.
+
+## ADR-093: WTF Scope Exclusion Runs Before Bundle Manifest Creation
+
+Accepted on 2026-05-05
+
+### Decision
+
+Export-time WTF filtering must run after source normalization and before manifest creation,
+materialization, public-sharing validation, and packing.
+
+Specifically:
+
+- `CreateExternalPackageBundleRequest.excluded_wtf_scopes` lists normalized `WtfScope` values to
+  omit from the exported bundle.
+- `config export` and `external-package bundle` expose repeated `--exclude-wtf-scope` flags.
+- Filtering rebuilds the analysis summary and resources before manifest creation, so exported
+  bundle contents, public-sharing readiness, and returned metadata describe the same artifact.
+- Plan/apply defaults keep an empty exclusion list, so existing direct import behavior is unchanged.
+
+### Consequences
+
+- Users can make a public bundle by explicitly removing high-risk WTF scopes instead of only forcing
+  through a warning.
+- GUI export flows can offer checkboxes backed by stable `WtfScope` values.
+- Filtering is transparent in the returned analysis; it does not silently delete files after preview.

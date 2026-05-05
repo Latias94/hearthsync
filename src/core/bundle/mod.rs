@@ -36,7 +36,10 @@ pub use external_package::tasks::{
 pub use external_package::types::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,
-    ExternalPackageEntry, ExternalPackageLayout, ExternalPackageSourceCharacterSummary,
+    ExternalPackageEntry, ExternalPackageLayout, ExternalPackagePublicSharingReason,
+    ExternalPackagePublicSharingReasonCode, ExternalPackagePublicSharingSeverity,
+    ExternalPackagePublicSharingStatus, ExternalPackagePublicSharingSummary,
+    ExternalPackageSharingMode, ExternalPackageSourceCharacterSummary,
     ExternalPackageSourceIdentitySummary, ExternalPackageSourceKind, ExternalPackageSummary,
     ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningCode,
     ExternalPackageWarningGroup, ExternalPackageWtfScopeSummary, PlanExternalPackageApplyRequest,

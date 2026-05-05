@@ -394,8 +394,7 @@ fn allowed_wago_stabilities(policy: AddonSourceResolutionPolicy) -> Vec<WagoRele
 fn wago_last_page_to_scan(page: &WagoReleasePage) -> u32 {
     page.last_page
         .max(page.current_page)
-        .max(1)
-        .min(WAGO_MAX_RELEASE_PAGES)
+        .clamp(1, WAGO_MAX_RELEASE_PAGES)
 }
 
 fn wago_archive_name(project_id: &str, release_id: &str) -> AppResult<String> {
