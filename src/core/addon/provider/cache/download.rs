@@ -6,7 +6,7 @@ use super::super::http::{
 };
 use super::super::source::{short_hash, source_cache_namespace};
 use super::super::{AddonProviderOptions, AddonSourceRef};
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use crate::core::task::{CancellationToken, NeverCancel};
 
 pub(super) const TEMP_DOWNLOAD_SUFFIX: &str = ".hearthsync-part";
@@ -35,6 +35,7 @@ pub(in crate::core::addon::provider) fn download_to_path_with_headers(
     cancellation: Option<&dyn CancellationToken>,
     observer: Option<&dyn HttpDownloadProgressObserver>,
 ) -> AppResult<HttpDownloadResponse> {
+    ensure_destination_is_replaceable(destination)?;
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -64,11 +65,31 @@ pub(in crate::core::addon::provider) fn download_to_path_with_headers(
         return Ok(response);
     }
 
+    if let Err(error) = replace_downloaded_file(&temporary_destination, destination) {
+        let _ = fs::remove_file(&temporary_destination);
+        return Err(error);
+    }
+    Ok(response)
+}
+
+fn replace_downloaded_file(temporary_destination: &Path, destination: &Path) -> AppResult<()> {
+    ensure_destination_is_replaceable(destination)?;
     if destination.is_file() {
         fs::remove_file(destination)?;
     }
     fs::rename(temporary_destination, destination)?;
-    Ok(response)
+    Ok(())
+}
+
+fn ensure_destination_is_replaceable(destination: &Path) -> AppResult<()> {
+    if destination.exists() && !destination.is_file() {
+        return Err(AppError::Validation(format!(
+            "addon download destination is not a replaceable file: {}",
+            destination.display()
+        )));
+    }
+
+    Ok(())
 }
 
 pub(in crate::core::addon::provider) fn guess_archive_name_from_url(url: &str) -> Option<String> {

@@ -1089,6 +1089,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   settings backend. `core::app` persists selected runtime overrides under app-data
   `settings/runtime.toml`, the CLI exposes `settings inspect|set|reset`, and runtime assembly now
   applies persisted settings before one-shot CLI flag overrides.
+  Current hardening: provider-backed downloads now fail before HTTP when the target cache archive
+  path is already a non-file such as a directory, and they remove `.hearthsync-part` temporary files
+  if the final cache replacement becomes invalid after bytes were downloaded. This keeps failed
+  downloads from polluting the cache and makes the failure local to the materialization attempt
+  instead of relying on a later `addon cache repair`.
   Follow-up gap: remote repair is still best-effort rather than a richer operator-configurable
   policy surface, and future GUI work still needs a richer settings surface on top of the shared
   backend instead of reintroducing CLI-only persistence.

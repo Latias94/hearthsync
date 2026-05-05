@@ -27,6 +27,109 @@ fn guess_archive_name_from_url_ignores_query_string_and_fragment() {
 }
 
 #[test]
+fn download_to_path_rejects_directory_destination_before_http_call() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        downloads: RefCell<usize>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            *self.downloads.borrow_mut() += 1;
+            Ok(successful_download_response(Vec::new()))
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let destination = temp.path().join("cache").join("addon.zip");
+    std::fs::create_dir_all(&destination).expect("destination directory");
+    let http_client = FakeHttpClient::default();
+
+    let error = download_to_path_with_headers(
+        &http_client,
+        "https://example.com/addon.zip",
+        Vec::new(),
+        &destination,
+        None,
+        None,
+    )
+    .expect_err("directory destination should fail before download");
+
+    assert_eq!(*http_client.downloads.borrow(), 0);
+    assert!(error.to_string().contains("not a replaceable file"));
+    assert!(
+        !destination
+            .with_file_name("addon.zip.hearthsync-part")
+            .exists()
+    );
+}
+
+#[test]
+fn download_to_path_removes_temporary_file_when_final_destination_becomes_unreplaceable() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        temporary_destination: RefCell<Option<PathBuf>>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(
+            &self,
+            request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            *self.temporary_destination.borrow_mut() = Some(request.destination.clone());
+            std::fs::write(&request.destination, b"archive").expect("temporary archive");
+            let final_file_name = request
+                .destination
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.strip_suffix(".hearthsync-part"))
+                .expect("temporary suffix");
+            std::fs::create_dir(request.destination.with_file_name(final_file_name))
+                .expect("race-created destination directory");
+            Ok(successful_download_response(Vec::new()))
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let destination = temp.path().join("cache").join("addon.zip");
+    let http_client = FakeHttpClient::default();
+
+    let error = download_to_path_with_headers(
+        &http_client,
+        "https://example.com/addon.zip",
+        Vec::new(),
+        &destination,
+        None,
+        None,
+    )
+    .expect_err("post-download directory destination should fail");
+
+    let temporary_destination = http_client
+        .temporary_destination
+        .borrow()
+        .clone()
+        .expect("temporary destination");
+    assert!(error.to_string().contains("not a replaceable file"));
+    assert!(destination.is_dir());
+    assert!(!temporary_destination.exists());
+}
+
+#[test]
 fn purge_download_cache_removes_cached_files() {
     let temp = tempdir().expect("temp dir");
     let cache_dir = temp.path().join("cache");
