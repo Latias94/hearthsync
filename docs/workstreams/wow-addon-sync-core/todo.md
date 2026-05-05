@@ -1142,6 +1142,37 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   where `profileKeys` should migrate but descriptive boss/profile notes must remain untouched, plus
   a realistic Baganator-style recent-character cache that stays fail-closed instead of rewriting
   history strings that merely look like character identities.
+  Current progress: fixture breadth now also covers `WeakAurasArchive.lua` top-level archive
+  identity keys and a more realistic `ZygorGuidesViewer.lua` profile/container slice. These lock in
+  two existing allowlisted identity-rule shapes without widening the rewrite policy.
+  Current progress: the allowlisted addon-family floor now also includes first fixture evidence for
+  `AuraUpdater.lua`, `Details_*.lua`, `ExWindCore.lua`, `HandyNotes_*.lua`,
+  `TinyTooltip-Remake.lua`, `WeakAuras.lua`, and `WorldQuestTracker.lua`. These fixtures assert
+  both positive rewrites and preserved cache/free-text identities.
+  Current progress: `src/core/lua_patch/testdata/FIXTURES.md` now records the sanitized fixture
+  corpus by addon/rule, encoding, expected rewrite behavior, and fail-closed intent. The manifest is
+  deliberately not treated as completion proof until it also records fixture provenance and broader
+  second-shape samples.
+  Current evidence: a read-only local structure scan found a large retail install with 90 addon
+  directories and 21,452 SavedVariables Lua files, plus a NewBeeBox cache with 342 zip files. No
+  private SavedVariables contents were copied into the repo; this only informs fixture priority.
+  Current progress: second-shape fixture coverage now also covers compact top-level `DBM-*` keys,
+  `Details_MythicPlus.lua` explicit identity fields, `MeetingStone.lua` search-history context, and
+  richer `SavedInstances.lua` `Toons` records. `FIXTURES.md` now records that these samples are
+  repo-authored sanitized compatibility slices informed by local structure scans, not copies of
+  private live SavedVariables contents.
+  Current progress: the local shape audit in
+  `target/research/savedvariables-shape-audit-2026-05-05.json` confirmed structural markers without
+  outputting paths or values. Follow-up fixtures now reflect those findings: compact DBM identities,
+  compact `Details_MythicPlus.lua` profiles, TinyTooltip realm fields, and a fail-closed WeakAuras
+  no-identity sample.
+  Current verification: after the new fixture and audit changes, `cargo fmt --check`,
+  `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 764/764 tests.
+  Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
+  code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
+  fixture corpus still needs controlled provenance reductions and more addon-family coverage before
+  broad desktop-facing config migration claims.
   Remaining gap: new addon-specific identity-key containers still require explicit evidence before
   they should join the shared container allowlist.
   Remaining gap: fixture breadth is still limited. More addon-specific SavedVariables shapes and

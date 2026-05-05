@@ -163,7 +163,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |file| file.kind == ConfigSensitiveWtfFileKindValue::SavedVariables
                     && file.severity == ConfigPublicSharingSeverityValue::ReviewRequired
-                    && file.count == 2
+                    && file.count == 3
             )
     );
     assert!(
@@ -204,7 +204,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
                     && reason.code == ConfigPublicSharingReasonCodeValue::HighRiskWtfScope
-                    && reason.count == 1
+                    && reason.count == 2
             )
     );
     assert!(
@@ -228,7 +228,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
                     && reason.code == ConfigPublicSharingReasonCodeValue::SensitiveWtfFile
-                    && reason.count == 2
+                    && reason.count == 3
             )
     );
 
@@ -250,7 +250,7 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
         Some(backup.path())
     );
     assert!(applied.written_files > 0);
-    assert!(applied.rewritten_files >= 2);
+    assert!(applied.rewritten_files >= 3);
 
     let addon_root = installation.addon_dir.join("WeakAuras");
     assert!(addon_root.join("WeakAuras.toc").exists());
@@ -275,7 +275,22 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
     )
     .expect("common saved variables");
     assert!(common_lua.contains("Targetmage - Stormrage"));
-    assert!(common_lua.contains("Default.Stormrage.Targetmage"));
+    assert!(common_lua.contains(r#"["playerName"] = "Targetmage""#));
+    assert!(common_lua.contains(r#"["realm"] = "Stormrage""#));
+    assert!(common_lua.contains(r#"["lastPlayerName"] = "Examplemage""#));
+    assert!(common_lua.contains("中文提示：保留原样"));
+
+    let meetingstone_lua = fs::read_to_string(
+        installation
+            .wtf_dir
+            .join("Account")
+            .join("TARGETACC")
+            .join("SavedVariables")
+            .join("MeetingStone.lua"),
+    )
+    .expect("meetingstone saved variables");
+    assert!(meetingstone_lua.contains(r#"["Targetmage - Stormrage"] = {"#));
+    assert!(meetingstone_lua.contains(r#"["Examplemage - Illidan"] = "activity label text""#));
 
     let character_root = installation
         .wtf_dir
@@ -349,7 +364,7 @@ fn stable_app_exports_config_bundle_and_applies_exported_bundle() {
             .iter()
             .any(
                 |file| file.kind == ConfigSensitiveWtfFileKindValue::SavedVariables
-                    && file.count == 2
+                    && file.count == 3
             )
     );
 
@@ -384,7 +399,7 @@ fn stable_app_exports_config_bundle_and_applies_exported_bundle() {
     assert!(!applied.dry_run);
     assert!(applied.backup_path.is_some());
     assert!(applied.written_files > 0);
-    assert!(applied.rewritten_files >= 2);
+    assert!(applied.rewritten_files >= 3);
     assert!(
         installation
             .addon_dir
@@ -406,6 +421,18 @@ fn stable_app_exports_config_bundle_and_applies_exported_bundle() {
     )
     .expect("common saved variables");
     assert!(common_lua.contains("Targetmage - Stormrage"));
+    assert!(common_lua.contains(r#"["playerName"] = "Targetmage""#));
+    assert!(common_lua.contains("中文提示：保留原样"));
+    let meetingstone_lua = fs::read_to_string(
+        installation
+            .wtf_dir
+            .join("Account")
+            .join("TARGETACC")
+            .join("SavedVariables")
+            .join("MeetingStone.lua"),
+    )
+    .expect("meetingstone saved variables");
+    assert!(meetingstone_lua.contains(r#"["Targetmage - Stormrage"] = {"#));
     let character_lua = fs::read_to_string(
         installation
             .wtf_dir
@@ -492,18 +519,14 @@ fn create_shareable_config_source(root: &Path) -> PathBuf {
     fs::create_dir_all(account_dir.join("SavedVariables")).expect("account saved variables");
     fs::write(
         account_dir.join("SavedVariables").join("Details.lua"),
-        r#"
-DetailsDB = {
-  ["profileKeys"] = {
-    ["Examplemage - Illidan"] = "Default",
-  },
-  ["profiles"] = {
-    ["Default.Illidan.Examplemage"] = {},
-  },
-}
-"#,
+        load_lua_patch_fixture_text("details_realistic_utf8.lua"),
     )
     .expect("details saved variables");
+    fs::write(
+        account_dir.join("SavedVariables").join("MeetingStone.lua"),
+        load_lua_patch_fixture_text("meetingstone_search_history_context_utf8.lua"),
+    )
+    .expect("meetingstone saved variables");
     let character_dir = account_dir.join("Illidan").join("Examplemage");
     fs::create_dir_all(character_dir.join("SavedVariables")).expect("character saved variables");
     fs::write(character_dir.join("AddOns.txt"), "WeakAuras: enabled").expect("addons state");
@@ -535,6 +558,18 @@ PawnOptions = {
     .expect("texture");
 
     package_root
+}
+
+fn load_lua_patch_fixture_text(name: &str) -> String {
+    fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("core")
+            .join("lua_patch")
+            .join("testdata")
+            .join(name),
+    )
+    .expect("lua patch fixture")
 }
 
 fn create_empty_installation(root: &Path) -> ResolvedInstallationValue {
