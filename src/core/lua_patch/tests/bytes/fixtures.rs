@@ -283,6 +283,73 @@ fn preview_lua_bytes_rewrite_covers_common_allowlisted_addon_policy_fixtures() {
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_covers_profile_marker_reduction_fixtures() {
+    struct Case {
+        path: &'static str,
+        fixture: &'static str,
+        expected: &'static [&'static str],
+        preserved: &'static [&'static str],
+    }
+
+    let cases = [
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/Plater.lua",
+            fixture: "plater_profilekeys_reduced_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = "Stormrage.Targetmage""#,
+                r#"["Stormrage.Targetmage"] = {"#,
+            ],
+            preserved: &[
+                "Examplemage - Illidan should remain in script text",
+                r#"["Examplemage - Illidan"] = "historical script owner text""#,
+            ],
+        },
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/OmniCD.lua",
+            fixture: "omnicd_profilekeys_char_reduced_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = "Default.Stormrage.Targetmage""#,
+                r#"["Default.Stormrage.Targetmage"] = {"#,
+            ],
+            preserved: &[r#"["char"] = {
+    ["Examplemage - Illidan"] = {"#],
+        },
+    ];
+
+    for case in cases {
+        let payload = load_text_fixture_bytes(case.fixture);
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new(case.path),
+            &payload,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: true,
+                rewrite_identity_strings: true,
+            },
+        )
+        .unwrap_or_else(|error| panic!("preview {}: {error}", case.fixture))
+        .unwrap_or_else(|| panic!("{} should produce rewritten bytes", case.fixture));
+
+        let rewritten_text = String::from_utf8(rewritten)
+            .unwrap_or_else(|error| panic!("{} should remain utf8: {error}", case.fixture));
+        for expected in case.expected {
+            assert!(
+                rewritten_text.contains(expected),
+                "{} should contain {expected}",
+                case.fixture
+            );
+        }
+        for preserved in case.preserved {
+            assert!(
+                rewritten_text.contains(preserved),
+                "{} should preserve {preserved}",
+                case.fixture
+            );
+        }
+    }
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_covers_second_shape_identity_policy_fixtures() {
     struct Case {
         path: &'static str,

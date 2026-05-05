@@ -35,6 +35,8 @@ small compatibility slices, not full addon databases.
 | `ndui_bags_realistic_utf8.lua` | `NDui_Bags.lua` via `profileKeys` marker | UTF-8 | Rewrite dense one-line profile keys and preserve author text/options. |
 | `newbeebox_realistic_utf8.lua` | `NewBeeBox.lua` exact identity rule | UTF-8 | Rewrite reverse compact identities and name/realm pairs; preserve player GUIDs. |
 | `pawn_realistic_latin1.lua.escape` | `Pawn.lua` exact identity rule | Latin-1 byte fixture | Rewrite character SavedVariables while preserving Latin-1-only bytes. |
+| `omnicd_profilekeys_char_reduced_utf8.lua` | `OmniCD.lua` profile-key marker, controlled local shape reduction | UTF-8 | Rewrite profile keys and dot-form profile tables; preserve `char` identity keys because OmniCD is not identity allowlisted. |
+| `plater_profilekeys_reduced_utf8.lua` | `Plater.lua` profile-key marker, controlled local shape reduction | UTF-8 | Rewrite spaced profile keys and dot-form profile tables; preserve script/cache identity text outside profile containers. |
 | `rarity_realistic_utf8.lua` | `Rarity.lua` profile-key-only safety sample | UTF-8 | Rewrite profile keys while preserving account-wide statistics identity fields. |
 | `rurutiasuite_realistic_utf8.lua` | `RurutiaSuite.lua` via `profileKeys` marker | UTF-8 | Rewrite profile keys in real author layout and preserve author notes. |
 | `savedinstances_reduced_toon_compact_utf8.lua` | `SavedInstances.lua` exact identity rule, controlled local shape reduction | UTF-8 | Rewrite spaced and compact `Toons` keys; preserve historical lockout maps outside `Toons`. |
@@ -58,6 +60,9 @@ small compatibility slices, not full addon databases.
   fixture priority for common addon families such as `DBM-*`, `MeetingStone.lua`,
   `Details_*.lua`, `ElvUI.lua`, `Baganator.lua`, `Auctionator.lua`, and
   `TinyTooltip-Remake.lua`.
+- A follow-up privacy-preserving marker scan also prioritized `Plater.lua` and `OmniCD.lua`
+  profile-key shapes. The checked-in fixtures are synthetic reductions of marker/container shape,
+  not copies of the live SavedVariables content.
 - The local shape audit in `target/research/savedvariables-shape-audit-2026-05-05.json` records
   counts, encodings, ASCII global assignment names, and marker counts only. It intentionally omits
   paths, account names, character names, and string values.

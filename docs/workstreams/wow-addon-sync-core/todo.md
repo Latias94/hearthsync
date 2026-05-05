@@ -428,6 +428,12 @@ enough that these rules live in one place.
   `progress`, `planning`, `execution`, and `policy`, leaving
   `core::bundle::tests::apply` as shared imports and ownership rather than a second 1.5k-line
   mixed planner/executor bucket.
+  Current progress: the post-MVP compatibility hardening matrix now lives in
+  `config-package-compatibility-hardening.md`, and the read-only verifier script
+  `scripts/config-package-compatibility-readonly.ps1` generates privacy-preserving aggregate
+  reports under `target/research`. The latest local run inspected a full retail config tree,
+  four distinct real NewBeeBox addon module-cache packages, one account WTF cache package, and one
+  character WTF cache package with 0 normalization warnings.
 - [ ] verify the cleaned-up contracts against more Windows-to-macOS author-package scenarios
   Current progress: bundle apply planning now rejects planned target-path collisions using the
   target platform's case-sensitivity rules, so Windows/default-macOS targets fail fast when two
@@ -1281,6 +1287,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Follow-up hardening: fixture breadth is still limited. More addon-specific SavedVariables shapes
   and more encoding/pathology variants are still needed before broad desktop-facing migration
   claims.
+  Current progress: Plater and OmniCD now have controlled profile-marker reductions. Plater covers
+  spaced profile keys plus dot-form profile tables while preserving script/cache identity text.
+  OmniCD covers `profileKeys`/`profiles` with a nearby `char` table and verifies that identity-key
+  rewrite stays disabled because OmniCD is not identity allowlisted.
 
 Exit criteria:
 
