@@ -1013,6 +1013,9 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current cleanup: regular addon execution production code now follows the same lifecycle split.
   `core::addon::execution` is a thin export root, while install, update, remove, and shared backup
   orchestration live in focused sibling modules instead of one mixed command executor file.
+  Current hardening: tracked-package selectors now trim user input before matching and reject blank
+  selectors explicitly, so update/remove/curation paths that share the registry selector no longer
+  drift between whitespace-sensitive `not found` behavior and policy/relink-style trimmed inputs.
   Current cleanup: addon mutation support logic now follows that ownership split too.
   `core::addon::mutation` keeps the install/update/remove transaction flow, while filesystem
   helpers and task-progress observation live in `mutation::{fs,progress}`.

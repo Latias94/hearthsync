@@ -213,6 +213,7 @@ pub(crate) fn select_tracked_packages(
     match name {
         None => Ok(registry.packages.clone()),
         Some(name) => {
+            let name = normalize_tracked_package_selector(name)?;
             let mut matches = registry
                 .packages
                 .iter()
@@ -234,6 +235,7 @@ pub(crate) fn select_single_tracked_package(
     registry: &AddonRegistry,
     name: &str,
 ) -> AppResult<(usize, TrackedAddonPackage)> {
+    let name = normalize_tracked_package_selector(name)?;
     let mut matches = registry
         .packages
         .iter()
@@ -257,6 +259,17 @@ pub(crate) fn select_single_tracked_package(
                 .join(", ")
         ))),
     }
+}
+
+fn normalize_tracked_package_selector(name: &str) -> AppResult<&str> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(AppError::Validation(
+            "tracked addon selector must not be empty".to_string(),
+        ));
+    }
+
+    Ok(name)
 }
 
 fn tracked_package_matches_name(package: &TrackedAddonPackage, name: &str) -> bool {

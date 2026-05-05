@@ -5,7 +5,10 @@ use tempfile::tempdir;
 
 use super::{create_fixture_installation, sidecar_addon_state_paths, tracked_package};
 use crate::core::addon::provider::AddonSourceRef;
-use crate::core::addon::{AddonPackageMetadata, AddonRegistry, load_registry, save_registry};
+use crate::core::addon::{
+    AddonPackageMetadata, AddonRegistry, load_registry, save_registry,
+    select_single_tracked_package, select_tracked_packages,
+};
 use crate::core::error::AppError;
 
 #[test]
@@ -272,5 +275,37 @@ fn save_registry_rejects_blank_metadata_values() {
         assert!(message.contains(expected_message));
         assert!(message.contains("package `details`"));
         assert!(!state_paths.registry_path.exists());
+    }
+}
+
+#[test]
+fn select_tracked_packages_trims_user_selector() {
+    let registry = AddonRegistry {
+        schema_version: 1,
+        packages: vec![tracked_package("details-pack", "Details")],
+    };
+
+    let packages = select_tracked_packages(&registry, Some(" Details "))
+        .expect("trimmed addon directory selector");
+    let (_, single) = select_single_tracked_package(&registry, " details-pack ")
+        .expect("trimmed package selector");
+
+    assert_eq!(packages[0].package_id, "details-pack");
+    assert_eq!(single.package_id, "details-pack");
+}
+
+#[test]
+fn select_tracked_packages_rejects_blank_selector() {
+    let registry = AddonRegistry {
+        schema_version: 1,
+        packages: vec![tracked_package("details-pack", "Details")],
+    };
+
+    for error in [
+        select_tracked_packages(&registry, Some(" ")).expect_err("blank multi selector"),
+        select_single_tracked_package(&registry, "").expect_err("blank single selector"),
+    ] {
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(error.to_string().contains("selector must not be empty"));
     }
 }
