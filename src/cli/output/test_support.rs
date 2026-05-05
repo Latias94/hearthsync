@@ -8,11 +8,14 @@ use crate::core::app::{
     BundleManifestValue, BundleMappingRulesValue, BundlePackageValue, BundleResourcesResult,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, CharacterMappingResult,
     ExternalPackageAnalysisResult, ExternalPackageEntryResult, ExternalPackageLayoutValue,
+    ExternalPackageSourceCharacterResult, ExternalPackageSourceIdentityResult,
     ExternalPackageSourceKindResult, ExternalPackageSummaryResult,
     ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
-    ExternalPackageWarningGroupResult, ExternalPackageWarningResult, GroupPolicyResult,
-    HostPlatformValue, LocalWowAccountResult, LocalWowCharacterResult, ResourceApplyPolicyValue,
-    TrackedAddonPackageResult, TrackedAddonResult, WowFlavorValue,
+    ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackageWtfScopeSummaryResult, GroupPolicyResult, HostPlatformValue,
+    LocalWowAccountResult, LocalWowCharacterResult, ResourceApplyPolicyValue,
+    TrackedAddonPackageResult, TrackedAddonResult, WowFlavorValue, WtfScopeRiskValue,
+    WtfScopeValue,
 };
 
 pub(super) use crate::cli::test_support::sample_installation;
@@ -265,6 +268,21 @@ pub(super) fn sample_external_package_analysis() -> ExternalPackageAnalysisResul
                 code: ExternalPackageWarningCodeValue::AddonRootNotDetected,
                 count: 1,
             }],
+            wtf_scopes: vec![ExternalPackageWtfScopeSummaryResult {
+                scope: WtfScopeValue::AccountSavedVariables,
+                risk: WtfScopeRiskValue::High,
+                count: 1,
+            }],
+            source_identities: ExternalPackageSourceIdentityResult {
+                source_accounts: vec!["AccountA".to_string()],
+                source_characters: vec![ExternalPackageSourceCharacterResult {
+                    source_account: Some("AccountA".to_string()),
+                    source_server: "Aegwynn".to_string(),
+                    source_character: "Hero".to_string(),
+                }],
+                entries_with_source_account: 1,
+                entries_with_source_character: 1,
+            },
         },
         warnings: vec![ExternalPackageWarningResult {
             category: ExternalPackageWarningCategoryValue::Addon,

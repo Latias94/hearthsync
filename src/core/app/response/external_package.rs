@@ -9,5 +9,7 @@ pub use apply::{ExternalPackageApplyPlanResult, ExternalPackageApplyResult};
 pub use bundle::{ExternalPackageBundleHandle, ExternalPackageBundleResult};
 pub use entry::ExternalPackageEntryResult;
 pub use warning::{
+    ExternalPackageSourceCharacterResult, ExternalPackageSourceIdentityResult,
     ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackageWtfScopeSummaryResult,
 };

@@ -1,10 +1,16 @@
 use serde::Serialize;
 
-use crate::core::app::{ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue};
+use crate::core::app::{
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue, WtfScopeRiskValue,
+    WtfScopeValue,
+};
 use crate::core::bundle::{
+    ExternalPackageSourceCharacterSummary as DomainExternalPackageSourceCharacterSummary,
+    ExternalPackageSourceIdentitySummary as DomainExternalPackageSourceIdentitySummary,
     ExternalPackageSummary as DomainExternalPackageSummary,
     ExternalPackageWarning as DomainExternalPackageWarning,
     ExternalPackageWarningGroup as DomainExternalPackageWarningGroup,
+    ExternalPackageWtfScopeSummary as DomainExternalPackageWtfScopeSummary,
 };
 
 use super::super::super::map_owned_vec;
@@ -46,6 +52,63 @@ impl ExternalPackageWarningResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageWtfScopeSummaryResult {
+    pub scope: WtfScopeValue,
+    pub risk: WtfScopeRiskValue,
+    pub count: usize,
+}
+
+impl ExternalPackageWtfScopeSummaryResult {
+    pub(crate) fn from_domain(value: DomainExternalPackageWtfScopeSummary) -> Self {
+        Self {
+            scope: WtfScopeValue::from_domain(value.scope),
+            risk: WtfScopeRiskValue::from_domain(value.risk),
+            count: value.count,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageSourceCharacterResult {
+    pub source_account: Option<String>,
+    pub source_server: String,
+    pub source_character: String,
+}
+
+impl ExternalPackageSourceCharacterResult {
+    pub(crate) fn from_domain(value: DomainExternalPackageSourceCharacterSummary) -> Self {
+        Self {
+            source_account: value.source_account,
+            source_server: value.source_server,
+            source_character: value.source_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageSourceIdentityResult {
+    pub source_accounts: Vec<String>,
+    pub source_characters: Vec<ExternalPackageSourceCharacterResult>,
+    pub entries_with_source_account: usize,
+    pub entries_with_source_character: usize,
+}
+
+impl ExternalPackageSourceIdentityResult {
+    pub(crate) fn from_domain(value: DomainExternalPackageSourceIdentitySummary) -> Self {
+        Self {
+            source_accounts: value.source_accounts,
+            source_characters: value
+                .source_characters
+                .into_iter()
+                .map(ExternalPackageSourceCharacterResult::from_domain)
+                .collect(),
+            entries_with_source_account: value.entries_with_source_account,
+            entries_with_source_character: value.entries_with_source_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ExternalPackageSummaryResult {
     pub total_files: usize,
     pub normalized_files: usize,
@@ -59,6 +122,8 @@ pub struct ExternalPackageSummaryResult {
     pub addon_warning_count: usize,
     pub wtf_warning_count: usize,
     pub warning_groups: Vec<ExternalPackageWarningGroupResult>,
+    pub wtf_scopes: Vec<ExternalPackageWtfScopeSummaryResult>,
+    pub source_identities: ExternalPackageSourceIdentityResult,
 }
 
 impl ExternalPackageSummaryResult {
@@ -78,6 +143,13 @@ impl ExternalPackageSummaryResult {
             warning_groups: map_owned_vec(
                 value.warning_groups,
                 ExternalPackageWarningGroupResult::from_domain,
+            ),
+            wtf_scopes: map_owned_vec(
+                value.wtf_scopes,
+                ExternalPackageWtfScopeSummaryResult::from_domain,
+            ),
+            source_identities: ExternalPackageSourceIdentityResult::from_domain(
+                value.source_identities,
             ),
         }
     }

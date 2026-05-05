@@ -5,8 +5,9 @@ use super::super::shared::path::safe_file_part;
 use super::super::types::apply::ApplyGroup;
 use super::types::{
     ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageLayout,
+    ExternalPackageSourceCharacterSummary, ExternalPackageSourceIdentitySummary,
     ExternalPackageSourceKind, ExternalPackageSummary, ExternalPackageWarning,
-    ExternalPackageWarningCategory, ExternalPackageWarningGroup,
+    ExternalPackageWarningCategory, ExternalPackageWarningGroup, ExternalPackageWtfScopeSummary,
 };
 use crate::core::manifest::{BundleResources, CharacterResource};
 
@@ -48,10 +49,35 @@ fn build_summary(
     warnings: &[ExternalPackageWarning],
 ) -> ExternalPackageSummary {
     let mut warning_groups = BTreeMap::new();
+    let mut wtf_scope_groups = BTreeMap::new();
+    let mut source_accounts = BTreeSet::new();
+    let mut source_characters = BTreeSet::new();
+    let mut entries_with_source_account = 0usize;
+    let mut entries_with_source_character = 0usize;
     for warning in warnings {
         *warning_groups
             .entry((warning.category, warning.code))
             .or_insert(0usize) += 1;
+    }
+    for entry in entries {
+        if let Some(source_account) = entry.source_account.as_deref() {
+            source_accounts.insert(source_account.to_string());
+            entries_with_source_account += 1;
+        }
+        if let (Some(source_server), Some(source_character)) = (
+            entry.source_server.as_deref(),
+            entry.source_character.as_deref(),
+        ) {
+            source_characters.insert(ExternalPackageSourceCharacterSummary {
+                source_account: entry.source_account.clone(),
+                source_server: source_server.to_string(),
+                source_character: source_character.to_string(),
+            });
+            entries_with_source_character += 1;
+        }
+        if let Some(wtf_scope) = entry.wtf_scope {
+            *wtf_scope_groups.entry(wtf_scope).or_insert(0usize) += 1;
+        }
     }
 
     let mut summary = ExternalPackageSummary {
@@ -75,6 +101,20 @@ fn build_summary(
                 count,
             })
             .collect(),
+        wtf_scopes: wtf_scope_groups
+            .into_iter()
+            .map(|(scope, count)| ExternalPackageWtfScopeSummary {
+                scope,
+                risk: scope.risk(),
+                count,
+            })
+            .collect(),
+        source_identities: ExternalPackageSourceIdentitySummary {
+            source_accounts: source_accounts.into_iter().collect(),
+            source_characters: source_characters.into_iter().collect(),
+            entries_with_source_account,
+            entries_with_source_character,
+        },
         ..ExternalPackageSummary::default()
     };
 

@@ -1,8 +1,9 @@
 use super::format_external_package_warnings;
 use crate::core::app::{
-    ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
-    ExternalPackageWarningCodeValue, ExternalPackageWarningGroupResult,
-    ExternalPackageWarningResult,
+    ExternalPackageSourceIdentityResult, ExternalPackageSummaryResult,
+    ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
+    ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackageWtfScopeSummaryResult, WtfScopeRiskValue, WtfScopeValue,
 };
 
 #[test]
@@ -37,6 +38,17 @@ fn format_external_package_warnings_renders_groups_and_details() {
                 count: 1,
             },
         ],
+        wtf_scopes: vec![ExternalPackageWtfScopeSummaryResult {
+            scope: WtfScopeValue::AccountSavedVariables,
+            risk: WtfScopeRiskValue::High,
+            count: 1,
+        }],
+        source_identities: ExternalPackageSourceIdentityResult {
+            source_accounts: Vec::new(),
+            source_characters: Vec::new(),
+            entries_with_source_account: 0,
+            entries_with_source_character: 0,
+        },
         total_files: 0,
         normalized_files: 0,
         ignored_files: 0,
@@ -78,6 +90,13 @@ fn format_external_package_warnings_returns_none_for_empty_warnings() {
             addon_warning_count: 0,
             wtf_warning_count: 0,
             warning_groups: Vec::new(),
+            wtf_scopes: Vec::new(),
+            source_identities: ExternalPackageSourceIdentityResult {
+                source_accounts: Vec::new(),
+                source_characters: Vec::new(),
+                entries_with_source_account: 0,
+                entries_with_source_character: 0,
+            },
         },
     );
 

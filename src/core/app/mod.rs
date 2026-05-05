@@ -112,14 +112,17 @@ pub use response::bundle::{
 };
 pub use response::config::{
     ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ConfigPackageEntryResult,
-    ConfigPackageSourceKindResult, ConfigPackageSummaryResult, ConfigWarningCategoryValue,
-    ConfigWarningCodeValue, ConfigWarningGroupResult, ConfigWarningResult,
+    ConfigPackageSourceKindResult, ConfigPackageSummaryResult, ConfigSourceCharacterResult,
+    ConfigSourceIdentityResult, ConfigWarningCategoryValue, ConfigWarningCodeValue,
+    ConfigWarningGroupResult, ConfigWarningResult, ConfigWtfScopeSummaryResult,
 };
 pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
+    ExternalPackageSourceCharacterResult, ExternalPackageSourceIdentityResult,
     ExternalPackageSourceKindResult, ExternalPackageSummaryResult,
     ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackageWtfScopeSummaryResult,
 };
 pub use response::installation::{
     InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,
@@ -146,7 +149,7 @@ pub use types::bundle::{
     ApplyActionValue, ApplyGroupValue, BundleApplyDefaultsValue, BundleApplyMappingsValue,
     BundleCharacterMappingOverrideValue, BundleCharacterResourceValue, BundleManifestValue,
     BundleMappingRulesValue, BundlePackageValue, BundleResourcesValue, BundleSourceValue,
-    CharacterMappingModeValue, ResourceApplyPolicyValue, WtfScopeValue,
+    CharacterMappingModeValue, ResourceApplyPolicyValue, WtfScopeRiskValue, WtfScopeValue,
 };
 pub use types::external_package::{
     ExternalPackageLayoutValue, ExternalPackageWarningCategoryValue,

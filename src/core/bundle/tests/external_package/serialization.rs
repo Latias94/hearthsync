@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn analyze_external_package_serializes_warning_groups_for_machine_consumers() {
+fn analyze_external_package_serializes_summary_groups_for_machine_consumers() {
     let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(
         external_package_dirty_fixture_root(),
     ))
@@ -25,6 +25,54 @@ fn analyze_external_package_serializes_warning_groups_for_machine_consumers() {
             "code": "addon_root_not_detected",
             "count": 1
         }),]
+    );
+
+    let wtf_scopes = summary
+        .get("wtf_scopes")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .expect("wtf_scopes array");
+
+    assert_eq!(
+        wtf_scopes,
+        vec![
+            serde_json::json!({
+                "scope": "root_saved_variables",
+                "risk": "high",
+                "count": 1
+            }),
+            serde_json::json!({
+                "scope": "character_saved_variables",
+                "risk": "medium",
+                "count": 1
+            }),
+            serde_json::json!({
+                "scope": "cache_like",
+                "risk": "low",
+                "count": 1
+            }),
+        ]
+    );
+
+    let source_identities = summary
+        .get("source_identities")
+        .cloned()
+        .expect("source_identities object");
+
+    assert_eq!(
+        source_identities,
+        serde_json::json!({
+            "source_accounts": ["ACC1"],
+            "source_characters": [
+                {
+                    "source_account": "ACC1",
+                    "source_server": "Illidan",
+                    "source_character": "Targetone"
+                }
+            ],
+            "entries_with_source_account": 2,
+            "entries_with_source_character": 1
+        })
     );
 }
 

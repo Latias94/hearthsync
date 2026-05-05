@@ -5,6 +5,7 @@ use crate::core::bundle::{
     ApplyAction as DomainApplyAction, ApplyGroup as DomainApplyGroup,
     BundleApplyMappings as DomainBundleApplyMappings,
     CharacterMappingOverride as DomainCharacterMappingOverride, WtfScope as DomainWtfScope,
+    WtfScopeRisk as DomainWtfScopeRisk,
 };
 use crate::core::error::AppResult;
 use crate::core::manifest::{
@@ -390,6 +391,26 @@ impl WtfScopeValue {
             DomainWtfScope::CharacterState => Self::CharacterState,
             DomainWtfScope::CacheLike => Self::CacheLike,
             DomainWtfScope::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WtfScopeRiskValue {
+    Low,
+    Medium,
+    High,
+    Unknown,
+}
+
+impl WtfScopeRiskValue {
+    pub(crate) fn from_domain(value: DomainWtfScopeRisk) -> Self {
+        match value {
+            DomainWtfScopeRisk::Low => Self::Low,
+            DomainWtfScopeRisk::Medium => Self::Medium,
+            DomainWtfScopeRisk::High => Self::High,
+            DomainWtfScopeRisk::Unknown => Self::Unknown,
         }
     }
 }

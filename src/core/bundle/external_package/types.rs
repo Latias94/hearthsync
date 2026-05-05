@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
 use crate::core::bundle::types::apply::{
-    ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyMappings, WtfScope,
+    ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary, BundleApplyMappings,
+    WtfScope, WtfScopeRisk,
 };
 use crate::core::bundle::types::archive::CreatedBundle;
 use crate::core::install::{DetectedFlavorInstallation, HostPlatform, LocalWowAccount, WowFlavor};
@@ -162,6 +163,28 @@ pub struct ExternalPackageWarningGroup {
     pub count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ExternalPackageWtfScopeSummary {
+    pub scope: WtfScope,
+    pub risk: WtfScopeRisk,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct ExternalPackageSourceCharacterSummary {
+    pub source_account: Option<String>,
+    pub source_server: String,
+    pub source_character: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct ExternalPackageSourceIdentitySummary {
+    pub source_accounts: Vec<String>,
+    pub source_characters: Vec<ExternalPackageSourceCharacterSummary>,
+    pub entries_with_source_account: usize,
+    pub entries_with_source_character: usize,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalPackageAnalysis {
     pub source_path: PathBuf,
@@ -200,6 +223,8 @@ pub struct ExternalPackageSummary {
     pub addon_warning_count: usize,
     pub wtf_warning_count: usize,
     pub warning_groups: Vec<ExternalPackageWarningGroup>,
+    pub wtf_scopes: Vec<ExternalPackageWtfScopeSummary>,
+    pub source_identities: ExternalPackageSourceIdentitySummary,
 }
 
 #[derive(Debug)]

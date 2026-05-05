@@ -416,6 +416,10 @@ enough that these rules live in one place.
   a wrapper directory, mixed-case `Interface/AddOns` subtree paths, WTF/fonts/interface resources,
   default author-package apply policies, backup creation, and macOS/desktop noise that must not be
   imported.
+  Current progress: the app-level `config` facade now also has an end-to-end Windows-source to
+  macOS-target regression covering plan/apply, default backup creation, addon/font/interface cleanup,
+  explicit account/character mapping, and Lua SavedVariables rewrite through the same stable app
+  DTOs future GUI code will consume.
 - [ ] tighten any remaining path portability edge cases around case folding, archive metadata, and
   caller-working-directory assumptions
   Current progress: bundle export no longer defaults output paths or relative output references
@@ -459,6 +463,10 @@ enough that these rules live in one place.
   source account/server/character identity from the shared `core::bundle::entry_layout`
   classifier, so author-package analysis no longer keeps a second semantic mapping from
   normalized bundle paths to apply-group and WTF-scope meaning.
+  Current progress: external-package and config analysis summaries now also aggregate normalized
+  WTF entries by `WtfScope` with a stable risk level, so CLI and future GUI callers can review
+  account-wide SavedVariables, character SavedVariables, cache-like files, and unknown WTF shapes
+  without walking every normalized entry themselves.
   Current progress: external-package warning taxonomy no longer carries the unreachable
   `unsupported_wtf_root_savedvariables` code; root `WTF/Account/SavedVariables/<file>` entries are
   recognized as supported common root saved variables, while the remaining warning codes now map to

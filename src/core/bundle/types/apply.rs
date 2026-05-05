@@ -81,7 +81,7 @@ pub enum ApplyGroup {
     Metadata,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WtfScope {
     GlobalConfig,
@@ -91,6 +91,29 @@ pub enum WtfScope {
     CharacterSavedVariables,
     CharacterState,
     CacheLike,
+    Unknown,
+}
+
+impl WtfScope {
+    pub fn risk(self) -> WtfScopeRisk {
+        match self {
+            Self::GlobalConfig
+            | Self::AccountRootFile
+            | Self::CharacterSavedVariables
+            | Self::CharacterState => WtfScopeRisk::Medium,
+            Self::RootSavedVariables | Self::AccountSavedVariables => WtfScopeRisk::High,
+            Self::CacheLike => WtfScopeRisk::Low,
+            Self::Unknown => WtfScopeRisk::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WtfScopeRisk {
+    Low,
+    Medium,
+    High,
     Unknown,
 }
 

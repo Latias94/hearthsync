@@ -2298,3 +2298,28 @@ Specifically:
   default.
 - Future provider backends get a clearer testing pattern: pure provider contract tests stay local,
   while shared provider orchestration coverage stays in the integration-style provider test module.
+
+## ADR-089: WTF Scope Risk Is Part of Package Analysis Summaries
+
+Accepted on 2026-05-05
+
+### Decision
+
+External-package and config analysis summaries must expose an aggregated `WtfScope` view with a
+stable risk level for each observed scope.
+
+Specifically:
+
+- `ExternalPackageSummary` groups normalized WTF entries by `WtfScope`.
+- Each scope group carries a count plus a coarse `low`, `medium`, `high`, or `unknown` risk level.
+- App-owned external-package and config DTOs project the same scope summary instead of requiring
+  CLI or future GUI callers to inspect every normalized entry.
+- CLI analysis output renders the scope summary beside existing resource and warning summaries.
+
+### Consequences
+
+- Sharing review screens can identify account-wide SavedVariables and other broad WTF data from a
+  small summary payload.
+- The risk taxonomy stays in the core contract instead of becoming duplicated UI logic.
+- The field is intentionally descriptive, not an apply-policy gate; later public-sharing policies can
+  build on this summary without changing current import execution semantics.

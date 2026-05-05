@@ -1,6 +1,8 @@
 mod accounts;
 mod lists;
+mod source_identity;
 mod warnings;
+mod wtf_scope;
 
 #[cfg(test)]
 mod tests;
@@ -10,4 +12,8 @@ pub(super) use accounts::{
     format_selected_accounts,
 };
 pub(super) use lists::{format_optional_path_or_none, format_string_list_or_none};
+pub(super) use source_identity::{
+    format_config_source_identities, format_external_package_source_identities,
+};
 pub(super) use warnings::{format_config_warnings, format_external_package_warnings};
+pub(super) use wtf_scope::{format_config_wtf_scopes, format_external_package_wtf_scopes};

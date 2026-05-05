@@ -287,6 +287,52 @@ fn analyze_external_package_directory_dirty_fixture_reports_warnings_and_keeps_s
             count: 1,
         }]
     );
+    assert_eq!(
+        analysis.summary.wtf_scopes,
+        vec![
+            ExternalPackageWtfScopeSummary {
+                scope: WtfScope::RootSavedVariables,
+                risk: WtfScopeRisk::High,
+                count: 1,
+            },
+            ExternalPackageWtfScopeSummary {
+                scope: WtfScope::CharacterSavedVariables,
+                risk: WtfScopeRisk::Medium,
+                count: 1,
+            },
+            ExternalPackageWtfScopeSummary {
+                scope: WtfScope::CacheLike,
+                risk: WtfScopeRisk::Low,
+                count: 1,
+            },
+        ]
+    );
+    assert_eq!(
+        analysis.summary.source_identities.source_accounts,
+        vec!["ACC1"]
+    );
+    assert_eq!(
+        analysis.summary.source_identities.source_characters,
+        vec![ExternalPackageSourceCharacterSummary {
+            source_account: Some("ACC1".to_string()),
+            source_server: "Illidan".to_string(),
+            source_character: "Targetone".to_string(),
+        }]
+    );
+    assert_eq!(
+        analysis
+            .summary
+            .source_identities
+            .entries_with_source_account,
+        2
+    );
+    assert_eq!(
+        analysis
+            .summary
+            .source_identities
+            .entries_with_source_character,
+        1
+    );
     assert_eq!(analysis.resources.addons, vec!["Questie".to_string()]);
     assert!(analysis.resources.wtf_common);
     assert_eq!(analysis.resources.wtf_characters.len(), 1);

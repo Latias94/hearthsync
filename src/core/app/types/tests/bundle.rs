@@ -2,8 +2,9 @@ use crate::core::app::{
     BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
     BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, HostPlatformValue,
-    ResourceApplyPolicyValue, WowFlavorValue,
+    ResourceApplyPolicyValue, WowFlavorValue, WtfScopeRiskValue,
 };
+use crate::core::bundle::{WtfScope, WtfScopeRisk};
 use crate::core::manifest::ResourceApplyPolicy;
 
 #[test]
@@ -127,6 +128,15 @@ fn bundle_apply_defaults_value_author_package_defaults_match_shared_profile() {
     );
     assert_eq!(defaults.fonts, ResourceApplyPolicyValue::Mirror);
     assert_eq!(defaults.interface_assets, ResourceApplyPolicyValue::Mirror);
+}
+
+#[test]
+fn wtf_scope_risk_value_projects_domain_risk() {
+    assert_eq!(WtfScope::AccountSavedVariables.risk(), WtfScopeRisk::High);
+    assert_eq!(
+        WtfScopeRiskValue::from_domain(WtfScope::CacheLike.risk()),
+        WtfScopeRiskValue::Low
+    );
 }
 
 #[test]

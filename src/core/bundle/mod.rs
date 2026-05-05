@@ -36,9 +36,11 @@ pub use external_package::tasks::{
 pub use external_package::types::{
     AnalyzeExternalPackageRequest, AppliedExternalPackage, ApplyExternalPackageRequest,
     CreateExternalPackageBundleRequest, ExternalPackageAnalysis, ExternalPackageApplyPlan,
-    ExternalPackageEntry, ExternalPackageLayout, ExternalPackageSourceKind, ExternalPackageSummary,
+    ExternalPackageEntry, ExternalPackageLayout, ExternalPackageSourceCharacterSummary,
+    ExternalPackageSourceIdentitySummary, ExternalPackageSourceKind, ExternalPackageSummary,
     ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningCode,
-    ExternalPackageWarningGroup, PlanExternalPackageApplyRequest, PreparedExternalPackageBundle,
+    ExternalPackageWarningGroup, ExternalPackageWtfScopeSummary, PlanExternalPackageApplyRequest,
+    PreparedExternalPackageBundle,
 };
 pub use packing::inspect::{inspect_bundle, load_apply_mappings};
 pub use packing::pack::pack_bundle;
@@ -49,6 +51,6 @@ pub use types::addon_lock::{
 pub use types::apply::{
     ApplyAction, ApplyGroup, ApplyGroupPolicies, ApplyOperation, ApplyPlanSummary,
     BundleApplyMappings, BundleApplyPlan, CharacterMappingOverride, GroupPolicy,
-    UnpackBundleRequest, UnpackedBundle, WtfScope,
+    UnpackBundleRequest, UnpackedBundle, WtfScope, WtfScopeRisk,
 };
 pub use types::archive::{BundleEntryCounts, BundleInspection, CreatedBundle, PackBundleRequest};

@@ -3,9 +3,14 @@ use serde::Serialize;
 use crate::core::app::types::external_package::{
     ExternalPackageWarningCategoryValue, ExternalPackageWarningCodeValue,
 };
+use crate::core::app::{
+    ExternalPackageSourceCharacterResult, ExternalPackageSourceIdentityResult, WtfScopeRiskValue,
+    WtfScopeValue,
+};
 
 use super::super::external_package::{
     ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
+    ExternalPackageWtfScopeSummaryResult,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -89,6 +94,63 @@ impl ConfigWarningResult {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ConfigWtfScopeSummaryResult {
+    pub scope: WtfScopeValue,
+    pub risk: WtfScopeRiskValue,
+    pub count: usize,
+}
+
+impl ConfigWtfScopeSummaryResult {
+    fn from_external(value: ExternalPackageWtfScopeSummaryResult) -> Self {
+        Self {
+            scope: value.scope,
+            risk: value.risk,
+            count: value.count,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigSourceCharacterResult {
+    pub source_account: Option<String>,
+    pub source_server: String,
+    pub source_character: String,
+}
+
+impl ConfigSourceCharacterResult {
+    fn from_external(value: ExternalPackageSourceCharacterResult) -> Self {
+        Self {
+            source_account: value.source_account,
+            source_server: value.source_server,
+            source_character: value.source_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigSourceIdentityResult {
+    pub source_accounts: Vec<String>,
+    pub source_characters: Vec<ConfigSourceCharacterResult>,
+    pub entries_with_source_account: usize,
+    pub entries_with_source_character: usize,
+}
+
+impl ConfigSourceIdentityResult {
+    fn from_external(value: ExternalPackageSourceIdentityResult) -> Self {
+        Self {
+            source_accounts: value.source_accounts,
+            source_characters: value
+                .source_characters
+                .into_iter()
+                .map(ConfigSourceCharacterResult::from_external)
+                .collect(),
+            entries_with_source_account: value.entries_with_source_account,
+            entries_with_source_character: value.entries_with_source_character,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ConfigPackageSummaryResult {
     pub total_files: usize,
     pub normalized_files: usize,
@@ -102,6 +164,8 @@ pub struct ConfigPackageSummaryResult {
     pub addon_warning_count: usize,
     pub wtf_warning_count: usize,
     pub warning_groups: Vec<ConfigWarningGroupResult>,
+    pub wtf_scopes: Vec<ConfigWtfScopeSummaryResult>,
+    pub source_identities: ConfigSourceIdentityResult,
 }
 
 impl ConfigPackageSummaryResult {
@@ -123,6 +187,12 @@ impl ConfigPackageSummaryResult {
                 .into_iter()
                 .map(ConfigWarningGroupResult::from_external)
                 .collect(),
+            wtf_scopes: value
+                .wtf_scopes
+                .into_iter()
+                .map(ConfigWtfScopeSummaryResult::from_external)
+                .collect(),
+            source_identities: ConfigSourceIdentityResult::from_external(value.source_identities),
         }
     }
 }
