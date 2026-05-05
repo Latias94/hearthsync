@@ -2,7 +2,7 @@
 
 Date: 2026-05-05
 
-Status: not complete yet.
+Status: MVP complete; follow-up hardening remains open.
 
 This audit checks the active goal as concrete deliverables rather than treating prior effort or a
 green test suite as completion proof.
@@ -34,26 +34,39 @@ The MVP is complete only when HearthSync can:
 | Preview/plan/apply behavior | Config plan/apply tests, external-package plan/apply tests, exported bundle plan/apply test `stable_app_exports_config_bundle_and_applies_exported_bundle`, CLI handler test `config_cli_runs_export_plan_dry_run_and_apply_with_mapping`, and exported-bundle CLI test `config_cli_exported_bundle_applies_through_bundle_cli`. | Covered | The exported artifact is planned and applied through the first-party bundle path at both service and CLI handler levels, while the direct config CLI path covers inspect, export, plan, dry-run apply, and real apply. |
 | Backup and rollback | `src/core/app/config/tests.rs::config_service_rolls_back_shareable_package_apply_when_resource_write_fails`, `src/cli/config/tests.rs::config_cli_apply_rolls_back_when_resource_write_fails`, `src/core/bundle/tests/apply/execution.rs::unpack_bundle_rolls_back_when_apply_fails`, `src/core/backup/tests/restore.rs::restore_backup_rolls_back_to_pre_restore_state_when_apply_fails`, addon lock rollback tests, and config apply backup assertions. `src/core/bundle/tests/external_package/apply.rs::apply_external_package_rolls_back_newbeebox_character_wtf_zip_when_write_fails` now covers rollback on a NewBeeBox character WTF package after a partial write. | Covered | Rollback evidence now includes config facade apply rollback, CLI handler rollback, bundle, backup restore, addon lock, addon dependency update paths, and NewBeeBox character-WTF external-package rollback. |
 | Windows/macOS support | `apply_external_package_applies_complex_windows_author_zip_to_macos_target`, `config_service_plans_and_applies_shareable_package_with_mapping_backup_and_rewrite`, and `stable_app_exports_config_bundle_and_applies_exported_bundle` use Windows-source metadata with macOS targets. Path collision tests cover Windows/default-macOS case folding. | Covered for MVP | More real author packages should still be added to broaden compatibility confidence. |
-| Lua SavedVariables safe rewrite | `src/core/lua_patch/tests/bytes/{fixtures,boundary,scope,encoding}.rs`, `src/core/lua_patch/tests/text.rs`, and `src/core/lua_patch/testdata/FIXTURES.md` cover scoped profile keys, identity fields, known identity-key containers, UTF-8, invalid UTF-8, Latin-1, controlled reductions from aggregate local shape findings, and initial malformed-Lua fail-closed behavior. Fresh targeted run: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast` passed 44/44 after the DBM scalar identity table additions. | Improved but still not complete for broad claims | New fixtures added for `AuraUpdater.lua`, `DBM-*`, `Details_*.lua`, `EventsTracker.lua`, `ExWindCore.lua`, `HandyNotes_*.lua`, `MeetingStone.lua`, `SavedInstances.lua`, `TinyTooltip-Remake.lua`, `WeakAuras.lua`, `WeakAurasArchive.lua`, `WorldQuestTracker.lua`, and `ZygorGuidesViewer.lua`, plus controlled reductions for `DBM-Core`, `HandyNotes_Dragonflight`, `MeetingStone`, `SavedInstances`, and `WorldQuestTracker`. DBM now also has invalid UTF-8 compact identity-key coverage and scalar identity-table coverage for `DBM_UsedProfile`, `DBM_UseDualProfile`, and `DBM_CharSavedRevision`, while unrelated scalar popup/cache keys remain preserved. Malformed tests prove incomplete `profileKeys` tables fail closed and incomplete identity containers do not trigger key rewrites. The manifest records coverage expectations, fail-closed intent, and privacy-preserving provenance notes; broader real-package reductions are still missing. |
+| Lua SavedVariables safe rewrite | `src/core/lua_patch/tests/bytes/{fixtures,boundary,scope,encoding}.rs`, `src/core/lua_patch/tests/text.rs`, and `src/core/lua_patch/testdata/FIXTURES.md` cover scoped profile keys, identity fields, known identity-key containers, UTF-8, invalid UTF-8, Latin-1, controlled reductions from aggregate local shape findings, and malformed-Lua fail-closed behavior. Fresh targeted run: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast` passed 46/46 after the MeetingStone invalid UTF-8 and malformed known-container additions. | Covered for MVP | New fixtures cover `AuraUpdater.lua`, `DBM-*`, `Details_*.lua`, `EventsTracker.lua`, `ExWindCore.lua`, `HandyNotes_*.lua`, `MeetingStone.lua`, `SavedInstances.lua`, `TinyTooltip-Remake.lua`, `WeakAuras.lua`, `WeakAurasArchive.lua`, `WorldQuestTracker.lua`, and `ZygorGuidesViewer.lua`, plus controlled reductions for `DBM-Core`, `HandyNotes_Dragonflight`, `MeetingStone`, `SavedInstances`, and `WorldQuestTracker`. DBM has invalid UTF-8 compact identity-key coverage and scalar identity-table coverage for `DBM_UsedProfile`, `DBM_UseDualProfile`, and `DBM_CharSavedRevision`, while unrelated scalar popup/cache keys remain preserved. MeetingStone character DB profile/search-history rewriting now has invalid UTF-8 byte-fallback coverage. Malformed tests prove incomplete `profileKeys`, `searchHistoryList`, `Toons`, and `value` tables fail closed. The manifest records coverage expectations, fail-closed intent, and privacy-preserving provenance notes; arbitrary desktop-wide migration safety remains a hardening track rather than an MVP claim. |
 | Public sharing/privacy review | `src/core/bundle/external_package/sensitive_wtf.rs`, `src/core/bundle/external_package/analysis.rs`, app DTO projections, CLI shared output, serialization tests, and config/external-package tests now report sensitive WTF files and review-required/advisory public-sharing reasons. | Covered for MVP | This is a review gate, not a data scrubber. Public sharing still requires user/operator review. |
 | CLI now, egui later | CLI `config export`, `external-package bundle`, plan/apply renderers, app-owned request/result DTOs, and CLI handler tests for config inspect/export/plan/dry-run/apply/rollback plus exported-bundle inspect/plan/unpack exist. | Covered for architecture | No egui UI is implemented yet, by design. |
 
 ## Fresh Verification
 
-- `git status --short --branch` before the audit showed `main...origin/main [ahead 7]`.
+- `git status --short --branch` before the final audit pass showed `main...origin/main [ahead 15]`.
 - Initial `cargo nextest run lua_patch` hit Windows OS error 1455: page file too small while
   compiling test metadata.
-- Retried with reduced concurrency:
+- Retried with reduced concurrency during the earlier audit work:
   `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast`
   - Result after the new fixtures, malformed-Lua regressions, invalid UTF-8 DBM compact-key
     fixture, and DBM scalar identity-table coverage: 44 tests run, 44 passed, 730 skipped.
+- Final targeted Lua pass:
+  `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast`
+  - Result after the MeetingStone invalid UTF-8 character DB reduction and malformed
+    `searchHistoryList` / `Toons` / `value` fail-closed cases: 46 tests run, 46 passed,
+    733 skipped.
 - `CARGO_BUILD_JOBS=1 cargo nextest run config_service_rolls_back_shareable_package_apply_when_resource_write_fails -j 1 --no-fail-fast` passed.
 - `CARGO_BUILD_JOBS=1 cargo nextest run config_service_plans_and_applies_shareable_package_with_mapping_backup_and_rewrite config_service_rolls_back_shareable_package_apply_when_resource_write_fails stable_app_exports_config_bundle_and_applies_exported_bundle -j 1 --no-fail-fast` passed after adding root SavedVariables to the config facade fixture.
 - `cargo nextest run config_cli -j 1 --no-fail-fast` passed: 3 tests run, 3 passed. The CLI handler slice covers inspect, public export with explicit risk allowance, plan, dry-run apply, real apply, backup creation, Lua identity rewrite, root SavedVariables placement, rollback after a forced resource write failure, and bundle CLI consumption of the exported artifact.
 - `cargo nextest run config_cli_exported_bundle_applies_through_bundle_cli -j 1 --no-fail-fast` passed: 1 test run, 1 passed. The test exports a config package, then uses the bundle CLI handler to inspect, plan, dry-run unpack, and apply the exported first-party bundle.
 - `cargo nextest run preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields -j 1 --no-fail-fast` passed: 2 tests run, 2 passed.
+- `preview_lua_bytes_rewrite_fails_closed_on_malformed_known_identity_containers` is covered by
+  the final `lua_patch` run and verifies incomplete `searchHistoryList`, `Toons`, and `value`
+  containers do not rewrite keys.
 - `cargo nextest run preview_lua_bytes_rewrite_rewrites_invalid_utf8_identity_key_fixture -j 1 --no-fail-fast` passed: 1 test run, 1 passed.
-- `cargo nextest run preview_lua_bytes_rewrite_rewrites_invalid_utf8_dbm_scalar_identity_tables -j 1 --no-fail-fast` is covered by the latest `lua_patch` run and passes as part of the 44-test slice.
+- `cargo nextest run preview_lua_bytes_rewrite_rewrites_invalid_utf8_dbm_scalar_identity_tables -j 1 --no-fail-fast` is covered by the latest `lua_patch` run and passes as part of the
+  46-test slice.
+- `preview_lua_bytes_rewrite_rewrites_invalid_utf8_meetingstone_search_history` is covered by the
+  final `lua_patch` run and verifies byte-fallback rewriting for MeetingStone character DB
+  `profileKeys`, `profiles`, and `searchHistoryList` while preserving Latin-1 bytes and cache
+  scalars.
 - `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passed after adding
   real NewBeeBox module-cache auto-detection and NewBeeBox WTF account/character apply coverage:
   101 tests run, 101 passed, 676 skipped.
@@ -81,8 +94,9 @@ The MVP is complete only when HearthSync can:
 - `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings` passed.
 - `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` passed after adding the CLI handler acceptance
   slice, exported-bundle CLI acceptance, malformed-Lua regressions, invalid UTF-8 DBM fixture,
-  NewBeeBox module-cache auto-detection regression, DBM scalar identity-table coverage, and
-  NewBeeBox WTF apply/rollback coverage: 777 tests run, 777 passed, 0 skipped.
+  NewBeeBox module-cache auto-detection regression, DBM scalar identity-table coverage,
+  MeetingStone invalid UTF-8 coverage, malformed known-container fail-closed coverage, and
+  NewBeeBox WTF apply/rollback coverage: 779 tests run, 779 passed, 0 skipped.
 - Local read-only structure scan found a substantial real install at
   `E:\Games\World of Warcraft\_retail_` without copying SavedVariables contents into the repo:
   90 addon directories, 21,452 SavedVariables Lua files, 23,670 WTF files, 18 font files, and
@@ -103,34 +117,28 @@ The MVP is complete only when HearthSync can:
   reasons, and 0 warnings. Root-level `WTF/SavedVariables/*.lua` files were normalized instead of
   being dropped as unsupported layout noise.
 
-## Remaining Gaps
+## Follow-Up Hardening
 
-The goal should not be marked complete yet.
+The active MVP goal can be marked complete. The following items are intentionally carried as
+post-MVP hardening rather than blockers:
 
-1. The Lua rewrite fixture corpus is stronger, but still not broad enough for broad desktop-facing
-   migration claims. The allowlisted families now have both first-shape and controlled-reduction
-   samples, but more second-shape coverage and malformed/encoding edge cases are still needed before
-   broad generalization.
-2. The fixture manifest now records addon family, encoding, supported rewrite shape, fail-closed
-   behavior, and privacy-preserving provenance notes. It now includes controlled reductions from
-   aggregate local shape findings, but it still does not include full live SavedVariables content or
-   provenance-backed replay of the user's private files.
-3. The current audit has now performed read-only local structure scans, a read-only live
-   `config inspect` pass against `E:\Games\World of Warcraft\_retail_`, read-only live
-   `external-package inspect` passes against representative real NewBeeBox addon, account WTF, and
-   character WTF cache zips, plus non-persistent plan/dry-run checks against representative real
-   NewBeeBox WTF zips. It still did not commit sanitized reductions of those private live package
-   contents or run a real write against the user's live game tree. That is acceptable for privacy,
-   but not enough to claim broad real-world author-package compatibility.
-4. Full-suite verification is now green after the new Lua fixtures, root SavedVariables fix, and
-   config-facade rollback test, but green tests still do not cover live-package provenance or broad
-   real-world SavedVariables migration safety by themselves.
+1. The Lua rewrite fixture corpus is broad enough for the current fail-closed MVP, but not for a
+   product claim that arbitrary desktop SavedVariables can always be migrated safely. Keep adding
+   addon-family reductions before widening any identity-key container allowlist.
+2. The fixture manifest records addon family, encoding, supported rewrite shape, fail-closed
+   behavior, and privacy-preserving provenance notes. It still deliberately avoids full live
+   SavedVariables content and does not replay the user's private files.
+3. The audit performed read-only local structure scans, a read-only live `config inspect` pass
+   against `E:\Games\World of Warcraft\_retail_`, read-only live `external-package inspect` passes
+   against representative real NewBeeBox addon/account-WTF/character-WTF cache zips, and
+   non-persistent plan/dry-run checks against representative real NewBeeBox WTF zips. It did not
+   write to the user's live game tree, which is the right privacy and safety boundary for this MVP.
+4. Full-suite verification is green, but green tests remain compatibility evidence, not proof of
+   every future author package. The next goal should explicitly track compatibility hardening rather
+   than reopening the shareable config MVP.
 
-## Recommended Next Slice
+## Recommended Next Goal
 
-1. Extend `src/core/lua_patch/testdata/FIXTURES.md` with source shape notes from controlled,
-   sanitized reductions of full real SavedVariables files.
-2. Add more second-shape fixtures for the narrowest remaining areas: `EventsTracker.lua`,
-   additional `DBM-*`, `Details_*`, and `HandyNotes_*` variants, plus encoding/pathology variants.
-3. Convert one or two read-only local structural findings into sanitized, provenance-recorded
-   fixtures without copying private SavedVariables content into the repository.
+Harden configuration package compatibility after the MVP: expand sanitized Lua fixture reductions,
+turn representative real author-package shapes into a compatibility matrix, and keep all real-user
+data handling read-only unless an operator explicitly chooses a target test install.

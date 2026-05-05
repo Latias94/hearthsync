@@ -164,6 +164,52 @@ fn preview_lua_bytes_rewrite_rewrites_invalid_utf8_dbm_scalar_identity_tables() 
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_rewrites_invalid_utf8_meetingstone_search_history() {
+    let payload =
+        load_escaped_byte_fixture("meetingstone_character_invalid_utf8_search_history.lua.escape");
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua"),
+        &payload,
+        &[sample_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview")
+    .expect("rewritten bytes");
+
+    assert!(
+        rewritten
+            .windows(b"Targetmage - Stormrage".len())
+            .any(|window| window == b"Targetmage - Stormrage")
+    );
+    assert!(
+        rewritten
+            .windows(b"Targetmage-Stormrage".len())
+            .any(|window| window == b"Targetmage-Stormrage")
+    );
+    assert!(
+        rewritten
+            .windows(b"A\xf1o Examplemage - Illidan should remain in free text".len())
+            .any(|window| window == b"A\xf1o Examplemage - Illidan should remain in free text")
+    );
+    assert!(
+        rewritten
+            .windows(
+                br#"["activityCache"] = {
+    ["Examplemage-Illidan"] = 1234"#
+                    .len()
+            )
+            .any(|window| {
+                window
+                    == br#"["activityCache"] = {
+    ["Examplemage-Illidan"] = 1234"#
+            })
+    );
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_supports_latin1_strings() {
     let rewritten = preview_lua_bytes_rewrite(
         Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),

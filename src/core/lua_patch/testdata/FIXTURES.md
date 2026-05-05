@@ -29,6 +29,7 @@ small compatibility slices, not full addon databases.
 | `handynotes_dragonflight_value_reduced_utf8.lua` | `HandyNotes_*` prefix rule, controlled local shape reduction | UTF-8 | Rewrite identity keys in `value`; preserve map-node owner text outside known containers. |
 | `handynotes_travelguide_profilekeys_utf8.lua` | `HandyNotes_*` prefix rule plus profile keys | UTF-8 | Rewrite profile containers; preserve map-note/cache identities outside known containers. |
 | `meetingstone_character_reduced_utf8.lua` | `MeetingStone.lua` exact identity rule, controlled local shape reduction | UTF-8 | Rewrite character DB profile keys, profiles, and `searchHistoryList`; preserve activity cache scalars. |
+| `meetingstone_character_invalid_utf8_search_history.lua.escape` | `MeetingStone.lua` exact identity rule, invalid UTF-8 controlled reduction | invalid UTF-8 byte fixture | Rewrite character DB profile keys, profiles, and `searchHistoryList` through byte fallback; preserve free text, cache scalars, and Latin-1 bytes. |
 | `meetingstone_profilekeys.lua` | `MeetingStone.lua` exact identity rule plus profile keys | UTF-8 | Rewrite profile keys and `searchHistoryList` identity keys. |
 | `meetingstone_search_history_context_utf8.lua` | `MeetingStone.lua` exact identity rule | UTF-8 | Rewrite `searchHistoryList` identity keys; preserve activity labels outside known containers. |
 | `ndui_bags_realistic_utf8.lua` | `NDui_Bags.lua` via `profileKeys` marker | UTF-8 | Rewrite dense one-line profile keys and preserve author text/options. |
@@ -74,6 +75,9 @@ small compatibility slices, not full addon databases.
 - `src/core/lua_patch/tests/bytes/scope.rs::preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields`
   verifies an incomplete identity-key container does not rewrite keys, while explicit allowlisted
   identity fields can still be rewritten without touching free text.
+- `src/core/lua_patch/tests/bytes/scope.rs::preview_lua_bytes_rewrite_fails_closed_on_malformed_known_identity_containers`
+  verifies known `searchHistoryList`, `Toons`, and `value` identity containers fail closed when
+  their table shape is incomplete.
 
 ## Remaining Corpus Gaps
 
@@ -81,6 +85,6 @@ small compatibility slices, not full addon databases.
   real-addon database coverage.
 - Some exact or prefix rules still have only one shape. Add second-shape samples before widening any
   identity-key container allowlist or claiming broad migration safety.
-- Malformed-Lua coverage now has explicit scoped/fail-closed regression cases. Add more non-UTF-8
-  and malformed real-shape reductions before claiming broad migration safety for arbitrary desktop
-  users.
+- Malformed-Lua and non-UTF-8 coverage now has explicit scoped/fail-closed regression cases and
+  byte-fallback reductions for several real-shape families. Add more addon-family reductions before
+  claiming broad migration safety for arbitrary desktop users.

@@ -161,3 +161,34 @@ fn preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields() {
             .any(|window| window == br#"["char"] = { ["Examplemage - Illidan"] = { "#)
     );
 }
+
+#[test]
+fn preview_lua_bytes_rewrite_fails_closed_on_malformed_known_identity_containers() {
+    for (path, payload) in [
+        (
+            "wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/MeetingStone.lua",
+            br#"MEETINGSTONE_CHARACTER_DB = { ["searchHistoryList"] = { ["Examplemage - Illidan"] = { "#.as_slice(),
+        ),
+        (
+            "wtf/common/accounts/ACCOUNT/SavedVariables/SavedInstances.lua",
+            br#"SavedInstancesDB = { ["Toons"] = { ["Examplemage - Illidan"] = { "#.as_slice(),
+        ),
+        (
+            "wtf/common/accounts/ACCOUNT/SavedVariables/HandyNotes_Dragonflight.lua",
+            br#"HandyNotesDB = { ["value"] = { ["Examplemage - Illidan"] = { "#.as_slice(),
+        ),
+    ] {
+        let rewritten = preview_lua_bytes_rewrite(
+            Path::new(path),
+            payload,
+            &[sample_mapping()],
+            LuaRewriteOptions {
+                rewrite_profile_keys: false,
+                rewrite_identity_strings: true,
+            },
+        )
+        .unwrap_or_else(|error| panic!("preview {path}: {error}"));
+
+        assert!(rewritten.is_none(), "{path} should fail closed");
+    }
+}

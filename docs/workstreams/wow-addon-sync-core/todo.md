@@ -1241,7 +1241,9 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   Current progress: malformed Lua SavedVariables behavior now has explicit byte-level regression
   coverage. Incomplete `profileKeys` tables fail closed without broad fallback replacement, and
   incomplete identity-key containers do not rewrite keys while explicit allowlisted identity fields
-  can still be rewritten safely.
+  can still be rewritten safely. Follow-up coverage now also checks malformed known
+  `searchHistoryList`, `Toons`, and `value` containers, matching MeetingStone, SavedInstances, and
+  HandyNotes-style identity tables.
   Current progress: non-UTF-8 identity-key coverage now includes a DBM compact-key byte fixture.
   `dbm_core_invalid_utf8_compact_keys.lua.escape` verifies byte fallback rewrites table-valued
   compact DBM identities while preserving scalar popup/cache keys and Latin-1 bytes.
@@ -1250,6 +1252,10 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   explicit DBM character identity tables even when their values are scalars, while unrelated scalar
   popup/cache tables such as `DBM_AnnoyingPopupDisables` remain fail-closed. The coverage includes
   both UTF-8 controlled reduction and invalid UTF-8 byte fallback assertions.
+  Current progress: MeetingStone character DB now has invalid UTF-8 byte-fallback coverage too.
+  `meetingstone_character_invalid_utf8_search_history.lua.escape` verifies `profileKeys`,
+  `profiles`, and `searchHistoryList` rewrites while preserving free text, cache scalars, and
+  Latin-1 bytes.
   Current verification:
   `cargo nextest run preview_lua_bytes_rewrite_rewrites_invalid_utf8_identity_key_fixture -j 1 --no-fail-fast`
   passes with 1/1 tests.
@@ -1257,22 +1263,24 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `cargo nextest run preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields -j 1 --no-fail-fast`
   passes with 2/2 tests.
   Current verification: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast`
-  passes with 44/44 tests after the malformed-Lua regressions, invalid UTF-8 DBM compact-key
-  fixture, and DBM scalar identity-table coverage.
+  passes with 46/46 tests after the malformed-Lua regressions, invalid UTF-8 DBM compact-key
+  fixture, DBM scalar identity-table coverage, MeetingStone invalid UTF-8 search-history coverage,
+  and malformed known-container fail-closed coverage.
   Current verification: after the new fixture, CLI acceptance, NewBeeBox module-cache
   auto-detection, DBM scalar identity-table coverage, NewBeeBox WTF apply/rollback coverage, and
   audit changes,
   `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 777/777 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 779/779 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
-  code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
-  fixture corpus still needs controlled provenance reductions and more addon-family coverage before
-  broad desktop-facing config migration claims.
-  Remaining gap: new addon-specific identity-key containers still require explicit evidence before
-  they should join the shared container allowlist.
-  Remaining gap: fixture breadth is still limited. More addon-specific SavedVariables shapes and
-  more encoding/pathology variants are still needed before broad desktop-facing migration claims.
+  code, test, command, and documentation evidence. The audit now marks the shareable config package
+  MVP complete while explicitly carrying broad desktop-facing compatibility claims as a follow-up
+  hardening goal.
+  Follow-up hardening: new addon-specific identity-key containers still require explicit evidence
+  before they should join the shared container allowlist.
+  Follow-up hardening: fixture breadth is still limited. More addon-specific SavedVariables shapes
+  and more encoding/pathology variants are still needed before broad desktop-facing migration
+  claims.
 
 Exit criteria:
 
