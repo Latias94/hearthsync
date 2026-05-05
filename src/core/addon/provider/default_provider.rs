@@ -300,8 +300,8 @@ mod default_provider_tests {
         let descriptors = provider.provider_descriptors();
         let capabilities = provider.source_capabilities();
 
-        assert_eq!(descriptors.len(), 4);
-        assert_eq!(capabilities.len(), 4);
+        assert_eq!(descriptors.len(), 5);
+        assert_eq!(capabilities.len(), 5);
         assert_eq!(
             capabilities,
             descriptors
@@ -362,6 +362,21 @@ mod default_provider_tests {
         assert!(github.supports_version_pin);
         assert!(!github.supports_file_id_pin);
         assert!(github.supports_remote_cache_validators);
+
+        let wago = source_capability(&capabilities, AddonSourceFamily::WAGO_ADDON, "wago");
+        assert_eq!(wago.input_prefix, Some("wago:"));
+        assert!(wago.can_parse_input);
+        assert!(wago.can_materialize);
+        assert!(!wago.can_search);
+        assert_eq!(
+            wago.dependency_resolution,
+            AddonDependencyResolutionCapability::Unsupported
+        );
+        assert!(wago.supports_release_channel);
+        assert!(wago.supports_prerelease);
+        assert!(wago.supports_version_pin);
+        assert!(!wago.supports_file_id_pin);
+        assert!(!wago.supports_remote_cache_validators);
     }
 
     #[test]
@@ -472,6 +487,31 @@ mod default_provider_tests {
                 repo: "repo".to_string(),
                 tag: Some("v2.0.0".to_string()),
                 asset_name: Some("addon.zip".to_string()),
+            }
+        );
+        assert_eq!(applied.resolution_policy, release_policy);
+
+        let wago_source = AddonSourceRef::WagoAddon {
+            project_id: "qv63A7Gb".to_string(),
+            release_id: None,
+        };
+        let wago_version_pin = AddonPolicyPin::Version {
+            value: "vdx1042w".to_string(),
+        };
+
+        let applied = provider
+            .apply_source_policy(ApplyAddonSourcePolicyRequest {
+                source: &wago_source,
+                pin: Some(&wago_version_pin),
+                resolution_policy: release_policy,
+            })
+            .expect("apply wago policy");
+
+        assert_eq!(
+            applied.source,
+            AddonSourceRef::WagoAddon {
+                project_id: "qv63A7Gb".to_string(),
+                release_id: Some("vdx1042w".to_string()),
             }
         );
         assert_eq!(applied.resolution_policy, release_policy);

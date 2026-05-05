@@ -34,6 +34,82 @@ fn addon_service_install_and_list_roundtrip_local_archive() {
 }
 
 #[test]
+fn addon_service_install_projects_wago_source_result() {
+    #[derive(Clone)]
+    struct FakeWagoInstallProvider {
+        archive_path: PathBuf,
+    }
+
+    impl AddonProvider for FakeWagoInstallProvider {
+        fn materialize_source_input(
+            &self,
+            request: MaterializeSourceInputRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            assert_eq!(request.source, "wago:qv63A7Gb");
+            assert_eq!(request.context.target_flavor, Some(WowFlavor::Retail));
+            Ok(MaterializedAddonSource {
+                source_ref: AddonSourceRef::WagoAddon {
+                    project_id: "qv63A7Gb".to_string(),
+                    release_id: None,
+                },
+                archive_path: self.archive_path.clone(),
+            })
+        }
+
+        fn materialize_source_ref(
+            &self,
+            request: MaterializeSourceRefRequest<'_>,
+        ) -> AppResult<MaterializedAddonSource> {
+            Ok(MaterializedAddonSource {
+                source_ref: request.source.clone(),
+                archive_path: self.archive_path.clone(),
+            })
+        }
+
+        fn search_addons(
+            &self,
+            _request: ProviderAddonSearchRequest<'_>,
+        ) -> AppResult<Vec<AddonSearchResult>> {
+            Ok(Vec::new())
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let installation = create_empty_installation(temp.path());
+    let archive_path = temp.path().join("Details.zip");
+    create_addon_archive(
+        &archive_path,
+        &[(
+            "Details/Details.toc",
+            "## Interface: 110000\n## Version: 1.0.0\n",
+        )],
+    );
+    let service =
+        AddonService::with_runtime(AppRuntime::with_addon_provider(FakeWagoInstallProvider {
+            archive_path,
+        }));
+
+    let installed = service
+        .install(InstallAddonAppRequest {
+            installation,
+            source: "wago:qv63A7Gb".to_string(),
+            dry_run: false,
+            backup_output_path: Some(temp.path().join("backups")),
+            replace_existing: false,
+            metadata: None,
+        })
+        .expect("install wago addon");
+
+    assert_eq!(installed.package_id, "wago-qv63a7gb");
+    assert_eq!(
+        installed.source.kind,
+        crate::core::app::AddonSourceKindResult::WagoAddon
+    );
+    assert_eq!(installed.source.project_id.as_deref(), Some("qv63A7Gb"));
+    assert_eq!(installed.source.release_id, None);
+}
+
+#[test]
 fn addon_service_install_resolves_relative_local_archive_against_runtime_base() {
     let temp = tempdir().expect("temp dir");
     let installation = create_empty_installation(temp.path());

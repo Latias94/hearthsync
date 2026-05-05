@@ -12,6 +12,7 @@ mod test_support;
 #[cfg(test)]
 mod tests;
 mod validation;
+mod wago;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -347,6 +348,9 @@ fn apply_builtin_file_id_pin(source: &AddonSourceRef, value: u32) -> AppResult<A
         AddonSourceRef::GitHubRelease { .. } => Err(AppError::Validation(
             "addon policy pinned file id is not supported for GitHub release sources".to_string(),
         )),
+        AddonSourceRef::WagoAddon { .. } => Err(AppError::Validation(
+            "addon policy pinned file id is not supported for Wago sources".to_string(),
+        )),
         AddonSourceRef::LocalArchive { .. } | AddonSourceRef::HttpArchive { .. } => {
             Err(AppError::Validation(
                 "addon policy pinning is only supported for provider-backed addon sources"
@@ -368,6 +372,10 @@ fn apply_builtin_version_pin(source: &AddonSourceRef, value: String) -> AppResul
             repo: repo.clone(),
             tag: Some(value),
             asset_name: asset_name.clone(),
+        }),
+        AddonSourceRef::WagoAddon { project_id, .. } => Ok(AddonSourceRef::WagoAddon {
+            project_id: project_id.clone(),
+            release_id: Some(value),
         }),
         AddonSourceRef::CurseForgeMod { .. } => Err(AppError::Validation(
             "addon policy pinned version is not supported for CurseForge sources yet".to_string(),

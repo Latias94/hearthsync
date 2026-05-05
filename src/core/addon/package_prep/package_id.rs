@@ -34,6 +34,13 @@ pub(super) fn derive_package_id(source: &AddonSourceRef, addon_names: &[&str]) -
                     .map(|value| format!("{repo}-{value}"))
             })
             .or_else(|| Some(format!("{owner}-{repo}"))),
+        AddonSourceRef::WagoAddon {
+            project_id,
+            release_id,
+        } => Some(match release_id {
+            Some(release_id) => format!("wago-{project_id}-{release_id}"),
+            None => format!("wago-{project_id}"),
+        }),
     }
     .or_else(|| addon_names.first().map(|name| (*name).to_string()))
     .unwrap_or_else(|| "addon-package".to_string());

@@ -2,8 +2,9 @@
 
 ## Current Focus
 
-P4 dependency capability is implemented structurally. The next provider work should decide whether
-the closed source enum remains good enough before adding Wago, WoWInterface, or custom catalogs.
+P6 Wago provider implementation is in progress. Wago is being added as the first new real provider
+using a typed source variant, while WoWInterface remains deferred until there is a documented public
+metadata/download API or explicit third-party manager permission.
 
 ## Refactor Rules
 
@@ -109,27 +110,32 @@ Exit criteria:
 
 Goal: decide whether the existing closed source enum remains good enough after the registry exists.
 
-- [ ] Inventory the edits required to add Wago through the registry.
-- [ ] Inventory the edits required to add WoWInterface through the registry.
-- [ ] Decide whether to keep explicit typed enum variants or add a schema-v2 provider payload.
-- [ ] If schema-v2 is needed, design migration and legacy read compatibility before writing new
-  source files.
+- [x] Inventory the edits required to add Wago through the registry.
+- [x] Inventory the edits required to add WoWInterface through the registry.
+- [x] Decide whether to keep explicit typed enum variants or add a schema-v2 provider payload.
+- [x] Record the migration triggers and legacy-read requirements to use if schema-v2 becomes
+  necessary later.
 
 Exit criteria:
 
 - Source persistence evolves deliberately rather than as a side effect of the first new provider.
+- Decision: keep explicit typed source variants for the next real provider; defer schema-v2 until a
+  provider or custom catalog requires dynamic identity payloads. See `source-schema-decision.md`.
 
 ## P6 - New Provider Slice
 
 Goal: add one new real provider only after the registry and capability seams are in place.
 
-- [ ] Research Wago source identity, official endpoints, artifact download rules, and terms.
-- [ ] Research WoWInterface source identity, official endpoints, artifact download rules, and terms.
-- [ ] Pick one provider based on stable metadata availability and attribution safety.
-- [ ] Add provider contract tests beside the provider module.
-- [ ] Add app/CLI tests for install/update/search behavior where supported.
+- [x] Research Wago source identity, official endpoints, artifact download rules, and terms.
+- [x] Research WoWInterface source identity, official endpoints, artifact download rules, and terms.
+- [x] Pick one provider based on stable metadata availability and attribution safety.
+- [x] Add Wago provider contract tests beside the provider module.
+- [x] Add app-level install/projection tests; keep search disabled until Wago exposes a structured
+  catalog payload.
 
 Exit criteria:
 
 - The first new provider lands without expanding central dispatch modules in a way that recreates
   the old coupling.
+- Decision: implement Wago first with `project_id` plus optional `release_id` as the typed source
+  identity. See `provider-research.md`.

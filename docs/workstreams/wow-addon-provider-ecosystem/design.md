@@ -125,6 +125,13 @@ Recommended approach:
 
 This keeps existing `addons.toml`, `lock.toml`, and addon index files usable during the refactor.
 
+P5 decision: keep explicit typed `AddonSourceRef` variants for the next real provider. The registry
+is now descriptor-backed enough that adding one provider through a typed variant is cheaper and
+safer than migrating registry, lock, index, cache metadata, app DTOs, package id derivation, and
+addon-index matching to a dynamic payload. Schema-v2 should be reopened only if Wago,
+WoWInterface, or custom catalogs prove that provider identity needs unbounded provider-defined
+fields. The detailed inventory and reopen criteria live in `source-schema-decision.md`.
+
 The second registry slice keeps that persistence decision intact but changes capability discovery
 to be descriptor-driven:
 
@@ -136,7 +143,7 @@ to be descriptor-driven:
   future source family ids such as Wago, WoWInterface, or custom catalogs can cross the runtime
   capability boundary before a schema-v2 source payload is chosen.
 - Built-in providers are registered as adapter entries. The adapter list currently contains local
-  archive, HTTP archive, CurseForge, and GitHub Releases.
+  archive, HTTP archive, CurseForge, GitHub Releases, and Wago.
 
 Provider-owned policy is layered on top of those descriptors:
 
@@ -234,6 +241,16 @@ Then add provider families in priority order:
 1. Wago, if official or stable download metadata can be used safely.
 2. WoWInterface, if source identity and artifact URLs can be resolved without scraping fragile pages.
 3. Custom manifest/index-backed catalog search for user-maintained source lists.
+
+P6 research selects Wago as the first new real provider. The source identity should be a typed
+`WagoAddon` reference with `project_id` and an optional exact `release_id` pin. Wago exposes enough
+project, release, patch, and signed download metadata through its addon site to support an isolated
+provider implementation, but the implementation should treat these as provider-owned web contracts
+rather than shared core assumptions. WoWInterface is deferred because its documented API is
+author/update oriented, public page access is Cloudflare-gated, and the available download flow is
+not a documented third-party manager contract. The detailed research is in `provider-research.md`.
+The implementation keeps Wago search disabled for the first slice because the available search page
+is less structured than the release metadata needed for install/update.
 
 Provider additions should be blocked on source attribution and hosting-term respect. HearthSync
 should continue to download from original provider sources or user-provided source URLs rather than

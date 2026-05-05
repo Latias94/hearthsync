@@ -428,4 +428,91 @@ mod tests {
             "https://example.com/releases/v2.0.0-beta.1/addon.zip"
         );
     }
+
+    #[test]
+    fn materialize_wago_addon_downloads_selected_release_link() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+            downloads: RefCell<Vec<HttpDownloadRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request.clone());
+                if request.url == "https://addons.wago.io/addons/qv63A7Gb/versions" {
+                    return Ok(HttpResponse {
+                        status_code: 200,
+                        body: wago_release_page_html("vdx1042w"),
+                    });
+                }
+                Err(AppError::Validation(format!(
+                    "unexpected request url: {}",
+                    request.url
+                )))
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.downloads.borrow_mut().push(request.clone());
+                std::fs::write(&request.destination, request.url.as_bytes()).expect("archive file");
+                Ok(HttpDownloadResponse {
+                    status_code: 200,
+                    headers: Vec::new(),
+                })
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::WagoAddon {
+            project_id: "qv63A7Gb".to_string(),
+            release_id: None,
+        };
+
+        let materialized = materialize_source_ref_impl(
+            &http_client,
+            &source,
+            temp.path(),
+            AddonProviderContext::new(Some(crate::core::install::WowFlavor::Retail), None),
+            &AddonProviderOptions::default(),
+        )
+        .expect("materialize wago source");
+
+        let requests = http_client.requests.borrow();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].query,
+            vec![
+                ("stability".to_string(), "stable".to_string()),
+                ("page".to_string(), "1".to_string())
+            ]
+        );
+        assert_eq!(http_client.downloads.borrow().len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(&materialized.archive_path).expect("downloaded archive"),
+            "https://addons.wago.io/download/vdx1042w?x=1&y=2"
+        );
+        assert_eq!(
+            materialized
+                .archive_path
+                .file_name()
+                .and_then(|name| name.to_str()),
+            Some("wago-qv63A7Gb-vdx1042w.zip")
+        );
+    }
+
+    fn wago_release_page_html(release_id: &str) -> String {
+        let json = format!(
+            r#"{{"component":"Addon/Releases","props":{{"releases":{{"current_page":1,"last_page":1,"data":[{{"id":"{release_id}","size":1024,"label":"Details","stability":"stable","created_at":"2026-05-01T00:00:00Z","is_processed":true,"supported_retail_patches":["12.0.5"],"download_link":"https://addons.wago.io/download/{release_id}?x=1&y=2"}}]}}}}}}"#
+        );
+        format!(
+            r#"<html><body><div id="app" data-page="{}"></div></body></html>"#,
+            json.replace('&', "&amp;").replace('"', "&quot;")
+        )
+    }
 }

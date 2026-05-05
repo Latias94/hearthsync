@@ -181,6 +181,7 @@ where
 fn dependency_identity_key(source: &AddonSourceRef) -> String {
     match source {
         AddonSourceRef::CurseForgeMod { mod_id, .. } => format!("curseforge:{mod_id}"),
+        AddonSourceRef::WagoAddon { project_id, .. } => format!("wago:{project_id}"),
         _ => source.display_name(),
     }
 }
@@ -191,6 +192,7 @@ fn dependency_source_kind_label(source: &AddonSourceRef) -> &'static str {
         AddonSourceRef::HttpArchive { .. } => "http_archive",
         AddonSourceRef::CurseForgeMod { .. } => "curseforge_mod",
         AddonSourceRef::GitHubRelease { .. } => "github_release",
+        AddonSourceRef::WagoAddon { .. } => "wago_addon",
     }
 }
 
@@ -214,6 +216,16 @@ fn source_satisfies_dependency(candidate: &AddonSourceRef, dependency: &AddonSou
                 ..
             },
         ) => candidate_mod_id == dependency_mod_id,
+        (
+            AddonSourceRef::WagoAddon {
+                project_id: candidate_project_id,
+                ..
+            },
+            AddonSourceRef::WagoAddon {
+                project_id: dependency_project_id,
+                ..
+            },
+        ) => candidate_project_id.eq_ignore_ascii_case(dependency_project_id),
         _ => candidate == dependency,
     }
 }

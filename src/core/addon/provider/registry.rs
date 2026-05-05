@@ -20,6 +20,7 @@ use super::source::{
     addon_source_input_is_local_archive, canonicalize_local_archive_path,
     validate_absolute_local_archive_source_path,
 };
+use super::wago::{parse_wago_source, resolve_wago_artifact_with_client};
 use super::{
     AddonDependencyResolutionCapability, AddonProviderContext, AddonProviderOptions,
     AddonSearchProviderCatalog, AddonSearchProviderFailure, AddonSearchRequest, AddonSearchResult,
@@ -47,6 +48,7 @@ impl AddonSourceFamily {
     pub const GITHUB_RELEASE: Self = Self {
         id: "github_release",
     };
+    pub const WAGO_ADDON: Self = Self { id: "wago_addon" };
 
     pub const fn from_static_id(id: &'static str) -> Self {
         Self { id }
@@ -62,6 +64,7 @@ impl AddonSourceFamily {
             AddonSourceRef::HttpArchive { .. } => Self::HTTP_ARCHIVE,
             AddonSourceRef::CurseForgeMod { .. } => Self::CURSEFORGE_MOD,
             AddonSourceRef::GitHubRelease { .. } => Self::GITHUB_RELEASE,
+            AddonSourceRef::WagoAddon { .. } => Self::WAGO_ADDON,
         }
     }
 }
@@ -139,6 +142,7 @@ enum BuiltinAddonProviderAdapter {
     HttpArchive,
     CurseForge,
     GitHub,
+    Wago,
 }
 
 const BUILTIN_PROVIDER_ADAPTERS: &[BuiltinAddonProviderAdapter] = &[
@@ -146,6 +150,7 @@ const BUILTIN_PROVIDER_ADAPTERS: &[BuiltinAddonProviderAdapter] = &[
     BuiltinAddonProviderAdapter::HttpArchive,
     BuiltinAddonProviderAdapter::CurseForge,
     BuiltinAddonProviderAdapter::GitHub,
+    BuiltinAddonProviderAdapter::Wago,
 ];
 
 impl BuiltinAddonProviderAdapter {
@@ -228,6 +233,25 @@ impl BuiltinAddonProviderAdapter {
                     supports_file_id_pin: false,
                 },
             },
+            Self::Wago => AddonProviderDescriptor {
+                source_family: AddonSourceFamily::WAGO_ADDON,
+                provider_id: "wago",
+                provider_name: "Wago",
+                input_prefix: Some("wago:"),
+                operations: AddonProviderOperationCapabilities {
+                    can_parse_input: true,
+                    can_materialize: true,
+                    can_search: false,
+                    dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
+                    supports_remote_cache_validators: false,
+                },
+                policy: AddonProviderPolicyCapabilities {
+                    supports_release_channel: true,
+                    supports_prerelease: true,
+                    supports_version_pin: true,
+                    supports_file_id_pin: false,
+                },
+            },
         }
     }
 
@@ -241,6 +265,7 @@ impl BuiltinAddonProviderAdapter {
             Self::HttpArchive => is_http_url(source),
             Self::CurseForge => source.starts_with("curseforge:"),
             Self::GitHub => source.starts_with("github:"),
+            Self::Wago => source.starts_with("wago:"),
         }
     }
 
@@ -259,6 +284,7 @@ impl BuiltinAddonProviderAdapter {
             })),
             Self::CurseForge => parse_curseforge_source(source),
             Self::GitHub => parse_github_source(source),
+            Self::Wago => parse_wago_source(source),
         }
     }
 
@@ -321,6 +347,32 @@ impl BuiltinAddonProviderAdapter {
                     repo,
                     tag.as_deref(),
                     asset_name.as_deref(),
+                    context,
+                )?;
+                let archive_path = materialize_downloaded_archive(
+                    http_client,
+                    artifact,
+                    stage_root,
+                    context.cancellation,
+                    context.download_progress,
+                    options,
+                )?;
+                Ok(MaterializedAddonSource {
+                    source_ref: source.clone(),
+                    archive_path,
+                })
+            }
+            (
+                Self::Wago,
+                AddonSourceRef::WagoAddon {
+                    project_id,
+                    release_id,
+                },
+            ) => {
+                let artifact = registry.resolve_wago_artifact(
+                    http_client,
+                    project_id,
+                    release_id.as_deref(),
                     context,
                 )?;
                 let archive_path = materialize_downloaded_archive(
@@ -419,6 +471,14 @@ impl BuiltinAddonProviderAdapter {
                 asset_name: asset_name.clone(),
             }),
             (
+                Self::Wago,
+                AddonSourceRef::WagoAddon { project_id, .. },
+                AddonPolicyPin::Version { value },
+            ) if descriptor.policy.supports_version_pin => Ok(AddonSourceRef::WagoAddon {
+                project_id: project_id.clone(),
+                release_id: Some(value.clone()),
+            }),
+            (
                 Self::CurseForge,
                 AddonSourceRef::CurseForgeMod { .. },
                 AddonPolicyPin::Version { .. },
@@ -434,6 +494,14 @@ impl BuiltinAddonProviderAdapter {
                     source,
                     "file id pin",
                     "addon policy pinned file id is not supported for GitHub release sources",
+                ))
+            }
+            (Self::Wago, AddonSourceRef::WagoAddon { .. }, AddonPolicyPin::FileId { .. }) => {
+                Err(unsupported_policy_error(
+                    descriptor,
+                    source,
+                    "file id pin",
+                    "addon policy pinned file id is not supported for Wago sources",
                 ))
             }
             (Self::LocalArchive | Self::HttpArchive, _, _) => Err(unsupported_policy_error(
@@ -462,7 +530,7 @@ impl BuiltinAddonProviderAdapter {
                 request.flavor,
                 request.limit,
             ),
-            Self::LocalArchive | Self::HttpArchive | Self::GitHub => Ok(Vec::new()),
+            Self::LocalArchive | Self::HttpArchive | Self::GitHub | Self::Wago => Ok(Vec::new()),
         }
     }
 }
@@ -708,6 +776,22 @@ impl AddonProviderRegistry {
             headers: Vec::new(),
             remote_validators: remote_validators_for_github_asset(asset),
         })
+    }
+
+    fn resolve_wago_artifact(
+        &self,
+        http_client: &impl HttpClient,
+        project_id: &str,
+        release_id: Option<&str>,
+        context: AddonProviderContext<'_>,
+    ) -> AppResult<ResolvedDownloadArtifact> {
+        resolve_wago_artifact_with_client(
+            http_client,
+            project_id,
+            release_id,
+            context.target_flavor,
+            context.resolution_policy,
+        )
     }
 }
 

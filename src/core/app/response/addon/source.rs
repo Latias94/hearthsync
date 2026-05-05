@@ -12,6 +12,7 @@ pub enum AddonSourceKindResult {
     HttpArchive,
     CurseForgeMod,
     GitHubRelease,
+    WagoAddon,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -27,6 +28,8 @@ pub struct AddonSourceResult {
     pub repo: Option<String>,
     pub tag: Option<String>,
     pub asset_name: Option<String>,
+    pub project_id: Option<String>,
+    pub release_id: Option<String>,
 }
 
 impl AddonSourceResult {
@@ -53,6 +56,8 @@ impl AddonSourceResult {
                 repo: None,
                 tag: None,
                 asset_name: None,
+                project_id: None,
+                release_id: None,
             },
             DomainAddonSourceRef::HttpArchive { url } => Self {
                 kind: AddonSourceKindResult::HttpArchive,
@@ -66,6 +71,8 @@ impl AddonSourceResult {
                 repo: None,
                 tag: None,
                 asset_name: None,
+                project_id: None,
+                release_id: None,
             },
             DomainAddonSourceRef::CurseForgeMod { mod_id, file_id } => Self {
                 kind: AddonSourceKindResult::CurseForgeMod,
@@ -79,6 +86,8 @@ impl AddonSourceResult {
                 repo: None,
                 tag: None,
                 asset_name: None,
+                project_id: None,
+                release_id: None,
             },
             DomainAddonSourceRef::GitHubRelease {
                 owner,
@@ -97,6 +106,26 @@ impl AddonSourceResult {
                 repo: Some(repo),
                 tag,
                 asset_name,
+                project_id: None,
+                release_id: None,
+            },
+            DomainAddonSourceRef::WagoAddon {
+                project_id,
+                release_id,
+            } => Self {
+                kind: AddonSourceKindResult::WagoAddon,
+                display_name,
+                dependency_resolution_capability,
+                local_archive_path: None,
+                url: None,
+                mod_id: None,
+                file_id: None,
+                owner: None,
+                repo: None,
+                tag: None,
+                asset_name: None,
+                project_id: Some(project_id),
+                release_id,
             },
         }
     }

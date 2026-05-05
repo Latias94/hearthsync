@@ -28,6 +28,10 @@ pub enum AddonSourceRef {
         tag: Option<String>,
         asset_name: Option<String>,
     },
+    WagoAddon {
+        project_id: String,
+        release_id: Option<String>,
+    },
 }
 
 impl AddonSourceRef {
@@ -60,12 +64,26 @@ impl AddonSourceRef {
                 }
                 text
             }
+            Self::WagoAddon {
+                project_id,
+                release_id,
+            } => {
+                let mut text = format!("wago:{project_id}");
+                if let Some(release_id) = release_id {
+                    text.push('@');
+                    text.push_str(release_id);
+                }
+                text
+            }
         }
     }
 }
 
 pub(crate) fn addon_source_input_is_local_archive(source: &str) -> bool {
-    !(is_http_url(source) || source.starts_with("curseforge:") || source.starts_with("github:"))
+    !(is_http_url(source)
+        || source.starts_with("curseforge:")
+        || source.starts_with("github:")
+        || source.starts_with("wago:"))
 }
 
 pub(crate) fn validate_absolute_local_archive_source_path(path: &Path) -> AppResult<()> {
@@ -135,6 +153,45 @@ pub(crate) fn validate_addon_source_ref(
                 asset_name.as_deref(),
             )?;
         }
+        AddonSourceRef::WagoAddon {
+            project_id,
+            release_id,
+        } => {
+            validate_wago_source_identifier(source_context, "Wago project id", project_id)?;
+            if let Some(release_id) = release_id {
+                validate_wago_source_identifier(source_context, "Wago release id", release_id)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub(in crate::core::addon::provider) fn validate_wago_source_identifier(
+    source_context: &str,
+    field: &str,
+    value: &str,
+) -> AppResult<()> {
+    if value.trim().is_empty() {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must not be empty"),
+        ));
+    }
+    if value.trim() != value {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must not have surrounding whitespace"),
+        ));
+    }
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must contain only ASCII letters, digits, `-`, or `_`"),
+        ));
     }
 
     Ok(())
@@ -189,6 +246,7 @@ pub(super) fn source_cache_namespace(source: &AddonSourceRef) -> &'static str {
         AddonSourceRef::HttpArchive { .. } => "http",
         AddonSourceRef::CurseForgeMod { .. } => "curseforge",
         AddonSourceRef::GitHubRelease { .. } => "github",
+        AddonSourceRef::WagoAddon { .. } => "wago",
     }
 }
 
@@ -245,6 +303,12 @@ mod tests {
                 file_id: None,
             },
         };
+        let wago = AddonSourceFixture {
+            source: AddonSourceRef::WagoAddon {
+                project_id: "qv63A7Gb".to_string(),
+                release_id: None,
+            },
+        };
 
         assert!(
             toml::to_string(&github)
@@ -255,6 +319,11 @@ mod tests {
             toml::to_string(&curseforge)
                 .expect("curseforge source toml")
                 .contains("kind = \"curseforge_mod\"")
+        );
+        assert!(
+            toml::to_string(&wago)
+                .expect("wago source toml")
+                .contains("kind = \"wago_addon\"")
         );
     }
 

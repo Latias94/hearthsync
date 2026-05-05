@@ -365,6 +365,16 @@ fn source_identity_matches(left: &AddonSourceRef, right: &AddonSourceRef) -> boo
                 && left_repo.eq_ignore_ascii_case(right_repo)
                 && left_asset_name == right_asset_name
         }
+        (
+            AddonSourceRef::WagoAddon {
+                project_id: left_project_id,
+                ..
+            },
+            AddonSourceRef::WagoAddon {
+                project_id: right_project_id,
+                ..
+            },
+        ) => left_project_id.eq_ignore_ascii_case(right_project_id),
         _ => false,
     }
 }
@@ -396,6 +406,16 @@ fn source_family_identity_matches(left: &AddonSourceRef, right: &AddonSourceRef)
             left_owner.eq_ignore_ascii_case(right_owner)
                 && left_repo.eq_ignore_ascii_case(right_repo)
         }
+        (
+            AddonSourceRef::WagoAddon {
+                project_id: left_project_id,
+                ..
+            },
+            AddonSourceRef::WagoAddon {
+                project_id: right_project_id,
+                ..
+            },
+        ) => left_project_id.eq_ignore_ascii_case(right_project_id),
         _ => false,
     }
 }
