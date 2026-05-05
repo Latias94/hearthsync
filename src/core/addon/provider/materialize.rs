@@ -18,6 +18,7 @@ use super::validation::{
 use super::{
     AddonDownloadProgressObserver, AddonProviderOptions, AddonSourceRef, MaterializedAddonSource,
 };
+use crate::core::boundary_validation::validate_http_url;
 #[cfg(test)]
 use crate::core::error::AppError;
 use crate::core::error::AppResult;
@@ -69,6 +70,7 @@ pub(super) fn materialize_http_archive_source(
     download_progress: Option<&dyn AddonDownloadProgressObserver>,
     options: &AddonProviderOptions,
 ) -> AppResult<MaterializedAddonSource> {
+    validate_http_url(url, "HTTP archive source URL")?;
     let archive_path = materialize_http_archive(
         http_client,
         source,
@@ -259,6 +261,56 @@ mod tests {
 
         assert!(matches!(error, AppError::Validation(_)));
         assert!(error.to_string().contains("must be absolute"));
+    }
+
+    #[test]
+    fn materialize_source_ref_rejects_invalid_http_archive_url_before_download() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            downloads: RefCell<usize>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+                panic!("get should not be called in this test")
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                *self.downloads.borrow_mut() += 1;
+                Ok(HttpDownloadResponse {
+                    status_code: 200,
+                    headers: Vec::new(),
+                })
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::HttpArchive {
+            url: "https://example.com/addon.zip ".to_string(),
+        };
+
+        let error = materialize_source_ref_impl(
+            &http_client,
+            &source,
+            temp.path(),
+            AddonProviderContext::default(),
+            &AddonProviderOptions::default(),
+        )
+        .expect_err("invalid HTTP archive URL should fail before download");
+
+        assert_eq!(*http_client.downloads.borrow(), 0);
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("HTTP archive source URL must not have surrounding whitespace")
+        );
     }
 
     #[test]

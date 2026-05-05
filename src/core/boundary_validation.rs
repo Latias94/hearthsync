@@ -8,10 +8,26 @@ pub(in crate::core) fn validate_http_url(value: &str, field: &str) -> AppResult<
     if value.trim().is_empty() {
         return Err(AppError::Validation(format!("{field} must not be empty")));
     }
+    if value.trim() != value {
+        return Err(AppError::Validation(format!(
+            "{field} must not have surrounding whitespace"
+        )));
+    }
+    if value.chars().any(|char| char.is_control()) {
+        return Err(AppError::Validation(format!(
+            "{field} must not contain control characters"
+        )));
+    }
     if !is_http_url(value) {
         return Err(AppError::Validation(format!(
             "{field} must start with `http://` or `https://`"
         )));
+    }
+    let parsed = reqwest::Url::parse(value).map_err(|_| {
+        AppError::Validation(format!("{field} must be a valid absolute HTTP(S) URL"))
+    })?;
+    if parsed.host_str().is_none() {
+        return Err(AppError::Validation(format!("{field} must include a host")));
     }
 
     Ok(())
@@ -134,6 +150,24 @@ mod tests {
                 .to_string()
                 .contains("download URL must start with")
         );
+    }
+
+    #[test]
+    fn validate_http_url_rejects_ambiguous_url_shapes() {
+        for (value, expected_message) in [
+            (
+                "https://example.com/addon.zip ",
+                "must not have surrounding whitespace",
+            ),
+            ("https://", "must be a valid absolute HTTP(S) URL"),
+            (
+                "https://example.com/addon\n.zip",
+                "must not contain control characters",
+            ),
+        ] {
+            let error = validate_http_url(value, "download URL").expect_err("invalid url");
+            assert!(error.to_string().contains(expected_message), "{value}");
+        }
     }
 
     #[test]

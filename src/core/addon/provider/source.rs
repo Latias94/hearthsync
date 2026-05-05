@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::core::boundary_validation::is_http_url;
+use crate::core::archive_path::validate_portable_path_segment;
+use crate::core::boundary_validation::{is_http_url, validate_http_url};
 use crate::core::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -111,18 +112,8 @@ pub(crate) fn validate_addon_source_ref(
             }
         }
         AddonSourceRef::HttpArchive { url } => {
-            if url.trim().is_empty() {
-                return Err(invalid_source_ref(
-                    source_context,
-                    "HTTP archive source URL must not be empty",
-                ));
-            }
-            if !is_http_url(url) {
-                return Err(invalid_source_ref(
-                    source_context,
-                    "HTTP archive source URL must start with `http://` or `https://`",
-                ));
-            }
+            validate_http_url(url, "HTTP archive source URL")
+                .map_err(|error| invalid_source_ref(source_context, &error.to_string()))?;
         }
         AddonSourceRef::CurseForgeMod { mod_id, file_id } => {
             if *mod_id == 0 {
@@ -144,14 +135,18 @@ pub(crate) fn validate_addon_source_ref(
             tag,
             asset_name,
         } => {
-            validate_required_source_text(source_context, "GitHub owner", owner)?;
-            validate_required_source_text(source_context, "GitHub repo", repo)?;
+            validate_github_repository_identifier(source_context, "GitHub owner", owner)?;
+            validate_github_repository_identifier(source_context, "GitHub repo", repo)?;
             validate_optional_source_text(source_context, "GitHub tag", tag.as_deref())?;
-            validate_optional_source_text(
-                source_context,
-                "GitHub asset name",
-                asset_name.as_deref(),
-            )?;
+            if let Some(asset_name) = asset_name.as_deref() {
+                validate_optional_source_text(
+                    source_context,
+                    "GitHub asset name",
+                    Some(asset_name),
+                )?;
+                validate_portable_path_segment(asset_name, "GitHub asset name")
+                    .map_err(|error| invalid_source_ref(source_context, &error.to_string()))?;
+            }
         }
         AddonSourceRef::WagoAddon {
             project_id,
@@ -204,6 +199,18 @@ fn validate_required_source_text(source_context: &str, field: &str, value: &str)
             &format!("{field} must not be empty"),
         ));
     }
+    if value.trim() != value {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must not have surrounding whitespace"),
+        ));
+    }
+    if value.chars().any(|char| char.is_control()) {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must not contain control characters"),
+        ));
+    }
 
     Ok(())
 }
@@ -217,6 +224,28 @@ fn validate_optional_source_text(
         return Err(invalid_source_ref(
             source_context,
             &format!("{field} must not be empty when present"),
+        ));
+    }
+    if let Some(value) = value {
+        validate_required_source_text(source_context, field, value)?;
+    }
+
+    Ok(())
+}
+
+fn validate_github_repository_identifier(
+    source_context: &str,
+    field: &str,
+    value: &str,
+) -> AppResult<()> {
+    validate_required_source_text(source_context, field, value)?;
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must contain only ASCII letters, digits, `.`, `-`, or `_`"),
         ));
     }
 

@@ -27,8 +27,8 @@ pub(super) fn fetch_github_release_with_client(
     tag: Option<&str>,
 ) -> AppResult<GitHubRelease> {
     let url = match tag {
-        Some(tag) => format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/releases/tags/{tag}"),
-        None => format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/releases/latest"),
+        Some(tag) => github_api_url(&["repos", owner, repo, "releases", "tags", tag]),
+        None => github_api_url(&["repos", owner, repo, "releases", "latest"]),
     };
     let response = client.get(HttpRequest::new(url).with_headers(github_headers()))?;
     if !response.is_success() {
@@ -47,7 +47,7 @@ pub(super) fn fetch_github_releases_with_client(
     owner: &str,
     repo: &str,
 ) -> AppResult<Vec<GitHubRelease>> {
-    let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/releases");
+    let url = github_api_url(&["repos", owner, repo, "releases"]);
     let response = client.get(HttpRequest::new(url).with_headers(github_headers()))?;
     if !response.is_success() {
         return Err(AppError::Validation(format!(
@@ -159,6 +159,14 @@ pub(super) fn remote_validators_for_github_asset(
 
 fn is_zip_asset_name(asset_name: &str) -> bool {
     asset_name.to_ascii_lowercase().ends_with(".zip")
+}
+
+fn github_api_url(path_segments: &[&str]) -> String {
+    let mut url = reqwest::Url::parse(GITHUB_API_BASE).expect("valid GitHub API base URL");
+    url.path_segments_mut()
+        .expect("GitHub API base URL can be a path base")
+        .extend(path_segments);
+    url.to_string()
 }
 
 pub(super) fn github_headers() -> Vec<HttpHeader> {

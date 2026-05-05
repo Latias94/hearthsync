@@ -42,6 +42,22 @@ fn fetch_github_release_with_client_uses_http_port() {
 }
 
 #[test]
+fn fetch_github_release_with_client_percent_encodes_tag_path_segment() {
+    let client = JsonResponseHttpClient::new(
+        r#"{"tag_name":"retail/2026.05","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#,
+    );
+    fetch_github_release_with_client(&client, "owner", "repo", Some("retail/2026.05"))
+        .expect("release");
+
+    let requests = client.requests.borrow();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        requests[0].url,
+        "https://api.github.com/repos/owner/repo/releases/tags/retail%2F2026.05"
+    );
+}
+
+#[test]
 fn fetch_github_releases_with_client_uses_release_list_endpoint() {
     let client = JsonResponseHttpClient::new(
         r#"[{"tag_name":"v1.2.3","prerelease":true,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}]"#,

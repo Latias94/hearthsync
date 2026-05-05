@@ -642,6 +642,13 @@ enough that these rules live in one place.
   HTTP archive URL schemes, zero CurseForge ids, blank GitHub owner/repo/tag/asset fields, and
   blank optional source metadata before those values reach provider materialization or registry
   metadata writes.
+  Current hardening: HTTP archive sources and provider-supplied download URLs now must be
+  parseable absolute HTTP(S) URLs without surrounding whitespace, control characters, or missing
+  hosts. Direct HTTP archive materialization validates the URL before any download attempt.
+  Current hardening: GitHub source input now rejects empty tag/asset delimiters and unsafe
+  repository or asset segments before provider requests. GitHub release tag requests are built with
+  URL path-segment encoding, so tags such as `retail/2026.05` remain one exact tag lookup instead
+  of being split into multiple API path segments.
   Current progress: tracked addon registry load/save now shares that source-reference validation,
   still requires local archive sources to be absolute in managed state, validates tracked addon
   directory names as portable path segments, and rejects blank stored metadata fields or

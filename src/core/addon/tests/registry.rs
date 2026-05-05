@@ -159,6 +159,15 @@ fn save_registry_rejects_invalid_remote_source_refs() {
         (
             AddonSourceRef::GitHubRelease {
                 owner: "owner".to_string(),
+                repo: "bad/repo".to_string(),
+                tag: None,
+                asset_name: None,
+            },
+            "GitHub repo",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
                 repo: "details".to_string(),
                 tag: Some(String::new()),
                 asset_name: None,
@@ -169,8 +178,26 @@ fn save_registry_rejects_invalid_remote_source_refs() {
             AddonSourceRef::GitHubRelease {
                 owner: "owner".to_string(),
                 repo: "details".to_string(),
+                tag: Some(" v1.2.3".to_string()),
+                asset_name: None,
+            },
+            "GitHub tag",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "details".to_string(),
                 tag: None,
                 asset_name: Some(String::new()),
+            },
+            "GitHub asset name",
+        ),
+        (
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "details".to_string(),
+                tag: None,
+                asset_name: Some("bad/name.zip".to_string()),
             },
             "GitHub asset name",
         ),

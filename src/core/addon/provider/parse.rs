@@ -1,5 +1,8 @@
-use super::AddonSourceRef;
+use super::{AddonSourceRef, validate_addon_source_ref};
 use crate::core::error::{AppError, AppResult};
+
+const GITHUB_SOURCE_INPUT_MESSAGE: &str =
+    "GitHub source must look like `github:owner/repo[@tag][#asset.zip]`";
 
 pub(super) fn parse_curseforge_source(source: &str) -> AppResult<Option<AddonSourceRef>> {
     let Some(spec) = source.strip_prefix("curseforge:") else {
@@ -31,18 +34,37 @@ pub(super) fn parse_github_source(source: &str) -> AppResult<Option<AddonSourceR
     };
 
     let (repo_and_tag, asset_name) = match spec.split_once('#') {
-        Some((left, right)) => (left, Some(right.to_string())),
+        Some((left, right)) => {
+            let asset_name = right.trim();
+            if asset_name.is_empty() {
+                return Err(AppError::Validation(
+                    GITHUB_SOURCE_INPUT_MESSAGE.to_string(),
+                ));
+            }
+            (left, Some(asset_name.to_string()))
+        }
         None => (spec, None),
     };
     let (repo_spec, tag) = match repo_and_tag.rsplit_once('@') {
-        Some((left, right)) if left.contains('/') && !right.trim().is_empty() => {
-            (left, Some(right.to_string()))
+        Some((left, right)) if left.contains('/') => {
+            let tag = right.trim();
+            if tag.is_empty() {
+                return Err(AppError::Validation(
+                    GITHUB_SOURCE_INPUT_MESSAGE.to_string(),
+                ));
+            }
+            (left, Some(tag.to_string()))
+        }
+        Some(_) => {
+            return Err(AppError::Validation(
+                GITHUB_SOURCE_INPUT_MESSAGE.to_string(),
+            ));
         }
         _ => (repo_and_tag, None),
     };
     let Some((owner, repo)) = repo_spec.split_once('/') else {
         return Err(AppError::Validation(
-            "GitHub source must look like `github:owner/repo[@tag][#asset.zip]`".to_string(),
+            GITHUB_SOURCE_INPUT_MESSAGE.to_string(),
         ));
     };
 
@@ -50,16 +72,20 @@ pub(super) fn parse_github_source(source: &str) -> AppResult<Option<AddonSourceR
     let repo = repo.trim();
     if owner.is_empty() || repo.is_empty() {
         return Err(AppError::Validation(
-            "GitHub source must look like `github:owner/repo[@tag][#asset.zip]`".to_string(),
+            GITHUB_SOURCE_INPUT_MESSAGE.to_string(),
         ));
     }
 
-    Ok(Some(AddonSourceRef::GitHubRelease {
+    let source_ref = AddonSourceRef::GitHubRelease {
         owner: owner.to_string(),
         repo: repo.to_string(),
         tag,
         asset_name,
-    }))
+    };
+    validate_addon_source_ref(&source_ref, "GitHub source input")
+        .map_err(|_| AppError::Validation(GITHUB_SOURCE_INPUT_MESSAGE.to_string()))?;
+
+    Ok(Some(source_ref))
 }
 
 fn parse_positive_u32(value: &str, message: &str) -> AppResult<u32> {
@@ -139,6 +165,23 @@ mod tests {
     }
 
     #[test]
+    fn parse_github_source_accepts_tag_path_segments() {
+        let source = parse_github_source("github:owner/repo@retail/2026.05#addon.zip")
+            .expect("parse")
+            .expect("source ref");
+
+        assert_eq!(
+            source,
+            AddonSourceRef::GitHubRelease {
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                tag: Some("retail/2026.05".to_string()),
+                asset_name: Some("addon.zip".to_string()),
+            }
+        );
+    }
+
+    #[test]
     fn parse_github_source_without_tag() {
         let source = parse_github_source("github:owner/repo")
             .expect("parse")
@@ -153,5 +196,33 @@ mod tests {
                 asset_name: None,
             }
         );
+    }
+
+    #[test]
+    fn parse_github_source_rejects_empty_tag_or_asset() {
+        for source in [
+            "github:owner/repo@",
+            "github:owner/repo#",
+            "github:owner/repo@#addon.zip",
+        ] {
+            let error = parse_github_source(source).expect_err("invalid github source");
+
+            assert!(matches!(error, AppError::Validation(_)));
+            assert!(error.to_string().contains("GitHub source must look like"));
+        }
+    }
+
+    #[test]
+    fn parse_github_source_rejects_unsafe_repository_or_asset_segments() {
+        for source in [
+            "github:bad/owner/repo",
+            "github:owner/repo name",
+            "github:owner/repo#bad/name.zip",
+        ] {
+            let error = parse_github_source(source).expect_err("invalid github source");
+
+            assert!(matches!(error, AppError::Validation(_)));
+            assert!(error.to_string().contains("GitHub source must look like"));
+        }
     }
 }
