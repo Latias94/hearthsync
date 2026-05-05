@@ -66,7 +66,7 @@ impl LuaRewritePolicyRegistry {
 pub(crate) static DEFAULT_LUA_REWRITE_POLICY_REGISTRY: LuaRewritePolicyRegistry =
     LuaRewritePolicyRegistry::new(PROFILE_KEY_MARKERS, LUA_REWRITE_RULES);
 
-const PROFILE_KEY_MARKERS: &[&[u8]] = &[b"profileKeys"];
+const PROFILE_KEY_MARKERS: &[&[u8]] = &[b"profileKeys", b"ProfileKeys"];
 
 #[derive(Debug, Clone, Copy)]
 struct LuaRewriteRule {

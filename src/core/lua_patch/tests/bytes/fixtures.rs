@@ -314,6 +314,19 @@ fn preview_lua_bytes_rewrite_covers_profile_marker_reduction_fixtures() {
             preserved: &[r#"["char"] = {
     ["Examplemage - Illidan"] = {"#],
         },
+        Case {
+            path: "wtf/common/accounts/ACCOUNT/SavedVariables/MRT.lua",
+            fixture: "mrt_profilekeys_reduced_utf8.lua",
+            expected: &[
+                r#"["Targetmage - Stormrage"] = "Default""#,
+                r#"["Stormrage.Targetmage"] = {"#,
+                r#"["Default.Stormrage.Targetmage"] = {"#,
+            ],
+            preserved: &[
+                "Examplemage - Illidan should remain in MRT note text",
+                r#"["Examplemage - Illidan"] = "raid note author text""#,
+            ],
+        },
     ];
 
     for case in cases {

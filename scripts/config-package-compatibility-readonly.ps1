@@ -5,6 +5,7 @@ param(
     [string]$HearthSyncExe = '',
     [switch]$SkipBuild,
     [int]$MaxModuleSamples = 3,
+    [switch]$IncludeSyntheticPlanDryRun,
     [string[]]$ModuleSamplePatterns = @(
         '*MeetingStone*.zip',
         '*BigWigs*.zip',
@@ -14,7 +15,13 @@ param(
     [string[]]$ExternalPackageSources = @(),
     [string]$SyntheticSourceAccount = 'SOURCE_ACCOUNT',
     [string]$SyntheticSourceServer = 'SOURCE_REALM',
-    [string]$SyntheticSourceCharacter = 'SOURCE_CHARACTER'
+    [string]$SyntheticSourceCharacter = 'SOURCE_CHARACTER',
+    [string]$SyntheticTargetAccount = 'TARGET_ACCOUNT',
+    [string]$SyntheticTargetServer = 'TARGET_REALM',
+    [string]$SyntheticTargetCharacter = 'TARGET_CHARACTER',
+    [string]$SyntheticSourceFlavor = 'retail',
+    [string]$SyntheticSourcePlatform = 'windows',
+    [string]$SyntheticTargetFlavor = 'retail'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,6 +67,64 @@ function Get-FirstFile {
     return Get-ChildItem -LiteralPath $Root -Recurse -File -Filter $Filter -Force |
         Sort-Object FullName |
         Select-Object -First 1
+}
+
+function Get-WowFlavorFolder {
+    param([string]$Flavor)
+
+    switch ($Flavor.ToLowerInvariant()) {
+        'retail' { return '_retail_' }
+        'classic' { return '_classic_' }
+        'classic-era' { return '_classic_era_' }
+        'classic_era' { return '_classic_era_' }
+        'ptr' { return '_ptr_' }
+        'beta' { return '_beta_' }
+        'xptr' { return '_xptr_' }
+        default {
+            throw "unsupported synthetic target flavor: $Flavor"
+        }
+    }
+}
+
+function New-SyntheticTargetInstallation {
+    param(
+        [string]$Root,
+        [string]$Flavor,
+        [string]$Account,
+        [string]$Server,
+        [string]$Character
+    )
+
+    $productRoot = Join-Path $Root 'World of Warcraft'
+    $flavorRoot = Join-Path $productRoot (Get-WowFlavorFolder -Flavor $Flavor)
+    $interfaceRoot = Join-Path $flavorRoot 'Interface'
+    $addonRoot = Join-Path $interfaceRoot 'AddOns'
+    $wtfRoot = Join-Path $flavorRoot 'WTF'
+    $accountRoot = Join-Path (Join-Path $wtfRoot 'Account') $Account
+    $accountSavedVariables = Join-Path $accountRoot 'SavedVariables'
+    $characterSavedVariables = Join-Path (Join-Path (Join-Path $accountRoot $Server) $Character) 'SavedVariables'
+    $fontsRoot = Join-Path $flavorRoot 'Fonts'
+
+    foreach ($dir in @(
+            $addonRoot,
+            $wtfRoot,
+            $accountSavedVariables,
+            $characterSavedVariables,
+            $fontsRoot
+        )) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
+
+    $configPath = Join-Path $wtfRoot 'Config.wtf'
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        Set-Content -LiteralPath $configPath -Encoding utf8 -Value 'SET locale "enUS"'
+    }
+
+    return [pscustomobject]@{
+        product_root = $productRoot
+        flavor_root = $flavorRoot
+        label = '<synthetic-target-wow-root>'
+    }
 }
 
 function Get-ModuleSamples {
@@ -214,6 +279,101 @@ function Convert-AnalysisSummary {
     }
 }
 
+function Convert-DryRunSummary {
+    param(
+        [string]$CaseId,
+        [string]$Probe,
+        [string]$SourceLabel,
+        [object]$Run
+    )
+
+    $result = $Run.result
+    if ($Run.exit_code -ne 0 -or $null -eq $result) {
+        return [pscustomobject]@{
+            id = $CaseId
+            probe = $Probe
+            status = 'failed'
+            source_label = $SourceLabel
+            exit_code = $Run.exit_code
+            elapsed_ms = $Run.elapsed_ms
+            error = $Run.stderr
+        }
+    }
+
+    $analysis = $result.analysis
+    $summary = $analysis.summary
+    $planSummary = $result.plan_summary
+    $publicSharing = $summary.public_sharing
+
+    return [pscustomobject]@{
+        id = $CaseId
+        probe = $Probe
+        status = 'passed'
+        source_label = $SourceLabel
+        exit_code = $Run.exit_code
+        elapsed_ms = $Run.elapsed_ms
+        dry_run = $result.dry_run
+        source_kind = $analysis.source_kind
+        layout = $analysis.layout
+        package_id = $analysis.package_id
+        entry_count = $analysis.entry_count
+        normalized_files = $summary.normalized_files
+        warning_count = $summary.warning_count
+        planned_files = $result.planned_files
+        written_files = $result.written_files
+        rewritten_files = $result.rewritten_files
+        files_to_add = $planSummary.files_to_add
+        files_to_replace = $planSummary.files_to_replace
+        files_to_skip = $planSummary.files_to_skip
+        paths_to_remove = $planSummary.paths_to_remove
+        files_to_preserve = $planSummary.files_to_preserve
+        selected_target_account_count = @($result.selected_target_accounts).Count
+        character_mapping_count = @($result.character_mappings).Count
+        public_sharing = [pscustomobject]@{
+            status = $publicSharing.status
+            public_ready = $publicSharing.public_ready
+            review_required_count = $publicSharing.review_required_count
+            advisory_count = $publicSharing.advisory_count
+        }
+        error = $null
+    }
+}
+
+function New-SyntheticDryRunArguments {
+    param(
+        [string[]]$InspectionArguments,
+        [string]$InstallRoot
+    )
+
+    if ($InspectionArguments.Count -lt 3 -or
+        $InspectionArguments[0] -ne 'external-package' -or
+        $InspectionArguments[1] -ne 'inspect') {
+        throw 'synthetic dry-run can only be derived from external-package inspect arguments'
+    }
+
+    $sourceArgs = @($InspectionArguments[2..($InspectionArguments.Count - 1)])
+    $arguments = @('external-package', 'apply') + $sourceArgs + @(
+        '--source-flavor', $SyntheticSourceFlavor
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($SyntheticSourcePlatform)) {
+        $arguments += @('--source-platform', $SyntheticSourcePlatform)
+    }
+
+    $arguments += @(
+        '--supported-target', $SyntheticTargetFlavor,
+        '--install', $InstallRoot,
+        '--flavor', $SyntheticTargetFlavor,
+        '--dry-run',
+        '--target-account', $SyntheticTargetAccount,
+        '--target-server', $SyntheticTargetServer,
+        '--target-character', $SyntheticTargetCharacter,
+        '--select-account', $SyntheticTargetAccount
+    )
+
+    return $arguments
+}
+
 function Add-InspectionCase {
     param(
         [System.Collections.Generic.List[object]]$Cases,
@@ -366,15 +526,59 @@ foreach ($case in $cases) {
     }
 }
 
+$syntheticTarget = $null
+$dryRunResults = [System.Collections.Generic.List[object]]::new()
+if ($IncludeSyntheticPlanDryRun) {
+    $syntheticTarget = New-SyntheticTargetInstallation `
+        -Root (Join-Path $OutputDir 'synthetic-target') `
+        -Flavor $SyntheticTargetFlavor `
+        -Account $SyntheticTargetAccount `
+        -Server $SyntheticTargetServer `
+        -Character $SyntheticTargetCharacter
+
+    foreach ($case in $cases | Where-Object { $_.probe -eq 'external-package.inspect' }) {
+        Write-Output "Synthetic dry-run $($case.id) ..."
+        try {
+            $arguments = New-SyntheticDryRunArguments `
+                -InspectionArguments $case.arguments `
+                -InstallRoot $syntheticTarget.product_root
+            $run = Invoke-HearthSyncJson -Executable $HearthSyncExe -Arguments $arguments
+            $dryRunResults.Add((Convert-DryRunSummary `
+                -CaseId $case.id `
+                -Probe 'external-package.apply.dry-run' `
+                -SourceLabel $case.source_label `
+                -Run $run))
+        } catch {
+            $dryRunResults.Add([pscustomobject]@{
+                id = $case.id
+                probe = 'external-package.apply.dry-run'
+                status = 'failed'
+                source_label = $case.source_label
+                error = $_.Exception.Message
+            })
+        }
+    }
+}
+
 $report = [pscustomobject]@{
     generated_at = (Get-Date).ToString('o')
     repo = $repoRoot
-    privacy = 'Read-only source inspection. The report stores labels, aggregate counts, layouts, warning/public-sharing summaries, and short addon/interface samples only; it does not store normalized entry lists or file contents.'
+    privacy = 'Read-only source inspection. Optional synthetic-target dry-run writes only a minimal temporary WoW skeleton under target/research and records aggregate plan/apply counts. The report stores labels, aggregate counts, layouts, warning/public-sharing summaries, and short addon/interface samples only; it does not store normalized entry lists or file contents.'
     source_roots = [pscustomobject]@{
         wow_retail_root = if (Test-Path -LiteralPath $WowRetailRoot) { '<local-wow-retail-config-tree>' } else { '<missing>' }
         newbeebox_cache_root = if (Test-Path -LiteralPath $NewBeeBoxCacheRoot) { '<newbeebox-cache-root>' } else { '<missing>' }
     }
+    synthetic_target = [pscustomobject]@{
+        enabled = [bool]$IncludeSyntheticPlanDryRun
+        install_root = if ($null -ne $syntheticTarget) { $syntheticTarget.label } else { '<not-created>' }
+        source_flavor = $SyntheticSourceFlavor
+        source_platform = if ([string]::IsNullOrWhiteSpace($SyntheticSourcePlatform)) { '<default>' } else { $SyntheticSourcePlatform }
+        target_flavor = $SyntheticTargetFlavor
+        target_account = if ($IncludeSyntheticPlanDryRun) { '<synthetic-target-account>' } else { '<not-used>' }
+        target_character = if ($IncludeSyntheticPlanDryRun) { '<synthetic-target-character>' } else { '<not-used>' }
+    }
     cases = $results
+    synthetic_dry_run_cases = $dryRunResults
 }
 
 $jsonPath = Join-Path $OutputDir 'compatibility-readonly-summary.json'
@@ -396,6 +600,30 @@ foreach ($case in $results) {
     $warnings = if ($null -ne $case.warning_count) { $case.warning_count } else { 0 }
     $sharing = if ($null -ne $case.public_sharing) { $case.public_sharing.status } else { 'n/a' }
     $lines.Add("| $($case.id) | $($case.probe) | $($case.status) | $layout | $entries | $normalized | $warnings | $sharing |")
+}
+
+if ($IncludeSyntheticPlanDryRun) {
+    $lines.Add('')
+    $lines.Add('## Synthetic Target Dry-Run Summary')
+    $lines.Add('')
+    $lines.Add('- Target: temporary WoW skeleton under this report directory.')
+    $lines.Add('- Probe: `external-package apply --dry-run` derived from the same source/layout arguments as inspection.')
+    $lines.Add('- Privacy: no source file contents, normalized entry lists, operation destinations, account names, or character names are written.')
+    $lines.Add('')
+    $lines.Add('| Case | Probe | Status | Layout | Planned | Add | Replace | Remove | Preserve | Written | Rewritten | Warnings |')
+    $lines.Add('| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |')
+    foreach ($case in $dryRunResults) {
+        $layout = if ($null -ne $case.layout) { $case.layout } else { 'n/a' }
+        $planned = if ($null -ne $case.planned_files) { $case.planned_files } else { 0 }
+        $add = if ($null -ne $case.files_to_add) { $case.files_to_add } else { 0 }
+        $replace = if ($null -ne $case.files_to_replace) { $case.files_to_replace } else { 0 }
+        $remove = if ($null -ne $case.paths_to_remove) { $case.paths_to_remove } else { 0 }
+        $preserve = if ($null -ne $case.files_to_preserve) { $case.files_to_preserve } else { 0 }
+        $written = if ($null -ne $case.written_files) { $case.written_files } else { 0 }
+        $rewritten = if ($null -ne $case.rewritten_files) { $case.rewritten_files } else { 0 }
+        $warnings = if ($null -ne $case.warning_count) { $case.warning_count } else { 0 }
+        $lines.Add("| $($case.id) | $($case.probe) | $($case.status) | $layout | $planned | $add | $replace | $remove | $preserve | $written | $rewritten | $warnings |")
+    }
 }
 $lines | Set-Content -LiteralPath $mdPath -Encoding utf8
 

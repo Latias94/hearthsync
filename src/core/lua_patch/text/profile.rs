@@ -11,8 +11,12 @@ pub(super) fn rewrite_scoped_profile_text(content: &str, mappings: &[CharacterMa
     }
 
     let mut replacements = Vec::new();
-    collect_direct_table_replacements(content, "profileKeys", true, &rewrites, &mut replacements);
-    collect_direct_table_replacements(content, "profiles", false, &rewrites, &mut replacements);
+    for table_name in ["profileKeys", "ProfileKeys"] {
+        collect_direct_table_replacements(content, table_name, true, &rewrites, &mut replacements);
+    }
+    for table_name in ["profiles", "Profiles"] {
+        collect_direct_table_replacements(content, table_name, false, &rewrites, &mut replacements);
+    }
     collect_profile_key_field_value_replacements(content, &rewrites, &mut replacements);
 
     apply_range_replacements(content, replacements)
@@ -196,7 +200,7 @@ fn collect_profile_key_field_value_replacements(
         };
 
         let key_name = &content[key.name_start..key.name_end];
-        if !key_name.ends_with("profileKey") {
+        if !key_name.ends_with("profileKey") && !key_name.ends_with("ProfileKey") {
             index = key.full_end.max(index + 1);
             continue;
         }

@@ -15,8 +15,12 @@ pub(super) fn collect_profile_replacements(
         return;
     }
 
-    collect_direct_table_replacements(content, b"profileKeys", true, &rewrites, replacements);
-    collect_direct_table_replacements(content, b"profiles", false, &rewrites, replacements);
+    for table_name in [b"profileKeys".as_slice(), b"ProfileKeys"] {
+        collect_direct_table_replacements(content, table_name, true, &rewrites, replacements);
+    }
+    for table_name in [b"profiles".as_slice(), b"Profiles"] {
+        collect_direct_table_replacements(content, table_name, false, &rewrites, replacements);
+    }
     collect_profile_key_field_value_replacements(content, &rewrites, replacements);
 }
 
@@ -195,7 +199,8 @@ fn collect_profile_key_field_value_replacements(
             continue;
         };
 
-        if !content[key.name_start..key.name_end].ends_with(b"profileKey") {
+        let key_name = &content[key.name_start..key.name_end];
+        if !key_name.ends_with(b"profileKey") && !key_name.ends_with(b"ProfileKey") {
             index = key.full_end.max(index + 1);
             continue;
         }

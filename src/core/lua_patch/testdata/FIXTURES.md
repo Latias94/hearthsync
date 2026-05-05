@@ -32,6 +32,7 @@ small compatibility slices, not full addon databases.
 | `meetingstone_character_invalid_utf8_search_history.lua.escape` | `MeetingStone.lua` exact identity rule, invalid UTF-8 controlled reduction | invalid UTF-8 byte fixture | Rewrite character DB profile keys, profiles, and `searchHistoryList` through byte fallback; preserve free text, cache scalars, and Latin-1 bytes. |
 | `meetingstone_profilekeys.lua` | `MeetingStone.lua` exact identity rule plus profile keys | UTF-8 | Rewrite profile keys and `searchHistoryList` identity keys. |
 | `meetingstone_search_history_context_utf8.lua` | `MeetingStone.lua` exact identity rule | UTF-8 | Rewrite `searchHistoryList` identity keys; preserve activity labels outside known containers. |
+| `mrt_profilekeys_reduced_utf8.lua` | `MRT.lua` profile-key marker, controlled local shape reduction | UTF-8 | Rewrite uppercase `ProfileKeys`/`Profiles` and lowercase `profiles` containers; preserve encounter/history identity text outside profile containers. |
 | `ndui_bags_realistic_utf8.lua` | `NDui_Bags.lua` via `profileKeys` marker | UTF-8 | Rewrite dense one-line profile keys and preserve author text/options. |
 | `newbeebox_realistic_utf8.lua` | `NewBeeBox.lua` exact identity rule | UTF-8 | Rewrite reverse compact identities and name/realm pairs; preserve player GUIDs. |
 | `pawn_realistic_latin1.lua.escape` | `Pawn.lua` exact identity rule | Latin-1 byte fixture | Rewrite character SavedVariables while preserving Latin-1-only bytes. |
@@ -63,6 +64,9 @@ small compatibility slices, not full addon databases.
 - A follow-up privacy-preserving marker scan also prioritized `Plater.lua` and `OmniCD.lua`
   profile-key shapes. The checked-in fixtures are synthetic reductions of marker/container shape,
   not copies of the live SavedVariables content.
+- The same aggregate marker scan found `MRT.lua` uses uppercase `ProfileKeys`/`Profiles` alongside
+  lowercase `profiles`. The checked-in MRT fixture keeps only that container-shape signal with
+  synthetic account, realm, character, and note values.
 - The local shape audit in `target/research/savedvariables-shape-audit-2026-05-05.json` records
   counts, encodings, ASCII global assignment names, and marker counts only. It intentionally omits
   paths, account names, character names, and string values.
