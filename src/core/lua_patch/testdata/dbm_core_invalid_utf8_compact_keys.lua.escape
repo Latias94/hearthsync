@@ -1,0 +1,1 @@
+DBM_AllSavedOptions = {\n  ["Examplemage-Illidan"] = {\n    ["DontShowReminders"] = false,\n    ["ProfileNote"] = "A\xf1o Examplemage-Illidan should remain in DBM option text",\n  },\n}\n\nDBM_UsedProfile = {\n  ["Examplemage-Illidan"] = {\n    ["profile"] = "Default",\n  },\n}\n\nDBM_AnnoyingPopupDisables = {\n  ["Examplemage-Illidan"] = true,\n}\n

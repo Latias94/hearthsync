@@ -82,6 +82,48 @@ fn preview_lua_bytes_rewrite_rewrites_sanitized_realistic_latin1_fixture() {
 }
 
 #[test]
+fn preview_lua_bytes_rewrite_rewrites_invalid_utf8_identity_key_fixture() {
+    let payload = load_escaped_byte_fixture("dbm_core_invalid_utf8_compact_keys.lua.escape");
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/DBM-Core.lua"),
+        &payload,
+        &[sample_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: false,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview")
+    .expect("rewritten bytes");
+
+    assert!(
+        rewritten
+            .windows(br#"["Targetmage-Stormrage"] = {"#.len())
+            .any(|window| window == br#"["Targetmage-Stormrage"] = {"#)
+    );
+    assert!(
+        !rewritten
+            .windows(br#"["Examplemage-Illidan"] = {"#.len())
+            .any(|window| window == br#"["Examplemage-Illidan"] = {"#)
+    );
+    assert!(
+        rewritten
+            .windows(b"A\xf1o".len())
+            .any(|window| window == b"A\xf1o")
+    );
+    assert!(
+        rewritten
+            .windows(b"Examplemage-Illidan should remain in DBM option text".len())
+            .any(|window| window == b"Examplemage-Illidan should remain in DBM option text")
+    );
+    assert!(
+        rewritten
+            .windows(br#"["Examplemage-Illidan"] = true"#.len())
+            .any(|window| window == br#"["Examplemage-Illidan"] = true"#)
+    );
+}
+
+#[test]
 fn preview_lua_bytes_rewrite_supports_latin1_strings() {
     let rewritten = preview_lua_bytes_rewrite(
         Path::new("wtf/characters/ACCOUNT/Illidan/Examplemage/SavedVariables/Pawn.lua"),

@@ -15,6 +15,7 @@ small compatibility slices, not full addon databases.
 | `bigwigs_profilekeys_utf8.lua` | `BigWigs.lua` via `profileKeys` marker | UTF-8 | Rewrite profile keys while preserving descriptive boss notes. |
 | `clique_realistic_utf8.lua` | `Clique.lua` exact identity rule plus profile keys | UTF-8 | Rewrite localized profile keys and `char` tables; preserve spell/notes text. |
 | `dbm_core_reduced_compact_keys_utf8.lua` | `DBM-*` prefix identity rule, controlled local shape reduction | UTF-8 | Rewrite table-valued compact top-level DBM identity keys; preserve scalar popup/cache keys. |
+| `dbm_core_invalid_utf8_compact_keys.lua.escape` | `DBM-*` prefix identity rule, invalid UTF-8 controlled reduction | invalid UTF-8 byte fixture | Rewrite table-valued compact top-level DBM identity keys through byte fallback; preserve scalar popup/cache keys and Latin-1 bytes. |
 | `dbm_party_compact_identity_utf8.lua` | `DBM-*` prefix identity rule | UTF-8 | Rewrite compact top-level DBM character keys; preserve warning/template text. |
 | `details_realistic_utf8.lua` | `Details.lua` exact identity rule plus profile keys | UTF-8 | Rewrite profile keys and explicit identity fields; preserve localized free text. |
 | `details_mythicplus_identity_fields_utf8.lua` | `Details_*` prefix identity rule | UTF-8 | Rewrite explicit run identity fields; preserve run notes and `lastPlayerName`. |
@@ -65,11 +66,20 @@ small compatibility slices, not full addon databases.
 - Fixture names ending in `.escape` store explicit byte escapes for invalid UTF-8 or Latin-1
   coverage.
 
+## Inline Malformed-Lua Safety Cases
+
+- `src/core/lua_patch/tests/bytes/scope.rs::preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables`
+  verifies an incomplete `profileKeys` table does not fall back to broad string replacement.
+- `src/core/lua_patch/tests/bytes/scope.rs::preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields`
+  verifies an incomplete identity-key container does not rewrite keys, while explicit allowlisted
+  identity fields can still be rewritten without touching free text.
+
 ## Remaining Corpus Gaps
 
 - Fixtures are sanitized slices and controlled reductions. They prove scoped behavior, not full
   real-addon database coverage.
 - Some exact or prefix rules still have only one shape. Add second-shape samples before widening any
   identity-key container allowlist or claiming broad migration safety.
-- Add more non-UTF-8 and malformed-Lua cases before claiming broad migration safety for arbitrary
-  desktop users.
+- Malformed-Lua coverage now has explicit scoped/fail-closed regression cases. Add more non-UTF-8
+  and malformed real-shape reductions before claiming broad migration safety for arbitrary desktop
+  users.

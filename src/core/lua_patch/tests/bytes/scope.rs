@@ -109,3 +109,55 @@ fn preview_lua_bytes_rewrite_scopes_invalid_utf8_identity_key_rewrites() {
             .any(|window| window == br#"["cache"] = { ["Examplemage - Illidan"] = true }"#)
     );
 }
+
+#[test]
+fn preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables() {
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+        br#"DetailsDB = { ["notes"] = "Examplemage - Illidan", ["profileKeys"] = { ["Examplemage - Illidan"] = "Default" "#,
+        &[sample_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: false,
+        },
+    )
+    .expect("preview");
+
+    assert!(rewritten.is_none());
+}
+
+#[test]
+fn preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields() {
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Details.lua"),
+        br#"DetailsDB = { ["notes"] = "Examplemage on Illidan", ["playerName"] = "Examplemage", ["realm"] = "Illidan", ["char"] = { ["Examplemage - Illidan"] = { "#,
+        &[sample_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: false,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview")
+    .expect("field rewrites should still be scoped");
+
+    assert!(
+        rewritten
+            .windows(br#"["notes"] = "Examplemage on Illidan""#.len())
+            .any(|window| window == br#"["notes"] = "Examplemage on Illidan""#)
+    );
+    assert!(
+        rewritten
+            .windows(br#"["playerName"] = "Targetmage""#.len())
+            .any(|window| window == br#"["playerName"] = "Targetmage""#)
+    );
+    assert!(
+        rewritten
+            .windows(br#"["realm"] = "Stormrage""#.len())
+            .any(|window| window == br#"["realm"] = "Stormrage""#)
+    );
+    assert!(
+        rewritten
+            .windows(br#"["char"] = { ["Examplemage - Illidan"] = { "#.len())
+            .any(|window| window == br#"["char"] = { ["Examplemage - Illidan"] = { "#)
+    );
+}

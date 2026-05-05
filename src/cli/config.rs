@@ -178,3 +178,6 @@ fn build_config_apply_defaults(
 
     Some(defaults)
 }
+
+#[cfg(test)]
+mod tests;

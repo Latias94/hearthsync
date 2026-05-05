@@ -1181,9 +1181,40 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   is forced to fail after AddOns, Interface, and Fonts writes have started by blocking
   `WTF/Account/<target>/SavedVariables`; the test verifies addon, WTF, font, interface, and blocking
   file state are restored.
-  Current verification: after the new fixture and audit changes, `cargo fmt --check`,
+  Current progress: the config CLI handler now has an end-to-end acceptance slice too.
+  `config_cli_runs_export_plan_dry_run_and_apply_with_mapping` drives `config inspect`,
+  `config export`, `config plan`, dry-run `config apply`, and real `config apply` through
+  `handle_config_command`, then verifies backup creation, addon mirroring, WTF preservation,
+  account/character SavedVariables rewrite, root SavedVariables placement, Fonts, and Interface
+  resources. `config_cli_apply_rolls_back_when_resource_write_fails` forces the same
+  `WTF/Account/<target>/SavedVariables` failure through the CLI boundary and verifies rollback.
+  Current progress: exported config bundles now have CLI-level apply evidence too.
+  `config_cli_exported_bundle_applies_through_bundle_cli` drives `config export`, then uses the
+  bundle CLI handler to inspect, plan, dry-run unpack, and real unpack the exported first-party
+  bundle against a macOS target fixture.
+  Current verification:
+  `cargo nextest run config_cli_exported_bundle_applies_through_bundle_cli -j 1 --no-fail-fast`
+  passes with 1/1 tests.
+  Current verification: `cargo nextest run config_cli -j 1 --no-fail-fast` passes with 3/3 tests.
+  Current progress: malformed Lua SavedVariables behavior now has explicit byte-level regression
+  coverage. Incomplete `profileKeys` tables fail closed without broad fallback replacement, and
+  incomplete identity-key containers do not rewrite keys while explicit allowlisted identity fields
+  can still be rewritten safely.
+  Current progress: non-UTF-8 identity-key coverage now includes a DBM compact-key byte fixture.
+  `dbm_core_invalid_utf8_compact_keys.lua.escape` verifies byte fallback rewrites table-valued
+  compact DBM identities while preserving scalar popup/cache keys and Latin-1 bytes.
+  Current verification:
+  `cargo nextest run preview_lua_bytes_rewrite_rewrites_invalid_utf8_identity_key_fixture -j 1 --no-fail-fast`
+  passes with 1/1 tests.
+  Current verification:
+  `cargo nextest run preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields -j 1 --no-fail-fast`
+  passes with 2/2 tests.
+  Current verification: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1` passes with
+  43/43 tests after the malformed-Lua regressions and invalid UTF-8 DBM compact-key fixture.
+  Current verification: after the new fixture, CLI acceptance, and audit changes,
+  `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 766/766 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 772/772 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
   code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
   fixture corpus still needs controlled provenance reductions and more addon-family coverage before
