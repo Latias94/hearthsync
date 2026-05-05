@@ -545,6 +545,36 @@ fn analyze_external_package_auto_detects_newbeebox_addon_with_mixed_separators()
 }
 
 #[test]
+fn analyze_external_package_auto_detects_newbeebox_module_cache_addon_with_mixed_separators() {
+    let temp = tempdir().expect("temp dir");
+    let package_dir = temp.path().join("NewBeeBoxCache").join("modules");
+    fs::create_dir_all(&package_dir).expect("NewBeeBox modules dir");
+    let package_path = package_dir.join("11225-7685_164-MeetingStone.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            (
+                "MeetingStone/MeetingStone.toc",
+                "## Interface: 110000\n## Title: MeetingStone\n",
+            ),
+            ("MeetingStone\\addon_version.txt", "12.1.4"),
+        ],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze NewBeeBox module cache package");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxAddon);
+    assert_eq!(analysis.resources.addons, vec!["MeetingStone".to_string()]);
+    assert_eq!(analysis.summary.total_files, 2);
+    assert_eq!(analysis.summary.normalized_files, 2);
+    assert!(analysis.entries.iter().any(|entry| {
+        entry.source_path == "MeetingStone\\addon_version.txt"
+            && entry.normalized_path == "addons/MeetingStone/addon_version.txt"
+    }));
+}
+
+#[test]
 fn analyze_external_package_auto_detects_newbeebox_flat_font_package() {
     let temp = tempdir().expect("temp dir");
     let package_path = temp.path().join("font-example.zip");

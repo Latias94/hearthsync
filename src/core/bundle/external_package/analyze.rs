@@ -53,6 +53,9 @@ fn resolve_external_package_layout(
     if name.starts_with("unknown_plug-") {
         return ExternalPackageLayout::NewBeeBoxAddon;
     }
+    if is_newbeebox_module_cache_path(source_path) {
+        return ExternalPackageLayout::NewBeeBoxAddon;
+    }
     if name.starts_with("font-") {
         return ExternalPackageLayout::NewBeeBoxFont;
     }
@@ -67,4 +70,26 @@ fn resolve_external_package_layout(
     }
 
     ExternalPackageLayout::Generic
+}
+
+fn is_newbeebox_module_cache_path(source_path: &std::path::Path) -> bool {
+    let Some(parent) = source_path.parent() else {
+        return false;
+    };
+    let Some(parent_name) = parent.file_name().and_then(|value| value.to_str()) else {
+        return false;
+    };
+    if !parent_name.eq_ignore_ascii_case("modules") {
+        return false;
+    }
+
+    let Some(cache_name) = parent
+        .parent()
+        .and_then(|path| path.file_name())
+        .and_then(|value| value.to_str())
+    else {
+        return false;
+    };
+
+    cache_name.eq_ignore_ascii_case("NewBeeBoxCache")
 }

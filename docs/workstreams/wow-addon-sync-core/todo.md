@@ -396,6 +396,10 @@ enough that these rules live in one place.
   with a dozen addon roots, more than one hundred normalized files, WTF/fonts/interface resources,
   and repeated archive noise, so resource summary behavior is no longer only covered by tiny
   fixtures.
+  Current progress: real NewBeeBox addon module cache packages are now part of the auto-detection
+  compatibility floor. `NewBeeBoxCache/modules/*.zip` resolves to `newbeebox_addon`, allowing the
+  mixed `/` and `\` zip entry separators observed in the live MeetingStone cache package while the
+  generic zip layout still rejects backslash archive paths as unsafe.
   Current cleanup: external-package regression coverage now lives in focused sibling modules:
   `analysis`, `validation`, `bundle`, `progress`, `apply`, and `serialization`, leaving the root
   `core::bundle::tests::external_package` module as shared imports and module ownership rather
@@ -1196,6 +1200,16 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `cargo nextest run config_cli_exported_bundle_applies_through_bundle_cli -j 1 --no-fail-fast`
   passes with 1/1 tests.
   Current verification: `cargo nextest run config_cli -j 1 --no-fail-fast` passes with 3/3 tests.
+  Current progress: NewBeeBox module-cache addon compatibility now has both synthetic and live
+  evidence. `analyze_external_package_auto_detects_newbeebox_module_cache_addon_with_mixed_separators`
+  covers the `NewBeeBoxCache/modules/11225-7685_164-MeetingStone.zip` naming/layout shape, and a
+  read-only live `external-package inspect` of
+  `C:\Program Files\NewBeeBox\NewBeeBoxCache\modules\11225-7685_164-MeetingStone.zip` defaults to
+  `newbeebox_addon`, normalizes 408/408 entries, reports 0 warnings, and maps
+  `MeetingStone\addon_version.txt` to `addons/MeetingStone/addon_version.txt`.
+  Current verification:
+  `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passes with 98/98
+  tests after the NewBeeBox module-cache auto-detection change.
   Current progress: malformed Lua SavedVariables behavior now has explicit byte-level regression
   coverage. Incomplete `profileKeys` tables fail closed without broad fallback replacement, and
   incomplete identity-key containers do not rewrite keys while explicit allowlisted identity fields
@@ -1211,10 +1225,11 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   passes with 2/2 tests.
   Current verification: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1` passes with
   43/43 tests after the malformed-Lua regressions and invalid UTF-8 DBM compact-key fixture.
-  Current verification: after the new fixture, CLI acceptance, and audit changes,
+  Current verification: after the new fixture, CLI acceptance, NewBeeBox module-cache
+  auto-detection, and audit changes,
   `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 772/772 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 773/773 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
   code, test, command, and documentation evidence. The audit keeps the goal open because the Lua
   fixture corpus still needs controlled provenance reductions and more addon-family coverage before
