@@ -2434,3 +2434,63 @@ Specifically:
   through a warning.
 - GUI export flows can offer checkboxes backed by stable `WtfScope` values.
 - Filtering is transparent in the returned analysis; it does not silently delete files after preview.
+
+## ADR-094: Public Sharing Review Includes Sensitive WTF File Policy
+
+Accepted on 2026-05-05
+
+### Decision
+
+External-package and config analysis summaries must expose a first sensitive WTF file policy in
+addition to coarse `WtfScope` risk.
+
+Specifically:
+
+- `ExternalPackageSummary.sensitive_wtf_files` groups known WTF state files by kind, severity, and
+  count.
+- The first policy marks SavedVariables, chat cache, and macro cache files as review-required for
+  public sharing.
+- Bindings, game config, addon enablement, and layout state files are advisory: they are commonly
+  useful for private migration, but public packages should still show them explicitly.
+- The public-sharing summary adds reason codes for review-required sensitive WTF files and advisory
+  WTF files.
+- App-owned external-package and config DTOs project the same summary, and CLI analysis output
+  renders it beside `WtfScope` risk.
+
+### Consequences
+
+- Future GUI export screens can explain concrete WTF file risks without reparsing normalized paths.
+- Public export gating becomes stricter for private addon state while still allowing advisory-only
+  packages to be exported without an override.
+- The policy is intentionally conservative and evidence-driven; more addon-specific categories can
+  be added as real SavedVariables fixtures justify them.
+
+## ADR-095: Config Export Owns Its App Boundary
+
+Accepted on 2026-05-05
+
+### Decision
+
+The config app service should own config export request composition and result projection instead of
+requiring CLI or future GUI callers to build external-package export requests directly.
+
+Specifically:
+
+- `ExportConfigBundleAppRequest` wraps `ConfigPackageAppRequest` plus export-only sharing policy and
+  WTF-scope exclusion options.
+- `ConfigService::create_bundle` converts that config request into the shared external-package
+  bundle pipeline internally.
+- Stable app callers use `StableAppServices::export_config`.
+- Export results use `ConfigBundleResult`, with config-owned inspection data plus the shared bundle
+  manifest and archive metadata.
+- CLI `config export` now calls the config app entrypoint instead of mutating an external-package
+  request at the presentation layer.
+
+### Consequences
+
+- Future `egui` code can drive config export through the same app boundary as inspect, plan, and
+  apply.
+- The external-package engine remains shared internally, but config-facing callers no longer depend
+  on external-package DTO shape for export.
+- End-to-end regression coverage now verifies that a config export artifact can be planned and
+  applied through the first-party bundle path.

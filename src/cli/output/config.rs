@@ -1,11 +1,11 @@
 use crate::core::app::{
-    ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ExternalPackageBundleResult,
+    ConfigApplyPlanResult, ConfigApplyResult, ConfigBundleResult, ConfigInspectionResult,
 };
 
 use super::shared::{
     format_bundle_characters, format_character_mapping_summary, format_config_public_sharing,
-    format_config_source_identities, format_config_warnings, format_config_wtf_scopes,
-    format_discovered_accounts, format_external_package_public_sharing, format_selected_accounts,
+    format_config_sensitive_wtf_files, format_config_source_identities, format_config_warnings,
+    format_config_wtf_scopes, format_discovered_accounts, format_selected_accounts,
     format_string_list_or_none,
 };
 
@@ -13,7 +13,7 @@ pub(in crate::cli) fn render_config_analysis(item: &ConfigInspectionResult) -> S
     let warnings = format_config_warnings(&item.warnings, &item.summary);
 
     format!(
-        "Config source: {}\nDetected kind: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nWTF scopes: {}\nSource identities: {}\nPublic sharing: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
+        "Config source: {}\nDetected kind: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nWTF scopes: {}\nSensitive WTF files: {}\nSource identities: {}\nPublic sharing: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
         item.source_path.display(),
         item.source_kind,
         item.package_id,
@@ -29,6 +29,7 @@ pub(in crate::cli) fn render_config_analysis(item: &ConfigInspectionResult) -> S
         },
         item.resources.wtf_characters.len(),
         format_config_wtf_scopes(&item.summary.wtf_scopes),
+        format_config_sensitive_wtf_files(&item.summary.sensitive_wtf_files),
         format_config_source_identities(&item.summary.source_identities),
         format_config_public_sharing(&item.summary.public_sharing),
         if item.resources.fonts { "yes" } else { "no" },
@@ -38,13 +39,13 @@ pub(in crate::cli) fn render_config_analysis(item: &ConfigInspectionResult) -> S
     )
 }
 
-pub(in crate::cli) fn render_config_bundle(item: &ExternalPackageBundleResult) -> String {
+pub(in crate::cli) fn render_config_bundle(item: &ConfigBundleResult) -> String {
     format!(
         "Created config bundle: {}\nArchived files: {}\nPackage: {}\nPublic sharing: {}",
         item.bundle.archive_path.display(),
         item.bundle.archived_files,
         item.manifest.package.name,
-        format_external_package_public_sharing(&item.analysis.summary.public_sharing)
+        format_config_public_sharing(&item.inspection.summary.public_sharing)
     )
 }
 
@@ -116,8 +117,8 @@ mod tests {
         render_config_analysis, render_config_apply, render_config_bundle, render_config_plan,
     };
     use crate::core::app::{
-        ApplyPlanSummaryResult, ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult,
-        ExternalPackageBundleResult, HelperStrategyValue,
+        ApplyPlanSummaryResult, ConfigApplyPlanResult, ConfigApplyResult, ConfigBundleResult,
+        ConfigInspectionResult, HelperStrategyValue,
     };
 
     #[test]
@@ -130,20 +131,22 @@ mod tests {
         assert!(rendered.contains("Detected kind: ZipArchive"));
         assert!(rendered.contains("AddOns: WeakAuras"));
         assert!(rendered.contains("WTF scopes: account_saved_variables(high)=1"));
+        assert!(rendered.contains("Sensitive WTF files: saved_variables(review_required)=1"));
         assert!(rendered.contains("Source identities: accounts: AccountA (entries: 1)"));
         assert!(
             rendered
-                .contains("Public sharing: review_required (ready: no, review: 4, advisory: 0;")
+                .contains("Public sharing: review_required (ready: no, review: 5, advisory: 0;")
         );
         assert!(rendered.contains("review_required/high_risk_wtf_scope=1"));
+        assert!(rendered.contains("review_required/sensitive_wtf_file=1"));
         assert!(rendered.contains("Characters: AccountA/Aegwynn/Hero"));
         assert!(rendered.contains("Warnings: 1 (addon: 1, wtf: 0; groups: ["));
     }
 
     #[test]
     fn render_config_bundle_reports_archive_and_public_sharing() {
-        let rendered = render_config_bundle(&ExternalPackageBundleResult {
-            analysis: sample_external_package_analysis(),
+        let rendered = render_config_bundle(&ConfigBundleResult {
+            inspection: ConfigInspectionResult::from_external(sample_external_package_analysis()),
             manifest: sample_bundle_manifest(),
             bundle: crate::core::app::CreatedBundleResult {
                 archive_path: PathBuf::from("AuthorUI.hearthsync.zip"),

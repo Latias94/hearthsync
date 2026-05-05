@@ -22,15 +22,15 @@ use crate::core::app::{
     BundleApplyDefaultsValue, BundleApplyMappingsValue, BundleCharacterMappingOverrideValue,
     BundleCharacterResourceValue, BundleManifestValue, BundleMappingRulesValue, BundlePackageValue,
     BundleResourcesValue, BundleSourceValue, CharacterMappingModeValue, ConfigPackageAppRequest,
-    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, ExternalPackageLayoutValue,
-    ExternalPackageSharingModeValue, HostPlatformValue, InspectAddonPolicyRequest,
-    InspectConfigAppRequest, InstallAddonAppRequest, InstallAddonIndexAppRequest,
-    ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest, PlanAddonLockSyncRequest,
-    PlanBundleApplyRequest, PlanConfigApplyAppRequest, PlanExternalPackageApplyAppRequest,
-    RelinkAddonAppRequest, RelinkAddonIndexAppRequest, RemoveAddonAppRequest,
-    RemoveAddonPolicyAppRequest, ResolvedInstallationValue, ResourceApplyPolicyValue,
-    RestoreBackupAppRequest, SetAddonPolicyAppRequest, UpdateAddonAppRequest,
-    UpdateAddonIndexAppRequest, WowFlavorValue, WtfScopeValue,
+    CreateBackupAppRequest, CreateExternalPackageBundleAppRequest, ExportConfigBundleAppRequest,
+    ExternalPackageLayoutValue, ExternalPackageSharingModeValue, HostPlatformValue,
+    InspectAddonPolicyRequest, InspectConfigAppRequest, InstallAddonAppRequest,
+    InstallAddonIndexAppRequest, ListAddonsRequest, ListBackupsRequest, PackBundleAppRequest,
+    PlanAddonLockSyncRequest, PlanBundleApplyRequest, PlanConfigApplyAppRequest,
+    PlanExternalPackageApplyAppRequest, RelinkAddonAppRequest, RelinkAddonIndexAppRequest,
+    RemoveAddonAppRequest, RemoveAddonPolicyAppRequest, ResolvedInstallationValue,
+    ResourceApplyPolicyValue, RestoreBackupAppRequest, SetAddonPolicyAppRequest,
+    UpdateAddonAppRequest, UpdateAddonIndexAppRequest, WowFlavorValue, WtfScopeValue,
 };
 use crate::core::bundle::{
     CreateExternalPackageBundleRequest as DomainCreateExternalPackageBundleRequest,
@@ -43,6 +43,7 @@ mod addon_index;
 mod addon_lock;
 mod addon_policy;
 mod bundle;
+mod config;
 mod defaults;
 mod external_package;
 mod installation;

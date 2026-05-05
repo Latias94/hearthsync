@@ -8,7 +8,8 @@ use super::output::config::{
 };
 use crate::core::app::{
     AppRuntime, ApplyConfigAppRequest, BundleApplyDefaultsValue, ConfigPackageAppRequest,
-    InspectConfigAppRequest, PlanConfigApplyAppRequest, ResourceApplyPolicyValue,
+    ExportConfigBundleAppRequest, InspectConfigAppRequest, PlanConfigApplyAppRequest,
+    ResourceApplyPolicyValue,
 };
 use crate::core::error::AppResult;
 
@@ -41,14 +42,18 @@ pub(super) fn handle_config_command(
             render_with_value(
                 json,
                 || {
-                    let mut request =
-                        build_config_package_request_with_output(config_options, Some(output))
-                            .into_external_request();
-                    request.sharing_mode = sharing_mode.into();
-                    request.allow_public_sharing_risks = allow_public_sharing_risks;
-                    request.excluded_wtf_scopes =
-                        excluded_wtf_scopes.into_iter().map(Into::into).collect();
-                    let handle = app.create_external_package_bundle(request)?;
+                    let handle = app.export_config(ExportConfigBundleAppRequest {
+                        config_package: build_config_package_request_with_output(
+                            config_options,
+                            Some(output),
+                        ),
+                        sharing_mode: sharing_mode.into(),
+                        allow_public_sharing_risks,
+                        excluded_wtf_scopes: excluded_wtf_scopes
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
+                    })?;
                     Ok(handle.as_ref().clone())
                 },
                 render_config_bundle,

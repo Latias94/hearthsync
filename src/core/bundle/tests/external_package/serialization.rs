@@ -54,6 +54,28 @@ fn analyze_external_package_serializes_summary_groups_for_machine_consumers() {
         ]
     );
 
+    let sensitive_wtf_files = summary
+        .get("sensitive_wtf_files")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .expect("sensitive_wtf_files array");
+
+    assert_eq!(
+        sensitive_wtf_files,
+        vec![
+            serde_json::json!({
+                "kind": "saved_variables",
+                "severity": "review_required",
+                "count": 2
+            }),
+            serde_json::json!({
+                "kind": "game_config",
+                "severity": "advisory",
+                "count": 1
+            }),
+        ]
+    );
+
     let source_identities = summary
         .get("source_identities")
         .cloned()
@@ -85,8 +107,8 @@ fn analyze_external_package_serializes_summary_groups_for_machine_consumers() {
         serde_json::json!({
             "status": "review_required",
             "public_ready": false,
-            "review_required_count": 5,
-            "advisory_count": 1,
+            "review_required_count": 6,
+            "advisory_count": 2,
             "reasons": [
                 {
                     "severity": "review_required",
@@ -111,6 +133,18 @@ fn analyze_external_package_serializes_summary_groups_for_machine_consumers() {
                     "code": "low_risk_wtf_scope",
                     "count": 1,
                     "message": "package contains cache-like WTF data; it is low risk but still worth reviewing"
+                },
+                {
+                    "severity": "review_required",
+                    "code": "sensitive_wtf_file",
+                    "count": 2,
+                    "message": "package contains WTF files known to carry private addon state, chat history, macros, or SavedVariables"
+                },
+                {
+                    "severity": "advisory",
+                    "code": "advisory_wtf_file",
+                    "count": 1,
+                    "message": "package contains WTF state files that are usually shareable only after review"
                 },
                 {
                     "severity": "review_required",
@@ -157,6 +191,8 @@ fn public_sharing_reason_code_serialization_matches_display_codes() {
         ExternalPackagePublicSharingReasonCode::MediumRiskWtfScope,
         ExternalPackagePublicSharingReasonCode::LowRiskWtfScope,
         ExternalPackagePublicSharingReasonCode::UnknownRiskWtfScope,
+        ExternalPackagePublicSharingReasonCode::SensitiveWtfFile,
+        ExternalPackagePublicSharingReasonCode::AdvisoryWtfFile,
         ExternalPackagePublicSharingReasonCode::SourceAccountIdentity,
         ExternalPackagePublicSharingReasonCode::SourceCharacterIdentity,
     ];

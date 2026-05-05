@@ -11,7 +11,8 @@ use crate::core::app::{
 use super::super::external_package::{
     ExternalPackagePublicSharingReasonCodeValue, ExternalPackagePublicSharingReasonResult,
     ExternalPackagePublicSharingSeverityValue, ExternalPackagePublicSharingStatusValue,
-    ExternalPackagePublicSharingSummaryResult, ExternalPackageSummaryResult,
+    ExternalPackagePublicSharingSummaryResult, ExternalPackageSensitiveWtfFileKindValue,
+    ExternalPackageSensitiveWtfFileSummaryResult, ExternalPackageSummaryResult,
     ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
     ExternalPackageWtfScopeSummaryResult,
 };
@@ -155,6 +156,8 @@ pub enum ConfigPublicSharingReasonCodeValue {
     MediumRiskWtfScope,
     LowRiskWtfScope,
     UnknownRiskWtfScope,
+    SensitiveWtfFile,
+    AdvisoryWtfFile,
     SourceAccountIdentity,
     SourceCharacterIdentity,
 }
@@ -173,12 +176,57 @@ impl ConfigPublicSharingReasonCodeValue {
             ExternalPackagePublicSharingReasonCodeValue::UnknownRiskWtfScope => {
                 Self::UnknownRiskWtfScope
             }
+            ExternalPackagePublicSharingReasonCodeValue::SensitiveWtfFile => Self::SensitiveWtfFile,
+            ExternalPackagePublicSharingReasonCodeValue::AdvisoryWtfFile => Self::AdvisoryWtfFile,
             ExternalPackagePublicSharingReasonCodeValue::SourceAccountIdentity => {
                 Self::SourceAccountIdentity
             }
             ExternalPackagePublicSharingReasonCodeValue::SourceCharacterIdentity => {
                 Self::SourceCharacterIdentity
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigSensitiveWtfFileKindValue {
+    SavedVariables,
+    ChatCache,
+    Macros,
+    Bindings,
+    GameConfig,
+    AddonEnablement,
+    LayoutState,
+}
+
+impl ConfigSensitiveWtfFileKindValue {
+    fn from_external(value: ExternalPackageSensitiveWtfFileKindValue) -> Self {
+        match value {
+            ExternalPackageSensitiveWtfFileKindValue::SavedVariables => Self::SavedVariables,
+            ExternalPackageSensitiveWtfFileKindValue::ChatCache => Self::ChatCache,
+            ExternalPackageSensitiveWtfFileKindValue::Macros => Self::Macros,
+            ExternalPackageSensitiveWtfFileKindValue::Bindings => Self::Bindings,
+            ExternalPackageSensitiveWtfFileKindValue::GameConfig => Self::GameConfig,
+            ExternalPackageSensitiveWtfFileKindValue::AddonEnablement => Self::AddonEnablement,
+            ExternalPackageSensitiveWtfFileKindValue::LayoutState => Self::LayoutState,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigSensitiveWtfFileSummaryResult {
+    pub kind: ConfigSensitiveWtfFileKindValue,
+    pub severity: ConfigPublicSharingSeverityValue,
+    pub count: usize,
+}
+
+impl ConfigSensitiveWtfFileSummaryResult {
+    fn from_external(value: ExternalPackageSensitiveWtfFileSummaryResult) -> Self {
+        Self {
+            kind: ConfigSensitiveWtfFileKindValue::from_external(value.kind),
+            severity: ConfigPublicSharingSeverityValue::from_external(value.severity),
+            count: value.count,
         }
     }
 }
@@ -282,6 +330,7 @@ pub struct ConfigPackageSummaryResult {
     pub wtf_warning_count: usize,
     pub warning_groups: Vec<ConfigWarningGroupResult>,
     pub wtf_scopes: Vec<ConfigWtfScopeSummaryResult>,
+    pub sensitive_wtf_files: Vec<ConfigSensitiveWtfFileSummaryResult>,
     pub source_identities: ConfigSourceIdentityResult,
     pub public_sharing: ConfigPublicSharingSummaryResult,
 }
@@ -309,6 +358,11 @@ impl ConfigPackageSummaryResult {
                 .wtf_scopes
                 .into_iter()
                 .map(ConfigWtfScopeSummaryResult::from_external)
+                .collect(),
+            sensitive_wtf_files: value
+                .sensitive_wtf_files
+                .into_iter()
+                .map(ConfigSensitiveWtfFileSummaryResult::from_external)
                 .collect(),
             source_identities: ConfigSourceIdentityResult::from_external(value.source_identities),
             public_sharing: ConfigPublicSharingSummaryResult::from_external(value.public_sharing),

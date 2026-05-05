@@ -44,6 +44,7 @@ fn format_external_package_warnings_renders_groups_and_details() {
             risk: WtfScopeRiskValue::High,
             count: 1,
         }],
+        sensitive_wtf_files: Vec::new(),
         source_identities: ExternalPackageSourceIdentityResult {
             source_accounts: Vec::new(),
             source_characters: Vec::new(),
@@ -99,6 +100,7 @@ fn format_external_package_warnings_returns_none_for_empty_warnings() {
             wtf_warning_count: 0,
             warning_groups: Vec::new(),
             wtf_scopes: Vec::new(),
+            sensitive_wtf_files: Vec::new(),
             source_identities: ExternalPackageSourceIdentityResult {
                 source_accounts: Vec::new(),
                 source_characters: Vec::new(),

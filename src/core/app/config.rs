@@ -1,6 +1,7 @@
 use crate::core::app::{
-    ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ExternalPackageService,
-    InspectConfigAppRequest, PlanConfigApplyAppRequest, TaskProgressEvent, TaskRun,
+    ConfigApplyPlanResult, ConfigApplyResult, ConfigBundleHandle, ConfigInspectionResult,
+    ExportConfigBundleAppRequest, ExternalPackageService, InspectConfigAppRequest,
+    PlanConfigApplyAppRequest, TaskProgressEvent, TaskRun,
 };
 use crate::core::error::AppResult;
 
@@ -40,6 +41,16 @@ impl ConfigService {
         self.external_packages
             .analyze_with_callbacks(request.into_external_request(), is_cancelled, on_progress)
             .map(ConfigInspectionResult::from_external)
+    }
+
+    pub(super) fn create_bundle(
+        &self,
+        request: ExportConfigBundleAppRequest,
+    ) -> AppResult<ConfigBundleHandle> {
+        let handle = self
+            .external_packages
+            .create_bundle(request.into_external_request())?;
+        Ok(ConfigBundleHandle::from_external(handle))
     }
 
     pub(super) fn plan_apply_collecting_progress(

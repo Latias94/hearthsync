@@ -39,6 +39,7 @@ pub use external_package::types::{
     ExternalPackageEntry, ExternalPackageLayout, ExternalPackagePublicSharingReason,
     ExternalPackagePublicSharingReasonCode, ExternalPackagePublicSharingSeverity,
     ExternalPackagePublicSharingStatus, ExternalPackagePublicSharingSummary,
+    ExternalPackageSensitiveWtfFileKind, ExternalPackageSensitiveWtfFileSummary,
     ExternalPackageSharingMode, ExternalPackageSourceCharacterSummary,
     ExternalPackageSourceIdentitySummary, ExternalPackageSourceKind, ExternalPackageSummary,
     ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningCode,

@@ -481,6 +481,14 @@ enough that these rules live in one place.
   Current progress: export now also supports repeated `--exclude-wtf-scope` filters. Filtering runs
   after normalization and before manifest creation, so the exported bundle, returned analysis,
   resources, and public-sharing readiness describe the same filtered artifact.
+  Current progress: public-sharing review now also has a first sensitive WTF file policy.
+  External-package and config summaries group SavedVariables, chat cache, macro cache, bindings,
+  game config, addon enablement, and layout state files by severity; public-sharing reasons now
+  include review-required sensitive WTF files plus advisory WTF state files.
+  Current progress: config export now owns its app boundary. `ExportConfigBundleAppRequest`,
+  `ConfigBundleResult`, and `StableAppServices::export_config` keep config callers on config-owned
+  request/result shapes while reusing the external-package bundle engine internally. Regression
+  coverage now exports a config bundle and applies that archive through the first-party bundle path.
   Current progress: external-package warning taxonomy no longer carries the unreachable
   `unsupported_wtf_root_savedvariables` code; root `WTF/Account/SavedVariables/<file>` entries are
   recognized as supported common root saved variables, while the remaining warning codes now map to

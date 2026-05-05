@@ -32,6 +32,16 @@ fn analyze_external_package_zip_normalizes_wrapped_ui_layout() {
     assert_eq!(analysis.summary.warning_count, 0);
     assert!(analysis.summary.warning_groups.is_empty());
     assert!(analysis.warnings.is_empty());
+    assert!(analysis.summary.sensitive_wtf_files.iter().any(|file| {
+        file.kind == ExternalPackageSensitiveWtfFileKind::SavedVariables
+            && file.severity == ExternalPackagePublicSharingSeverity::ReviewRequired
+            && file.count == 2
+    }));
+    assert!(analysis.summary.sensitive_wtf_files.iter().any(|file| {
+        file.kind == ExternalPackageSensitiveWtfFileKind::Bindings
+            && file.severity == ExternalPackagePublicSharingSeverity::Advisory
+            && file.count == 1
+    }));
 
     let normalized_paths = analysis
         .entries

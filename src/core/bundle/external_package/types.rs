@@ -193,12 +193,47 @@ pub enum ExternalPackagePublicSharingSeverity {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum ExternalPackageSensitiveWtfFileKind {
+    SavedVariables,
+    ChatCache,
+    Macros,
+    Bindings,
+    GameConfig,
+    AddonEnablement,
+    LayoutState,
+}
+
+impl ExternalPackageSensitiveWtfFileKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::SavedVariables => "saved_variables",
+            Self::ChatCache => "chat_cache",
+            Self::Macros => "macros",
+            Self::Bindings => "bindings",
+            Self::GameConfig => "game_config",
+            Self::AddonEnablement => "addon_enablement",
+            Self::LayoutState => "layout_state",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct ExternalPackageSensitiveWtfFileSummary {
+    pub kind: ExternalPackageSensitiveWtfFileKind,
+    pub severity: ExternalPackagePublicSharingSeverity,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExternalPackagePublicSharingReasonCode {
     NormalizationWarnings,
     HighRiskWtfScope,
     MediumRiskWtfScope,
     LowRiskWtfScope,
     UnknownRiskWtfScope,
+    SensitiveWtfFile,
+    AdvisoryWtfFile,
     SourceAccountIdentity,
     SourceCharacterIdentity,
 }
@@ -211,6 +246,8 @@ impl ExternalPackagePublicSharingReasonCode {
             Self::MediumRiskWtfScope => "medium_risk_wtf_scope",
             Self::LowRiskWtfScope => "low_risk_wtf_scope",
             Self::UnknownRiskWtfScope => "unknown_risk_wtf_scope",
+            Self::SensitiveWtfFile => "sensitive_wtf_file",
+            Self::AdvisoryWtfFile => "advisory_wtf_file",
             Self::SourceAccountIdentity => "source_account_identity",
             Self::SourceCharacterIdentity => "source_character_identity",
         }
@@ -300,6 +337,7 @@ pub struct ExternalPackageSummary {
     pub wtf_warning_count: usize,
     pub warning_groups: Vec<ExternalPackageWarningGroup>,
     pub wtf_scopes: Vec<ExternalPackageWtfScopeSummary>,
+    pub sensitive_wtf_files: Vec<ExternalPackageSensitiveWtfFileSummary>,
     pub source_identities: ExternalPackageSourceIdentitySummary,
     pub public_sharing: ExternalPackagePublicSharingSummary,
 }

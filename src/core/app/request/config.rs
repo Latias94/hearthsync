@@ -11,6 +11,7 @@ use crate::core::app::request::external_package::{
 use crate::core::app::{
     AppRuntime, BundleApplyDefaultsValue, BundleApplyMappingsValue, ExternalPackageLayoutValue,
     ExternalPackageSharingModeValue, HostPlatformValue, ResolvedInstallationValue, WowFlavorValue,
+    WtfScopeValue,
 };
 
 #[derive(Debug, Clone)]
@@ -73,6 +74,37 @@ impl ConfigPackageAppRequest {
             allow_public_sharing_risks: false,
             excluded_wtf_scopes: Vec::new(),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportConfigBundleAppRequest {
+    pub config_package: ConfigPackageAppRequest,
+    pub sharing_mode: ExternalPackageSharingModeValue,
+    pub allow_public_sharing_risks: bool,
+    pub excluded_wtf_scopes: Vec<WtfScopeValue>,
+}
+
+impl RuntimeDefaultableRequest for ExportConfigBundleAppRequest {
+    fn apply_runtime_defaults(mut self, runtime: &AppRuntime) -> Self {
+        self.config_package = self.config_package.apply_runtime_defaults(runtime);
+        self
+    }
+}
+
+impl ExportConfigBundleAppRequest {
+    pub(crate) fn into_external_request(self) -> CreateExternalPackageBundleAppRequest {
+        let Self {
+            config_package,
+            sharing_mode,
+            allow_public_sharing_risks,
+            excluded_wtf_scopes,
+        } = self;
+        let mut request = config_package.into_external_request();
+        request.sharing_mode = sharing_mode;
+        request.allow_public_sharing_risks = allow_public_sharing_risks;
+        request.excluded_wtf_scopes = excluded_wtf_scopes;
+        request
     }
 }
 

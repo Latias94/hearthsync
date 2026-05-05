@@ -10,6 +10,8 @@ use crate::core::bundle::{
     ExternalPackagePublicSharingSeverity as DomainExternalPackagePublicSharingSeverity,
     ExternalPackagePublicSharingStatus as DomainExternalPackagePublicSharingStatus,
     ExternalPackagePublicSharingSummary as DomainExternalPackagePublicSharingSummary,
+    ExternalPackageSensitiveWtfFileKind as DomainExternalPackageSensitiveWtfFileKind,
+    ExternalPackageSensitiveWtfFileSummary as DomainExternalPackageSensitiveWtfFileSummary,
     ExternalPackageSourceCharacterSummary as DomainExternalPackageSourceCharacterSummary,
     ExternalPackageSourceIdentitySummary as DomainExternalPackageSourceIdentitySummary,
     ExternalPackageSummary as DomainExternalPackageSummary,
@@ -115,6 +117,8 @@ pub enum ExternalPackagePublicSharingReasonCodeValue {
     MediumRiskWtfScope,
     LowRiskWtfScope,
     UnknownRiskWtfScope,
+    SensitiveWtfFile,
+    AdvisoryWtfFile,
     SourceAccountIdentity,
     SourceCharacterIdentity,
 }
@@ -135,12 +139,59 @@ impl ExternalPackagePublicSharingReasonCodeValue {
             DomainExternalPackagePublicSharingReasonCode::UnknownRiskWtfScope => {
                 Self::UnknownRiskWtfScope
             }
+            DomainExternalPackagePublicSharingReasonCode::SensitiveWtfFile => {
+                Self::SensitiveWtfFile
+            }
+            DomainExternalPackagePublicSharingReasonCode::AdvisoryWtfFile => Self::AdvisoryWtfFile,
             DomainExternalPackagePublicSharingReasonCode::SourceAccountIdentity => {
                 Self::SourceAccountIdentity
             }
             DomainExternalPackagePublicSharingReasonCode::SourceCharacterIdentity => {
                 Self::SourceCharacterIdentity
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalPackageSensitiveWtfFileKindValue {
+    SavedVariables,
+    ChatCache,
+    Macros,
+    Bindings,
+    GameConfig,
+    AddonEnablement,
+    LayoutState,
+}
+
+impl ExternalPackageSensitiveWtfFileKindValue {
+    pub(crate) fn from_domain(value: DomainExternalPackageSensitiveWtfFileKind) -> Self {
+        match value {
+            DomainExternalPackageSensitiveWtfFileKind::SavedVariables => Self::SavedVariables,
+            DomainExternalPackageSensitiveWtfFileKind::ChatCache => Self::ChatCache,
+            DomainExternalPackageSensitiveWtfFileKind::Macros => Self::Macros,
+            DomainExternalPackageSensitiveWtfFileKind::Bindings => Self::Bindings,
+            DomainExternalPackageSensitiveWtfFileKind::GameConfig => Self::GameConfig,
+            DomainExternalPackageSensitiveWtfFileKind::AddonEnablement => Self::AddonEnablement,
+            DomainExternalPackageSensitiveWtfFileKind::LayoutState => Self::LayoutState,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExternalPackageSensitiveWtfFileSummaryResult {
+    pub kind: ExternalPackageSensitiveWtfFileKindValue,
+    pub severity: ExternalPackagePublicSharingSeverityValue,
+    pub count: usize,
+}
+
+impl ExternalPackageSensitiveWtfFileSummaryResult {
+    pub(crate) fn from_domain(value: DomainExternalPackageSensitiveWtfFileSummary) -> Self {
+        Self {
+            kind: ExternalPackageSensitiveWtfFileKindValue::from_domain(value.kind),
+            severity: ExternalPackagePublicSharingSeverityValue::from_domain(value.severity),
+            count: value.count,
         }
     }
 }
@@ -244,6 +295,7 @@ pub struct ExternalPackageSummaryResult {
     pub wtf_warning_count: usize,
     pub warning_groups: Vec<ExternalPackageWarningGroupResult>,
     pub wtf_scopes: Vec<ExternalPackageWtfScopeSummaryResult>,
+    pub sensitive_wtf_files: Vec<ExternalPackageSensitiveWtfFileSummaryResult>,
     pub source_identities: ExternalPackageSourceIdentityResult,
     pub public_sharing: ExternalPackagePublicSharingSummaryResult,
 }
@@ -269,6 +321,10 @@ impl ExternalPackageSummaryResult {
             wtf_scopes: map_owned_vec(
                 value.wtf_scopes,
                 ExternalPackageWtfScopeSummaryResult::from_domain,
+            ),
+            sensitive_wtf_files: map_owned_vec(
+                value.sensitive_wtf_files,
+                ExternalPackageSensitiveWtfFileSummaryResult::from_domain,
             ),
             source_identities: ExternalPackageSourceIdentityResult::from_domain(
                 value.source_identities,

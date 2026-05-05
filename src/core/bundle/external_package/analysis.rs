@@ -3,14 +3,15 @@ use std::path::{Path, PathBuf};
 
 use super::super::shared::path::safe_file_part;
 use super::super::types::apply::ApplyGroup;
+use super::sensitive_wtf::summarize_sensitive_wtf_files;
 use super::types::{
     ExternalPackageAnalysis, ExternalPackageEntry, ExternalPackageLayout,
     ExternalPackagePublicSharingReason, ExternalPackagePublicSharingReasonCode,
     ExternalPackagePublicSharingSeverity, ExternalPackagePublicSharingStatus,
-    ExternalPackagePublicSharingSummary, ExternalPackageSourceCharacterSummary,
-    ExternalPackageSourceIdentitySummary, ExternalPackageSourceKind, ExternalPackageSummary,
-    ExternalPackageWarning, ExternalPackageWarningCategory, ExternalPackageWarningGroup,
-    ExternalPackageWtfScopeSummary,
+    ExternalPackagePublicSharingSummary, ExternalPackageSensitiveWtfFileSummary,
+    ExternalPackageSourceCharacterSummary, ExternalPackageSourceIdentitySummary,
+    ExternalPackageSourceKind, ExternalPackageSummary, ExternalPackageWarning,
+    ExternalPackageWarningCategory, ExternalPackageWarningGroup, ExternalPackageWtfScopeSummary,
 };
 use crate::core::bundle::types::apply::WtfScopeRisk;
 use crate::core::manifest::{BundleResources, CharacterResource};
@@ -98,8 +99,13 @@ fn build_summary(
         entries_with_source_account,
         entries_with_source_character,
     };
-    let public_sharing =
-        build_public_sharing_summary(warnings.len(), &wtf_scopes, &source_identities);
+    let sensitive_wtf_files = summarize_sensitive_wtf_files(entries);
+    let public_sharing = build_public_sharing_summary(
+        warnings.len(),
+        &wtf_scopes,
+        &sensitive_wtf_files,
+        &source_identities,
+    );
 
     let mut summary = ExternalPackageSummary {
         total_files,
@@ -123,6 +129,7 @@ fn build_summary(
             })
             .collect(),
         wtf_scopes,
+        sensitive_wtf_files,
         source_identities,
         public_sharing,
         ..ExternalPackageSummary::default()
@@ -145,6 +152,7 @@ fn build_summary(
 fn build_public_sharing_summary(
     warning_count: usize,
     wtf_scopes: &[ExternalPackageWtfScopeSummary],
+    sensitive_wtf_files: &[ExternalPackageSensitiveWtfFileSummary],
     source_identities: &ExternalPackageSourceIdentitySummary,
 ) -> ExternalPackagePublicSharingSummary {
     let mut reasons = Vec::new();
@@ -183,6 +191,26 @@ fn build_public_sharing_summary(
         ExternalPackagePublicSharingReasonCode::LowRiskWtfScope,
         count_wtf_risk(wtf_scopes, WtfScopeRisk::Low),
         "package contains cache-like WTF data; it is low risk but still worth reviewing",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ExternalPackagePublicSharingReasonCode::SensitiveWtfFile,
+        count_sensitive_wtf_file_severity(
+            sensitive_wtf_files,
+            ExternalPackagePublicSharingSeverity::ReviewRequired,
+        ),
+        "package contains WTF files known to carry private addon state, chat history, macros, or SavedVariables",
+    );
+    push_reason(
+        &mut reasons,
+        ExternalPackagePublicSharingSeverity::Advisory,
+        ExternalPackagePublicSharingReasonCode::AdvisoryWtfFile,
+        count_sensitive_wtf_file_severity(
+            sensitive_wtf_files,
+            ExternalPackagePublicSharingSeverity::Advisory,
+        ),
+        "package contains WTF state files that are usually shareable only after review",
     );
     push_reason(
         &mut reasons,
@@ -229,6 +257,17 @@ fn count_wtf_risk(wtf_scopes: &[ExternalPackageWtfScopeSummary], risk: WtfScopeR
         .iter()
         .filter(|scope| scope.risk == risk)
         .map(|scope| scope.count)
+        .sum()
+}
+
+fn count_sensitive_wtf_file_severity(
+    summaries: &[ExternalPackageSensitiveWtfFileSummary],
+    severity: ExternalPackagePublicSharingSeverity,
+) -> usize {
+    summaries
+        .iter()
+        .filter(|summary| summary.severity == severity)
+        .map(|summary| summary.count)
         .sum()
 }
 

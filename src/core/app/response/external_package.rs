@@ -11,7 +11,8 @@ pub use entry::ExternalPackageEntryResult;
 pub use warning::{
     ExternalPackagePublicSharingReasonCodeValue, ExternalPackagePublicSharingReasonResult,
     ExternalPackagePublicSharingSeverityValue, ExternalPackagePublicSharingStatusValue,
-    ExternalPackagePublicSharingSummaryResult, ExternalPackageSourceCharacterResult,
+    ExternalPackagePublicSharingSummaryResult, ExternalPackageSensitiveWtfFileKindValue,
+    ExternalPackageSensitiveWtfFileSummaryResult, ExternalPackageSourceCharacterResult,
     ExternalPackageSourceIdentityResult, ExternalPackageSummaryResult,
     ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
     ExternalPackageWtfScopeSummaryResult,

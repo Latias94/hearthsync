@@ -8,6 +8,7 @@ mod normalized;
 pub(in crate::core::bundle) mod plan;
 mod prepare;
 mod projection;
+mod sensitive_wtf;
 mod source;
 mod source_entry;
 pub(in crate::core::bundle) mod tasks;

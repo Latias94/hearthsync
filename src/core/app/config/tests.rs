@@ -5,11 +5,13 @@ use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AppRuntime, ApplyConfigAppRequest, BundleApplyMappingsValue, ConfigPackageAppRequest,
-    ConfigPublicSharingReasonCodeValue, ConfigPublicSharingSeverityValue,
-    ConfigPublicSharingStatusValue, ConfigService, ExternalPackageService, HostPlatformValue,
-    InspectConfigAppRequest, PlanConfigApplyAppRequest, ResolvedInstallationValue,
-    ResourceApplyPolicyValue, WowFlavorValue, WtfScopeRiskValue, WtfScopeValue,
+    AppRuntime, ApplyBundleAppRequest, ApplyConfigAppRequest, BundleApplyMappingsValue,
+    ConfigPackageAppRequest, ConfigPublicSharingReasonCodeValue, ConfigPublicSharingSeverityValue,
+    ConfigPublicSharingStatusValue, ConfigSensitiveWtfFileKindValue, ConfigService,
+    ExportConfigBundleAppRequest, ExternalPackageService, ExternalPackageSharingModeValue,
+    HostPlatformValue, InspectConfigAppRequest, PlanBundleApplyRequest, PlanConfigApplyAppRequest,
+    ResolvedInstallationValue, ResourceApplyPolicyValue, StableAppServices, WowFlavorValue,
+    WtfScopeRiskValue, WtfScopeValue,
 };
 use crate::core::install::{HostPlatform, WowFlavor};
 use crate::core::task::{TaskKind, TaskPhase};
@@ -153,6 +155,28 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
         plan.inspection.summary.source_identities.source_accounts,
         vec!["ACCOUNT"]
     );
+    assert!(
+        plan.inspection
+            .summary
+            .sensitive_wtf_files
+            .iter()
+            .any(
+                |file| file.kind == ConfigSensitiveWtfFileKindValue::SavedVariables
+                    && file.severity == ConfigPublicSharingSeverityValue::ReviewRequired
+                    && file.count == 2
+            )
+    );
+    assert!(
+        plan.inspection
+            .summary
+            .sensitive_wtf_files
+            .iter()
+            .any(
+                |file| file.kind == ConfigSensitiveWtfFileKindValue::AddonEnablement
+                    && file.severity == ConfigPublicSharingSeverityValue::Advisory
+                    && file.count == 1
+            )
+    );
     assert_eq!(
         plan.inspection
             .summary
@@ -168,8 +192,9 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
     assert!(!plan.inspection.summary.public_sharing.public_ready);
     assert_eq!(
         plan.inspection.summary.public_sharing.review_required_count,
-        4
+        5
     );
+    assert_eq!(plan.inspection.summary.public_sharing.advisory_count, 1);
     assert!(
         plan.inspection
             .summary
@@ -191,6 +216,18 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .any(
                 |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
                     && reason.code == ConfigPublicSharingReasonCodeValue::SourceCharacterIdentity
+                    && reason.count == 2
+            )
+    );
+    assert!(
+        plan.inspection
+            .summary
+            .public_sharing
+            .reasons
+            .iter()
+            .any(
+                |reason| reason.severity == ConfigPublicSharingSeverityValue::ReviewRequired
+                    && reason.code == ConfigPublicSharingReasonCodeValue::SensitiveWtfFile
                     && reason.count == 2
             )
     );
@@ -274,6 +311,114 @@ fn config_service_plans_and_applies_shareable_package_with_mapping_backup_and_re
             .join("old.blp")
             .exists()
     );
+}
+
+#[test]
+fn stable_app_exports_config_bundle_and_applies_exported_bundle() {
+    let source = tempdir().expect("source temp dir");
+    let target = tempdir().expect("target temp dir");
+    let backup = tempdir().expect("backup temp dir");
+    let export = tempdir().expect("export temp dir");
+    let package_root = create_shareable_config_source(source.path());
+    let installation = create_empty_installation_on_platform(target.path(), HostPlatform::MacOs);
+    seed_config_target(&installation);
+
+    let app = StableAppServices::new();
+    let export_path = export.path().join("shareable-ui.hearthsync.zip");
+    let mut config_package = sample_shareable_config_package(package_root);
+    config_package.output_path = Some(export_path.clone());
+
+    let exported = app
+        .export_config(ExportConfigBundleAppRequest {
+            config_package,
+            sharing_mode: ExternalPackageSharingModeValue::Private,
+            allow_public_sharing_risks: false,
+            excluded_wtf_scopes: Vec::new(),
+        })
+        .expect("export config bundle");
+    let exported = exported.as_ref().clone();
+
+    assert_eq!(exported.bundle.archive_path, export_path);
+    assert!(exported.bundle.archive_path.is_file());
+    assert_eq!(exported.manifest.package.name, "Shareable UI");
+    assert!(
+        exported
+            .inspection
+            .summary
+            .sensitive_wtf_files
+            .iter()
+            .any(
+                |file| file.kind == ConfigSensitiveWtfFileKindValue::SavedVariables
+                    && file.count == 2
+            )
+    );
+
+    let mappings = BundleApplyMappingsValue {
+        target_account: Some("TARGETACC".to_string()),
+        target_server: Some("Stormrage".to_string()),
+        target_character: Some("Targetmage".to_string()),
+        ..BundleApplyMappingsValue::default()
+    };
+    let plan = app
+        .plan_bundle_apply(PlanBundleApplyRequest {
+            bundle_path: export_path.clone(),
+            installation: installation.clone(),
+            apply_mappings: mappings.clone(),
+        })
+        .expect("plan exported bundle apply");
+
+    assert!(plan.summary.files_to_add > 0);
+    assert!(plan.summary.paths_to_remove >= 3);
+
+    let applied = app
+        .apply_bundle(ApplyBundleAppRequest {
+            bundle_path: export_path,
+            installation: installation.clone(),
+            dry_run: false,
+            backup_output_path: Some(backup.path().to_path_buf()),
+            apply_mappings: mappings,
+        })
+        .expect("apply exported bundle")
+        .result;
+
+    assert!(!applied.dry_run);
+    assert!(applied.backup_path.is_some());
+    assert!(applied.written_files > 0);
+    assert!(applied.rewritten_files >= 2);
+    assert!(
+        installation
+            .addon_dir
+            .join("WeakAuras")
+            .join("WeakAuras.toc")
+            .exists()
+    );
+    assert_eq!(
+        fs::read_to_string(installation.wtf_dir.join("Config.wtf")).expect("target config"),
+        "SET locale zhCN"
+    );
+    let common_lua = fs::read_to_string(
+        installation
+            .wtf_dir
+            .join("Account")
+            .join("TARGETACC")
+            .join("SavedVariables")
+            .join("Details.lua"),
+    )
+    .expect("common saved variables");
+    assert!(common_lua.contains("Targetmage - Stormrage"));
+    let character_lua = fs::read_to_string(
+        installation
+            .wtf_dir
+            .join("Account")
+            .join("TARGETACC")
+            .join("Stormrage")
+            .join("Targetmage")
+            .join("SavedVariables")
+            .join("Pawn.lua"),
+    )
+    .expect("character saved variables");
+    assert!(character_lua.contains(r#""Targetmage""#));
+    assert!(character_lua.contains(r#""Stormrage""#));
 }
 
 fn sample_config_package(source_path: PathBuf) -> ConfigPackageAppRequest {

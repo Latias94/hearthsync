@@ -63,8 +63,8 @@ pub use request::bundle::{
     PackBundleAppRequest, PlanBundleAddonLockRequest, PlanBundleApplyRequest,
 };
 pub use request::config::{
-    ApplyConfigAppRequest, ConfigPackageAppRequest, InspectConfigAppRequest,
-    PlanConfigApplyAppRequest,
+    ApplyConfigAppRequest, ConfigPackageAppRequest, ExportConfigBundleAppRequest,
+    InspectConfigAppRequest, PlanConfigApplyAppRequest,
 };
 pub use request::external_package::{
     AnalyzeExternalPackageAppRequest, ApplyExternalPackageAppRequest,
@@ -111,19 +111,23 @@ pub use response::bundle::{
     GroupPolicyResult, LocalWowAccountResult, LocalWowCharacterResult,
 };
 pub use response::config::{
-    ConfigApplyPlanResult, ConfigApplyResult, ConfigInspectionResult, ConfigPackageEntryResult,
-    ConfigPackageSourceKindResult, ConfigPackageSummaryResult, ConfigPublicSharingReasonCodeValue,
+    ConfigApplyPlanResult, ConfigApplyResult, ConfigBundleHandle, ConfigBundleResult,
+    ConfigInspectionResult, ConfigPackageEntryResult, ConfigPackageSourceKindResult,
+    ConfigPackageSummaryResult, ConfigPublicSharingReasonCodeValue,
     ConfigPublicSharingReasonResult, ConfigPublicSharingSeverityValue,
-    ConfigPublicSharingStatusValue, ConfigPublicSharingSummaryResult, ConfigSourceCharacterResult,
-    ConfigSourceIdentityResult, ConfigWarningCategoryValue, ConfigWarningCodeValue,
-    ConfigWarningGroupResult, ConfigWarningResult, ConfigWtfScopeSummaryResult,
+    ConfigPublicSharingStatusValue, ConfigPublicSharingSummaryResult,
+    ConfigSensitiveWtfFileKindValue, ConfigSensitiveWtfFileSummaryResult,
+    ConfigSourceCharacterResult, ConfigSourceIdentityResult, ConfigWarningCategoryValue,
+    ConfigWarningCodeValue, ConfigWarningGroupResult, ConfigWarningResult,
+    ConfigWtfScopeSummaryResult,
 };
 pub use response::external_package::{
     ExternalPackageAnalysisResult, ExternalPackageApplyPlanResult, ExternalPackageApplyResult,
     ExternalPackageBundleHandle, ExternalPackageBundleResult, ExternalPackageEntryResult,
     ExternalPackagePublicSharingReasonCodeValue, ExternalPackagePublicSharingReasonResult,
     ExternalPackagePublicSharingSeverityValue, ExternalPackagePublicSharingStatusValue,
-    ExternalPackagePublicSharingSummaryResult, ExternalPackageSourceCharacterResult,
+    ExternalPackagePublicSharingSummaryResult, ExternalPackageSensitiveWtfFileKindValue,
+    ExternalPackageSensitiveWtfFileSummaryResult, ExternalPackageSourceCharacterResult,
     ExternalPackageSourceIdentityResult, ExternalPackageSourceKindResult,
     ExternalPackageSummaryResult, ExternalPackageWarningGroupResult, ExternalPackageWarningResult,
     ExternalPackageWtfScopeSummaryResult,

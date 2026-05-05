@@ -120,6 +120,8 @@ fn format_external_reason_code(code: ExternalPackagePublicSharingReasonCodeValue
         ExternalPackagePublicSharingReasonCodeValue::UnknownRiskWtfScope => {
             "unknown_risk_wtf_scope"
         }
+        ExternalPackagePublicSharingReasonCodeValue::SensitiveWtfFile => "sensitive_wtf_file",
+        ExternalPackagePublicSharingReasonCodeValue::AdvisoryWtfFile => "advisory_wtf_file",
         ExternalPackagePublicSharingReasonCodeValue::SourceAccountIdentity => {
             "source_account_identity"
         }
@@ -136,6 +138,8 @@ fn format_config_reason_code(code: ConfigPublicSharingReasonCodeValue) -> &'stat
         ConfigPublicSharingReasonCodeValue::MediumRiskWtfScope => "medium_risk_wtf_scope",
         ConfigPublicSharingReasonCodeValue::LowRiskWtfScope => "low_risk_wtf_scope",
         ConfigPublicSharingReasonCodeValue::UnknownRiskWtfScope => "unknown_risk_wtf_scope",
+        ConfigPublicSharingReasonCodeValue::SensitiveWtfFile => "sensitive_wtf_file",
+        ConfigPublicSharingReasonCodeValue::AdvisoryWtfFile => "advisory_wtf_file",
         ConfigPublicSharingReasonCodeValue::SourceAccountIdentity => "source_account_identity",
         ConfigPublicSharingReasonCodeValue::SourceCharacterIdentity => "source_character_identity",
     }

@@ -10,7 +10,8 @@ use crate::core::app::{
     ExternalPackageAnalysisResult, ExternalPackageEntryResult, ExternalPackageLayoutValue,
     ExternalPackagePublicSharingReasonCodeValue, ExternalPackagePublicSharingReasonResult,
     ExternalPackagePublicSharingSeverityValue, ExternalPackagePublicSharingStatusValue,
-    ExternalPackagePublicSharingSummaryResult, ExternalPackageSourceCharacterResult,
+    ExternalPackagePublicSharingSummaryResult, ExternalPackageSensitiveWtfFileKindValue,
+    ExternalPackageSensitiveWtfFileSummaryResult, ExternalPackageSourceCharacterResult,
     ExternalPackageSourceIdentityResult, ExternalPackageSourceKindResult,
     ExternalPackageSummaryResult, ExternalPackageWarningCategoryValue,
     ExternalPackageWarningCodeValue, ExternalPackageWarningGroupResult,
@@ -275,6 +276,11 @@ pub(super) fn sample_external_package_analysis() -> ExternalPackageAnalysisResul
                 risk: WtfScopeRiskValue::High,
                 count: 1,
             }],
+            sensitive_wtf_files: vec![ExternalPackageSensitiveWtfFileSummaryResult {
+                kind: ExternalPackageSensitiveWtfFileKindValue::SavedVariables,
+                severity: ExternalPackagePublicSharingSeverityValue::ReviewRequired,
+                count: 1,
+            }],
             source_identities: ExternalPackageSourceIdentityResult {
                 source_accounts: vec!["AccountA".to_string()],
                 source_characters: vec![ExternalPackageSourceCharacterResult {
@@ -288,7 +294,7 @@ pub(super) fn sample_external_package_analysis() -> ExternalPackageAnalysisResul
             public_sharing: ExternalPackagePublicSharingSummaryResult {
                 status: ExternalPackagePublicSharingStatusValue::ReviewRequired,
                 public_ready: false,
-                review_required_count: 4,
+                review_required_count: 5,
                 advisory_count: 0,
                 reasons: vec![
                     ExternalPackagePublicSharingReasonResult {
@@ -302,6 +308,12 @@ pub(super) fn sample_external_package_analysis() -> ExternalPackageAnalysisResul
                         code: ExternalPackagePublicSharingReasonCodeValue::HighRiskWtfScope,
                         count: 1,
                         message: "package contains high-risk WTF data".to_string(),
+                    },
+                    ExternalPackagePublicSharingReasonResult {
+                        severity: ExternalPackagePublicSharingSeverityValue::ReviewRequired,
+                        code: ExternalPackagePublicSharingReasonCodeValue::SensitiveWtfFile,
+                        count: 1,
+                        message: "package contains sensitive WTF files".to_string(),
                     },
                     ExternalPackagePublicSharingReasonResult {
                         severity: ExternalPackagePublicSharingSeverityValue::ReviewRequired,

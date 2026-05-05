@@ -322,6 +322,13 @@ impl StableAppServices {
         })
     }
 
+    pub fn export_config(
+        &self,
+        request: super::ExportConfigBundleAppRequest,
+    ) -> AppResult<super::ConfigBundleHandle> {
+        self.configs().create_bundle(request)
+    }
+
     pub fn plan_config_apply(
         &self,
         request: super::PlanConfigApplyAppRequest,

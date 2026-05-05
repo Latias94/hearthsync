@@ -5,9 +5,9 @@ use crate::core::app::{
 
 use super::shared::{
     format_bundle_characters, format_character_mapping_summary, format_discovered_accounts,
-    format_external_package_public_sharing, format_external_package_source_identities,
-    format_external_package_warnings, format_external_package_wtf_scopes, format_selected_accounts,
-    format_string_list_or_none,
+    format_external_package_public_sharing, format_external_package_sensitive_wtf_files,
+    format_external_package_source_identities, format_external_package_warnings,
+    format_external_package_wtf_scopes, format_selected_accounts, format_string_list_or_none,
 };
 
 pub(in crate::cli) fn render_external_package_analysis(
@@ -16,7 +16,7 @@ pub(in crate::cli) fn render_external_package_analysis(
     let warnings = format_external_package_warnings(&item.warnings, &item.summary);
 
     format!(
-        "Source: {}\nDetected kind: {:?}\nDetected layout: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nWTF scopes: {}\nSource identities: {}\nPublic sharing: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
+        "Source: {}\nDetected kind: {:?}\nDetected layout: {:?}\nPackage id: {}\nPackage name: {}\nFiles: {}\nNormalized files: {}\nIgnored files: {}\nAddOns: {}\nWTF common: {}\nWTF characters: {}\nWTF scopes: {}\nSensitive WTF files: {}\nSource identities: {}\nPublic sharing: {}\nFonts: {}\nInterface assets: {}\nCharacters: {}\nWarnings: {}",
         item.source_path.display(),
         item.source_kind,
         item.layout,
@@ -33,6 +33,7 @@ pub(in crate::cli) fn render_external_package_analysis(
         },
         item.resources.wtf_characters.len(),
         format_external_package_wtf_scopes(&item.summary.wtf_scopes),
+        format_external_package_sensitive_wtf_files(&item.summary.sensitive_wtf_files),
         format_external_package_source_identities(&item.summary.source_identities),
         format_external_package_public_sharing(&item.summary.public_sharing),
         if item.resources.fonts { "yes" } else { "no" },
@@ -135,12 +136,14 @@ mod tests {
         assert!(rendered.contains("Detected kind: ZipArchive"));
         assert!(rendered.contains("AddOns: WeakAuras"));
         assert!(rendered.contains("WTF scopes: account_saved_variables(high)=1"));
+        assert!(rendered.contains("Sensitive WTF files: saved_variables(review_required)=1"));
         assert!(rendered.contains("Source identities: accounts: AccountA (entries: 1)"));
         assert!(
             rendered
-                .contains("Public sharing: review_required (ready: no, review: 4, advisory: 0;")
+                .contains("Public sharing: review_required (ready: no, review: 5, advisory: 0;")
         );
         assert!(rendered.contains("review_required/high_risk_wtf_scope=1"));
+        assert!(rendered.contains("review_required/sensitive_wtf_file=1"));
         assert!(rendered.contains("Characters: AccountA/Aegwynn/Hero"));
         assert!(rendered.contains("Warnings: 1 (addon: 1, wtf: 0; groups: ["));
     }
