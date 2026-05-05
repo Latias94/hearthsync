@@ -50,17 +50,17 @@ fn resolve_external_package_layout(
         .unwrap_or_default()
         .to_ascii_lowercase();
 
-    if name.starts_with("unknown_plug-") {
-        return ExternalPackageLayout::NewBeeBoxAddon;
-    }
-    if is_newbeebox_module_cache_path(source_path) {
-        return ExternalPackageLayout::NewBeeBoxAddon;
-    }
     if name.starts_with("font-") {
         return ExternalPackageLayout::NewBeeBoxFont;
     }
     if name.starts_with("material-") {
         return ExternalPackageLayout::NewBeeBoxMaterial;
+    }
+    if name.starts_with("unknown_plug-") {
+        return ExternalPackageLayout::NewBeeBoxAddon;
+    }
+    if is_newbeebox_module_cache_path(source_path) {
+        return ExternalPackageLayout::NewBeeBoxAddon;
     }
     if name.starts_with("wtfserve-") {
         return ExternalPackageLayout::NewBeeBoxWtfAccount;

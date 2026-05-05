@@ -1226,13 +1226,18 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `cargo nextest run config_cli_exported_bundle_applies_through_bundle_cli -j 1 --no-fail-fast`
   passes with 1/1 tests.
   Current verification: `cargo nextest run config_cli -j 1 --no-fail-fast` passes with 3/3 tests.
-  Current progress: NewBeeBox module-cache addon compatibility now has both synthetic and live
-  evidence. `analyze_external_package_auto_detects_newbeebox_module_cache_addon_with_mixed_separators`
-  covers the `NewBeeBoxCache/modules/11225-7685_164-MeetingStone.zip` naming/layout shape, and a
-  read-only live `external-package inspect` of
-  `C:\Program Files\NewBeeBox\NewBeeBoxCache\modules\11225-7685_164-MeetingStone.zip` defaults to
-  `newbeebox_addon`, normalizes 408/408 entries, reports 0 warnings, and maps
-  `MeetingStone\addon_version.txt` to `addons/MeetingStone/addon_version.txt`.
+  Current progress: NewBeeBox module-cache compatibility now has both synthetic and live evidence
+  for addon and resource-package shapes.
+  `analyze_external_package_auto_detects_newbeebox_module_cache_addon_with_mixed_separators` covers
+  the `NewBeeBoxCache/modules/11225-7685_164-MeetingStone.zip` naming/layout shape, and the latest
+  read-only summary records real cached addon packages for MeetingStone, BigWigs Dragonflight,
+  HandyNotes TheWarWithin, and NorthernSkyRaidTools with 0 warnings.
+  Current fix: real `font-*.zip` and `material-*.zip` module-cache packages were initially
+  swallowed by the generic NewBeeBox module-cache addon rule. Resource-package name detection now
+  takes precedence, with regression coverage for `font-*` and `material-*` paths under
+  `NewBeeBoxCache/modules`.
+  Current evidence: the latest read-only run records `newbeebox_font` at 9/9 normalized entries and
+  `newbeebox_material` at 22,872/22,872 normalized entries, both with 0 warnings.
   Current evidence: NewBeeBox `wowWtfCache` account and character package shapes were also checked
   read-only. A representative `wtfserve-*.zip` defaulted to `newbeebox_wtf_account`, normalized
   89/89 entries, and reported 0 warnings; a representative `wtfrole-*.zip` defaulted to
@@ -1242,8 +1247,9 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `CARGO_BUILD_JOBS=1 cargo nextest run newbeebox -j 1 --no-fail-fast` passes with 12/12 tests
   after the NewBeeBox WTF account/character apply and rollback additions.
   Current verification:
-  `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passes with 101/101
-  tests after the NewBeeBox module-cache auto-detection and WTF apply/rollback coverage.
+  `CARGO_BUILD_JOBS=1 cargo nextest run external_package -j 1 --no-fail-fast` passes with 103/103
+  tests after the NewBeeBox module-cache addon/resource auto-detection and WTF apply/rollback
+  coverage.
   Current progress: malformed Lua SavedVariables behavior now has explicit byte-level regression
   coverage. Incomplete `profileKeys` tables fail closed without broad fallback replacement, and
   incomplete identity-key containers do not rewrite keys while explicit allowlisted identity fields
@@ -1269,7 +1275,7 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   `cargo nextest run preview_lua_bytes_rewrite_fails_closed_on_malformed_profile_tables preview_lua_bytes_rewrite_scopes_malformed_identity_tables_to_safe_fields -j 1 --no-fail-fast`
   passes with 2/2 tests.
   Current verification: `CARGO_BUILD_JOBS=1 cargo nextest run lua_patch -j 1 --no-fail-fast`
-  passes with 46/46 tests after the malformed-Lua regressions, invalid UTF-8 DBM compact-key
+  passes with 47/47 tests after the malformed-Lua regressions, invalid UTF-8 DBM compact-key
   fixture, DBM scalar identity-table coverage, MeetingStone invalid UTF-8 search-history coverage,
   and malformed known-container fail-closed coverage.
   Current verification: after the new fixture, CLI acceptance, NewBeeBox module-cache
@@ -1277,7 +1283,7 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   audit changes,
   `cargo fmt --check`,
   `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings`, and
-  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 779/779 tests.
+  `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` pass, with nextest reporting 782/782 tests.
   Current audit: `completion-audit-2026-05-05.md` maps the shareable config MVP goal to concrete
   code, test, command, and documentation evidence. The audit now marks the shareable config package
   MVP complete while explicitly carrying broad desktop-facing compatibility claims as a follow-up

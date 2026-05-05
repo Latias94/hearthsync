@@ -278,6 +278,27 @@ foreach ($module in Get-ModuleSamples `
         -Arguments @('external-package', 'inspect', '--source', $module.FullName)
 }
 
+$modulesRoot = Join-Path $NewBeeBoxCacheRoot 'modules'
+$fontPackage = Get-FirstFile -Root $modulesRoot -Filter 'font-*.zip'
+if ($null -ne $fontPackage) {
+    Add-InspectionCase `
+        -Cases $cases `
+        -Id 'newbeebox-font-package' `
+        -Probe 'external-package.inspect' `
+        -SourceLabel "<newbeebox-module-cache>/$($fontPackage.Name)" `
+        -Arguments @('external-package', 'inspect', '--source', $fontPackage.FullName)
+}
+
+$materialPackage = Get-FirstFile -Root $modulesRoot -Filter 'material-*.zip'
+if ($null -ne $materialPackage) {
+    Add-InspectionCase `
+        -Cases $cases `
+        -Id 'newbeebox-material-package' `
+        -Probe 'external-package.inspect' `
+        -SourceLabel "<newbeebox-module-cache>/$($materialPackage.Name)" `
+        -Arguments @('external-package', 'inspect', '--source', $materialPackage.FullName)
+}
+
 foreach ($source in $ExternalPackageSources) {
     if (-not (Test-Path -LiteralPath $source)) {
         Write-Warning "External package source not found: $source"

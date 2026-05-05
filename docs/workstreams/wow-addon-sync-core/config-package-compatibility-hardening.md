@@ -42,7 +42,7 @@ are inspected as generic external-package inputs and summarized with the same pr
 ## Current Compatibility Matrix
 
 Latest local read-only run:
-`target/research/config-package-compatibility-readonly-20260505-172722/compatibility-readonly-summary.md`
+`target/research/config-package-compatibility-readonly-20260505-174852/compatibility-readonly-summary.md`
 
 | Source family | Probe | Evidence | Result | Notes |
 | --- | --- | --- | --- | --- |
@@ -51,6 +51,8 @@ Latest local read-only run:
 | NewBeeBox module cache: BigWigs Dragonflight | `external-package inspect` | `newbeebox_addon`, 91/91 normalized, 0 warnings | Pass | Adds a second real addon family instead of relying on one module cache example. |
 | NewBeeBox module cache: HandyNotes TheWarWithin | `external-package inspect` | `newbeebox_addon`, 162/162 normalized, 0 warnings | Pass | Covers addon names with underscores and expansion-specific plugin layout. |
 | NewBeeBox module cache: NorthernSkyRaidTools | `external-package inspect` | `newbeebox_addon`, 289/289 normalized, 0 warnings | Pass | Covers another real module cache family. |
+| NewBeeBox module cache: font package | `external-package inspect` | `newbeebox_font`, 9/9 normalized, 0 warnings | Pass | Real cached `font-*.zip` resource package; auto-detection must take precedence over the generic module-cache addon rule. |
+| NewBeeBox module cache: material package | `external-package inspect` | `newbeebox_material`, 22,872/22,872 normalized, 0 warnings | Pass | Real cached `material-*.zip` resource package covering a large Interface asset set. |
 | NewBeeBox account WTF cache | `external-package inspect` | `newbeebox_wtf_account`, 89/89 normalized, 0 warnings, public sharing `review_required` | Pass | Uses synthetic source-account context; no private values are emitted. |
 | NewBeeBox character WTF cache | `external-package inspect` | `newbeebox_wtf_character`, 59/59 normalized, 0 warnings, public sharing `review_required` | Pass | Uses synthetic source account/server/character context; detects one source character. |
 | Large wrapped author zip fixture | `cargo nextest run external_package` | `analyze_external_package_zip_handles_large_wrapped_author_package` | Covered by test | Synthetic regression with wrapper directory, many addon roots, WTF, fonts, interface assets, and archive noise. |

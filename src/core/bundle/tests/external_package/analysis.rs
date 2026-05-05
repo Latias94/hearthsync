@@ -595,6 +595,29 @@ fn analyze_external_package_auto_detects_newbeebox_flat_font_package() {
 }
 
 #[test]
+fn analyze_external_package_auto_detects_newbeebox_module_cache_font_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_dir = temp.path().join("NewBeeBoxCache").join("modules");
+    fs::create_dir_all(&package_dir).expect("NewBeeBox modules dir");
+    let package_path = package_dir.join("font-0fa800a722f834cd6e55938c278e5c27.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[("Fonts/FRIZQT__.TTF", "font-a"), ("ARIALN.TTF", "font-b")],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze NewBeeBox module font package");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxFont);
+    assert!(analysis.resources.fonts);
+    assert_eq!(analysis.summary.fonts, 2);
+    assert_eq!(analysis.summary.normalized_files, 2);
+    let normalized_paths = normalized_paths(&analysis);
+    assert!(normalized_paths.contains(&"fonts/FRIZQT__.TTF"));
+    assert!(normalized_paths.contains(&"fonts/ARIALN.TTF"));
+}
+
+#[test]
 fn analyze_external_package_auto_detects_newbeebox_flat_material_package() {
     let temp = tempdir().expect("temp dir");
     let package_path = temp.path().join("material-example.zip");
@@ -610,6 +633,35 @@ fn analyze_external_package_auto_detects_newbeebox_flat_material_package() {
         .expect("analyze NewBeeBox material package");
 
     assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxMaterial);
+    assert_eq!(
+        analysis.resources.interface_assets,
+        vec!["Icons".to_string(), "SimpleChatEmojis".to_string()]
+    );
+    let normalized_paths = normalized_paths(&analysis);
+    assert!(normalized_paths.contains(&"interface/Icons/icon.blp"));
+    assert!(normalized_paths.contains(&"interface/SimpleChatEmojis/Menu/arrow.tga"));
+}
+
+#[test]
+fn analyze_external_package_auto_detects_newbeebox_module_cache_material_package() {
+    let temp = tempdir().expect("temp dir");
+    let package_dir = temp.path().join("NewBeeBoxCache").join("modules");
+    fs::create_dir_all(&package_dir).expect("NewBeeBox modules dir");
+    let package_path = package_dir.join("material-3613b41981fdab61b470798e1b71e0a1.zip");
+    create_archive_with_raw_entries(
+        &package_path,
+        &[
+            ("Interface/Icons/icon.blp", "icon"),
+            ("SimpleChatEmojis/Menu\\arrow.tga", "arrow"),
+        ],
+    );
+
+    let analysis = analyze_external_package(AnalyzeExternalPackageRequest::new(package_path))
+        .expect("analyze NewBeeBox module material package");
+
+    assert_eq!(analysis.layout, ExternalPackageLayout::NewBeeBoxMaterial);
+    assert_eq!(analysis.summary.interface_assets, 2);
+    assert_eq!(analysis.summary.normalized_files, 2);
     assert_eq!(
         analysis.resources.interface_assets,
         vec!["Icons".to_string(), "SimpleChatEmojis".to_string()]
