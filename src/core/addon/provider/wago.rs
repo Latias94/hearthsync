@@ -627,6 +627,28 @@ mod tests {
         assert_eq!(client.requests.borrow().len(), 3);
     }
 
+    #[test]
+    fn resolve_wago_artifact_rejects_invalid_download_url_contract() {
+        let invalid_release = r#"{"id":"badurl1","size":1024,"label":"badurl1","stability":"stable","created_at":"2026-05-01T00:00:00Z","is_processed":true,"supported_retail_patches":["12.0.5"],"download_link":"ftp://addons.wago.io/download/badurl1"}"#.to_string();
+        let client = WagoPageHttpClient::new(vec![wago_release_page_html(&[invalid_release])]);
+
+        let error = resolve_wago_artifact_with_client(
+            &client,
+            "qv63A7Gb",
+            None,
+            Some(WowFlavor::Retail),
+            AddonSourceResolutionPolicy::default(),
+        )
+        .expect_err("invalid Wago download URL should fail");
+
+        assert!(matches!(error, AppError::Validation(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("download URL must start with `http://` or `https://`")
+        );
+    }
+
     fn wago_release_page_html(releases: &[String]) -> String {
         let json = format!(
             r#"{{"component":"Addon/Releases","props":{{"releases":{{"current_page":1,"last_page":1,"data":[{}]}}}}}}"#,

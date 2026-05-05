@@ -189,3 +189,37 @@ fn addon_service_install_rejects_relative_runtime_base_for_relative_archives() {
     assert!(matches!(error, AppError::Validation(_)));
     assert!(error.to_string().contains("base must be absolute"));
 }
+
+#[test]
+fn addon_service_install_rejects_invalid_provider_source_before_mutating_installation() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_empty_installation(temp.path());
+    let addon_dir = installation.addon_dir.clone();
+    let service = AddonService::with_runtime(
+        AppRuntime::builder()
+            .with_addon_state_storage_kind(crate::core::addon::AddonStateStorageKind::Sidecar)
+            .build()
+            .expect("runtime"),
+    );
+
+    let error = service
+        .install(InstallAddonAppRequest {
+            installation,
+            source: "github:owner/repo#".to_string(),
+            dry_run: true,
+            backup_output_path: Some(temp.path().join("backups")),
+            replace_existing: true,
+            metadata: None,
+        })
+        .expect_err("invalid provider source should fail before install mutation");
+
+    assert!(matches!(error, AppError::Validation(_)));
+    assert!(error.to_string().contains("GitHub source must look like"));
+    assert!(
+        fs::read_dir(&addon_dir)
+            .expect("addon dir entries")
+            .next()
+            .is_none()
+    );
+    assert!(!addon_dir.join(".hearthsync").exists());
+}

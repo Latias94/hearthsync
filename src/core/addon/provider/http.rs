@@ -4,15 +4,18 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use reqwest::blocking::Client;
+use reqwest::header::ACCEPT_ENCODING;
 
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
 
-const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const DOWNLOAD_BUFFER_SIZE: usize = 64 * 1024;
 const DOWNLOAD_PROGRESS_MIN_INTERVAL: Duration = Duration::from_millis(200);
 const DOWNLOAD_PROGRESS_MIN_BYTES_DELTA: u64 = 256 * 1024;
+const USER_AGENT_VALUE: &str = "hearthsync/0.1.0";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpHeader {
@@ -124,19 +127,29 @@ pub struct ReqwestHttpClient {
     client: Client,
     connect_timeout: Duration,
     request_timeout: Duration,
+    download_timeout: Duration,
 }
 
 impl ReqwestHttpClient {
     pub fn with_timeouts(connect_timeout: Duration, request_timeout: Duration) -> Self {
+        Self::with_request_and_download_timeouts(connect_timeout, request_timeout, request_timeout)
+    }
+
+    pub fn with_request_and_download_timeouts(
+        connect_timeout: Duration,
+        request_timeout: Duration,
+        download_timeout: Duration,
+    ) -> Self {
         let client = Client::builder()
             .connect_timeout(connect_timeout)
-            .timeout(request_timeout)
+            .user_agent(USER_AGENT_VALUE)
             .build()
             .expect("reqwest blocking client");
         Self {
             client,
             connect_timeout,
             request_timeout,
+            download_timeout,
         }
     }
 
@@ -147,17 +160,25 @@ impl ReqwestHttpClient {
     pub fn request_timeout(&self) -> Duration {
         self.request_timeout
     }
+
+    pub fn download_timeout(&self) -> Duration {
+        self.download_timeout
+    }
 }
 
 impl Default for ReqwestHttpClient {
     fn default() -> Self {
-        Self::with_timeouts(DEFAULT_CONNECT_TIMEOUT, DEFAULT_REQUEST_TIMEOUT)
+        Self::with_request_and_download_timeouts(
+            DEFAULT_CONNECT_TIMEOUT,
+            DEFAULT_REQUEST_TIMEOUT,
+            DEFAULT_DOWNLOAD_TIMEOUT,
+        )
     }
 }
 
 impl HttpClient for ReqwestHttpClient {
     fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
-        let mut builder = self.client.get(&request.url);
+        let mut builder = self.client.get(&request.url).timeout(self.request_timeout);
         for header in &request.headers {
             builder = builder.header(&header.name, &header.value);
         }
@@ -177,7 +198,10 @@ impl HttpClient for ReqwestHttpClient {
         observer: Option<&dyn HttpDownloadProgressObserver>,
     ) -> AppResult<HttpDownloadResponse> {
         ensure_download_not_cancelled(cancellation)?;
-        let mut builder = self.client.get(&request.url);
+        let mut builder = self.client.get(&request.url).timeout(self.download_timeout);
+        if !has_header(&request.headers, "Accept-Encoding") {
+            builder = builder.header(ACCEPT_ENCODING, "identity");
+        }
         for header in &request.headers {
             builder = builder.header(&header.name, &header.value);
         }
@@ -201,6 +225,12 @@ impl HttpClient for ReqwestHttpClient {
         write_response_to_path(&mut response, &request.destination, cancellation, observer)?;
         Ok(result)
     }
+}
+
+fn has_header(headers: &[HttpHeader], name: &str) -> bool {
+    headers
+        .iter()
+        .any(|header| header.name.eq_ignore_ascii_case(name))
 }
 
 fn write_response_to_path(
@@ -310,7 +340,29 @@ mod tests {
     fn reqwest_http_client_default_uses_bounded_timeouts() {
         let client = ReqwestHttpClient::default();
 
-        assert_eq!(client.connect_timeout(), Duration::from_secs(10));
+        assert_eq!(client.connect_timeout(), Duration::from_secs(30));
         assert_eq!(client.request_timeout(), Duration::from_secs(30));
+        assert_eq!(client.download_timeout(), Duration::from_secs(10 * 60));
+    }
+
+    #[test]
+    fn reqwest_http_client_with_timeouts_keeps_legacy_single_request_deadline() {
+        let client =
+            ReqwestHttpClient::with_timeouts(Duration::from_secs(1), Duration::from_secs(2));
+
+        assert_eq!(client.connect_timeout(), Duration::from_secs(1));
+        assert_eq!(client.request_timeout(), Duration::from_secs(2));
+        assert_eq!(client.download_timeout(), Duration::from_secs(2));
+    }
+
+    #[test]
+    fn has_header_matches_case_insensitively() {
+        let headers = vec![HttpHeader {
+            name: "accept-encoding".to_string(),
+            value: "gzip".to_string(),
+        }];
+
+        assert!(has_header(&headers, "Accept-Encoding"));
+        assert!(!has_header(&headers, "User-Agent"));
     }
 }

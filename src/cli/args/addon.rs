@@ -76,7 +76,7 @@ pub enum AddonCommands {
         name: String,
         #[arg(
             long,
-            help = "Local zip path, http(s) zip URL, github:owner/repo[@tag][#asset.zip], or curseforge:modId[@fileId] (requires HEARTHSYNC_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY)"
+            help = "Local zip path, http(s) zip URL, github:owner/repo[@tag][#asset.zip], curseforge:modId[@fileId] (requires HEARTHSYNC_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY), or wago:<project-id>[@release-id]"
         )]
         source: String,
         #[arg(long, help = "Preview the source relink without writing the registry")]
@@ -87,7 +87,7 @@ pub enum AddonCommands {
         install_target: InstallTargetArgs,
         #[arg(
             long,
-            help = "Local zip path, http(s) zip URL, github:owner/repo[@tag][#asset.zip], or curseforge:modId[@fileId] (requires HEARTHSYNC_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY)"
+            help = "Local zip path, http(s) zip URL, github:owner/repo[@tag][#asset.zip], curseforge:modId[@fileId] (requires HEARTHSYNC_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY), or wago:<project-id>[@release-id]"
         )]
         source: String,
         #[arg(long)]

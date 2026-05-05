@@ -158,3 +158,55 @@ fn parses_top_level_addon_relink() {
         _ => panic!("expected addon command"),
     }
 }
+
+#[test]
+fn parses_top_level_addon_install_with_provider_compatibility_runtime_options() {
+    let cli = Cli::parse_from([
+        "hearthsync",
+        "--addon-state-storage",
+        "sidecar",
+        "--addon-cache-dir",
+        "target/provider-cache",
+        "addon",
+        "install",
+        "--install",
+        "E:\\Games\\World of Warcraft",
+        "--flavor",
+        "retail",
+        "--source",
+        "wago:qv63A7Gb@vdx1042w",
+        "--dry-run",
+        "--replace-existing",
+    ]);
+
+    assert_eq!(
+        cli.runtime.addon_state_storage,
+        Some(AddonStateStorageArg::Sidecar)
+    );
+    assert_eq!(
+        cli.runtime.addon_cache_dir,
+        Some(PathBuf::from("target/provider-cache"))
+    );
+
+    match cli.command {
+        Commands::Addon { command } => match command {
+            AddonCommands::Install {
+                install_target,
+                source,
+                dry_run,
+                replace_existing,
+                ..
+            } => {
+                assert_eq!(
+                    install_target.install,
+                    PathBuf::from("E:\\Games\\World of Warcraft")
+                );
+                assert_eq!(source, "wago:qv63A7Gb@vdx1042w");
+                assert!(dry_run);
+                assert!(replace_existing);
+            }
+            _ => panic!("expected addon install command"),
+        },
+        _ => panic!("expected addon command"),
+    }
+}
