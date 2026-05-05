@@ -6,6 +6,7 @@ use super::super::{
     AddonIndexInspectionWarningCode, AddonIndexInspectionWarningSeverity, inspect_addon_index,
 };
 use super::{write_index, write_index_package};
+use crate::core::addon::AddonSourceRef;
 use crate::core::error::AppError;
 
 #[test]
@@ -84,6 +85,28 @@ fn inspect_addon_index_reads_packages() {
         inspection.warnings[0]
             .message
             .contains("does not declare exact identity hints")
+    );
+}
+
+#[test]
+fn inspect_addon_index_reads_wago_sources() {
+    let temp = tempdir().expect("temp dir");
+    let index_path = write_index_package(
+        temp.path(),
+        "details",
+        "Details",
+        "1.0.0",
+        r#"{ kind = "wago_addon", project_id = "qv63A7Gb", release_id = "vdx1042w" }"#,
+    );
+
+    let inspection = inspect_addon_index(&index_path).expect("inspect wago index");
+
+    assert_eq!(
+        inspection.index.packages[0].source,
+        AddonSourceRef::WagoAddon {
+            project_id: "qv63A7Gb".to_string(),
+            release_id: Some("vdx1042w".to_string()),
+        }
     );
 }
 
@@ -241,6 +264,14 @@ fn inspect_addon_index_rejects_invalid_source_refs() {
         (
             r#"{ kind = "github_release", owner = "owner", repo = "details", asset_name = "" }"#,
             "GitHub asset name",
+        ),
+        (
+            r#"{ kind = "wago_addon", project_id = "" }"#,
+            "Wago project id",
+        ),
+        (
+            r#"{ kind = "wago_addon", project_id = "qv63A7Gb", release_id = "bad/id" }"#,
+            "Wago release id",
         ),
     ] {
         let temp = tempdir().expect("temp dir");

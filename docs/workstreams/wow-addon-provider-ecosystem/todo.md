@@ -2,9 +2,9 @@
 
 ## Current Focus
 
-P6 Wago provider implementation is in progress. Wago is being added as the first new real provider
-using a typed source variant, while WoWInterface remains deferred until there is a documented public
-metadata/download API or explicit third-party manager permission.
+P6 Wago provider implementation is complete. The provider workstream should stay mostly quiet until
+there is a stable reason to add Wago catalog search, revisit WoWInterface, or design schema-v2 for
+custom provider payloads.
 
 ## Refactor Rules
 
@@ -132,6 +132,7 @@ Goal: add one new real provider only after the registry and capability seams are
 - [x] Add Wago provider contract tests beside the provider module.
 - [x] Add app-level install/projection tests; keep search disabled until Wago exposes a structured
   catalog payload.
+- [x] Add addon-index and addon-lock coverage for persisted `wago_addon` sources.
 
 Exit criteria:
 
@@ -139,3 +140,12 @@ Exit criteria:
   the old coupling.
 - Decision: implement Wago first with `project_id` plus optional `release_id` as the typed source
   identity. See `provider-research.md`.
+
+Follow-up triggers:
+
+- Add Wago catalog search only if the search payload becomes structured enough to avoid brittle
+  HTML extraction in the shared provider path.
+- Reopen WoWInterface only with a documented public metadata/download API or explicit third-party
+  addon-manager permission.
+- Reopen schema-v2 only when custom catalogs or another provider require unbounded
+  provider-defined identity fields.

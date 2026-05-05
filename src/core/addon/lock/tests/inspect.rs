@@ -1,6 +1,32 @@
 use super::*;
 
 #[test]
+fn inspect_addon_lock_reads_wago_sources() {
+    let temp = tempdir().expect("temp dir");
+    let installation = create_fixture_installation(temp.path());
+    write_lock_fixture(
+        &installation,
+        &lock_fixture_toml(
+            r#"{ kind = "wago_addon", project_id = "qv63A7Gb", release_id = "vdx1042w" }"#,
+            VALID_LOCK_SHA256,
+            r#"["Details"]"#,
+            "",
+        ),
+    );
+
+    let inspection =
+        inspect_addon_lock(&installation, &addon_state_paths(&installation)).expect("inspect lock");
+
+    assert_eq!(
+        inspection.lock.packages[0].source,
+        AddonSourceRef::WagoAddon {
+            project_id: "qv63A7Gb".to_string(),
+            release_id: Some("vdx1042w".to_string()),
+        }
+    );
+}
+
+#[test]
 fn inspect_addon_lock_rejects_invalid_source_refs() {
     for (source_toml, expected_message) in [
         (
@@ -42,6 +68,14 @@ fn inspect_addon_lock_rejects_invalid_source_refs() {
         (
             r#"{ kind = "github_release", owner = "owner", repo = "details", asset_name = "" }"#,
             "GitHub asset name",
+        ),
+        (
+            r#"{ kind = "wago_addon", project_id = "" }"#,
+            "Wago project id",
+        ),
+        (
+            r#"{ kind = "wago_addon", project_id = "qv63A7Gb", release_id = "bad/id" }"#,
+            "Wago release id",
         ),
     ] {
         let temp = tempdir().expect("temp dir");
