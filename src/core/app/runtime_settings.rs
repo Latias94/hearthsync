@@ -70,6 +70,12 @@ impl RuntimeSettingsService {
         if let Some(value) = request.http_no_validator_cache_policy {
             settings.http_no_validator_cache_policy = Some(value);
         }
+        if request.clear_addon_cache_repair_remote_policy {
+            settings.addon_cache_repair_remote_policy = None;
+        }
+        if let Some(value) = request.addon_cache_repair_remote_policy {
+            settings.addon_cache_repair_remote_policy = Some(value);
+        }
 
         let settings_file_exists = save_persisted_runtime_settings_value(&settings)?;
 
@@ -169,12 +175,22 @@ fn validate_set_runtime_settings_request(request: &SetRuntimeSettingsAppRequest)
                 .to_string(),
         ));
     }
+    if request.clear_addon_cache_repair_remote_policy
+        && request.addon_cache_repair_remote_policy.is_some()
+    {
+        return Err(AppError::Validation(
+            "cannot set and clear addon_cache_repair_remote_policy in the same settings mutation"
+                .to_string(),
+        ));
+    }
     if request.addon_state_storage.is_none()
         && !request.clear_addon_state_storage
         && request.addon_cache_dir.is_none()
         && !request.clear_addon_cache_dir
         && request.http_no_validator_cache_policy.is_none()
         && !request.clear_http_no_validator_cache_policy
+        && request.addon_cache_repair_remote_policy.is_none()
+        && !request.clear_addon_cache_repair_remote_policy
     {
         return Err(AppError::Validation(
             "settings mutation must change at least one field".to_string(),

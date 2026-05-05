@@ -15,12 +15,13 @@ use crate::core::addon::{
     MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
 };
 use crate::core::app::{
-    AddonDependencyResolutionCapabilityValue, AddonPackageMetadataValue, AddonPolicyService,
-    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonService, AdoptAddonsAppRequest,
-    AppRuntime, HttpNoValidatorCachePolicyValue, InstallAddonAppRequest,
-    InstalledAddonPackageResult, ListAddonsRequest, RelinkAddonAppRequest, RemoveAddonAppRequest,
-    ResolvedInstallationValue, SearchAddonsRequest, SetAddonPolicyAppRequest,
-    UpdateAddonAppRequest, UpdatedAddonPackageResult,
+    AddonCacheRepairRemotePolicyValue, AddonDependencyResolutionCapabilityValue,
+    AddonPackageMetadataValue, AddonPolicyService, AddonProviderOptionsValue,
+    AddonProviderRetryPolicyValue, AddonService, AdoptAddonsAppRequest, AppRuntime,
+    HttpNoValidatorCachePolicyValue, InstallAddonAppRequest, InstalledAddonPackageResult,
+    ListAddonsRequest, RelinkAddonAppRequest, RemoveAddonAppRequest, ResolvedInstallationValue,
+    SearchAddonsRequest, SetAddonPolicyAppRequest, UpdateAddonAppRequest,
+    UpdatedAddonPackageResult,
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::install::{HostPlatform, WowFlavor};

@@ -8,11 +8,11 @@ use crate::core::addon::{
     AddonStateStorageKind,
 };
 use crate::core::app::{
-    AddonDependencyResolutionCapabilityValue, AddonDependencyResolutionStrategyValue,
-    AddonManagementCapabilitiesValue, AddonPackageMetadataValue, AddonPolicyPinValue,
-    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonReleaseChannelValue,
-    AddonSourceFamilyValue, AddonStatePathsValue, AddonStateStorageValue,
-    HttpNoValidatorCachePolicyValue,
+    AddonCacheRepairRemotePolicyValue, AddonDependencyResolutionCapabilityValue,
+    AddonDependencyResolutionStrategyValue, AddonManagementCapabilitiesValue,
+    AddonPackageMetadataValue, AddonPolicyPinValue, AddonProviderOptionsValue,
+    AddonProviderRetryPolicyValue, AddonReleaseChannelValue, AddonSourceFamilyValue,
+    AddonStatePathsValue, AddonStateStorageValue, HttpNoValidatorCachePolicyValue,
 };
 
 #[test]
@@ -45,6 +45,7 @@ fn addon_provider_options_value_roundtrips_domain_shape() {
         http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
             max_age_secs: 120,
         },
+        cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
     };
 
     let domain = value.clone().into_domain().expect("provider options");
@@ -87,6 +88,18 @@ fn http_no_validator_cache_policy_value_rejects_zero_window() {
         error
             .to_string()
             .contains("HTTP no-validator cache window must be greater than zero seconds")
+    );
+}
+
+#[test]
+fn addon_cache_repair_remote_policy_value_roundtrips_domain_shape() {
+    let value = AddonCacheRepairRemotePolicyValue::RequireRemote;
+
+    let domain = value.into_domain();
+
+    assert_eq!(
+        AddonCacheRepairRemotePolicyValue::from_domain(domain),
+        value
     );
 }
 

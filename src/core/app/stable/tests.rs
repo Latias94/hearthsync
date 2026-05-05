@@ -5,13 +5,14 @@ use std::path::Path;
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppLiveTask, AppRuntime,
-    AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-    ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
-    HttpNoValidatorCachePolicyValue, InspectConfigAppRequest, InspectInstallationRequest,
-    ResolveInstallationRequest, SetRuntimeSettingsAppRequest, StableAppServices, TaskKind,
-    TaskPhase, WowFlavorValue, runtime_settings_path_guard,
+    AddonCacheRepairRemotePolicyValue, AddonManagementCapabilitiesValue, AddonProviderModeValue,
+    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonStateStorageValue, AppLiveTask,
+    AppRuntime, AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue,
+    ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HealthStatusValue,
+    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    InspectConfigAppRequest, InspectInstallationRequest, ResolveInstallationRequest,
+    SetRuntimeSettingsAppRequest, StableAppServices, TaskKind, TaskPhase, WowFlavorValue,
+    runtime_settings_path_guard,
 };
 
 #[test]
@@ -96,6 +97,7 @@ fn stable_app_services_expose_runtime_capabilities_as_app_owned_value() {
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
+                    cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
                 },
             },
             addon_source_capabilities: AppRuntime::new().capabilities().addon_source_capabilities,
@@ -269,6 +271,8 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
                 HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 300 },
             ),
             clear_http_no_validator_cache_policy: false,
+            addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyValue::LocalOnly),
+            clear_addon_cache_repair_remote_policy: false,
         })
         .expect("set settings");
     assert!(mutation.settings_file_exists);
@@ -278,6 +282,10 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
         Some(AddonStateStorageValue::Sidecar)
     );
     assert_eq!(mutation.settings.addon_cache_dir, Some(cache_dir));
+    assert_eq!(
+        mutation.settings.addon_cache_repair_remote_policy,
+        Some(AddonCacheRepairRemotePolicyValue::LocalOnly)
+    );
 
     let inspection = services
         .inspect_runtime_settings()

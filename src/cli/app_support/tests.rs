@@ -1,12 +1,12 @@
 use std::{fs, path::PathBuf};
 
 use super::build_runtime;
-use crate::cli::{AddonStateStorageArg, CliRuntimeArgs};
+use crate::cli::{AddonCacheRepairRemotePolicyArg, AddonStateStorageArg, CliRuntimeArgs};
 use crate::core::addon::AddonStateStorageKind;
 use crate::core::app::{
-    AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-    HttpNoValidatorCachePolicyValue, SetRuntimeSettingsAppRequest, StableAppServices,
-    runtime_settings_path_guard,
+    AddonCacheRepairRemotePolicyValue, AddonProviderModeValue, AddonProviderOptionsValue,
+    AddonProviderRetryPolicyValue, HttpNoValidatorCachePolicyValue, SetRuntimeSettingsAppRequest,
+    StableAppServices, runtime_settings_path_guard,
 };
 use tempfile::tempdir;
 
@@ -51,6 +51,7 @@ fn build_runtime_applies_addon_cache_overrides() {
     let runtime = build_runtime(CliRuntimeArgs {
         addon_cache_dir: Some(PathBuf::from("E:\\Cache")),
         addon_http_no_validator_window_secs: Some(120),
+        addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyArg::LocalOnly),
         ..CliRuntimeArgs::default()
     })
     .expect("build runtime");
@@ -63,6 +64,7 @@ fn build_runtime_applies_addon_cache_overrides() {
                 retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                 http_no_validator_cache_policy:
                     HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 120 },
+                cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::LocalOnly,
             },
         }
     );
@@ -145,11 +147,14 @@ fn build_runtime_applies_persisted_settings_before_cli_overrides() {
                 HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
             ),
             clear_http_no_validator_cache_policy: false,
+            addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyValue::LocalOnly),
+            clear_addon_cache_repair_remote_policy: false,
         })
         .expect("seed settings");
 
     let runtime = build_runtime(CliRuntimeArgs {
         addon_http_no_validator_always_refresh: true,
+        addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyArg::RequireRemote),
         ..CliRuntimeArgs::default()
     })
     .expect("build runtime");
@@ -165,6 +170,7 @@ fn build_runtime_applies_persisted_settings_before_cli_overrides() {
                 download_cache_dir: Some(PathBuf::from("E:\\PersistedCache")),
                 retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                 http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::AlwaysRefresh,
+                cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
             },
         }
     );

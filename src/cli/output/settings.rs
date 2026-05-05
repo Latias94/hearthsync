@@ -4,7 +4,7 @@ pub(in crate::cli) fn render_runtime_settings_inspection(
     item: &RuntimeSettingsInspectionResult,
 ) -> String {
     format!(
-        "Settings file: {}\nSettings file exists: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}",
+        "Settings file: {}\nSettings file exists: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}\nAddon cache repair remote policy: {}",
         item.settings_path.display(),
         item.settings_file_exists,
         item.settings
@@ -21,6 +21,10 @@ pub(in crate::cli) fn render_runtime_settings_inspection(
             .as_ref()
             .map(format_http_no_validator_cache_policy)
             .unwrap_or_else(|| "none".to_string()),
+        item.settings
+            .addon_cache_repair_remote_policy
+            .map(format_addon_cache_repair_remote_policy)
+            .unwrap_or("none"),
     )
 }
 
@@ -28,7 +32,7 @@ pub(in crate::cli) fn render_runtime_settings_mutation(
     item: &RuntimeSettingsMutationResult,
 ) -> String {
     format!(
-        "Settings file: {}\nSettings file exists: {}\nFile removed: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}",
+        "Settings file: {}\nSettings file exists: {}\nFile removed: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}\nAddon cache repair remote policy: {}",
         item.settings_path.display(),
         item.settings_file_exists,
         item.file_removed,
@@ -46,6 +50,10 @@ pub(in crate::cli) fn render_runtime_settings_mutation(
             .as_ref()
             .map(format_http_no_validator_cache_policy)
             .unwrap_or_else(|| "none".to_string()),
+        item.settings
+            .addon_cache_repair_remote_policy
+            .map(format_addon_cache_repair_remote_policy)
+            .unwrap_or("none"),
     )
 }
 
@@ -69,14 +77,24 @@ fn format_http_no_validator_cache_policy(
     }
 }
 
+fn format_addon_cache_repair_remote_policy(
+    value: crate::core::app::AddonCacheRepairRemotePolicyValue,
+) -> &'static str {
+    match value {
+        crate::core::app::AddonCacheRepairRemotePolicyValue::LocalOnly => "local_only",
+        crate::core::app::AddonCacheRepairRemotePolicyValue::ValidateRemote => "validate_remote",
+        crate::core::app::AddonCacheRepairRemotePolicyValue::RequireRemote => "require_remote",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::{render_runtime_settings_inspection, render_runtime_settings_mutation};
     use crate::core::app::{
-        AddonStateStorageValue, HttpNoValidatorCachePolicyValue, RuntimeSettingsInspectionResult,
-        RuntimeSettingsMutationResult, RuntimeSettingsValue,
+        AddonCacheRepairRemotePolicyValue, AddonStateStorageValue, HttpNoValidatorCachePolicyValue,
+        RuntimeSettingsInspectionResult, RuntimeSettingsMutationResult, RuntimeSettingsValue,
     };
 
     #[test]
@@ -90,6 +108,9 @@ mod tests {
                 http_no_validator_cache_policy: Some(
                     HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 120 },
                 ),
+                addon_cache_repair_remote_policy: Some(
+                    AddonCacheRepairRemotePolicyValue::RequireRemote,
+                ),
             },
         });
 
@@ -98,6 +119,7 @@ mod tests {
         assert!(rendered.contains("Addon state storage: sidecar"));
         assert!(rendered.contains("Addon cache dir: E:\\Cache"));
         assert!(rendered.contains("HTTP no-validator cache policy: reuse_within_window(120s)"));
+        assert!(rendered.contains("Addon cache repair remote policy: require_remote"));
     }
 
     #[test]
@@ -112,5 +134,6 @@ mod tests {
         assert!(rendered.contains("Settings file exists: false"));
         assert!(rendered.contains("File removed: true"));
         assert!(rendered.contains("Addon cache dir: none"));
+        assert!(rendered.contains("Addon cache repair remote policy: none"));
     }
 }

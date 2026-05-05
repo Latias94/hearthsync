@@ -14,7 +14,7 @@ use super::super::test_support::{
 use super::super::validation::RemoteArchiveValidators;
 use super::super::{AddonProviderOptions, AddonSourceRef};
 use super::*;
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
 
 #[test]
@@ -240,6 +240,7 @@ fn repair_download_cache_removes_invalid_entries_and_orphans() {
     assert_eq!(result.partial_download_count, 1);
     assert_eq!(result.remote_verified_entry_count, 0);
     assert_eq!(result.remote_refreshed_entry_count, 0);
+    assert_eq!(result.remote_skipped_entry_count, 1);
     assert_eq!(result.remote_check_failed_count, 0);
     assert_eq!(result.expired_freshness_entry_count, 0);
     assert_eq!(result.removed_file_count, 7);
@@ -284,6 +285,7 @@ fn repair_download_cache_prunes_expired_http_archives_without_validators() {
     assert_eq!(result.expired_freshness_entry_count, 1);
     assert_eq!(result.remote_verified_entry_count, 0);
     assert_eq!(result.remote_refreshed_entry_count, 0);
+    assert_eq!(result.remote_skipped_entry_count, 0);
     assert!(!archive_path.exists());
     assert!(!cached_archive_metadata_path(&archive_path).exists());
 }
@@ -337,6 +339,7 @@ fn repair_download_cache_verifies_http_archives_with_conditional_get() {
     assert_eq!(result.repaired_entry_count, 0);
     assert_eq!(result.remote_verified_entry_count, 1);
     assert_eq!(result.remote_refreshed_entry_count, 0);
+    assert_eq!(result.remote_skipped_entry_count, 0);
     assert_eq!(result.remote_check_failed_count, 0);
     assert_eq!(http_client.downloads.borrow().len(), 1);
     assert_eq!(
@@ -418,6 +421,7 @@ fn repair_download_cache_refreshes_http_archives_when_remote_changed() {
     assert_eq!(result.repaired_entry_count, 1);
     assert_eq!(result.remote_verified_entry_count, 0);
     assert_eq!(result.remote_refreshed_entry_count, 1);
+    assert_eq!(result.remote_skipped_entry_count, 0);
     assert_eq!(result.remote_check_failed_count, 0);
     assert_eq!(
         std::fs::read_to_string(&archive_path).expect("refreshed archive"),
@@ -490,6 +494,7 @@ fn repair_download_cache_refreshes_github_archives_when_remote_validators_change
     assert_eq!(result.repaired_entry_count, 1);
     assert_eq!(result.remote_verified_entry_count, 0);
     assert_eq!(result.remote_refreshed_entry_count, 1);
+    assert_eq!(result.remote_skipped_entry_count, 0);
     assert_eq!(result.remote_check_failed_count, 0);
     assert_eq!(http_client.requests.borrow().len(), 1);
     assert_eq!(http_client.downloads.borrow().len(), 1);
@@ -501,6 +506,140 @@ fn repair_download_cache_refreshes_github_archives_when_remote_validators_change
         repaired_metadata.remote_validators.sha256,
         Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string())
     );
+}
+
+#[test]
+fn repair_download_cache_local_only_policy_skips_remote_validation() {
+    #[derive(Default)]
+    struct FakeHttpClient {
+        downloads: RefCell<usize>,
+    }
+
+    impl HttpClient for FakeHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            *self.downloads.borrow_mut() += 1;
+            Ok(not_modified_download_response(Vec::new()))
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let cache_dir = temp.path().join("cache");
+    let options = AddonProviderOptions {
+        cache_repair_remote_policy: AddonCacheRepairRemotePolicy::LocalOnly,
+        ..cache_options(&cache_dir)
+    };
+    let http_client = FakeHttpClient::default();
+    let source = AddonSourceRef::HttpArchive {
+        url: "https://example.com/addon.zip".to_string(),
+    };
+    let archive_path = write_cache_entry(temp.path(), &options, &source, "addon.zip", b"archive");
+    let mut metadata = load_cached_archive_metadata_fixture(&archive_path);
+    metadata.remote_validators = RemoteArchiveValidators {
+        content_length: Some(7),
+        last_modified: Some("Wed, 23 Apr 2026 10:00:00 GMT".to_string()),
+        etag: Some("\"addon-v1\"".to_string()),
+        sha256: None,
+        sha1: None,
+        md5: None,
+    };
+    write_cached_archive_metadata_fixture(&archive_path, &metadata);
+
+    let result =
+        repair_download_cache_dir(&http_client, Some(&cache_dir), &options).expect("repair cache");
+
+    assert_eq!(
+        result.remote_policy,
+        AddonCacheRepairRemotePolicy::LocalOnly
+    );
+    assert_eq!(result.scanned_metadata_count, 1);
+    assert_eq!(result.repaired_entry_count, 0);
+    assert_eq!(result.remote_verified_entry_count, 0);
+    assert_eq!(result.remote_refreshed_entry_count, 0);
+    assert_eq!(result.remote_skipped_entry_count, 1);
+    assert_eq!(result.remote_check_failed_count, 0);
+    assert_eq!(*http_client.downloads.borrow(), 0);
+    assert_eq!(
+        std::fs::read_to_string(&archive_path).expect("cached archive"),
+        "archive"
+    );
+}
+
+#[test]
+fn repair_download_cache_require_remote_policy_fails_on_remote_check_failure() {
+    struct FailingHttpClient;
+
+    impl HttpClient for FailingHttpClient {
+        fn get(&self, _request: HttpRequest) -> AppResult<HttpResponse> {
+            panic!("get should not be called in this test")
+        }
+
+        fn download_to_path(
+            &self,
+            _request: HttpDownloadRequest,
+            _cancellation: &dyn CancellationToken,
+            _observer: Option<&dyn HttpDownloadProgressObserver>,
+        ) -> AppResult<HttpDownloadResponse> {
+            Err(AppError::Validation("remote unavailable".to_string()))
+        }
+    }
+
+    let temp = tempdir().expect("temp dir");
+    let cache_dir = temp.path().join("cache");
+    let options = AddonProviderOptions {
+        cache_repair_remote_policy: AddonCacheRepairRemotePolicy::RequireRemote,
+        ..cache_options(&cache_dir)
+    };
+    let source = AddonSourceRef::HttpArchive {
+        url: "https://example.com/addon.zip".to_string(),
+    };
+    let archive_path = write_cache_entry(temp.path(), &options, &source, "addon.zip", b"archive");
+    let mut metadata = load_cached_archive_metadata_fixture(&archive_path);
+    metadata.remote_validators = RemoteArchiveValidators {
+        content_length: Some(7),
+        last_modified: Some("Wed, 23 Apr 2026 10:00:00 GMT".to_string()),
+        etag: Some("\"addon-v1\"".to_string()),
+        sha256: None,
+        sha1: None,
+        md5: None,
+    };
+    write_cached_archive_metadata_fixture(&archive_path, &metadata);
+
+    let error = repair_download_cache_dir(&FailingHttpClient, Some(&cache_dir), &options)
+        .expect_err("required remote validation should fail");
+
+    assert!(error.to_string().contains("remote validation is required"));
+    assert!(archive_path.is_file());
+    assert!(cached_archive_metadata_path(&archive_path).is_file());
+}
+
+#[test]
+fn repair_download_cache_require_remote_policy_fails_when_remote_validation_is_skipped() {
+    let temp = tempdir().expect("temp dir");
+    let cache_dir = temp.path().join("cache");
+    let options = AddonProviderOptions {
+        cache_repair_remote_policy: AddonCacheRepairRemotePolicy::RequireRemote,
+        ..cache_options(&cache_dir)
+    };
+    let source = AddonSourceRef::HttpArchive {
+        url: "https://example.com/addon.zip".to_string(),
+    };
+    let archive_path = write_cache_entry(temp.path(), &options, &source, "addon.zip", b"archive");
+
+    let error = repair_download_cache_dir(&NoopHttpClient, Some(&cache_dir), &options)
+        .expect_err("required remote validation should fail when skipped");
+
+    assert!(error.to_string().contains("remote validation was skipped"));
+    assert!(archive_path.is_file());
+    assert!(cached_archive_metadata_path(&archive_path).is_file());
 }
 
 fn cache_options(cache_dir: &Path) -> AddonProviderOptions {

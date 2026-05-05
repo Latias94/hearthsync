@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use super::cache::{
-    AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult, HttpNoValidatorCachePolicy,
-    purge_download_cache_dir, repair_download_cache_dir,
+    AddonCacheRepairRemotePolicy, AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult,
+    HttpNoValidatorCachePolicy, purge_download_cache_dir, repair_download_cache_dir,
 };
 use super::http::{
     HttpClient, HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse,
@@ -34,6 +34,7 @@ pub struct AddonProviderOptions {
     pub download_cache_dir: Option<PathBuf>,
     pub retry_policy: AddonProviderRetryPolicy,
     pub http_no_validator_cache_policy: HttpNoValidatorCachePolicy,
+    pub cache_repair_remote_policy: AddonCacheRepairRemotePolicy,
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +77,14 @@ impl<H> DefaultAddonProvider<H> {
         http_no_validator_cache_policy: HttpNoValidatorCachePolicy,
     ) -> Self {
         self.options.http_no_validator_cache_policy = http_no_validator_cache_policy;
+        self
+    }
+
+    pub fn with_cache_repair_remote_policy(
+        mut self,
+        cache_repair_remote_policy: AddonCacheRepairRemotePolicy,
+    ) -> Self {
+        self.options.cache_repair_remote_policy = cache_repair_remote_policy;
         self
     }
 

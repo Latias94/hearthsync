@@ -5,10 +5,11 @@ use tempfile::tempdir;
 
 use crate::core::addon::{AddonStateStorageKind, DefaultAddonProvider};
 use crate::core::app::{
-    AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime, AppRuntimeCapabilitiesValue,
-    ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
-    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    AddonCacheRepairRemotePolicyValue, AddonManagementCapabilitiesValue, AddonProviderModeValue,
+    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime,
+    AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
+    ExternalHelperPolicyValue, HelperStrategyValue, HostPlatformValue,
+    HttpNoValidatorCachePolicyValue,
 };
 
 #[test]
@@ -137,6 +138,7 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
             http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
                 max_age_secs: 600,
             },
+            cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
         })
         .with_external_helper_policy(ExternalHelperPolicyValue::NativeOnly)
         .build()
@@ -151,6 +153,7 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 3 },
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
+                    cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
                 },
             },
             addon_source_capabilities: default_addon_source_capabilities(),
@@ -276,6 +279,7 @@ fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_s
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
+                    cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
                 },
             },
             addon_source_capabilities: default_addon_source_capabilities(),
@@ -395,6 +399,7 @@ fn runtime_defaults_provider_options_to_default_configured_mode() {
                 retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                 http_no_validator_cache_policy:
                     HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
+                cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
             },
         }
     );

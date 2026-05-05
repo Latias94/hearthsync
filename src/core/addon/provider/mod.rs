@@ -20,7 +20,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 pub use self::cache::{
-    AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult, HttpNoValidatorCachePolicy,
+    AddonCacheRepairRemotePolicy, AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult,
+    HttpNoValidatorCachePolicy,
 };
 pub use self::default_provider::{
     AddonProviderOptions, AddonProviderRetryPolicy, DefaultAddonProvider,

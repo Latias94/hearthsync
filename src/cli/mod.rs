@@ -36,7 +36,7 @@ pub(crate) use args::external_package::{
     ExternalPackageSourceLayoutArgs, SharingModeArg, WtfScopeArg,
 };
 pub(crate) use args::settings::SettingsCommands;
-pub(crate) use args::shared::AddonStateStorageArg;
+pub(crate) use args::shared::{AddonCacheRepairRemotePolicyArg, AddonStateStorageArg};
 pub(crate) use args::shared::{
     ApplyMappingArgs, CliRuntimeArgs, InstallTargetArgs, OptionalInstallTargetArgs,
 };

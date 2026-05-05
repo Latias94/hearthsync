@@ -4,7 +4,8 @@ use clap::{Args, ValueEnum};
 
 use crate::core::addon::AddonStateStorageKind;
 use crate::core::app::{
-    AddonReleaseChannelValue, HostPlatformValue, HttpNoValidatorCachePolicyValue, WowFlavorValue,
+    AddonCacheRepairRemotePolicyValue, AddonReleaseChannelValue, HostPlatformValue,
+    HttpNoValidatorCachePolicyValue, WowFlavorValue,
 };
 use crate::core::manifest::ResourceApplyPolicy;
 
@@ -50,6 +51,16 @@ pub enum ReleaseChannelArg {
 pub enum AddonStateStorageArg {
     AppData,
     Sidecar,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum AddonCacheRepairRemotePolicyArg {
+    #[value(name = "local-only")]
+    LocalOnly,
+    #[value(name = "validate-remote")]
+    ValidateRemote,
+    #[value(name = "require-remote")]
+    RequireRemote,
 }
 
 impl From<FlavorArg> for WowFlavorValue {
@@ -126,6 +137,13 @@ pub struct CliRuntimeArgs {
         help = "Freshness window in seconds for HTTP addon archives without reusable validators"
     )]
     pub addon_http_no_validator_window_secs: Option<u64>,
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        help = "Remote validation policy for addon cache repair"
+    )]
+    pub addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyArg>,
 }
 
 impl From<PlatformArg> for HostPlatformValue {
@@ -171,6 +189,16 @@ impl From<AddonStateStorageArg> for AddonStateStorageKind {
     }
 }
 
+impl From<AddonCacheRepairRemotePolicyArg> for AddonCacheRepairRemotePolicyValue {
+    fn from(value: AddonCacheRepairRemotePolicyArg) -> Self {
+        match value {
+            AddonCacheRepairRemotePolicyArg::LocalOnly => Self::LocalOnly,
+            AddonCacheRepairRemotePolicyArg::ValidateRemote => Self::ValidateRemote,
+            AddonCacheRepairRemotePolicyArg::RequireRemote => Self::RequireRemote,
+        }
+    }
+}
+
 impl CliRuntimeArgs {
     pub fn http_no_validator_cache_policy(&self) -> Option<HttpNoValidatorCachePolicyValue> {
         if self.addon_http_no_validator_always_refresh {
@@ -179,5 +207,9 @@ impl CliRuntimeArgs {
 
         self.addon_http_no_validator_window_secs
             .map(|max_age_secs| HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs })
+    }
+
+    pub fn cache_repair_remote_policy(&self) -> Option<AddonCacheRepairRemotePolicyValue> {
+        self.addon_cache_repair_remote_policy.map(Into::into)
     }
 }

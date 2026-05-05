@@ -4,12 +4,12 @@ use std::path::Path;
 use tempfile::tempdir;
 
 use crate::core::app::{
-    AddonManagementCapabilitiesValue, AddonProviderModeValue, AddonProviderOptionsValue,
-    AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime, AppRuntimeCapabilitiesValue,
-    ExtendedAppServices, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-    ExternalHelperPolicyValue, HealthStatusValue, HelperStrategyValue, HostPlatformValue,
-    HttpNoValidatorCachePolicyValue, InspectInstallationRequest, ResolveInstallationRequest,
-    WowFlavorValue,
+    AddonCacheRepairRemotePolicyValue, AddonManagementCapabilitiesValue, AddonProviderModeValue,
+    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime,
+    AppRuntimeCapabilitiesValue, ExtendedAppServices, ExternalHelperAvailabilityValue,
+    ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HealthStatusValue,
+    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    InspectInstallationRequest, ResolveInstallationRequest, WowFlavorValue,
 };
 
 #[test]
@@ -116,6 +116,7 @@ fn extended_app_services_exposes_runtime_capabilities_as_app_owned_value() {
                     retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
+                    cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
                 },
             },
             addon_source_capabilities: AppRuntime::new().capabilities().addon_source_capabilities,

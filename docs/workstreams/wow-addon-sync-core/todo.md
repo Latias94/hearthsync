@@ -1100,9 +1100,12 @@ Goal: keep the current reusable core model, but close the remaining product-shap
   if the final cache replacement becomes invalid after bytes were downloaded. This keeps failed
   downloads from polluting the cache and makes the failure local to the materialization attempt
   instead of relying on a later `addon cache repair`.
-  Follow-up gap: remote repair is still best-effort rather than a richer operator-configurable
-  policy surface, and future GUI work still needs a richer settings surface on top of the shared
-  backend instead of reintroducing CLI-only persistence.
+  Current hardening: remote repair policy is now explicit app/runtime state instead of an implicit
+  best-effort provider behavior. `local_only` skips all source-backed remote validation,
+  `validate_remote` keeps the existing best-effort default while reporting skipped and failed
+  entries separately, and `require_remote` fails the repair when required remote validation fails or
+  cannot be performed. CLI/runtime/settings expose the same policy so future GUI work can reuse the
+  stable app DTOs rather than reintroducing CLI-only persistence.
 - [ ] add sanitized real-world SavedVariables fixture coverage before broad desktop-facing config claims
   Current progress: `core::lua_patch` now includes first sanitized fixture-style coverage for a
   more realistic UTF-8 `Details.lua` payload with Chinese text plus a more realistic Latin-1

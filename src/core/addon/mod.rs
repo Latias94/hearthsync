@@ -28,16 +28,16 @@ pub use self::execution::{
 use self::package_prep::find_primary_toc;
 use self::provider::AddonSearchRequest as ProviderAddonSearchRequest;
 pub use self::provider::{
-    AddonDependencyResolutionCapability, AddonDependencyResolutionStrategy,
-    AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult, AddonDownloadProgressObserver,
-    AddonProvider, AddonProviderContext, AddonProviderDescriptor,
-    AddonProviderOperationCapabilities, AddonProviderOptions, AddonProviderPolicyCapabilities,
-    AddonProviderRetryPolicy, AddonProviderSourceCapability, AddonSearchProviderCatalog,
-    AddonSearchProviderFailure, AddonSearchRequest, AddonSearchResult, AddonSourceFamily,
-    AddonSourceRef, AddonSourceResolutionPolicy, AppliedAddonSourcePolicy,
-    ApplyAddonSourcePolicyRequest, DefaultAddonProvider, HttpNoValidatorCachePolicy,
-    MaterializeSourceInputRequest, MaterializeSourceRefRequest, MaterializedAddonSource,
-    ResolvedAddonDependencies,
+    AddonCacheRepairRemotePolicy, AddonDependencyResolutionCapability,
+    AddonDependencyResolutionStrategy, AddonDownloadCachePurgeResult,
+    AddonDownloadCacheRepairResult, AddonDownloadProgressObserver, AddonProvider,
+    AddonProviderContext, AddonProviderDescriptor, AddonProviderOperationCapabilities,
+    AddonProviderOptions, AddonProviderPolicyCapabilities, AddonProviderRetryPolicy,
+    AddonProviderSourceCapability, AddonSearchProviderCatalog, AddonSearchProviderFailure,
+    AddonSearchRequest, AddonSearchResult, AddonSourceFamily, AddonSourceRef,
+    AddonSourceResolutionPolicy, AppliedAddonSourcePolicy, ApplyAddonSourcePolicyRequest,
+    DefaultAddonProvider, HttpNoValidatorCachePolicy, MaterializeSourceInputRequest,
+    MaterializeSourceRefRequest, MaterializedAddonSource, ResolvedAddonDependencies,
 };
 use self::registry::registry_path;
 pub use self::relink::relink_addon;

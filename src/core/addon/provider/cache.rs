@@ -5,7 +5,7 @@ mod policy;
 mod repair;
 
 pub use self::maintenance::AddonDownloadCachePurgeResult;
-pub use self::policy::HttpNoValidatorCachePolicy;
+pub use self::policy::{AddonCacheRepairRemotePolicy, HttpNoValidatorCachePolicy};
 pub use self::repair::AddonDownloadCacheRepairResult;
 
 pub(super) use self::download::{

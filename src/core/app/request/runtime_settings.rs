@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::core::app::{AddonStateStorageValue, HttpNoValidatorCachePolicyValue};
+use crate::core::app::{
+    AddonCacheRepairRemotePolicyValue, AddonStateStorageValue, HttpNoValidatorCachePolicyValue,
+};
 
 #[derive(Debug, Clone)]
 pub struct SetRuntimeSettingsAppRequest {
@@ -10,4 +12,6 @@ pub struct SetRuntimeSettingsAppRequest {
     pub clear_addon_cache_dir: bool,
     pub http_no_validator_cache_policy: Option<HttpNoValidatorCachePolicyValue>,
     pub clear_http_no_validator_cache_policy: bool,
+    pub addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyValue>,
+    pub clear_addon_cache_repair_remote_policy: bool,
 }

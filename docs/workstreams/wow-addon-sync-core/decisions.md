@@ -2494,3 +2494,35 @@ Specifically:
   on external-package DTO shape for export.
 - End-to-end regression coverage now verifies that a config export artifact can be planned and
   applied through the first-party bundle path.
+
+## ADR-096: Addon Cache Repair Remote Policy Is Runtime State
+
+Accepted on 2026-05-05
+
+### Decision
+
+Addon cache repair must expose its remote-validation behavior as app/runtime policy instead of
+hard-coding best-effort provider behavior.
+
+Specifically:
+
+- `AddonCacheRepairRemotePolicy` has three stable modes: `local_only`, `validate_remote`, and
+  `require_remote`.
+- `validate_remote` remains the default to preserve current operator behavior: remote validation is
+  attempted where supported, failures are counted, and repair still succeeds.
+- `local_only` performs only local cache integrity cleanup and reports valid source-backed entries
+  as remote-skipped without issuing provider HTTP requests.
+- `require_remote` fails the repair when required remote validation fails or is skipped because the
+  cached entry cannot be remotely verified.
+- Runtime diagnostics, persisted runtime settings, CLI global flags, `settings set`, app DTOs, and
+  repair results all project the same policy value.
+
+### Consequences
+
+- Future GUI settings screens can present the cache repair behavior without duplicating CLI parsing
+  or provider internals.
+- Operators can choose offline-safe local cleanup, default best-effort repair, or strict CI-style
+  validation semantics.
+- Strict repairs may fail after earlier local cleanup has already removed invalid entries; that
+  partial-progress behavior is explicit and limited to local cache maintenance performed before the
+  remote validation failure.

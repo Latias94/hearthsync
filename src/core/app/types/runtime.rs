@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::addon::{
-    AddonStatePathsValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
-    HttpNoValidatorCachePolicyValue,
+    AddonCacheRepairRemotePolicyValue, AddonStatePathsValue, AddonStateStorageValue,
+    AppRuntimeCapabilitiesValue, HttpNoValidatorCachePolicyValue,
 };
 use super::install::{HostPlatformValue, ResolvedInstallationValue};
 
@@ -57,6 +57,8 @@ pub struct RuntimeSettingsValue {
     pub addon_cache_dir: Option<PathBuf>,
     #[serde(default)]
     pub http_no_validator_cache_policy: Option<HttpNoValidatorCachePolicyValue>,
+    #[serde(default)]
+    pub addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyValue>,
 }
 
 impl RuntimeSettingsValue {
@@ -64,5 +66,6 @@ impl RuntimeSettingsValue {
         self.addon_state_storage.is_none()
             && self.addon_cache_dir.is_none()
             && self.http_no_validator_cache_policy.is_none()
+            && self.addon_cache_repair_remote_policy.is_none()
     }
 }

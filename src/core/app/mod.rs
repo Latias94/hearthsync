@@ -145,12 +145,12 @@ pub(crate) use runtime_settings::load_persisted_runtime_settings_value;
 pub(crate) use runtime_settings::runtime_settings_path_guard;
 pub use stable::StableAppServices;
 pub use types::addon::{
-    AddonDependencyResolutionCapabilityValue, AddonDependencyResolutionStrategyValue,
-    AddonManagementCapabilitiesValue, AddonPackageMetadataValue, AddonPolicyPinValue,
-    AddonProviderModeValue, AddonProviderOptionsValue, AddonProviderRetryPolicyValue,
-    AddonProviderSourceCapabilityValue, AddonReleaseChannelValue, AddonSourceFamilyValue,
-    AddonStatePathsValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
-    HttpNoValidatorCachePolicyValue,
+    AddonCacheRepairRemotePolicyValue, AddonDependencyResolutionCapabilityValue,
+    AddonDependencyResolutionStrategyValue, AddonManagementCapabilitiesValue,
+    AddonPackageMetadataValue, AddonPolicyPinValue, AddonProviderModeValue,
+    AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonProviderSourceCapabilityValue,
+    AddonReleaseChannelValue, AddonSourceFamilyValue, AddonStatePathsValue, AddonStateStorageValue,
+    AppRuntimeCapabilitiesValue, HttpNoValidatorCachePolicyValue,
 };
 pub use types::backup::BackupGroupValue;
 pub use types::bundle::{

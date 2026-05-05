@@ -82,6 +82,7 @@ fn addon_service_repair_cache_projects_provider_summary() {
             http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::ReuseWithinWindow {
                 max_age_secs: 900,
             },
+            cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::LocalOnly,
         })
         .expect("runtime"),
     );
@@ -93,6 +94,10 @@ fn addon_service_repair_cache_projects_provider_summary() {
     assert_eq!(result.repaired_entry_count, 1);
     assert_eq!(result.orphan_archive_count, 1);
     assert_eq!(result.removed_file_count, 1);
+    assert_eq!(
+        result.remote_policy,
+        AddonCacheRepairRemotePolicyValue::LocalOnly
+    );
     assert!(
         !temp
             .path()

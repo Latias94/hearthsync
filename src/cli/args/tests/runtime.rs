@@ -67,6 +67,8 @@ fn parses_global_addon_cache_runtime_options() {
         "E:\\Cache",
         "--addon-http-no-validator-window-secs",
         "120",
+        "--addon-cache-repair-remote-policy",
+        "local-only",
         "runtime",
     ]);
 
@@ -75,6 +77,10 @@ fn parses_global_addon_cache_runtime_options() {
         Some(PathBuf::from("E:\\Cache"))
     );
     assert_eq!(cli.runtime.addon_http_no_validator_window_secs, Some(120));
+    assert_eq!(
+        cli.runtime.addon_cache_repair_remote_policy,
+        Some(AddonCacheRepairRemotePolicyArg::LocalOnly)
+    );
     assert!(!cli.runtime.addon_http_no_validator_always_refresh);
 }
 

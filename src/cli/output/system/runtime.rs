@@ -1,8 +1,8 @@
 use crate::core::app::{
-    AddonDependencyResolutionCapabilityValue, AddonProviderSourceCapabilityValue,
-    AddonStateStorageValue, AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue,
-    ExternalHelperAvailabilityValue, ExternalHelperPolicyValue, HelperStrategyValue,
-    HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    AddonCacheRepairRemotePolicyValue, AddonDependencyResolutionCapabilityValue,
+    AddonProviderSourceCapabilityValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
+    AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperPolicyValue,
+    HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
 };
 
 pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsValue) -> String {
@@ -210,14 +210,15 @@ fn format_addon_state_storage(value: AddonStateStorageValue) -> &'static str {
 fn format_addon_provider_mode(value: &AppRuntimeCapabilitiesValue) -> String {
     match &value.addon_provider {
         crate::core::app::AddonProviderModeValue::ConfiguredDefault { options } => format!(
-            "configured_default (cache: {}, max_attempts: {}, no_validator_http_cache: {})",
+            "configured_default (cache: {}, max_attempts: {}, no_validator_http_cache: {}, cache_repair_remote: {})",
             options
                 .download_cache_dir
                 .as_deref()
                 .map(|path| path.display().to_string())
                 .unwrap_or_else(|| "none".to_string()),
             options.retry_policy.max_attempts,
-            format_http_no_validator_cache_policy(&options.http_no_validator_cache_policy)
+            format_http_no_validator_cache_policy(&options.http_no_validator_cache_policy),
+            format_addon_cache_repair_remote_policy(options.cache_repair_remote_policy)
         ),
         crate::core::app::AddonProviderModeValue::InternalCustom => "internal_custom".to_string(),
     }
@@ -229,6 +230,16 @@ fn format_http_no_validator_cache_policy(value: &HttpNoValidatorCachePolicyValue
         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs } => {
             format!("reuse_within_window({max_age_secs}s)")
         }
+    }
+}
+
+fn format_addon_cache_repair_remote_policy(
+    value: AddonCacheRepairRemotePolicyValue,
+) -> &'static str {
+    match value {
+        AddonCacheRepairRemotePolicyValue::LocalOnly => "local_only",
+        AddonCacheRepairRemotePolicyValue::ValidateRemote => "validate_remote",
+        AddonCacheRepairRemotePolicyValue::RequireRemote => "require_remote",
     }
 }
 

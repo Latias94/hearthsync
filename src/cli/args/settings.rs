@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
-use super::shared::AddonStateStorageArg;
+use super::shared::{AddonCacheRepairRemotePolicyArg, AddonStateStorageArg};
 
 #[derive(Debug, Subcommand)]
 pub enum SettingsCommands {
@@ -32,6 +32,14 @@ pub enum SettingsCommands {
             conflicts_with_all = ["addon_http_no_validator_always_refresh", "addon_http_no_validator_window_secs"]
         )]
         clear_addon_http_no_validator_policy: bool,
+        #[arg(
+            long,
+            value_enum,
+            conflicts_with = "clear_addon_cache_repair_remote_policy"
+        )]
+        addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyArg>,
+        #[arg(long, conflicts_with = "addon_cache_repair_remote_policy")]
+        clear_addon_cache_repair_remote_policy: bool,
     },
     Reset,
 }

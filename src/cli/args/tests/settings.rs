@@ -12,6 +12,8 @@ fn parses_settings_set_command() {
         "E:\\Cache",
         "--addon-http-no-validator-window-secs",
         "120",
+        "--addon-cache-repair-remote-policy",
+        "require-remote",
     ]);
 
     match cli.command {
@@ -21,12 +23,17 @@ fn parses_settings_set_command() {
                 addon_cache_dir,
                 addon_http_no_validator_always_refresh,
                 addon_http_no_validator_window_secs,
+                addon_cache_repair_remote_policy,
                 ..
             } => {
                 assert_eq!(addon_state_storage, Some(AddonStateStorageArg::Sidecar));
                 assert_eq!(addon_cache_dir, Some(PathBuf::from("E:\\Cache")));
                 assert!(!addon_http_no_validator_always_refresh);
                 assert_eq!(addon_http_no_validator_window_secs, Some(120));
+                assert_eq!(
+                    addon_cache_repair_remote_policy,
+                    Some(AddonCacheRepairRemotePolicyArg::RequireRemote)
+                );
             }
             _ => panic!("expected settings set command"),
         },

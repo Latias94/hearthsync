@@ -6,6 +6,7 @@ use crate::core::addon::{
     AddonDownloadCachePurgeResult as DomainAddonDownloadCachePurgeResult,
     AddonDownloadCacheRepairResult as DomainAddonDownloadCacheRepairResult,
 };
+use crate::core::app::types::addon::AddonCacheRepairRemotePolicyValue;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AddonCachePurgeResult {
@@ -32,6 +33,7 @@ impl AddonCachePurgeResult {
 pub struct AddonCacheRepairResult {
     pub configured: bool,
     pub cache_dir: Option<PathBuf>,
+    pub remote_policy: AddonCacheRepairRemotePolicyValue,
     pub scanned_metadata_count: usize,
     pub repaired_entry_count: usize,
     pub invalid_metadata_count: usize,
@@ -41,6 +43,7 @@ pub struct AddonCacheRepairResult {
     pub partial_download_count: usize,
     pub remote_verified_entry_count: usize,
     pub remote_refreshed_entry_count: usize,
+    pub remote_skipped_entry_count: usize,
     pub remote_check_failed_count: usize,
     pub expired_freshness_entry_count: usize,
     pub removed_file_count: usize,
@@ -53,6 +56,7 @@ impl AddonCacheRepairResult {
         Self {
             configured: value.cache_dir.is_some(),
             cache_dir: value.cache_dir,
+            remote_policy: AddonCacheRepairRemotePolicyValue::from_domain(value.remote_policy),
             scanned_metadata_count: value.scanned_metadata_count,
             repaired_entry_count: value.repaired_entry_count,
             invalid_metadata_count: value.invalid_metadata_count,
@@ -62,6 +66,7 @@ impl AddonCacheRepairResult {
             partial_download_count: value.partial_download_count,
             remote_verified_entry_count: value.remote_verified_entry_count,
             remote_refreshed_entry_count: value.remote_refreshed_entry_count,
+            remote_skipped_entry_count: value.remote_skipped_entry_count,
             remote_check_failed_count: value.remote_check_failed_count,
             expired_freshness_entry_count: value.expired_freshness_entry_count,
             removed_file_count: value.removed_file_count,

@@ -24,6 +24,10 @@ pub(in crate::cli) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRun
             .http_no_validator_cache_policy()
             .or(persisted_settings.http_no_validator_cache_policy.clone())
             .unwrap_or_default(),
+        cache_repair_remote_policy: options
+            .cache_repair_remote_policy()
+            .or(persisted_settings.addon_cache_repair_remote_policy)
+            .unwrap_or_default(),
         ..AddonProviderOptionsValue::default()
     };
 

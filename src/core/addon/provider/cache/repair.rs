@@ -24,13 +24,16 @@ use super::metadata::{
     CachedArchiveMetadata, archive_path_from_metadata_sidecar, cached_archive_metadata_path,
     write_cached_archive_metadata,
 };
-use super::policy::should_reuse_cached_http_archive_without_transport_validators;
+use super::policy::{
+    AddonCacheRepairRemotePolicy, should_reuse_cached_http_archive_without_transport_validators,
+};
 use crate::core::boundary_validation::is_http_url;
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddonDownloadCacheRepairResult {
     pub cache_dir: Option<PathBuf>,
+    pub remote_policy: AddonCacheRepairRemotePolicy,
     pub scanned_metadata_count: usize,
     pub repaired_entry_count: usize,
     pub invalid_metadata_count: usize,
@@ -40,6 +43,7 @@ pub struct AddonDownloadCacheRepairResult {
     pub partial_download_count: usize,
     pub remote_verified_entry_count: usize,
     pub remote_refreshed_entry_count: usize,
+    pub remote_skipped_entry_count: usize,
     pub remote_check_failed_count: usize,
     pub expired_freshness_entry_count: usize,
     pub removed_file_count: usize,
@@ -48,9 +52,10 @@ pub struct AddonDownloadCacheRepairResult {
 }
 
 impl AddonDownloadCacheRepairResult {
-    fn not_configured() -> Self {
+    fn not_configured(remote_policy: AddonCacheRepairRemotePolicy) -> Self {
         Self {
             cache_dir: None,
+            remote_policy,
             scanned_metadata_count: 0,
             repaired_entry_count: 0,
             invalid_metadata_count: 0,
@@ -60,6 +65,7 @@ impl AddonDownloadCacheRepairResult {
             partial_download_count: 0,
             remote_verified_entry_count: 0,
             remote_refreshed_entry_count: 0,
+            remote_skipped_entry_count: 0,
             remote_check_failed_count: 0,
             expired_freshness_entry_count: 0,
             removed_file_count: 0,
@@ -68,10 +74,10 @@ impl AddonDownloadCacheRepairResult {
         }
     }
 
-    fn for_cache_dir(cache_dir: PathBuf) -> Self {
+    fn for_cache_dir(cache_dir: PathBuf, remote_policy: AddonCacheRepairRemotePolicy) -> Self {
         Self {
             cache_dir: Some(cache_dir),
-            ..Self::not_configured()
+            ..Self::not_configured(remote_policy)
         }
     }
 }
@@ -112,11 +118,16 @@ pub(in crate::core::addon::provider) fn repair_download_cache_dir(
     options: &AddonProviderOptions,
 ) -> AppResult<AddonDownloadCacheRepairResult> {
     let Some(cache_dir) = cache_dir else {
-        return Ok(AddonDownloadCacheRepairResult::not_configured());
+        return Ok(AddonDownloadCacheRepairResult::not_configured(
+            options.cache_repair_remote_policy,
+        ));
     };
 
     validate_cache_root(cache_dir)?;
-    let mut result = AddonDownloadCacheRepairResult::for_cache_dir(cache_dir.to_path_buf());
+    let mut result = AddonDownloadCacheRepairResult::for_cache_dir(
+        cache_dir.to_path_buf(),
+        options.cache_repair_remote_policy,
+    );
     if !cache_dir.exists() {
         return Ok(result);
     }
@@ -243,10 +254,30 @@ fn repair_metadata_entry(
             remove_path_if_exists(metadata_path, stats)?;
             remove_path_if_exists(&archive_path, stats)?;
         }
-        Ok(CacheRemoteRepairStatus::Failed) | Err(_) => {
+        Ok(CacheRemoteRepairStatus::Failed) => {
             result.remote_check_failed_count += 1;
+            if options.cache_repair_remote_policy.requires_remote_success() {
+                return Err(required_remote_repair_error(
+                    &metadata,
+                    "remote check failed",
+                ));
+            }
         }
-        Ok(CacheRemoteRepairStatus::Skipped) => {}
+        Err(error) => {
+            result.remote_check_failed_count += 1;
+            if options.cache_repair_remote_policy.requires_remote_success() {
+                return Err(required_remote_repair_error(&metadata, error));
+            }
+        }
+        Ok(CacheRemoteRepairStatus::Skipped) => {
+            result.remote_skipped_entry_count += 1;
+            if options.cache_repair_remote_policy.requires_remote_success() {
+                return Err(required_remote_repair_error(
+                    &metadata,
+                    "remote validation was skipped",
+                ));
+            }
+        }
     }
 
     Ok(())
@@ -258,6 +289,13 @@ fn repair_remote_cache_entry(
     metadata: &CachedArchiveMetadata,
     options: &AddonProviderOptions,
 ) -> AppResult<CacheRemoteRepairStatus> {
+    if matches!(
+        options.cache_repair_remote_policy,
+        AddonCacheRepairRemotePolicy::LocalOnly
+    ) {
+        return Ok(CacheRemoteRepairStatus::Skipped);
+    }
+
     let Some(source_ref) = cached_source_ref_from_metadata(metadata) else {
         return Ok(CacheRemoteRepairStatus::Skipped);
     };
@@ -447,6 +485,16 @@ fn refresh_cached_archive(
         request.remote_validators,
         request.options,
     )
+}
+
+fn required_remote_repair_error(
+    metadata: &CachedArchiveMetadata,
+    detail: impl std::fmt::Display,
+) -> AppError {
+    AppError::Validation(format!(
+        "addon cache repair remote validation is required for `{}` but failed: {detail}",
+        metadata.source_display_name
+    ))
 }
 
 fn cached_source_ref_from_metadata(metadata: &CachedArchiveMetadata) -> Option<AddonSourceRef> {

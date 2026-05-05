@@ -6,6 +6,7 @@ use crate::core::addon::policy::{
     AddonPolicyPin as DomainAddonPolicyPin, AddonReleaseChannel as DomainAddonReleaseChannel,
 };
 use crate::core::addon::{
+    AddonCacheRepairRemotePolicy as DomainAddonCacheRepairRemotePolicy,
     AddonDependencyResolutionCapability as DomainAddonDependencyResolutionCapability,
     AddonDependencyResolutionStrategy as DomainAddonDependencyResolutionStrategy,
     AddonPackageMetadata as DomainAddonPackageMetadata,
@@ -382,6 +383,33 @@ impl HttpNoValidatorCachePolicyValue {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddonCacheRepairRemotePolicyValue {
+    LocalOnly,
+    #[default]
+    ValidateRemote,
+    RequireRemote,
+}
+
+impl AddonCacheRepairRemotePolicyValue {
+    pub(crate) fn from_domain(value: DomainAddonCacheRepairRemotePolicy) -> Self {
+        match value {
+            DomainAddonCacheRepairRemotePolicy::LocalOnly => Self::LocalOnly,
+            DomainAddonCacheRepairRemotePolicy::ValidateRemote => Self::ValidateRemote,
+            DomainAddonCacheRepairRemotePolicy::RequireRemote => Self::RequireRemote,
+        }
+    }
+
+    pub(crate) fn into_domain(self) -> DomainAddonCacheRepairRemotePolicy {
+        match self {
+            Self::LocalOnly => DomainAddonCacheRepairRemotePolicy::LocalOnly,
+            Self::ValidateRemote => DomainAddonCacheRepairRemotePolicy::ValidateRemote,
+            Self::RequireRemote => DomainAddonCacheRepairRemotePolicy::RequireRemote,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddonProviderOptionsValue {
     #[serde(default)]
@@ -390,6 +418,8 @@ pub struct AddonProviderOptionsValue {
     pub retry_policy: AddonProviderRetryPolicyValue,
     #[serde(default)]
     pub http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue,
+    #[serde(default)]
+    pub cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue,
 }
 
 impl AddonProviderOptionsValue {
@@ -401,6 +431,9 @@ impl AddonProviderOptionsValue {
             http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::from_domain(
                 value.http_no_validator_cache_policy,
             ),
+            cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::from_domain(
+                value.cache_repair_remote_policy,
+            ),
         }
     }
 
@@ -409,6 +442,7 @@ impl AddonProviderOptionsValue {
             download_cache_dir: self.download_cache_dir,
             retry_policy: self.retry_policy.into_domain()?,
             http_no_validator_cache_policy: self.http_no_validator_cache_policy.into_domain()?,
+            cache_repair_remote_policy: self.cache_repair_remote_policy.into_domain(),
         })
     }
 }

@@ -12,8 +12,8 @@ use super::{
     render_addon_update,
 };
 use crate::core::app::{
-    AddonCachePurgeResult, AddonCacheRepairResult, AddonIndexAttachPackageResult,
-    AddonIndexAttachPackageStatusResult, AddonIndexAttachResult,
+    AddonCachePurgeResult, AddonCacheRepairRemotePolicyValue, AddonCacheRepairResult,
+    AddonIndexAttachPackageResult, AddonIndexAttachPackageStatusResult, AddonIndexAttachResult,
     AddonIndexIdentityHintCoverageResult, AddonIndexInspectionResult,
     AddonIndexInspectionWarningCodeResult, AddonIndexInspectionWarningResult,
     AddonIndexInspectionWarningSeverityResult, AddonIndexInstallResult,

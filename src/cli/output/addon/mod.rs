@@ -1,13 +1,13 @@
 use crate::core::app::{
-    AddonCachePurgeResult, AddonCacheRepairResult, AddonIndexAttachPackageStatusResult,
-    AddonIndexAttachResult, AddonIndexInspectionResult, AddonIndexInspectionWarningCodeResult,
-    AddonIndexInspectionWarningSeverityResult, AddonIndexInstallResult,
-    AddonIndexPackageSuggestionStatusResult, AddonIndexRelinkResult, AddonIndexScaffoldResult,
-    AddonIndexSuggestionResult, AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult,
-    AddonIndexValidationResult, AddonInventoryResult, AddonSearchCatalogResult,
-    AdoptedAddonPackageResult, InstalledAddonPackageResult, RelinkedAddonPackageResult,
-    RemovedAddonPackageResult, TrackedAddonPackageResult, TrackedAddonResult,
-    UpdatedAddonPackageResult,
+    AddonCachePurgeResult, AddonCacheRepairRemotePolicyValue, AddonCacheRepairResult,
+    AddonIndexAttachPackageStatusResult, AddonIndexAttachResult, AddonIndexInspectionResult,
+    AddonIndexInspectionWarningCodeResult, AddonIndexInspectionWarningSeverityResult,
+    AddonIndexInstallResult, AddonIndexPackageSuggestionStatusResult, AddonIndexRelinkResult,
+    AddonIndexScaffoldResult, AddonIndexSuggestionResult, AddonIndexTrackedMatchStrategyResult,
+    AddonIndexUpdateResult, AddonIndexValidationResult, AddonInventoryResult,
+    AddonSearchCatalogResult, AdoptedAddonPackageResult, InstalledAddonPackageResult,
+    RelinkedAddonPackageResult, RemovedAddonPackageResult, TrackedAddonPackageResult,
+    TrackedAddonResult, UpdatedAddonPackageResult,
 };
 
 use super::shared::{format_optional_path_or_none, format_string_list_or_none};

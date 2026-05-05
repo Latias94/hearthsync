@@ -8,6 +8,20 @@ use super::metadata::{
 
 const DEFAULT_HTTP_NO_VALIDATOR_CACHE_WINDOW_SECS: u64 = 15 * 60;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum AddonCacheRepairRemotePolicy {
+    LocalOnly,
+    #[default]
+    ValidateRemote,
+    RequireRemote,
+}
+
+impl AddonCacheRepairRemotePolicy {
+    pub(crate) fn requires_remote_success(self) -> bool {
+        matches!(self, Self::RequireRemote)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HttpNoValidatorCachePolicy {
     AlwaysRefresh,
