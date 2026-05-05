@@ -405,6 +405,12 @@ enough that these rules live in one place.
   package normalized 89/89 entries as `newbeebox_wtf_account`, and a real `wtfrole-*.zip`
   character package normalized 59/59 entries as `newbeebox_wtf_character`; both reported 0 warnings
   and `public_sharing.status=review_required`.
+  Current evidence: representative live NewBeeBox WTF packages now also have non-persistent
+  plan/dry-run evidence against a temporary target installation under `target/research`. The same
+  real `wtfserve-*.zip` account package produced 89 planned add operations for a selected target
+  account with 0 warnings, and the real `wtfrole-*.zip` character package produced a dry-run apply
+  plan with 59 files to add, 1 resolved character mapping, 0 writes, and 0 warnings. No private WTF
+  contents were written into the repository.
   Current progress: NewBeeBox WTF cache package compatibility now reaches apply coverage too.
   `apply_external_package_applies_newbeebox_account_wtf_zip_to_selected_account` verifies an
   account WTF zip is applied to a selected target account with backup while staying conservative

@@ -71,6 +71,12 @@ The MVP is complete only when HearthSync can:
   representative `wtfrole-*.zip` character package reported `layout=newbeebox_wtf_character`,
   `entry_count=59`, `normalized_files=59`, `warning_count=0`,
   `public_sharing.status=review_required`, and one detected source character.
+- Non-persistent live NewBeeBox WTF plan/dry-run checks were also run against a temporary target
+  installation under `target/research` without writing private contents into the repository. A
+  representative `wtfserve-*.zip` account package planned 89 operations / 89 files to add for the
+  selected target account with 0 warnings. A representative `wtfrole-*.zip` character package
+  dry-run apply produced 59 files to add, 1 resolved character mapping, 0 writes, 0 warnings, and
+  `public_sharing.status=review_required`.
 - `cargo fmt --check` passed.
 - `CARGO_BUILD_JOBS=1 cargo clippy --all-targets -- -D warnings` passed.
 - `CARGO_BUILD_JOBS=1 cargo nextest run -j 1` passed after adding the CLI handler acceptance
@@ -110,11 +116,12 @@ The goal should not be marked complete yet.
    aggregate local shape findings, but it still does not include full live SavedVariables content or
    provenance-backed replay of the user's private files.
 3. The current audit has now performed read-only local structure scans, a read-only live
-   `config inspect` pass against `E:\Games\World of Warcraft\_retail_`, and read-only live
+   `config inspect` pass against `E:\Games\World of Warcraft\_retail_`, read-only live
    `external-package inspect` passes against representative real NewBeeBox addon, account WTF, and
-   character WTF cache zips. It still did not ingest, sanitize, or run the apply pipeline against
-   those live private contents. That is acceptable for privacy, but not enough to claim broad
-   real-world author-package compatibility.
+   character WTF cache zips, plus non-persistent plan/dry-run checks against representative real
+   NewBeeBox WTF zips. It still did not commit sanitized reductions of those private live package
+   contents or run a real write against the user's live game tree. That is acceptable for privacy,
+   but not enough to claim broad real-world author-package compatibility.
 4. Full-suite verification is now green after the new Lua fixtures, root SavedVariables fix, and
    config-facade rollback test, but green tests still do not cover live-package provenance or broad
    real-world SavedVariables migration safety by themselves.
