@@ -13,6 +13,7 @@ use crate::core::error::AppError;
 fn runtime_settings_service_roundtrips_settings_file() {
     let temp = tempdir().expect("temp dir");
     let settings_path = temp.path().join("settings").join("runtime.toml");
+    let cache_dir = temp.path().join("Cache");
     let _guard = runtime_settings_path_guard(&settings_path);
     let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
 
@@ -20,7 +21,7 @@ fn runtime_settings_service_roundtrips_settings_file() {
         .set(SetRuntimeSettingsAppRequest {
             addon_state_storage: Some(AddonStateStorageValue::Sidecar),
             clear_addon_state_storage: false,
-            addon_cache_dir: Some(PathBuf::from("E:/Cache")),
+            addon_cache_dir: Some(cache_dir),
             clear_addon_cache_dir: false,
             http_no_validator_cache_policy: Some(
                 HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 120 },
@@ -120,6 +121,7 @@ fn runtime_settings_service_rejects_relative_addon_cache_dir_without_runtime_bas
 fn runtime_settings_service_reset_removes_settings_file() {
     let temp = tempdir().expect("temp dir");
     let settings_path = temp.path().join("settings").join("runtime.toml");
+    let cache_dir = temp.path().join("Cache");
     let _guard = runtime_settings_path_guard(&settings_path);
     let service = RuntimeSettingsService::with_runtime(AppRuntime::new());
 
@@ -127,7 +129,7 @@ fn runtime_settings_service_reset_removes_settings_file() {
         .set(SetRuntimeSettingsAppRequest {
             addon_state_storage: None,
             clear_addon_state_storage: false,
-            addon_cache_dir: Some(PathBuf::from("E:/Cache")),
+            addon_cache_dir: Some(cache_dir),
             clear_addon_cache_dir: false,
             http_no_validator_cache_policy: None,
             clear_http_no_validator_cache_policy: false,

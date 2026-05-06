@@ -265,6 +265,7 @@ fn preview_lua_bytes_rewrite_covers_common_allowlisted_addon_policy_fixtures() {
 
         let rewritten_text = String::from_utf8(rewritten)
             .unwrap_or_else(|error| panic!("{} should remain utf8: {error}", case.fixture));
+        let rewritten_text = rewritten_text.replace("\r\n", "\n");
         for expected in case.expected {
             assert!(
                 rewritten_text.contains(expected),

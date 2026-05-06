@@ -48,8 +48,9 @@ fn build_runtime_applies_explicit_addon_state_storage_override() {
 fn build_runtime_applies_addon_cache_overrides() {
     let temp = tempdir().expect("temp dir");
     let _guard = runtime_settings_path_guard(&temp.path().join("settings").join("runtime.toml"));
+    let cache_dir = temp.path().join("Cache");
     let runtime = build_runtime(CliRuntimeArgs {
-        addon_cache_dir: Some(PathBuf::from("E:\\Cache")),
+        addon_cache_dir: Some(cache_dir.clone()),
         addon_http_no_validator_window_secs: Some(120),
         addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyArg::LocalOnly),
         addon_search_cache_ttl_secs: Some(60),
@@ -61,7 +62,7 @@ fn build_runtime_applies_addon_cache_overrides() {
         runtime.capabilities().addon_provider,
         AddonProviderModeValue::ConfiguredDefault {
             options: AddonProviderOptionsValue {
-                download_cache_dir: Some(PathBuf::from("E:\\Cache")),
+                download_cache_dir: Some(cache_dir),
                 retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                 http_no_validator_cache_policy:
                     HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 120 },
@@ -138,12 +139,13 @@ fn build_runtime_applies_always_refresh_override_for_no_validator_http_cache() {
 fn build_runtime_applies_persisted_settings_before_cli_overrides() {
     let temp = tempdir().expect("temp dir");
     let settings_path = temp.path().join("settings").join("runtime.toml");
+    let persisted_cache_dir = temp.path().join("PersistedCache");
     let _guard = runtime_settings_path_guard(&settings_path);
     StableAppServices::new()
         .set_runtime_settings(SetRuntimeSettingsAppRequest {
             addon_state_storage: Some(crate::core::app::AddonStateStorageValue::Sidecar),
             clear_addon_state_storage: false,
-            addon_cache_dir: Some(PathBuf::from("E:\\PersistedCache")),
+            addon_cache_dir: Some(persisted_cache_dir.clone()),
             clear_addon_cache_dir: false,
             http_no_validator_cache_policy: Some(
                 HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
@@ -172,7 +174,7 @@ fn build_runtime_applies_persisted_settings_before_cli_overrides() {
         runtime.capabilities().addon_provider,
         AddonProviderModeValue::ConfiguredDefault {
             options: AddonProviderOptionsValue {
-                download_cache_dir: Some(PathBuf::from("E:\\PersistedCache")),
+                download_cache_dir: Some(persisted_cache_dir),
                 retry_policy: AddonProviderRetryPolicyValue { max_attempts: 1 },
                 http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::AlwaysRefresh,
                 cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
