@@ -26,9 +26,9 @@ In practice, each package record in the TOML index is a curated source mapping:
 
 - `id` is the stable package key inside HearthSync.
 - `name` is the human-facing addon name.
-- `version` is the current upstream version snapshot, not a promise of historical replay.
-- `source` is the canonical provider identity.
-- `source_url` is the best machine-followable upstream location for the source.
+- `version` is the last verified upstream version snapshot, not a promise of install-time replay.
+- `source` is the canonical provider identity that install/update resolves at request time.
+- `source_url` is the best machine-followable upstream landing page for the source.
 - `website_url` is the human landing page.
 - `match_package_ids` preserve historical package-id continuity across source drift.
 - `addon_directories` enumerate the exact folders the archive should expand into.
@@ -48,8 +48,8 @@ In the governance overlay, each package record adds:
 ## Source Policy
 
 - Prefer upstream-owned source references.
-- Keep GitHub entries pointed at the release or repository that owns the archive, not a mirror.
-- Keep Wago entries pointed at the project id and optional release id only.
+- Keep GitHub entries pointed at the owning repository, not a mirror or a pinned release asset.
+- Keep Wago entries pointed at the project id, and only pin release ids when a source must be made reproducible.
 - Keep Tukui entries pointed at the official slug and optional current-version guard only.
 - Do not store downloaded archives, extracted payloads, or user registry state.
 - Do not store anything that would make the catalog a hidden redistribution layer.

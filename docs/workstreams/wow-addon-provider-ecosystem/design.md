@@ -277,7 +277,8 @@ The recommended product direction is an in-tree `catalog/` metadata layer, split
   verification metadata
 
 - stores source metadata only, not archives
-- reuses the existing addon index package schema where possible
+- reuses the existing addon index package schema where possible, but treats source refs as
+  provider identities rather than pinned release snapshots
 - keeps editorial metadata outside the install schema
 - validates package source refs through read-only dry-run probes
 - accepts community PRs for GitHub/Wago/Tukui mappings
@@ -288,6 +289,11 @@ while provider adapters still download from original hosts and enforce host-spec
 the first catalog in-tree also makes code review, validation, and release coordination simpler than
 splitting the metadata source of truth into another repository too early. The governance overlay is
 what lets alias search and source attribution evolve without widening the install schema.
+
+The shared catalog should not pin ordinary addon versions. Install and update operations resolve
+the current upstream artifact from the provider identity at request time. Exact tags, Wago release
+ids, and artifact hashes belong in lockfiles, author package manifests, or other reproducible
+snapshot formats.
 
 ## Relationship to Sharing
 

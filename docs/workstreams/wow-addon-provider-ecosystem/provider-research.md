@@ -138,6 +138,8 @@ HearthSync should follow a hybrid version of those patterns:
   not addon archives.
 - The catalog should be optional input to addon index/search/adoption workflows, not the primary
   installed-state database.
+- Shared catalog sources should be provider identities, not pinned release snapshots. Exact tags,
+  release ids, and artifact hashes belong in lockfiles or author package manifests.
 - GitHub source discovery is the first strong reason for a catalog because GitHub Releases are
   installable but not centrally searchable by addon identity.
 
@@ -151,7 +153,7 @@ updated_at = "2026-05-06T00:00:00Z"
 [[packages]]
 id = "weakauras"
 name = "WeakAuras"
-source = { kind = "github_release", owner = "WeakAuras", repo = "WeakAuras2", asset_name = "WeakAuras.zip" }
+source = { kind = "github_release", owner = "WeakAuras", repo = "WeakAuras2" }
 website_url = "https://github.com/WeakAuras/WeakAuras2"
 addon_directories = ["WeakAuras", "WeakAurasOptions"]
 supported_flavors = ["retail"]
@@ -162,9 +164,11 @@ upstream_hosts = ["github"]
 Repository policy:
 
 - Do not store downloaded addon zips.
-- Require upstream source URL, source kind, addon directories, supported flavors, and attribution.
+- Require upstream source identity, upstream landing URL, addon directories, supported flavors, and
+  attribution.
 - Prefer generated validation reports over hand-curated trust.
 - Accept community PRs for GitHub/Wago/Tukui source mappings.
+- Keep exact release snapshots in lockfiles or explicit user manifests, not in the shared catalog.
 - Keep CurseForge entries optional because official API usage requires caller credentials and
   author/platform policy may affect availability.
 

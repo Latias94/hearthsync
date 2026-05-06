@@ -12,7 +12,18 @@
       "status": "active",
       "confidence": "high",
       "last_verified_at": "2026-05-06T00:00:00Z",
-      "notes": "Alias-driven discovery keeps the GitHub mapping searchable without scraping."
+      "notes": "Alias-driven discovery keeps the GitHub mapping searchable without scraping; the source points at the upstream repo, not a pinned release."
+    },
+    {
+      "id": "dbm",
+      "aliases": ["DBM", "Deadly Boss Mods"],
+      "upstream_hosts": ["github", "wago"],
+      "source_attribution": "DeadlyBossMods/DeadlyBossMods official GitHub releases; Wago project qv633o6b is also discoverable",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "The source points at the upstream repo; the latest release is resolved at install time."
     },
     {
       "id": "details",
@@ -23,7 +34,7 @@
       "status": "active",
       "confidence": "high",
       "last_verified_at": "2026-05-06T00:00:00Z",
-      "notes": "The index keeps the installable source ref; the overlay carries discovery aliases."
+      "notes": "The index keeps the project id only; the current release is resolved at install time."
     },
     {
       "id": "elvui",
@@ -35,6 +46,28 @@
       "confidence": "high",
       "last_verified_at": "2026-05-06T00:00:00Z",
       "notes": "Alias search should route to the official Tukui API mapping."
+    },
+    {
+      "id": "omnicc",
+      "aliases": ["Omni CC"],
+      "upstream_hosts": ["github", "wago"],
+      "source_attribution": "tullamods/OmniCC official GitHub releases; Wago project E6gLXAK1 is also discoverable",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "The source points at the upstream repo; the latest release is resolved at install time."
+    },
+    {
+      "id": "plater",
+      "aliases": ["Plater Name Plates"],
+      "upstream_hosts": ["github", "wago"],
+      "source_attribution": "Tercioo/Plater-Nameplates official GitHub releases; Wago project kRNLep6o is also discoverable",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "The source points at the upstream repo; the latest release is resolved at install time."
     },
     {
       "id": "tukui",
@@ -56,7 +89,7 @@
       "status": "active",
       "confidence": "high",
       "last_verified_at": "2026-05-06T00:00:00Z",
-      "notes": "The current live Wago release exposes null flavor arrays in several slots, so the provider now normalizes null to empty lists."
+      "notes": "The source points at the project id; the current release is resolved at install time."
     }
   ]
 }

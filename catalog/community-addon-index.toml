@@ -6,19 +6,30 @@ description = "Repository-owned, metadata-only addon catalog. No archives are st
 id = "bigwigs"
 name = "BigWigs"
 version = "v414.9"
-match_package_ids = ["bigwigs-v414-9"]
-source = { kind = "github_release", owner = "BigWigsMods", repo = "BigWigs", tag = "v414.9", asset_name = "BigWigs-v414.9.zip" }
-source_url = "https://github.com/BigWigsMods/BigWigs/releases/download/v414.9/BigWigs-v414.9.zip"
+match_package_ids = ["bigwigsmods-bigwigs", "bigwigs-v414-9"]
+source = { kind = "github_release", owner = "BigWigsMods", repo = "BigWigs" }
+source_url = "https://github.com/BigWigsMods/BigWigs/releases"
 website_url = "https://github.com/BigWigsMods/BigWigs"
 addon_directories = ["BigWigs", "BigWigs_Core", "BigWigs_MarchOnQuelDanas", "BigWigs_MidnightWorld", "BigWigs_Options", "BigWigs_Plugins", "BigWigs_TheDreamrift", "BigWigs_TheVoidspire"]
+supported_flavors = ["retail"]
+
+[[packages]]
+id = "dbm"
+name = "Deadly Boss Mods (DBM)"
+version = "12.0.44"
+match_package_ids = ["deadlybossmods-deadlybossmods", "dbm-core-12-0-44"]
+source = { kind = "github_release", owner = "DeadlyBossMods", repo = "DeadlyBossMods" }
+source_url = "https://github.com/DeadlyBossMods/DeadlyBossMods/releases"
+website_url = "https://github.com/DeadlyBossMods/DeadlyBossMods"
+addon_directories = ["DBM-Brawlers", "DBM-Core", "DBM-GUI", "DBM-Midnight", "DBM-Raids-Midnight", "DBM-StatusBarTimers", "DBM-Test", "DBM-VPVEM"]
 supported_flavors = ["retail"]
 
 [[packages]]
 id = "details"
 name = "Details! Damage Meter"
 version = "vdx1042w"
-match_package_ids = ["wago-qv63a7gb-vdx1042w"]
-source = { kind = "wago_addon", project_id = "qv63A7Gb", release_id = "vdx1042w" }
+match_package_ids = ["wago-qv63a7gb", "wago-qv63a7gb-vdx1042w"]
+source = { kind = "wago_addon", project_id = "qv63A7Gb" }
 source_url = "https://addons.wago.io/addons/qv63A7Gb"
 website_url = "https://addons.wago.io/addons/qv63A7Gb"
 addon_directories = ["Details", "Details_Compare2", "Details_DataStorage", "Details_EncounterDetails", "Details_RaidCheck", "Details_Streamer", "Details_TinyThreat", "Details_Vanguard"]
@@ -36,6 +47,28 @@ addon_directories = ["ElvUI", "ElvUI_Libraries", "ElvUI_Options"]
 supported_flavors = ["retail", "classic", "classic-era"]
 
 [[packages]]
+id = "omnicc"
+name = "OmniCC"
+version = "11.2.8"
+match_package_ids = ["tullamods-omnicc", "omnicc-11-2-8"]
+source = { kind = "github_release", owner = "tullamods", repo = "OmniCC" }
+source_url = "https://github.com/tullamods/OmniCC/releases"
+website_url = "https://github.com/tullamods/OmniCC"
+addon_directories = ["OmniCC", "OmniCC_Config"]
+supported_flavors = ["retail"]
+
+[[packages]]
+id = "plater"
+name = "Plater Nameplates"
+version = "Plater-v643"
+match_package_ids = ["tercioo-plater-nameplates", "plater-v643"]
+source = { kind = "github_release", owner = "Tercioo", repo = "Plater-Nameplates" }
+source_url = "https://github.com/Tercioo/Plater-Nameplates/releases"
+website_url = "https://github.com/Tercioo/Plater-Nameplates"
+addon_directories = ["Plater"]
+supported_flavors = ["retail"]
+
+[[packages]]
 id = "tukui"
 name = "Tukui"
 version = "20.463"
@@ -50,8 +83,8 @@ supported_flavors = ["retail", "classic", "classic-era"]
 id = "weakauras"
 name = "WeakAuras"
 version = "5.21.1"
-match_package_ids = ["wago-vbnbxkx5-a6ra53lw"]
-source = { kind = "wago_addon", project_id = "VBNBxKx5", release_id = "A6Ra53Lw" }
+match_package_ids = ["wago-vbnbxkx5", "wago-vbnbxkx5-a6ra53lw"]
+source = { kind = "wago_addon", project_id = "VBNBxKx5" }
 source_url = "https://addons.wago.io/addons/VBNBxKx5"
 website_url = "https://www.weakauras.wtf"
 addon_directories = ["WeakAuras", "WeakAurasArchive", "WeakAurasModelPaths", "WeakAurasOptions", "WeakAurasTemplates"]

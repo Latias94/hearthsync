@@ -248,6 +248,62 @@ function Invoke-HearthSyncJson {
     }
 }
 
+function Test-GitHubLiveProbeAvailability {
+    try {
+        $headers = @{ 'User-Agent' = 'hearthsync-catalog-research' }
+        $rate = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/rate_limit'
+        return [int]$rate.rate.remaining -gt 0
+    } catch {
+        return $false
+    }
+}
+
+function Assert-CatalogAliasSearch {
+    param(
+        [string]$CatalogPath,
+        [object]$Governance
+    )
+
+    foreach ($entry in @($Governance.entries)) {
+        foreach ($alias in @($entry.aliases)) {
+            $run = Invoke-HearthSyncJson -Arguments @(
+                '--json',
+                'addon',
+                'index',
+                'search',
+                '--file',
+                $CatalogPath,
+                '--query',
+                [string]$alias,
+                '--limit',
+                '10'
+            )
+
+            if ($run.exit_code -ne 0 -or $null -eq $run.result) {
+                $detail = if ([string]::IsNullOrWhiteSpace($run.stderr)) {
+                    $run.stdout
+                } else {
+                    $run.stderr
+                }
+                throw "Catalog alias search failed for package `"$($entry.id)`" alias `"$alias`": $detail"
+            }
+
+            $matched = $false
+            foreach ($package in @($run.result.packages)) {
+                if ([string]$package.id -eq [string]$entry.id) {
+                    $matched = $true
+                    break
+                }
+            }
+
+            if (-not $matched) {
+                $returnedIds = (@($run.result.packages) | ForEach-Object { [string]$_.id }) -join ', '
+                throw "Catalog alias search for `"$alias`" did not return package `"$($entry.id)`". Returned: $returnedIds"
+            }
+        }
+    }
+}
+
 Push-Location $RepoRoot
 $validationSucceeded = $false
 try {
@@ -255,6 +311,10 @@ try {
     $script:ValidationRoot = Join-Path $RepoRoot "target\research\catalog-readonly-validation-$timestamp"
     New-Item -ItemType Directory -Force -Path $script:ValidationRoot | Out-Null
     $cacheRoot = Join-Path $script:ValidationRoot 'download-cache'
+    $githubLiveProbesAvailable = Test-GitHubLiveProbeAvailability
+    if (-not $githubLiveProbesAvailable) {
+        Write-Output 'GitHub API rate limit is exhausted; GitHub live probes will be skipped for this run.'
+    }
 
     $inspectJson = cargo run --quiet -- --json addon index inspect --file $CatalogPath | Out-String
     $inspect = $inspectJson | ConvertFrom-Json
@@ -273,17 +333,7 @@ try {
 
     $governanceJson = Get-Content $GovernancePath -Raw | ConvertFrom-Json
     Assert-GovernanceFile -Governance $governanceJson -IndexPackages @($inspect.packages)
-
-    $aliasSearchJson = cargo run --quiet -- --json addon index search --file $CatalogPath --query 'Big Wigs' --limit 5 | Out-String
-    $aliasSearch = $aliasSearchJson | ConvertFrom-Json
-
-    if ($aliasSearch.returned_package_count -lt 1) {
-        throw "Catalog alias search did not return any packages for Big Wigs."
-    }
-
-    if (@($aliasSearch.packages)[0].id -ne "bigwigs") {
-        throw "Catalog alias search did not return BigWigs as the first match."
-    }
+    Assert-CatalogAliasSearch -CatalogPath $CatalogPath -Governance $governanceJson
 
     $searchJson = cargo run --quiet -- --json addon index search --file $CatalogPath --query ElvUI --limit 5 | Out-String
     $search = $searchJson | ConvertFrom-Json
@@ -297,6 +347,12 @@ try {
     }
 
     foreach ($package in @($inspect.packages)) {
+        $sourceKind = [string]$package.source.kind
+        if (($sourceKind -eq 'git_hub_release' -or $sourceKind -eq 'github_release') -and -not $githubLiveProbesAvailable) {
+            Write-Output "Skipping GitHub live probe for $($package.id) because the unauthenticated GitHub API quota is exhausted."
+            continue
+        }
+
         $probeFlavor = Select-ProbeFlavor -Package $package
         $syntheticRoot = Join-Path $script:ValidationRoot "synthetic-install-$($package.id)"
         $synthetic = New-SyntheticAddonInstallRoot -Root $syntheticRoot -Flavor $probeFlavor

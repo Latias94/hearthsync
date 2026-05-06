@@ -64,3 +64,41 @@ pub(crate) fn slugify_package_id(value: &str) -> String {
 
     slug.trim_matches('-').to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::derive_package_id;
+    use crate::core::addon::AddonSourceRef;
+
+    #[test]
+    fn derive_package_id_uses_github_owner_and_repo_when_release_is_unpinned() {
+        let source = AddonSourceRef::GitHubRelease {
+            owner: "Tercioo".to_string(),
+            repo: "Plater-Nameplates".to_string(),
+            tag: None,
+            asset_name: None,
+        };
+
+        assert_eq!(derive_package_id(&source, &[]), "tercioo-plater-nameplates");
+    }
+
+    #[test]
+    fn derive_package_id_uses_wago_project_id_when_release_is_unpinned() {
+        let source = AddonSourceRef::WagoAddon {
+            project_id: "VBNBxKx5".to_string(),
+            release_id: None,
+        };
+
+        assert_eq!(derive_package_id(&source, &[]), "wago-vbnbxkx5");
+    }
+
+    #[test]
+    fn derive_package_id_uses_tukui_slug_when_version_is_unpinned() {
+        let source = AddonSourceRef::TukuiAddon {
+            slug: "elvui".to_string(),
+            version: None,
+        };
+
+        assert_eq!(derive_package_id(&source, &[]), "tukui-elvui");
+    }
+}
