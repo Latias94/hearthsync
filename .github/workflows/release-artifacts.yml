@@ -1,0 +1,84 @@
+name: Release Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label to include in artifact names, for example 0.1.0
+        required: true
+        default: 0.1.0
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Package Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = '${{ inputs.version }}'
+          $hostTriple = (rustc -vV | Select-String -Pattern '^host: ').ToString().Split(':', 2)[1].Trim()
+          $artifactBase = "hearthsync-$version-$hostTriple"
+          $dist = Join-Path (Get-Location) 'dist'
+          $stage = Join-Path $dist $artifactBase
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -LiteralPath 'target\release\hearthsync.exe' -Destination (Join-Path $stage 'hearthsync.exe')
+          Copy-Item -LiteralPath 'README.md' -Destination $stage
+          Copy-Item -LiteralPath 'LICENSE-APACHE' -Destination $stage
+          Copy-Item -LiteralPath 'LICENSE-MIT' -Destination $stage
+          $archive = Join-Path $dist "$artifactBase.zip"
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive -Force
+          $hash = Get-FileHash -LiteralPath $archive -Algorithm SHA256
+          $hashLine = "$($hash.Hash.ToLowerInvariant())  $(Split-Path -Leaf $archive)"
+          Set-Content -LiteralPath "$archive.sha256" -Value $hashLine -NoNewline
+
+      - name: Package macOS archive
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ inputs.version }}'
+          host_triple="$(rustc -vV | awk '/^host: / { print $2 }')"
+          artifact_base="hearthsync-${version}-${host_triple}"
+          dist="$PWD/dist"
+          stage="$dist/$artifact_base"
+          mkdir -p "$stage"
+          cp target/release/hearthsync "$stage/hearthsync"
+          cp README.md "$stage/"
+          cp LICENSE-APACHE "$stage/"
+          cp LICENSE-MIT "$stage/"
+          tar -C "$dist" -czf "$dist/$artifact_base.tar.gz" "$artifact_base"
+          (cd "$dist" && shasum -a 256 "$artifact_base.tar.gz" > "$artifact_base.tar.gz.sha256")
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthsync-${{ matrix.os }}
+          path: |
+            dist/hearthsync-*

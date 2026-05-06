@@ -87,3 +87,12 @@ Release notes should include:
 
 Do not call a release consumer-facing beta until Windows and macOS binaries with checksums are
 actually published.
+
+## Artifact Workflow
+
+The manual `Release Artifacts` workflow builds native release binaries on Windows and macOS,
+packages README and license files, generates SHA256 files, and uploads the archives as workflow
+artifacts.
+
+It intentionally does not create or publish a GitHub Release. Keep the final publish step manual
+until the project has signing, changelog review, and release-note approval rules.

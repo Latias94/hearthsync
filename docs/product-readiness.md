@@ -124,7 +124,7 @@ Before calling the project a consumer-facing beta:
 
 ## Next Recommended Work
 
-1. Automate release artifact creation after the CI gate is stable.
+1. Run the CI and release-artifact workflows on GitHub and fix any hosted-runner-only failures.
 2. Add migration fixture tests before introducing the next persisted-state schema version.
 3. Add a product workflow doc for community catalog contribution and validation.
 4. Keep expanding real author-package and provider matrices as new public packages or failures are
