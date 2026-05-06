@@ -416,6 +416,7 @@ Workstream docs live under:
 - `docs/workstreams/wow-addon-sync-cli/todo.md`
 - `docs/workstreams/wow-addon-sync-cli/milestones.md`
 - `docs/product-readiness.md`
+- `docs/catalog-contribution.md`
 - `docs/persisted-state-compatibility.md`
 - `docs/release.md`
 - `docs/user-workflows.md`

@@ -9,6 +9,9 @@ It is metadata-only:
 - no backup or restore payloads
 - no hidden mirror of provider archives
 
+Contribution workflow and review expectations live in
+[`docs/catalog-contribution.md`](../docs/catalog-contribution.md).
+
 ## Current Shape
 
 The catalog is split into two files:

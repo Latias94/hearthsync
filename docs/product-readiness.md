@@ -37,6 +37,8 @@ release packaging still need work.
   [New Provider Research](workstreams/wow-addon-provider-ecosystem/provider-research.md)
 - Community catalog policy and validation:
   [HearthSync Catalog](../catalog/README.md)
+- Community catalog contribution workflow:
+  [Catalog Contribution Workflow](catalog-contribution.md)
 - Scenario-based CLI recipes:
   [User Workflows](user-workflows.md)
 - Persisted state and schema compatibility policy:
@@ -126,8 +128,9 @@ Before calling the project a consumer-facing beta:
 
 1. Run the CI and release-artifact workflows on GitHub and fix any hosted-runner-only failures.
 2. Add migration fixture tests before introducing the next persisted-state schema version.
-3. Add a product workflow doc for community catalog contribution and validation.
-4. Keep expanding real author-package and provider matrices as new public packages or failures are
+3. Keep expanding real author-package and provider matrices as new public packages or failures are
    found.
+4. Audit CLI output for destructive operations and make dry-run/backup requirements consistently
+   visible.
 5. Only after those docs are stable, start the first `egui` screen around runtime diagnostics and
    read-only inspect/search flows.
