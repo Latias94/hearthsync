@@ -2,9 +2,9 @@
 
 ## Current Focus
 
-P6 Wago provider implementation is complete. The provider workstream should stay mostly quiet until
-there is a stable reason to add Wago catalog search, revisit WoWInterface, or design schema-v2 for
-custom provider payloads.
+P6 Wago provider implementation and P7 Tukui provider implementation are complete. The provider
+workstream should stay focused on real-source compatibility and catalog strategy instead of adding
+fragile scraped providers.
 
 ## Refactor Rules
 
@@ -149,3 +149,42 @@ Follow-up triggers:
   addon-manager permission.
 - Reopen schema-v2 only when custom catalogs or another provider require unbounded
   provider-defined identity fields.
+
+## P7 - Tukui Provider Slice
+
+Goal: add the official Tukui/ElvUI source without over-promising historical version replay.
+
+- [x] Research Tukui API shape and source identity.
+- [x] Add `tukui:<slug>[@current-version]` parsing.
+- [x] Resolve official latest package metadata and download URLs through the Tukui API.
+- [x] Use current API version for cache identity so latest updates do not reuse stale cached
+  archives.
+- [x] Enable structured Tukui catalog search from `/addons`.
+- [x] Keep dependency resolution, release-channel policy, and remote cache repair unsupported until
+  official metadata exists.
+
+Exit criteria:
+
+- `tukui:elvui` can materialize the current official archive.
+- App/runtime source capabilities expose Tukui as a searchable provider.
+- Provider tests cover parser, current-version guard, materialization, and catalog search.
+
+## P8 - Community Metadata Catalog
+
+Goal: decide and bootstrap a metadata-only catalog for sources that are installable but not
+searchable by provider API, especially GitHub Releases.
+
+- [x] Define a minimal catalog schema based on existing addon index package records.
+- [ ] Add source attribution, upstream host, aliases, addon directories, and supported-flavor fields.
+- [x] Add a read-only validation script that consumes the in-tree catalog and verifies schema/search
+  wiring without mutating addon state.
+- [ ] Extend the validation script with live provider dry-run probes once the provider contracts
+  expose enough read-only metadata.
+- [x] Add CLI support for catalog search over addon-index files; the in-tree catalog can be queried
+  with `addon index search --file catalog/community-addon-index.toml`.
+
+Exit criteria:
+
+- GitHub-hosted addons can be discovered through a metadata catalog without scraping GitHub search.
+- The catalog never stores downloaded addon archives.
+- Invalid or stale entries fail read-only validation before users depend on them.

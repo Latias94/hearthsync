@@ -366,5 +366,7 @@ pub(super) fn sample_source() -> AddonSourceResult {
         asset_name: None,
         project_id: None,
         release_id: None,
+        slug: None,
+        version: None,
     }
 }

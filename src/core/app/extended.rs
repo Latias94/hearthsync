@@ -45,6 +45,13 @@ impl ExtendedAppServices {
         self.addon_indexes().validate(request)
     }
 
+    pub fn search_addon_index(
+        &self,
+        request: super::SearchAddonIndexRequest,
+    ) -> AppResult<super::AddonIndexSearchResult> {
+        self.addon_indexes().search(request)
+    }
+
     pub fn suggest_addon_index(
         &self,
         request: super::SuggestAddonIndexRequest,

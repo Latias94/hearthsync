@@ -20,6 +20,9 @@ use super::source::{
     addon_source_input_is_local_archive, canonicalize_local_archive_path,
     validate_absolute_local_archive_source_path,
 };
+use super::tukui::{
+    parse_tukui_source, resolve_tukui_artifact_with_client, search_tukui_addons_with_client,
+};
 use super::wago::{parse_wago_source, resolve_wago_artifact_with_client};
 use super::{
     AddonDependencyResolutionCapability, AddonProviderContext, AddonProviderOptions,
@@ -49,6 +52,7 @@ impl AddonSourceFamily {
         id: "github_release",
     };
     pub const WAGO_ADDON: Self = Self { id: "wago_addon" };
+    pub const TUKUI_ADDON: Self = Self { id: "tukui_addon" };
 
     pub const fn from_static_id(id: &'static str) -> Self {
         Self { id }
@@ -65,6 +69,7 @@ impl AddonSourceFamily {
             AddonSourceRef::CurseForgeMod { .. } => Self::CURSEFORGE_MOD,
             AddonSourceRef::GitHubRelease { .. } => Self::GITHUB_RELEASE,
             AddonSourceRef::WagoAddon { .. } => Self::WAGO_ADDON,
+            AddonSourceRef::TukuiAddon { .. } => Self::TUKUI_ADDON,
         }
     }
 }
@@ -143,6 +148,7 @@ enum BuiltinAddonProviderAdapter {
     CurseForge,
     GitHub,
     Wago,
+    Tukui,
 }
 
 const BUILTIN_PROVIDER_ADAPTERS: &[BuiltinAddonProviderAdapter] = &[
@@ -151,6 +157,7 @@ const BUILTIN_PROVIDER_ADAPTERS: &[BuiltinAddonProviderAdapter] = &[
     BuiltinAddonProviderAdapter::CurseForge,
     BuiltinAddonProviderAdapter::GitHub,
     BuiltinAddonProviderAdapter::Wago,
+    BuiltinAddonProviderAdapter::Tukui,
 ];
 
 impl BuiltinAddonProviderAdapter {
@@ -252,6 +259,25 @@ impl BuiltinAddonProviderAdapter {
                     supports_file_id_pin: false,
                 },
             },
+            Self::Tukui => AddonProviderDescriptor {
+                source_family: AddonSourceFamily::TUKUI_ADDON,
+                provider_id: "tukui",
+                provider_name: "Tukui",
+                input_prefix: Some("tukui:"),
+                operations: AddonProviderOperationCapabilities {
+                    can_parse_input: true,
+                    can_materialize: true,
+                    can_search: true,
+                    dependency_resolution: AddonDependencyResolutionCapability::Unsupported,
+                    supports_remote_cache_validators: false,
+                },
+                policy: AddonProviderPolicyCapabilities {
+                    supports_release_channel: false,
+                    supports_prerelease: false,
+                    supports_version_pin: false,
+                    supports_file_id_pin: false,
+                },
+            },
         }
     }
 
@@ -266,6 +292,7 @@ impl BuiltinAddonProviderAdapter {
             Self::CurseForge => source.starts_with("curseforge:"),
             Self::GitHub => source.starts_with("github:"),
             Self::Wago => source.starts_with("wago:"),
+            Self::Tukui => source.starts_with("tukui:"),
         }
     }
 
@@ -285,6 +312,7 @@ impl BuiltinAddonProviderAdapter {
             Self::CurseForge => parse_curseforge_source(source),
             Self::GitHub => parse_github_source(source),
             Self::Wago => parse_wago_source(source),
+            Self::Tukui => parse_tukui_source(source),
         }
     }
 
@@ -373,6 +401,26 @@ impl BuiltinAddonProviderAdapter {
                     http_client,
                     project_id,
                     release_id.as_deref(),
+                    context,
+                )?;
+                let archive_path = materialize_downloaded_archive(
+                    http_client,
+                    artifact,
+                    stage_root,
+                    context.cancellation,
+                    context.download_progress,
+                    options,
+                )?;
+                Ok(MaterializedAddonSource {
+                    source_ref: source.clone(),
+                    archive_path,
+                })
+            }
+            (Self::Tukui, AddonSourceRef::TukuiAddon { slug, version }) => {
+                let artifact = registry.resolve_tukui_artifact(
+                    http_client,
+                    slug,
+                    version.as_deref(),
                     context,
                 )?;
                 let archive_path = materialize_downloaded_archive(
@@ -504,6 +552,22 @@ impl BuiltinAddonProviderAdapter {
                     "addon policy pinned file id is not supported for Wago sources",
                 ))
             }
+            (Self::Tukui, AddonSourceRef::TukuiAddon { .. }, AddonPolicyPin::FileId { .. }) => {
+                Err(unsupported_policy_error(
+                    descriptor,
+                    source,
+                    "file id pin",
+                    "addon policy pinned file id is not supported for Tukui sources",
+                ))
+            }
+            (Self::Tukui, AddonSourceRef::TukuiAddon { .. }, AddonPolicyPin::Version { .. }) => {
+                Err(unsupported_policy_error(
+                    descriptor,
+                    source,
+                    "version pin",
+                    "addon policy pinned version is not supported for Tukui sources",
+                ))
+            }
             (Self::LocalArchive | Self::HttpArchive, _, _) => Err(unsupported_policy_error(
                 descriptor,
                 source,
@@ -525,6 +589,12 @@ impl BuiltinAddonProviderAdapter {
     ) -> AppResult<Vec<AddonSearchResult>> {
         match self {
             Self::CurseForge => search_curseforge_mods_with_client(
+                http_client,
+                request.query,
+                request.flavor,
+                request.limit,
+            ),
+            Self::Tukui => search_tukui_addons_with_client(
                 http_client,
                 request.query,
                 request.flavor,
@@ -792,6 +862,16 @@ impl AddonProviderRegistry {
             context.target_flavor,
             context.resolution_policy,
         )
+    }
+
+    fn resolve_tukui_artifact(
+        &self,
+        http_client: &impl HttpClient,
+        slug: &str,
+        version: Option<&str>,
+        context: AddonProviderContext<'_>,
+    ) -> AppResult<ResolvedDownloadArtifact> {
+        resolve_tukui_artifact_with_client(http_client, slug, version, context.target_flavor)
     }
 }
 

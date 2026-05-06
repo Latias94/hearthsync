@@ -10,6 +10,7 @@ use super::super::github::{
 };
 use super::super::http::{HttpClient, HttpHeader};
 use super::super::parse::{parse_curseforge_source, parse_github_source};
+use super::super::tukui::parse_tukui_source;
 use super::super::validation::{
     RemoteArchiveValidators, conditional_request_headers_for_transport_validators, file_sha256,
     remote_validators_for_http_headers,
@@ -509,6 +510,9 @@ fn parse_cached_source_display_name(source_display_name: &str) -> Option<AddonSo
         return Some(source_ref);
     }
     if let Ok(Some(source_ref)) = parse_github_source(source_display_name) {
+        return Some(source_ref);
+    }
+    if let Ok(Some(source_ref)) = parse_tukui_source(source_display_name) {
         return Some(source_ref);
     }
     if is_http_url(source_display_name) {

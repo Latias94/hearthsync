@@ -22,7 +22,7 @@ It focuses on safe addon installation, portable UI bundles, backup/restore workf
 - Apply character/account remapping for `WTF` configuration.
 - Rewrite common Lua profile keys and character identity strings during migration.
 - Install, update, remove, and list tracked addon packages.
-- Search CurseForge projects and install from local zip archives, direct `http(s)` zip URLs, GitHub Releases, or CurseForge project references.
+- Search CurseForge and Tukui projects and install from local zip archives, direct `http(s)` zip URLs, GitHub Releases, CurseForge, Wago, or Tukui references.
 
 ## Installation
 
@@ -100,12 +100,20 @@ $env:HEARTHSYNC_CURSEFORGE_API_KEY = "<your official CurseForge REST API key>"
 cargo run -- addon search --install "E:\Games\World of Warcraft" --flavor retail --query WeakAuras --limit 5
 ```
 
+Search Tukui/ElvUI metadata:
+
+```powershell
+cargo run -- addon search --install "E:\Games\World of Warcraft" --flavor retail --provider tukui --query ElvUI --limit 5
+```
+
 Install from supported sources:
 
 ```powershell
 cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retail --source .\WeakAuras.zip
 cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retail --source "github:owner/repo#addon.zip"
 cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retail --source "curseforge:12345@67890"
+cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retail --source "wago:qv63A7Gb"
+cargo run -- addon install --install "E:\Games\World of Warcraft" --flavor retail --source "tukui:elvui"
 ```
 
 Install from a custom addon index:
@@ -195,9 +203,13 @@ HearthSync currently supports:
 - Direct zip URLs: `https://example.com/Addon.zip`
 - GitHub Releases: `github:owner/repo[@tag][#asset.zip]`
 - CurseForge: `curseforge:modId[@fileId]`
+- Wago addons: `wago:projectId[@releaseId]`
+- Tukui addons: `tukui:slug[@current-version]`
 
 CurseForge access requires an official CurseForge REST API key in `HEARTHSYNC_CURSEFORGE_API_KEY`.
 HearthSync does not re-host CurseForge files; it resolves metadata and downloads through the provider API.
+Tukui sources use the official latest addon API; the optional version acts as a current-version guard,
+not a historical release replay guarantee.
 
 ## Custom Addon Index
 
@@ -226,6 +238,18 @@ Supported `source.kind` values are the same source references used by the instal
 - `http_archive`
 - `github_release`
 - `curseforge_mod`
+- `wago_addon`
+- `tukui_addon`
+
+The repository also ships a starter community catalog at `catalog/community-addon-index.toml`.
+It follows the same index schema, so you can inspect it directly:
+
+```powershell
+cargo run -- addon index inspect --file .\catalog\community-addon-index.toml
+cargo run -- addon index search --file .\catalog\community-addon-index.toml --query ElvUI
+```
+
+For repeatable read-only checks, use `scripts/catalog-readonly-validation.ps1`.
 
 ## Addon Lock File
 
@@ -280,6 +304,11 @@ Workstream docs live under:
 - `docs/workstreams/wow-addon-sync-cli/design.md`
 - `docs/workstreams/wow-addon-sync-cli/todo.md`
 - `docs/workstreams/wow-addon-sync-cli/milestones.md`
+
+Repository-owned addon metadata lives in:
+
+- `catalog/community-addon-index.toml`
+- `catalog/README.md`
 
 ## Development
 

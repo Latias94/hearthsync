@@ -1,6 +1,6 @@
 # New Provider Research
 
-Status: accepted on 2026-05-05.
+Status: accepted on 2026-05-05; extended with Tukui and catalog research on 2026-05-06.
 
 ## Decision
 
@@ -86,6 +86,88 @@ Implementation implication:
 - Reopen WoWInterface only if a documented public metadata/download API is available or permission is
   granted.
 
+## Tukui Findings
+
+Tukui is a good narrow provider candidate because the current public API exposes the exact two
+high-value UI packages that still matter for author config-package workflows:
+
+- `GET https://api.tukui.org/v1/addon/elvui`
+- `GET https://api.tukui.org/v1/addon/tukui`
+- `GET https://api.tukui.org/v1/addons`
+
+The single-addon response includes stable fields that are enough for install/update without scraping:
+
+- `slug`
+- `name`
+- `url`
+- `version`
+- `patch`
+- `web_url`
+- `git_url`
+- `small_desc`
+- `directories`
+
+Implementation implications:
+
+- Use `TukuiAddon { slug, version }` as a typed source ref.
+- Parse `tukui:<slug>[@current-version]` for CLI/source input.
+- Treat `version` as a current-version guard and cache identity, not as a promise that historical
+  Tukui releases can be replayed later.
+- Keep addon policy version pin unsupported unless Tukui later exposes a historical release API.
+- Enable Tukui catalog search because `/addons` exposes a small structured catalog.
+- Keep dependency resolution and remote cache repair unsupported; the API does not expose
+  dependency or strong archive validator contracts.
+
+## External Manager Source Management Notes
+
+Other open-source managers reinforce two different patterns:
+
+- Strongbox searches a downloaded catalogue rather than asking every provider live for every query.
+  It also maintains a separate public `strongbox-catalogue` repository with per-host JSON catalogues
+  such as `github-catalogue.json`, `full-catalogue.json`, and `short-catalogue.json`.
+- instawow supports multiple providers directly and uses a collated add-on catalogue updated once
+  daily for fuzzy search and download scoring. It accepts source-specific URIs and provider URLs.
+- WowUp distinguishes provider-backed searchable sources from URL imports. Its guide says Get
+  Addons lists/searches providers that expose catalogs, while GitHub and generic zip URLs can still
+  be installed through URL import.
+
+HearthSync should follow a hybrid version of those patterns:
+
+- Built-in providers remain responsible for artifact resolution and downloads from original hosts.
+- The repository should keep an in-tree `catalog/` metadata layer that stores source metadata only,
+  not addon archives.
+- The catalog should be optional input to addon index/search/adoption workflows, not the primary
+  installed-state database.
+- GitHub source discovery is the first strong reason for a catalog because GitHub Releases are
+  installable but not centrally searchable by addon identity.
+
+Recommended first external catalog schema:
+
+```toml
+schema_version = 1
+name = "HearthSync Community Addon Catalog"
+updated_at = "2026-05-06T00:00:00Z"
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+source = { kind = "github_release", owner = "WeakAuras", repo = "WeakAuras2", asset_name = "WeakAuras.zip" }
+website_url = "https://github.com/WeakAuras/WeakAuras2"
+addon_directories = ["WeakAuras", "WeakAurasOptions"]
+supported_flavors = ["retail"]
+aliases = ["wa", "weak auras"]
+upstream_hosts = ["github"]
+```
+
+Repository policy:
+
+- Do not store downloaded addon zips.
+- Require upstream source URL, source kind, addon directories, supported flavors, and attribution.
+- Prefer generated validation reports over hand-curated trust.
+- Accept community PRs for GitHub/Wago/Tukui source mappings.
+- Keep CurseForge entries optional because official API usage requires caller credentials and
+  author/platform policy may affect availability.
+
 ## Sources
 
 - Wago API docs: https://docs.wago.io/
@@ -94,3 +176,9 @@ Implementation implication:
 - WoWInterface update API forum thread: https://www.wowinterface.com/forums/showthread.php?t=51835
 - WoWInterface WowUp/Minion discussion: https://wowinterface.com/forums/showthread.php?t=59124
 - MMOUI Terms of Service: https://mmoui.com/?tos=
+- Tukui addon API: https://api.tukui.org/v1/addon/elvui
+- Tukui catalog API: https://api.tukui.org/v1/addons
+- Strongbox README and catalogue behavior: https://github.com/ogri-la/strongbox
+- Strongbox public catalogue repository: https://github.com/ogri-la/strongbox-catalogue
+- instawow README: https://github.com/layday/instawow
+- WowUp Get Addons guide: https://wowup.io/guide/get-addons/overview

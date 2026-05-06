@@ -11,6 +11,7 @@ mod source;
 mod test_support;
 #[cfg(test)]
 mod tests;
+mod tukui;
 mod validation;
 mod wago;
 
@@ -352,6 +353,9 @@ fn apply_builtin_file_id_pin(source: &AddonSourceRef, value: u32) -> AppResult<A
         AddonSourceRef::WagoAddon { .. } => Err(AppError::Validation(
             "addon policy pinned file id is not supported for Wago sources".to_string(),
         )),
+        AddonSourceRef::TukuiAddon { .. } => Err(AppError::Validation(
+            "addon policy pinned file id is not supported for Tukui sources".to_string(),
+        )),
         AddonSourceRef::LocalArchive { .. } | AddonSourceRef::HttpArchive { .. } => {
             Err(AppError::Validation(
                 "addon policy pinning is only supported for provider-backed addon sources"
@@ -378,6 +382,9 @@ fn apply_builtin_version_pin(source: &AddonSourceRef, value: String) -> AppResul
             project_id: project_id.clone(),
             release_id: Some(value),
         }),
+        AddonSourceRef::TukuiAddon { .. } => Err(AppError::Validation(
+            "addon policy pinned version is not supported for Tukui sources".to_string(),
+        )),
         AddonSourceRef::CurseForgeMod { .. } => Err(AppError::Validation(
             "addon policy pinned version is not supported for CurseForge sources yet".to_string(),
         )),

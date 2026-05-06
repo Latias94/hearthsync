@@ -65,6 +65,27 @@ fn render_addon_index_inspection_lists_packages() {
 }
 
 #[test]
+fn render_addon_index_search_lists_packages() {
+    let rendered = render_addon_index_search(&AddonIndexSearchResult {
+        index_path: PathBuf::from("catalog/community-addon-index.toml"),
+        index_name: "Community Catalog".to_string(),
+        query: "ElvUI".to_string(),
+        package_count: 2,
+        matched_package_count: 1,
+        returned_package_count: 1,
+        packages: vec![sample_index_package("elvui", "15.13")],
+    });
+
+    assert!(rendered.contains("Index: catalog/community-addon-index.toml"));
+    assert!(rendered.contains("Name: Community Catalog"));
+    assert!(rendered.contains("Query: ElvUI"));
+    assert!(rendered.contains("Packages: 2"));
+    assert!(rendered.contains("Matched packages: 1"));
+    assert!(rendered.contains("Returned packages: 1"));
+    assert!(rendered.contains("elvui 15.13 => local.zip"));
+}
+
+#[test]
 fn render_addon_index_install_reports_dry_run_summary() {
     let rendered = render_addon_index_install(&AddonIndexInstallResult {
         index_path: PathBuf::from("addons.toml"),
@@ -119,6 +140,8 @@ fn render_addon_index_relink_reports_source_and_metadata_changes() {
             asset_name: None,
             project_id: None,
             release_id: None,
+            slug: None,
+            version: None,
         },
         source_label: "https://example.invalid/details.zip".to_string(),
         addon_count: 1,
@@ -335,6 +358,8 @@ fn render_addon_index_attach_reports_blocked_and_planned_packages() {
                     asset_name: None,
                     project_id: None,
                     release_id: None,
+                    slug: None,
+                    version: None,
                 }),
                 source_label: Some("github:foo/plater".to_string()),
                 source_changed: true,

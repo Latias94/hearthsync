@@ -3,6 +3,7 @@ use crate::core::app::{
     AddonProviderSourceCapabilityValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
     AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperPolicyValue,
     HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
+    NetworkProxyDiagnosticsValue,
 };
 
 pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsValue) -> String {
@@ -102,6 +103,10 @@ pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsVal
             .as_deref()
             .map(|path| path.display().to_string())
             .unwrap_or_else(|| "none".to_string())
+    ));
+    lines.push(format!(
+        "Network proxy signals: {}",
+        format_network_proxy_diagnostics(&item.network_proxy)
     ));
     lines.push(format!(
         "Addon provider mode: {}",
@@ -204,6 +209,28 @@ fn format_addon_state_storage(value: AddonStateStorageValue) -> &'static str {
     match value {
         AddonStateStorageValue::AppData => "app_data",
         AddonStateStorageValue::Sidecar => "sidecar",
+    }
+}
+
+fn format_network_proxy_diagnostics(value: &NetworkProxyDiagnosticsValue) -> String {
+    let mut signals = Vec::new();
+    if value.http_proxy {
+        signals.push("HTTP_PROXY");
+    }
+    if value.https_proxy {
+        signals.push("HTTPS_PROXY");
+    }
+    if value.all_proxy {
+        signals.push("ALL_PROXY");
+    }
+    if value.no_proxy {
+        signals.push("NO_PROXY");
+    }
+
+    if signals.is_empty() {
+        "none".to_string()
+    } else {
+        signals.join(", ")
     }
 }
 

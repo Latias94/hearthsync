@@ -1,16 +1,18 @@
 use crate::core::addon::index::{
     attach_addons_from_index_task_with_provider, inspect_addon_index,
     install_addon_from_index_task_with_provider, relink_addon_from_index_task_with_provider,
-    scaffold_addon_index, suggest_addon_index_hints, update_addons_from_index_task_with_provider,
+    scaffold_addon_index, search_addon_index, suggest_addon_index_hints,
+    update_addons_from_index_task_with_provider,
     validate_addon_index_update_dependency_policy_support,
 };
 use crate::core::app::{
     AddonIndexAttachResult, AddonIndexInspectionResult, AddonIndexInstallResult,
-    AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSuggestionResult,
-    AddonIndexUpdateResult, AddonIndexValidationResult, AppRuntime, AttachAddonIndexAppRequest,
-    CancellationToken, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
-    RelinkAddonIndexAppRequest, ScaffoldAddonIndexRequest, SuggestAddonIndexRequest,
-    TaskProgressEvent, TaskProgressSink, TaskRun, UpdateAddonIndexAppRequest, task_support,
+    AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSearchResult,
+    AddonIndexSuggestionResult, AddonIndexUpdateResult, AddonIndexValidationResult, AppRuntime,
+    AttachAddonIndexAppRequest, CancellationToken, InspectAddonIndexRequest,
+    InstallAddonIndexAppRequest, RelinkAddonIndexAppRequest, ScaffoldAddonIndexRequest,
+    SearchAddonIndexRequest, SuggestAddonIndexRequest, TaskProgressEvent, TaskProgressSink,
+    TaskRun, UpdateAddonIndexAppRequest, task_support,
 };
 use crate::core::error::AppResult;
 
@@ -52,6 +54,17 @@ impl AddonIndexService {
     ) -> AppResult<AddonIndexValidationResult> {
         let inspection = self.inspect(request)?;
         Ok(AddonIndexValidationResult::from_inspection(inspection))
+    }
+
+    pub(super) fn search(
+        &self,
+        request: SearchAddonIndexRequest,
+    ) -> AppResult<AddonIndexSearchResult> {
+        let search = search_addon_index(request.into_domain(&self.runtime)?)?;
+        Ok(AddonIndexSearchResult::from_domain_with_provider(
+            search,
+            self.runtime.addon_provider(),
+        ))
     }
 
     pub(super) fn suggest(

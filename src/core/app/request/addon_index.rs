@@ -8,6 +8,7 @@ use crate::core::addon::index::{
     AddonIndexInstallRequest as DomainAddonIndexInstallRequest,
     AddonIndexRelinkRequest as DomainAddonIndexRelinkRequest,
     AddonIndexScaffoldRequest as DomainAddonIndexScaffoldRequest,
+    AddonIndexSearchRequest as DomainAddonIndexSearchRequest,
     AddonIndexSuggestionRequest as DomainAddonIndexSuggestionRequest,
     AddonIndexUpdateRequest as DomainAddonIndexUpdateRequest,
 };
@@ -22,6 +23,26 @@ pub struct InspectAddonIndexRequest {
 impl InspectAddonIndexRequest {
     pub(crate) fn into_index_path(self, runtime: &AppRuntime) -> AppResult<PathBuf> {
         resolve_addon_index_path(runtime, self.index_path)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchAddonIndexRequest {
+    pub index_path: PathBuf,
+    pub query: String,
+    pub limit: usize,
+}
+
+impl SearchAddonIndexRequest {
+    pub(crate) fn into_domain(
+        self,
+        runtime: &AppRuntime,
+    ) -> AppResult<DomainAddonIndexSearchRequest> {
+        Ok(DomainAddonIndexSearchRequest {
+            index_path: resolve_addon_index_path(runtime, self.index_path)?,
+            query: self.query,
+            limit: self.limit,
+        })
     }
 }
 

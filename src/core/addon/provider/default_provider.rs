@@ -309,8 +309,8 @@ mod default_provider_tests {
         let descriptors = provider.provider_descriptors();
         let capabilities = provider.source_capabilities();
 
-        assert_eq!(descriptors.len(), 5);
-        assert_eq!(capabilities.len(), 5);
+        assert_eq!(descriptors.len(), 6);
+        assert_eq!(capabilities.len(), 6);
         assert_eq!(
             capabilities,
             descriptors
@@ -386,6 +386,21 @@ mod default_provider_tests {
         assert!(wago.supports_version_pin);
         assert!(!wago.supports_file_id_pin);
         assert!(!wago.supports_remote_cache_validators);
+
+        let tukui = source_capability(&capabilities, AddonSourceFamily::TUKUI_ADDON, "tukui");
+        assert_eq!(tukui.input_prefix, Some("tukui:"));
+        assert!(tukui.can_parse_input);
+        assert!(tukui.can_materialize);
+        assert!(tukui.can_search);
+        assert_eq!(
+            tukui.dependency_resolution,
+            AddonDependencyResolutionCapability::Unsupported
+        );
+        assert!(!tukui.supports_release_channel);
+        assert!(!tukui.supports_prerelease);
+        assert!(!tukui.supports_version_pin);
+        assert!(!tukui.supports_file_id_pin);
+        assert!(!tukui.supports_remote_cache_validators);
     }
 
     #[test]

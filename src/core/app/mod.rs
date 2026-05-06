@@ -46,8 +46,8 @@ pub use request::addon::{
 };
 pub use request::addon_index::{
     AttachAddonIndexAppRequest, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
-    RelinkAddonIndexAppRequest, ScaffoldAddonIndexRequest, SuggestAddonIndexRequest,
-    UpdateAddonIndexAppRequest,
+    RelinkAddonIndexAppRequest, ScaffoldAddonIndexRequest, SearchAddonIndexRequest,
+    SuggestAddonIndexRequest, UpdateAddonIndexAppRequest,
 };
 pub use request::addon_lock::{
     AddonLockSourceOverrideRequest, ApplyAddonLockAppRequest, DiffAddonLockRequest,
@@ -85,8 +85,9 @@ pub use response::addon_index::{
     AddonIndexInspectionWarningCodeResult, AddonIndexInspectionWarningResult,
     AddonIndexInspectionWarningSeverityResult, AddonIndexInstallResult, AddonIndexPackageResult,
     AddonIndexPackageSuggestionResult, AddonIndexPackageSuggestionStatusResult,
-    AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSuggestionResult,
-    AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult, AddonIndexValidationResult,
+    AddonIndexRelinkResult, AddonIndexScaffoldResult, AddonIndexSearchResult,
+    AddonIndexSuggestionResult, AddonIndexTrackedMatchStrategyResult, AddonIndexUpdateResult,
+    AddonIndexValidationResult,
 };
 pub use response::addon_lock::{
     AddonLockApplyResult, AddonLockDiffResult, AddonLockFieldChangeResult,
@@ -168,5 +169,6 @@ pub use types::install::{
 };
 pub use types::runtime::{
     AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
-    ExternalHelperPolicyValue, HelperStrategyValue, RuntimeSettingsValue,
+    ExternalHelperPolicyValue, HelperStrategyValue, NetworkProxyDiagnosticsValue,
+    RuntimeSettingsValue,
 };

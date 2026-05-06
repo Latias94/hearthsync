@@ -1,6 +1,7 @@
 mod curation;
 mod matching;
 mod operations;
+mod search;
 mod storage;
 #[cfg(test)]
 mod tests;
@@ -24,6 +25,7 @@ pub(crate) use self::operations::{
     relink_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
     validate_addon_index_update_dependency_policy_support,
 };
+pub use self::search::search_addon_index;
 pub use self::storage::inspect_addon_index;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +56,24 @@ pub struct AddonIndexPackage {
     pub addon_directories: Vec<String>,
     #[serde(default)]
     pub supported_flavors: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AddonIndexSearchRequest {
+    pub index_path: PathBuf,
+    pub query: String,
+    pub limit: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct AddonIndexSearch {
+    pub index_path: PathBuf,
+    pub index_name: String,
+    pub query: String,
+    pub package_count: usize,
+    pub matched_package_count: usize,
+    pub returned_package_count: usize,
+    pub packages: Vec<AddonIndexPackage>,
 }
 
 #[derive(Debug, Clone, Serialize)]

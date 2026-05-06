@@ -235,12 +235,14 @@ The provider registry should first preserve current behavior:
 - HTTP archive
 - GitHub Releases
 - CurseForge
+- Wago
+- Tukui
 
-Then add provider families in priority order:
+Remaining provider-family candidates:
 
-1. Wago, if official or stable download metadata can be used safely.
-2. WoWInterface, if source identity and artifact URLs can be resolved without scraping fragile pages.
-3. Custom manifest/index-backed catalog search for user-maintained source lists.
+1. WoWInterface, if source identity and artifact URLs can be resolved without scraping fragile
+   pages.
+2. Custom manifest/index-backed catalog search for user-maintained source lists.
 
 P6 research selects Wago as the first new real provider. The source identity should be a typed
 `WagoAddon` reference with `project_id` and an optional exact `release_id` pin. Wago exposes enough
@@ -252,9 +254,35 @@ not a documented third-party manager contract. The detailed research is in `prov
 The implementation keeps Wago search disabled for the first slice because the available search page
 is less structured than the release metadata needed for install/update.
 
+P7 implementation adds Tukui as a narrow official-API provider with `TukuiAddon { slug, version }`.
+The `version` field is treated as current-version guard and cache identity, not historical release
+replay. Tukui catalog search is enabled because `/addons` is structured and small; dependency
+resolution, release-channel policy, and cache remote validation remain unsupported until Tukui
+exposes those contracts.
+
 Provider additions should be blocked on source attribution and hosting-term respect. HearthSync
 should continue to download from original provider sources or user-provided source URLs rather than
 becoming a redistribution platform.
+
+## Community Metadata Catalog
+
+GitHub Releases, Wago project ids, and Tukui slugs are usable source identities, but only CurseForge
+and Tukui currently expose straightforward search catalogs. GitHub in particular needs a discovery
+layer if HearthSync wants good open-source addon search without scraping.
+
+The recommended product direction is an in-tree `catalog/` metadata layer, starting with
+`catalog/community-addon-index.toml`:
+
+- stores source metadata only, not archives
+- reuses the existing addon index package schema where possible
+- validates package source refs through read-only dry-run probes
+- accepts community PRs for GitHub/Wago/Tukui mappings
+- can be consumed as an optional local addon index now and mirrored remotely later if needed
+
+This follows the stronger parts of Strongbox and instawow: a public source catalogue helps discovery,
+while provider adapters still download from original hosts and enforce host-specific rules. Keeping
+the first catalog in-tree also makes code review, validation, and release coordination simpler than
+splitting the metadata source of truth into another repository too early.
 
 ## Relationship to Sharing
 

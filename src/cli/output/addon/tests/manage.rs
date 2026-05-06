@@ -111,6 +111,8 @@ fn render_addon_relink_reports_source_transition() {
             asset_name: None,
             project_id: None,
             release_id: None,
+            slug: None,
+            version: None,
         },
         source_label: "github:foo/plater".to_string(),
         addon_count: 1,

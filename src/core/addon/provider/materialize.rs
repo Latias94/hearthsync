@@ -558,6 +558,77 @@ mod tests {
         );
     }
 
+    #[test]
+    fn materialize_tukui_addon_downloads_current_version_link() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+            downloads: RefCell<Vec<HttpDownloadRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request.clone());
+                if request.url == "https://api.tukui.org/v1/addon/elvui" {
+                    return Ok(HttpResponse {
+                        status_code: 200,
+                        body: r#"{"slug":"elvui","name":"ElvUI","url":"https://api.tukui.org/v1/download/elvui/token","version":"15.13","patch":["12.0.1","5.5.3","1.15.8"],"web_url":"https://tukui.org/elvui","git_url":"https://github.com/tukui-org/ElvUI","small_desc":"A UI package"}"#.to_string(),
+                    });
+                }
+                Err(AppError::Validation(format!(
+                    "unexpected request url: {}",
+                    request.url
+                )))
+            }
+
+            fn download_to_path(
+                &self,
+                request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                self.downloads.borrow_mut().push(request.clone());
+                std::fs::write(&request.destination, request.url.as_bytes()).expect("archive file");
+                Ok(HttpDownloadResponse {
+                    status_code: 200,
+                    headers: Vec::new(),
+                })
+            }
+        }
+
+        let temp = tempdir().expect("temp dir");
+        let http_client = FakeHttpClient::default();
+        let source = AddonSourceRef::TukuiAddon {
+            slug: "elvui".to_string(),
+            version: None,
+        };
+
+        let materialized = materialize_source_ref_impl(
+            &http_client,
+            &source,
+            temp.path(),
+            AddonProviderContext::new(Some(crate::core::install::WowFlavor::Retail), None),
+            &AddonProviderOptions::default(),
+        )
+        .expect("materialize tukui source");
+
+        let requests = http_client.requests.borrow();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].url, "https://api.tukui.org/v1/addon/elvui");
+        assert_eq!(http_client.downloads.borrow().len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(&materialized.archive_path).expect("downloaded archive"),
+            "https://api.tukui.org/v1/download/elvui/token"
+        );
+        assert_eq!(
+            materialized
+                .archive_path
+                .file_name()
+                .and_then(|name| name.to_str()),
+            Some("tukui-elvui-15.13.zip")
+        );
+    }
+
     fn wago_release_page_html(release_id: &str) -> String {
         let json = format!(
             r#"{{"component":"Addon/Releases","props":{{"releases":{{"current_page":1,"last_page":1,"data":[{{"id":"{release_id}","size":1024,"label":"Details","stability":"stable","created_at":"2026-05-01T00:00:00Z","is_processed":true,"supported_retail_patches":["12.0.5"],"download_link":"https://addons.wago.io/download/{release_id}?x=1&y=2"}}]}}}}}}"#

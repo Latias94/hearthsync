@@ -6,6 +6,8 @@ param(
     [string]$GitHubSource = 'github:BigWigsMods/BigWigs@v414.9#BigWigs-v414.9.zip',
     [string]$WagoSource = 'wago:qv63A7Gb@vdx1042w',
     [string]$HttpSource = 'https://github.com/BigWigsMods/BigWigs/releases/download/v414.9/BigWigs-v414.9.zip',
+    [string]$ExtraHttpSource = 'https://sourceforge.net/projects/elvui.mirror/files/6.09/6.09%20source%20code.zip/download',
+    [string]$TukuiSource = 'tukui:elvui',
     [string]$CurseForgeSource = 'curseforge:238222',
     [switch]$IncludeCurseForge,
     [switch]$KeepDownloads
@@ -221,8 +223,10 @@ $cacheRoot = Join-Path $OutputDir 'download-cache'
 
 $cases = [System.Collections.Generic.List[object]]::new()
 Add-Case -Cases $cases -Id 'http-github-release-asset' -Provider 'http' -Source $HttpSource -Enabled $true -SkipReason ''
+Add-Case -Cases $cases -Id 'http-sourceforge-elvui-archive' -Provider 'http' -Source $ExtraHttpSource -Enabled $true -SkipReason ''
 Add-Case -Cases $cases -Id 'github-release-exact-asset' -Provider 'github' -Source $GitHubSource -Enabled $true -SkipReason ''
 Add-Case -Cases $cases -Id 'wago-exact-release' -Provider 'wago' -Source $WagoSource -Enabled $true -SkipReason ''
+Add-Case -Cases $cases -Id 'tukui-elvui-latest' -Provider 'tukui' -Source $TukuiSource -Enabled $true -SkipReason ''
 
 $curseForgeKeyPresent = -not [string]::IsNullOrWhiteSpace($env:HEARTHSYNC_CURSEFORGE_API_KEY) -or
     -not [string]::IsNullOrWhiteSpace($env:CURSEFORGE_API_KEY)

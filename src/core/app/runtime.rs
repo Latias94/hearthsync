@@ -21,7 +21,7 @@ use super::{
     AddonProviderSourceCapabilityValue, AddonStatePathsValue, AddonStateStorageValue,
     AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue,
     ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HelperStrategyValue,
-    HostPlatformValue, ResolvedInstallationValue,
+    HostPlatformValue, NetworkProxyDiagnosticsValue, ResolvedInstallationValue,
 };
 
 type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
@@ -194,6 +194,22 @@ impl AppRuntimeBuilder {
     }
 }
 
+fn collect_network_proxy_diagnostics() -> NetworkProxyDiagnosticsValue {
+    collect_network_proxy_diagnostics_with(|name| std::env::var_os(name).is_some())
+}
+
+fn collect_network_proxy_diagnostics_with<FLookup>(lookup: FLookup) -> NetworkProxyDiagnosticsValue
+where
+    FLookup: Fn(&str) -> bool,
+{
+    NetworkProxyDiagnosticsValue {
+        http_proxy: lookup("HTTP_PROXY") || lookup("http_proxy"),
+        https_proxy: lookup("HTTPS_PROXY") || lookup("https_proxy"),
+        all_proxy: lookup("ALL_PROXY") || lookup("all_proxy"),
+        no_proxy: lookup("NO_PROXY") || lookup("no_proxy"),
+    }
+}
+
 impl AppRuntime {
     pub fn new() -> Self {
         Self::default()
@@ -261,6 +277,7 @@ impl AppRuntime {
             relative_path_base: self.relative_path_base.clone(),
             default_backup_dir: self.default_backup_dir.clone(),
             default_bundle_output_dir: self.default_bundle_output_dir.clone(),
+            network_proxy: collect_network_proxy_diagnostics(),
             selected_installation: None,
             addon_state_paths: None,
             capabilities: self.capabilities(),
@@ -279,6 +296,7 @@ impl AppRuntime {
             relative_path_base: self.relative_path_base.clone(),
             default_backup_dir: self.default_backup_dir.clone(),
             default_bundle_output_dir: self.default_bundle_output_dir.clone(),
+            network_proxy: collect_network_proxy_diagnostics(),
             selected_installation: Some(installation),
             addon_state_paths: Some(addon_state_paths),
             capabilities: self.capabilities(),

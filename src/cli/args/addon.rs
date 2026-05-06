@@ -175,6 +175,22 @@ pub enum AddonIndexCommands {
         #[arg(long, help = "Path to the addon index TOML file")]
         file: PathBuf,
     },
+    #[command(about = "Search packages inside a curated addon index")]
+    Search {
+        #[arg(long, help = "Path to the addon index TOML file")]
+        file: PathBuf,
+        #[arg(
+            long,
+            help = "Search query for package ids, names, source refs, or directories"
+        )]
+        query: String,
+        #[arg(
+            long,
+            default_value_t = 10,
+            help = "Maximum number of packages to return"
+        )]
+        limit: usize,
+    },
     #[command(about = "Validate a curated addon index and fail on curator warnings")]
     Validate {
         #[arg(long, help = "Path to the addon index TOML file")]

@@ -2526,3 +2526,83 @@ Specifically:
 - Strict repairs may fail after earlier local cleanup has already removed invalid entries; that
   partial-progress behavior is explicit and limited to local cache maintenance performed before the
   remote validation failure.
+
+## ADR-097: HTTP Provider Networking Honors System Proxy Environment Variables
+
+Accepted on 2026-05-06
+
+### Decision
+
+The HTTP-backed addon provider path should honor the host's standard proxy environment variables
+and surface proxy presence as runtime diagnostics instead of hiding network behavior inside
+provider-specific code.
+
+Specifically:
+
+- the blocking reqwest HTTP client is built with system proxy support enabled
+- runtime diagnostics report whether `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, or `NO_PROXY`
+  signals are present
+- the product does not need a second proxy discovery path before GUI work; if explicit proxy
+  configuration becomes necessary later, it should be modeled as app/runtime policy rather than
+  provider-local ad hoc state
+
+### Consequences
+
+- CN or enterprise network users can rely on standard proxy environment variables without a custom
+  provider implementation
+- CLI and future GUI callers can see whether proxy-related environment signals are present before
+  a download or provider request fails
+- proxy configuration remains a visible product decision instead of an implicit transport detail
+
+## ADR-098: Tukui Is a Narrow Official-API Provider
+
+Accepted on 2026-05-06
+
+### Decision
+
+Add Tukui as a built-in addon provider using the official `api.tukui.org/v1` addon endpoints.
+
+Specifically:
+
+- `AddonSourceRef::TukuiAddon` stores `slug` plus optional `version`.
+- CLI/source input accepts `tukui:<slug>[@current-version]`.
+- Artifact resolution fetches current official addon metadata from `GET /addon/<slug>`.
+- The resolved current `version` is used for cache identity so a latest-version source does not
+  reuse a stale cached archive after Tukui advances.
+- Catalog search uses the structured `/addons` payload.
+- Addon policy version pinning, dependency resolution, release-channel policy, and remote cache
+  validation remain unsupported until Tukui exposes stable contracts for those behaviors.
+
+### Consequences
+
+- ElvUI/Tukui become first-class sources without relying on SourceForge mirrors or generic HTTP
+  URLs.
+- The optional source version is a current-version guard, not a historical release replay guarantee.
+- Future UI screens can show Tukui as searchable, but should label update semantics as latest-only.
+
+## ADR-099: Community Addon Catalog Should Be Metadata-Only and Live In-Tree
+
+Accepted on 2026-05-06
+
+### Decision
+
+HearthSync should add a metadata-only community addon catalog in the repository rather than
+storing third-party addon archives or turning local managed registry state into a sharing format.
+
+Specifically:
+
+- The catalog should reuse or closely mirror addon-index package records.
+- Entries store source refs, addon directories, aliases, supported flavors, upstream host labels,
+  website/source URLs, and attribution metadata.
+- The catalog must not store downloaded zip archives.
+- Validation should be read-only and should run provider dry-run probes against synthetic installs.
+- The first catalog should live under `catalog/community-addon-index.toml` in this repository.
+- If the catalog later outgrows the main repo, it can be mirrored to a separate repository without
+  changing the schema or validation model.
+
+### Consequences
+
+- GitHub-hosted addons can become discoverable without scraping GitHub search.
+- Community PRs can improve source mappings while preserving original provider downloads.
+- The CLI and future egui can consume the catalog as an optional local addon index now and as a
+  remote mirror later if that becomes operationally useful.

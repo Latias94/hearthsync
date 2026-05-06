@@ -33,6 +33,10 @@ pub enum AddonSourceRef {
         project_id: String,
         release_id: Option<String>,
     },
+    TukuiAddon {
+        slug: String,
+        version: Option<String>,
+    },
 }
 
 impl AddonSourceRef {
@@ -76,6 +80,14 @@ impl AddonSourceRef {
                 }
                 text
             }
+            Self::TukuiAddon { slug, version } => {
+                let mut text = format!("tukui:{slug}");
+                if let Some(version) = version {
+                    text.push('@');
+                    text.push_str(version);
+                }
+                text
+            }
         }
     }
 }
@@ -84,7 +96,8 @@ pub(crate) fn addon_source_input_is_local_archive(source: &str) -> bool {
     !(is_http_url(source)
         || source.starts_with("curseforge:")
         || source.starts_with("github:")
-        || source.starts_with("wago:"))
+        || source.starts_with("wago:")
+        || source.starts_with("tukui:"))
 }
 
 pub(crate) fn validate_absolute_local_archive_source_path(path: &Path) -> AppResult<()> {
@@ -155,6 +168,12 @@ pub(crate) fn validate_addon_source_ref(
             validate_wago_source_identifier(source_context, "Wago project id", project_id)?;
             if let Some(release_id) = release_id {
                 validate_wago_source_identifier(source_context, "Wago release id", release_id)?;
+            }
+        }
+        AddonSourceRef::TukuiAddon { slug, version } => {
+            validate_tukui_slug(source_context, "Tukui addon slug", slug)?;
+            if let Some(version) = version {
+                validate_tukui_version(source_context, "Tukui addon version", version)?;
             }
         }
     }
@@ -252,6 +271,44 @@ fn validate_github_repository_identifier(
     Ok(())
 }
 
+pub(in crate::core::addon::provider) fn validate_tukui_slug(
+    source_context: &str,
+    field: &str,
+    value: &str,
+) -> AppResult<()> {
+    validate_required_source_text(source_context, field, value)?;
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must contain only ASCII letters, digits, `-`, or `_`"),
+        ));
+    }
+
+    Ok(())
+}
+
+pub(in crate::core::addon::provider) fn validate_tukui_version(
+    source_context: &str,
+    field: &str,
+    value: &str,
+) -> AppResult<()> {
+    validate_required_source_text(source_context, field, value)?;
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+    {
+        return Err(invalid_source_ref(
+            source_context,
+            &format!("{field} must contain only ASCII letters, digits, `.`, `-`, or `_`"),
+        ));
+    }
+
+    Ok(())
+}
+
 fn invalid_source_ref(source_context: &str, message: &str) -> AppError {
     AppError::Validation(format!("invalid {source_context}: {message}"))
 }
@@ -276,6 +333,7 @@ pub(super) fn source_cache_namespace(source: &AddonSourceRef) -> &'static str {
         AddonSourceRef::CurseForgeMod { .. } => "curseforge",
         AddonSourceRef::GitHubRelease { .. } => "github",
         AddonSourceRef::WagoAddon { .. } => "wago",
+        AddonSourceRef::TukuiAddon { .. } => "tukui",
     }
 }
 
@@ -338,6 +396,12 @@ mod tests {
                 release_id: None,
             },
         };
+        let tukui = AddonSourceFixture {
+            source: AddonSourceRef::TukuiAddon {
+                slug: "elvui".to_string(),
+                version: None,
+            },
+        };
 
         assert!(
             toml::to_string(&github)
@@ -353,6 +417,11 @@ mod tests {
             toml::to_string(&wago)
                 .expect("wago source toml")
                 .contains("kind = \"wago_addon\"")
+        );
+        assert!(
+            toml::to_string(&tukui)
+                .expect("tukui source toml")
+                .contains("kind = \"tukui_addon\"")
         );
     }
 

@@ -5,8 +5,8 @@ use super::app_support::{
 };
 use super::output::addon::{
     render_addon_index_attach, render_addon_index_inspection, render_addon_index_install,
-    render_addon_index_relink, render_addon_index_scaffold, render_addon_index_suggestion,
-    render_addon_index_update, render_addon_index_validation,
+    render_addon_index_relink, render_addon_index_scaffold, render_addon_index_search,
+    render_addon_index_suggestion, render_addon_index_update, render_addon_index_validation,
 };
 use super::output::render;
 use crate::core::app::AppRuntime;
@@ -17,8 +17,8 @@ mod request;
 use request::{
     build_attach_addon_index_request, build_inspect_addon_index_request,
     build_install_addon_index_request, build_relink_addon_index_request,
-    build_scaffold_addon_index_request, build_suggest_addon_index_request,
-    build_update_addon_index_request,
+    build_scaffold_addon_index_request, build_search_addon_index_request,
+    build_suggest_addon_index_request, build_update_addon_index_request,
 };
 
 pub(super) fn handle_addon_index_command(
@@ -33,6 +33,11 @@ pub(super) fn handle_addon_index_command(
             json,
             || app.inspect_addon_index(build_inspect_addon_index_request(file)),
             render_addon_index_inspection,
+        )?,
+        AddonIndexCommands::Search { file, query, limit } => render_with_value(
+            json,
+            || app.search_addon_index(build_search_addon_index_request(file, query, limit)),
+            render_addon_index_search,
         )?,
         AddonIndexCommands::Validate { file } => {
             let result = app.validate_addon_index(build_inspect_addon_index_request(file))?;

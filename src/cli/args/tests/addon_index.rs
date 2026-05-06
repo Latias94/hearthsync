@@ -29,6 +29,40 @@ fn parses_top_level_addon_index_validate() {
 }
 
 #[test]
+fn parses_top_level_addon_index_search() {
+    let cli = Cli::parse_from([
+        "hearthsync",
+        "addon",
+        "index",
+        "search",
+        "--file",
+        "E:\\Rust\\hearthsync\\catalog\\community-addon-index.toml",
+        "--query",
+        "ElvUI",
+        "--limit",
+        "5",
+    ]);
+
+    match cli.command {
+        Commands::Addon { command } => match command {
+            AddonCommands::Index { command } => match command {
+                AddonIndexCommands::Search { file, query, limit } => {
+                    assert_eq!(
+                        file,
+                        PathBuf::from("E:\\Rust\\hearthsync\\catalog\\community-addon-index.toml")
+                    );
+                    assert_eq!(query, "ElvUI");
+                    assert_eq!(limit, 5);
+                }
+                _ => panic!("expected addon index search command"),
+            },
+            _ => panic!("expected addon index command"),
+        },
+        _ => panic!("expected addon command"),
+    }
+}
+
+#[test]
 fn parses_top_level_addon_index_suggest() {
     let cli = Cli::parse_from([
         "hearthsync",

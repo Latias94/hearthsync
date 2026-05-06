@@ -80,6 +80,17 @@ Expected edit set:
 No schema-v2 is needed for this if WoWInterface identity is compact and stable, for example one file
 or project id plus an optional exact artifact pin.
 
+## Tukui Inventory
+
+Tukui fits the typed-source path:
+
+- `AddonSourceRef::TukuiAddon` stores `slug` and optional `version`.
+- The slug is the stable source identity.
+- The version is a current-version guard and cache identity, not a historical artifact pin.
+- Catalog search is provider-owned because `/addons` is a small structured Tukui payload.
+- No schema-v2 is needed because the identity is compact and the provider does not require
+  user-defined fields.
+
 ## When To Reopen Schema-v2
 
 Reopen this decision if one of these becomes true:

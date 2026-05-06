@@ -13,6 +13,7 @@ pub enum AddonSourceKindResult {
     CurseForgeMod,
     GitHubRelease,
     WagoAddon,
+    TukuiAddon,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -30,6 +31,8 @@ pub struct AddonSourceResult {
     pub asset_name: Option<String>,
     pub project_id: Option<String>,
     pub release_id: Option<String>,
+    pub slug: Option<String>,
+    pub version: Option<String>,
 }
 
 impl AddonSourceResult {
@@ -58,6 +61,8 @@ impl AddonSourceResult {
                 asset_name: None,
                 project_id: None,
                 release_id: None,
+                slug: None,
+                version: None,
             },
             DomainAddonSourceRef::HttpArchive { url } => Self {
                 kind: AddonSourceKindResult::HttpArchive,
@@ -73,6 +78,8 @@ impl AddonSourceResult {
                 asset_name: None,
                 project_id: None,
                 release_id: None,
+                slug: None,
+                version: None,
             },
             DomainAddonSourceRef::CurseForgeMod { mod_id, file_id } => Self {
                 kind: AddonSourceKindResult::CurseForgeMod,
@@ -88,6 +95,8 @@ impl AddonSourceResult {
                 asset_name: None,
                 project_id: None,
                 release_id: None,
+                slug: None,
+                version: None,
             },
             DomainAddonSourceRef::GitHubRelease {
                 owner,
@@ -108,6 +117,8 @@ impl AddonSourceResult {
                 asset_name,
                 project_id: None,
                 release_id: None,
+                slug: None,
+                version: None,
             },
             DomainAddonSourceRef::WagoAddon {
                 project_id,
@@ -126,6 +137,25 @@ impl AddonSourceResult {
                 asset_name: None,
                 project_id: Some(project_id),
                 release_id,
+                slug: None,
+                version: None,
+            },
+            DomainAddonSourceRef::TukuiAddon { slug, version } => Self {
+                kind: AddonSourceKindResult::TukuiAddon,
+                display_name,
+                dependency_resolution_capability,
+                local_archive_path: None,
+                url: None,
+                mod_id: None,
+                file_id: None,
+                owner: None,
+                repo: None,
+                tag: None,
+                asset_name: None,
+                project_id: None,
+                release_id: None,
+                slug: Some(slug),
+                version,
             },
         }
     }

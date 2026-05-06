@@ -9,7 +9,7 @@ use crate::core::app::{
     AddonProviderOptionsValue, AddonProviderRetryPolicyValue, AddonStateStorageValue, AppRuntime,
     AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
     ExternalHelperPolicyValue, HelperStrategyValue, HostPlatformValue,
-    HttpNoValidatorCachePolicyValue,
+    HttpNoValidatorCachePolicyValue, NetworkProxyDiagnosticsValue,
 };
 
 #[test]
@@ -242,6 +242,23 @@ fn runtime_builder_resolves_relative_runtime_paths_before_diagnostics() {
     assert_eq!(
         diagnostics.default_bundle_output_dir,
         Some(temp.path().join("bundles"))
+    );
+}
+
+#[test]
+fn runtime_diagnostics_collect_network_proxy_signals_from_standard_env_names() {
+    let proxy = super::collect_network_proxy_diagnostics_with(|name| {
+        matches!(name, "HTTP_PROXY" | "http_proxy" | "NO_PROXY" | "no_proxy")
+    });
+
+    assert_eq!(
+        proxy,
+        NetworkProxyDiagnosticsValue {
+            http_proxy: true,
+            https_proxy: false,
+            all_proxy: false,
+            no_proxy: true,
+        }
     );
 }
 

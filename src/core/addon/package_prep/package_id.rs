@@ -41,6 +41,10 @@ pub(super) fn derive_package_id(source: &AddonSourceRef, addon_names: &[&str]) -
             Some(release_id) => format!("wago-{project_id}-{release_id}"),
             None => format!("wago-{project_id}"),
         }),
+        AddonSourceRef::TukuiAddon { slug, version } => Some(match version {
+            Some(version) => format!("tukui-{slug}-{version}"),
+            None => format!("tukui-{slug}"),
+        }),
     }
     .or_else(|| addon_names.first().map(|name| (*name).to_string()))
     .unwrap_or_else(|| "addon-package".to_string());

@@ -375,6 +375,14 @@ fn source_identity_matches(left: &AddonSourceRef, right: &AddonSourceRef) -> boo
                 ..
             },
         ) => left_project_id.eq_ignore_ascii_case(right_project_id),
+        (
+            AddonSourceRef::TukuiAddon {
+                slug: left_slug, ..
+            },
+            AddonSourceRef::TukuiAddon {
+                slug: right_slug, ..
+            },
+        ) => left_slug.eq_ignore_ascii_case(right_slug),
         _ => false,
     }
 }
@@ -416,6 +424,14 @@ fn source_family_identity_matches(left: &AddonSourceRef, right: &AddonSourceRef)
                 ..
             },
         ) => left_project_id.eq_ignore_ascii_case(right_project_id),
+        (
+            AddonSourceRef::TukuiAddon {
+                slug: left_slug, ..
+            },
+            AddonSourceRef::TukuiAddon {
+                slug: right_slug, ..
+            },
+        ) => left_slug.eq_ignore_ascii_case(right_slug),
         _ => false,
     }
 }

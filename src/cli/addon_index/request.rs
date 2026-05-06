@@ -3,11 +3,23 @@ use std::path::PathBuf;
 use crate::core::app::{
     AttachAddonIndexAppRequest, InspectAddonIndexRequest, InstallAddonIndexAppRequest,
     RelinkAddonIndexAppRequest, ResolvedInstallationValue, ScaffoldAddonIndexRequest,
-    SuggestAddonIndexRequest, UpdateAddonIndexAppRequest,
+    SearchAddonIndexRequest, SuggestAddonIndexRequest, UpdateAddonIndexAppRequest,
 };
 
 pub(super) fn build_inspect_addon_index_request(index_path: PathBuf) -> InspectAddonIndexRequest {
     InspectAddonIndexRequest { index_path }
+}
+
+pub(super) fn build_search_addon_index_request(
+    index_path: PathBuf,
+    query: String,
+    limit: usize,
+) -> SearchAddonIndexRequest {
+    SearchAddonIndexRequest {
+        index_path,
+        query,
+        limit,
+    }
 }
 
 pub(super) fn build_install_addon_index_request(
@@ -113,8 +125,8 @@ mod tests {
     use super::{
         build_attach_addon_index_request, build_inspect_addon_index_request,
         build_install_addon_index_request, build_relink_addon_index_request,
-        build_scaffold_addon_index_request, build_suggest_addon_index_request,
-        build_update_addon_index_request,
+        build_scaffold_addon_index_request, build_search_addon_index_request,
+        build_suggest_addon_index_request, build_update_addon_index_request,
     };
     use crate::cli::test_support::sample_installation;
 
@@ -123,6 +135,19 @@ mod tests {
         let request = build_inspect_addon_index_request(PathBuf::from("addons.index.toml"));
 
         assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+    }
+
+    #[test]
+    fn build_search_addon_index_request_preserves_options() {
+        let request = build_search_addon_index_request(
+            PathBuf::from("addons.index.toml"),
+            "ElvUI".to_string(),
+            7,
+        );
+
+        assert_eq!(request.index_path, PathBuf::from("addons.index.toml"));
+        assert_eq!(request.query, "ElvUI");
+        assert_eq!(request.limit, 7);
     }
 
     #[test]

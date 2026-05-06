@@ -182,6 +182,7 @@ fn dependency_identity_key(source: &AddonSourceRef) -> String {
     match source {
         AddonSourceRef::CurseForgeMod { mod_id, .. } => format!("curseforge:{mod_id}"),
         AddonSourceRef::WagoAddon { project_id, .. } => format!("wago:{project_id}"),
+        AddonSourceRef::TukuiAddon { slug, .. } => format!("tukui:{slug}"),
         _ => source.display_name(),
     }
 }
@@ -193,6 +194,7 @@ fn dependency_source_kind_label(source: &AddonSourceRef) -> &'static str {
         AddonSourceRef::CurseForgeMod { .. } => "curseforge_mod",
         AddonSourceRef::GitHubRelease { .. } => "github_release",
         AddonSourceRef::WagoAddon { .. } => "wago_addon",
+        AddonSourceRef::TukuiAddon { .. } => "tukui_addon",
     }
 }
 
@@ -226,6 +228,16 @@ fn source_satisfies_dependency(candidate: &AddonSourceRef, dependency: &AddonSou
                 ..
             },
         ) => candidate_project_id.eq_ignore_ascii_case(dependency_project_id),
+        (
+            AddonSourceRef::TukuiAddon {
+                slug: candidate_slug,
+                ..
+            },
+            AddonSourceRef::TukuiAddon {
+                slug: dependency_slug,
+                ..
+            },
+        ) => candidate_slug.eq_ignore_ascii_case(dependency_slug),
         _ => candidate == dependency,
     }
 }

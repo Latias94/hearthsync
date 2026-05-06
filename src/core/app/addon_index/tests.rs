@@ -43,6 +43,7 @@ mod curation;
 mod inspect_validate;
 mod operations;
 mod provider_runtime;
+mod search;
 mod update;
 
 trait AddonServiceTaskTestExt {

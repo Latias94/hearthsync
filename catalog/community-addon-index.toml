@@ -1,0 +1,47 @@
+schema_version = 1
+name = "HearthSync Community Addon Catalog"
+description = "Repository-owned, metadata-only addon catalog. No archives are stored here."
+
+[[packages]]
+id = "bigwigs"
+name = "BigWigs"
+version = "v414.9"
+match_package_ids = ["bigwigs-v414-9"]
+source = { kind = "github_release", owner = "BigWigsMods", repo = "BigWigs", tag = "v414.9", asset_name = "BigWigs-v414.9.zip" }
+source_url = "https://github.com/BigWigsMods/BigWigs/releases/download/v414.9/BigWigs-v414.9.zip"
+website_url = "https://github.com/BigWigsMods/BigWigs"
+addon_directories = ["BigWigs", "BigWigs_Core", "BigWigs_MarchOnQuelDanas", "BigWigs_MidnightWorld", "BigWigs_Options", "BigWigs_Plugins", "BigWigs_TheDreamrift", "BigWigs_TheVoidspire"]
+supported_flavors = ["retail"]
+
+[[packages]]
+id = "details"
+name = "Details! Damage Meter"
+version = "vdx1042w"
+match_package_ids = ["wago-qv63a7gb-vdx1042w"]
+source = { kind = "wago_addon", project_id = "qv63A7Gb", release_id = "vdx1042w" }
+source_url = "https://addons.wago.io/addons/qv63A7Gb"
+website_url = "https://addons.wago.io/addons/qv63A7Gb"
+addon_directories = ["Details", "Details_Compare2", "Details_DataStorage", "Details_EncounterDetails", "Details_RaidCheck", "Details_Streamer", "Details_TinyThreat", "Details_Vanguard"]
+supported_flavors = ["retail"]
+
+[[packages]]
+id = "elvui"
+name = "ElvUI"
+version = "15.13"
+match_package_ids = ["tukui-elvui"]
+source = { kind = "tukui_addon", slug = "elvui" }
+source_url = "https://api.tukui.org/v1/addon/elvui"
+website_url = "https://tukui.org/elvui"
+addon_directories = ["ElvUI", "ElvUI_Libraries", "ElvUI_Options"]
+supported_flavors = ["retail", "classic", "classic-era"]
+
+[[packages]]
+id = "tukui"
+name = "Tukui"
+version = "20.463"
+match_package_ids = ["tukui-tukui"]
+source = { kind = "tukui_addon", slug = "tukui" }
+source_url = "https://api.tukui.org/v1/addon/tukui"
+website_url = "https://tukui.org/tukui"
+addon_directories = ["Tukui"]
+supported_flavors = ["retail", "classic", "classic-era"]

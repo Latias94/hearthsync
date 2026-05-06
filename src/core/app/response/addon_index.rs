@@ -3,6 +3,7 @@ mod curation;
 mod inspection;
 mod operations;
 mod package;
+mod search;
 mod shared;
 
 pub use attach::{
@@ -19,4 +20,5 @@ pub use inspection::{
 };
 pub use operations::{AddonIndexInstallResult, AddonIndexRelinkResult, AddonIndexUpdateResult};
 pub use package::AddonIndexPackageResult;
+pub use search::AddonIndexSearchResult;
 pub use shared::AddonIndexTrackedMatchStrategyResult;

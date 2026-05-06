@@ -60,6 +60,34 @@ pub(in crate::cli) fn render_addon_index_inspection(item: &AddonIndexInspectionR
     )
 }
 
+pub(in crate::cli) fn render_addon_index_search(item: &AddonIndexSearchResult) -> String {
+    let packages = if item.packages.is_empty() {
+        "none".to_string()
+    } else {
+        item.packages
+            .iter()
+            .map(|package| {
+                format!(
+                    "{} {} => {}",
+                    package.id, package.version, package.source_label
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    format!(
+        "Index: {}\nName: {}\nQuery: {}\nPackages: {}\nMatched packages: {}\nReturned packages: {}\n{}",
+        item.index_path.display(),
+        item.index_name,
+        item.query,
+        item.package_count,
+        item.matched_package_count,
+        item.returned_package_count,
+        packages
+    )
+}
+
 pub(in crate::cli) fn render_addon_index_install(item: &AddonIndexInstallResult) -> String {
     let backup = item
         .install

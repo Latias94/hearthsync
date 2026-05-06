@@ -12,7 +12,8 @@ use crate::core::app::{
     AddonStateStorageValue, AppRuntime, AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue,
     ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue,
     HealthStatusValue, HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
-    InstallationHealthResult, InstallationInspectionResult, InstallationScanResult, WowFlavorValue,
+    InstallationHealthResult, InstallationInspectionResult, InstallationScanResult,
+    NetworkProxyDiagnosticsValue, WowFlavorValue,
 };
 
 #[test]
@@ -89,6 +90,12 @@ fn render_runtime_diagnostics_reports_runtime_settings_and_capabilities() {
         relative_path_base: Some(PathBuf::from("E:\\Work")),
         default_backup_dir: Some(PathBuf::from("E:\\Backups")),
         default_bundle_output_dir: None,
+        network_proxy: NetworkProxyDiagnosticsValue {
+            http_proxy: true,
+            https_proxy: false,
+            all_proxy: false,
+            no_proxy: true,
+        },
         selected_installation: Some(sample_installation()),
         addon_state_paths: Some(AddonStatePathsValue {
             root_dir: PathBuf::from(
@@ -146,6 +153,7 @@ fn render_runtime_diagnostics_reports_runtime_settings_and_capabilities() {
     assert!(rendered.contains("Relative path base: E:\\Work"));
     assert!(rendered.contains("Default backup dir: E:\\Backups"));
     assert!(rendered.contains("Default bundle output dir: none"));
+    assert!(rendered.contains("Network proxy signals: HTTP_PROXY, NO_PROXY"));
     assert!(rendered.contains("Addon provider mode: configured_default"));
     assert!(rendered.contains("cache: E:\\Cache"));
     assert!(rendered.contains("max_attempts: 3"));
@@ -167,6 +175,7 @@ fn render_runtime_diagnostics_without_installation_context_emits_operator_hint()
         relative_path_base: None,
         default_backup_dir: None,
         default_bundle_output_dir: None,
+        network_proxy: NetworkProxyDiagnosticsValue::default(),
         selected_installation: None,
         addon_state_paths: None,
         capabilities: AppRuntimeCapabilitiesValue {
@@ -193,6 +202,7 @@ fn render_runtime_diagnostics_without_installation_context_emits_operator_hint()
             "Managed addon state paths: resolve with --install to inspect exact locations"
         )
     );
+    assert!(rendered.contains("Network proxy signals: none"));
     assert!(rendered.contains("Addon source capabilities: none"));
 }
 

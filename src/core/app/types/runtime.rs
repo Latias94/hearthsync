@@ -30,6 +30,20 @@ pub enum ExternalHelperAvailabilityValue {
     Unavailable,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NetworkProxyDiagnosticsValue {
+    pub http_proxy: bool,
+    pub https_proxy: bool,
+    pub all_proxy: bool,
+    pub no_proxy: bool,
+}
+
+impl NetworkProxyDiagnosticsValue {
+    pub fn is_empty(&self) -> bool {
+        !self.http_proxy && !self.https_proxy && !self.all_proxy && !self.no_proxy
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalHelperCapabilitiesValue {
     pub policy: ExternalHelperPolicyValue,
@@ -44,6 +58,7 @@ pub struct AppRuntimeDiagnosticsValue {
     pub relative_path_base: Option<PathBuf>,
     pub default_backup_dir: Option<PathBuf>,
     pub default_bundle_output_dir: Option<PathBuf>,
+    pub network_proxy: NetworkProxyDiagnosticsValue,
     pub selected_installation: Option<ResolvedInstallationValue>,
     pub addon_state_paths: Option<AddonStatePathsValue>,
     pub capabilities: AppRuntimeCapabilitiesValue,
