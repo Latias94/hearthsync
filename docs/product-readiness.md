@@ -39,6 +39,8 @@ release packaging still need work.
   [HearthSync Catalog](../catalog/README.md)
 - Scenario-based CLI recipes:
   [User Workflows](user-workflows.md)
+- Persisted state and schema compatibility policy:
+  [Persisted State Compatibility](persisted-state-compatibility.md)
 - Config package compatibility hardening:
   [Config Package Compatibility Hardening](workstreams/wow-addon-sync-core/config-package-compatibility-hardening.md)
 - Shareable config-package MVP audit:
@@ -66,7 +68,7 @@ release packaging still need work.
 | Network/proxy guidance | CN users may hit GitHub/Wago/CurseForge/Tukui connectivity or API quota issues. | Done for technical preview: README documents proxy variables, provider token variables, cache TTL, runtime credential/proxy signals, and common failure symptoms. |
 | Provider quota strategy | A local client cannot safely offer unlimited live global search without either local catalog metadata or provider tokens. | Keep default search catalog-backed; document when live provider calls happen and how to configure credentials. |
 | Release packaging | Building from source is acceptable for contributors but not consumers. | Publish signed or checksummed binaries for Windows and macOS. |
-| Upgrade/migration policy | Addon state, catalog schema, and config bundle schema will evolve. | Define pre-1.0 compatibility policy and migration tests for persisted state. |
+| Upgrade/migration policy | Addon state, catalog schema, and config bundle schema will evolve. | Done for technical preview: `docs/persisted-state-compatibility.md` defines state surfaces, schema bump rules, and migration test expectations. |
 | GUI UX | `egui` should not be started before core workflows and copy are stable enough. | Freeze the first-wave app service contract and product workflows before building screens. |
 
 ## Network And Provider Policy
@@ -115,15 +117,15 @@ Before calling the project a consumer-facing beta:
 - [ ] `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo nextest run`
       are green on the release machine.
 - [ ] Windows and macOS binaries are published with checksums.
-- [ ] Persisted state/schema compatibility policy is documented.
+- [x] Persisted state/schema compatibility policy is documented.
 - [ ] The CLI clearly labels destructive operations and dry-run defaults.
 
 ## Next Recommended Work
 
 1. Add a config package compatibility matrix that separates synthetic fixtures, sanitized real
    reductions, and read-only live probes.
-2. Define the pre-1.0 persisted state/schema compatibility policy and migration test expectations.
-3. Add release packaging documentation for Windows and macOS binaries plus checksums.
+2. Add release packaging documentation for Windows and macOS binaries plus checksums.
+3. Add migration fixture tests before introducing the next persisted-state schema version.
 4. Add a product workflow doc for community catalog contribution and validation.
 5. Only after those docs are stable, start the first `egui` screen around runtime diagnostics and
    read-only inspect/search flows.
