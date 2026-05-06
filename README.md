@@ -4,6 +4,8 @@ HearthSync is a cross-platform command-line tool for managing and synchronizing 
 It focuses on safe addon installation, portable UI bundles, backup/restore workflows, and future reuse from an `egui` desktop UI.
 
 > Status: early alpha. The CLI and core models are actively evolving.
+> See [Product Readiness](docs/product-readiness.md) for the current technical-preview boundary and
+> public-release checklist.
 
 ## Goals
 
