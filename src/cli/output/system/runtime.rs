@@ -3,7 +3,7 @@ use crate::core::app::{
     AddonProviderSourceCapabilityValue, AddonStateStorageValue, AppRuntimeCapabilitiesValue,
     AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperPolicyValue,
     HelperStrategyValue, HostPlatformValue, HttpNoValidatorCachePolicyValue,
-    NetworkProxyDiagnosticsValue,
+    NetworkProxyDiagnosticsValue, ProviderCredentialDiagnosticsValue,
 };
 
 pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsValue) -> String {
@@ -107,6 +107,10 @@ pub(in crate::cli) fn render_runtime_diagnostics(item: &AppRuntimeDiagnosticsVal
     lines.push(format!(
         "Network proxy signals: {}",
         format_network_proxy_diagnostics(&item.network_proxy)
+    ));
+    lines.push(format!(
+        "Provider credential signals: {}",
+        format_provider_credential_diagnostics(&item.provider_credentials)
     ));
     lines.push(format!(
         "Addon provider mode: {}",
@@ -225,6 +229,22 @@ fn format_network_proxy_diagnostics(value: &NetworkProxyDiagnosticsValue) -> Str
     }
     if value.no_proxy {
         signals.push("NO_PROXY");
+    }
+
+    if signals.is_empty() {
+        "none".to_string()
+    } else {
+        signals.join(", ")
+    }
+}
+
+fn format_provider_credential_diagnostics(value: &ProviderCredentialDiagnosticsValue) -> String {
+    let mut signals = Vec::new();
+    if value.github_token {
+        signals.push("GitHub token");
+    }
+    if value.curseforge_api_key {
+        signals.push("CurseForge API key");
     }
 
     if signals.is_empty() {

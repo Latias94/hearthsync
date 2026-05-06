@@ -10,6 +10,7 @@ use crate::core::app::{
     AppRuntimeCapabilitiesValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
     ExternalHelperPolicyValue, HelperStrategyValue, HostPlatformValue,
     HttpNoValidatorCachePolicyValue, NetworkProxyDiagnosticsValue,
+    ProviderCredentialDiagnosticsValue,
 };
 
 #[test]
@@ -260,6 +261,21 @@ fn runtime_diagnostics_collect_network_proxy_signals_from_standard_env_names() {
             https_proxy: false,
             all_proxy: false,
             no_proxy: true,
+        }
+    );
+}
+
+#[test]
+fn runtime_diagnostics_collect_provider_credential_signals_without_values() {
+    let credentials = super::collect_provider_credential_diagnostics_with(|name| {
+        matches!(name, "GITHUB_TOKEN" | "HEARTHSYNC_CURSEFORGE_API_KEY")
+    });
+
+    assert_eq!(
+        credentials,
+        ProviderCredentialDiagnosticsValue {
+            github_token: true,
+            curseforge_api_key: true,
         }
     );
 }

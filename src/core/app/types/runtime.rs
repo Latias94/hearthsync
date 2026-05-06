@@ -44,6 +44,18 @@ impl NetworkProxyDiagnosticsValue {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderCredentialDiagnosticsValue {
+    pub github_token: bool,
+    pub curseforge_api_key: bool,
+}
+
+impl ProviderCredentialDiagnosticsValue {
+    pub fn is_empty(&self) -> bool {
+        !self.github_token && !self.curseforge_api_key
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalHelperCapabilitiesValue {
     pub policy: ExternalHelperPolicyValue,
@@ -59,6 +71,7 @@ pub struct AppRuntimeDiagnosticsValue {
     pub default_backup_dir: Option<PathBuf>,
     pub default_bundle_output_dir: Option<PathBuf>,
     pub network_proxy: NetworkProxyDiagnosticsValue,
+    pub provider_credentials: ProviderCredentialDiagnosticsValue,
     pub selected_installation: Option<ResolvedInstallationValue>,
     pub addon_state_paths: Option<AddonStatePathsValue>,
     pub capabilities: AppRuntimeCapabilitiesValue,

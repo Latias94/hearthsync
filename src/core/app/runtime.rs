@@ -21,7 +21,8 @@ use super::{
     AddonProviderSourceCapabilityValue, AddonStatePathsValue, AddonStateStorageValue,
     AppRuntimeCapabilitiesValue, AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue,
     ExternalHelperCapabilitiesValue, ExternalHelperPolicyValue, HelperStrategyValue,
-    HostPlatformValue, NetworkProxyDiagnosticsValue, ResolvedInstallationValue,
+    HostPlatformValue, NetworkProxyDiagnosticsValue, ProviderCredentialDiagnosticsValue,
+    ResolvedInstallationValue,
 };
 
 type SharedAddonProvider = Arc<dyn AddonProvider + Send + Sync>;
@@ -198,6 +199,10 @@ fn collect_network_proxy_diagnostics() -> NetworkProxyDiagnosticsValue {
     collect_network_proxy_diagnostics_with(|name| std::env::var_os(name).is_some())
 }
 
+fn collect_provider_credential_diagnostics() -> ProviderCredentialDiagnosticsValue {
+    collect_provider_credential_diagnostics_with(|name| std::env::var_os(name).is_some())
+}
+
 fn collect_network_proxy_diagnostics_with<FLookup>(lookup: FLookup) -> NetworkProxyDiagnosticsValue
 where
     FLookup: Fn(&str) -> bool,
@@ -207,6 +212,18 @@ where
         https_proxy: lookup("HTTPS_PROXY") || lookup("https_proxy"),
         all_proxy: lookup("ALL_PROXY") || lookup("all_proxy"),
         no_proxy: lookup("NO_PROXY") || lookup("no_proxy"),
+    }
+}
+
+fn collect_provider_credential_diagnostics_with<FLookup>(
+    lookup: FLookup,
+) -> ProviderCredentialDiagnosticsValue
+where
+    FLookup: Fn(&str) -> bool,
+{
+    ProviderCredentialDiagnosticsValue {
+        github_token: lookup("HEARTHSYNC_GITHUB_TOKEN") || lookup("GITHUB_TOKEN"),
+        curseforge_api_key: lookup("HEARTHSYNC_CURSEFORGE_API_KEY") || lookup("CURSEFORGE_API_KEY"),
     }
 }
 
@@ -278,6 +295,7 @@ impl AppRuntime {
             default_backup_dir: self.default_backup_dir.clone(),
             default_bundle_output_dir: self.default_bundle_output_dir.clone(),
             network_proxy: collect_network_proxy_diagnostics(),
+            provider_credentials: collect_provider_credential_diagnostics(),
             selected_installation: None,
             addon_state_paths: None,
             capabilities: self.capabilities(),
@@ -297,6 +315,7 @@ impl AppRuntime {
             default_backup_dir: self.default_backup_dir.clone(),
             default_bundle_output_dir: self.default_bundle_output_dir.clone(),
             network_proxy: collect_network_proxy_diagnostics(),
+            provider_credentials: collect_provider_credential_diagnostics(),
             selected_installation: Some(installation),
             addon_state_paths: Some(addon_state_paths),
             capabilities: self.capabilities(),

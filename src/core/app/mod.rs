@@ -170,5 +170,5 @@ pub use types::install::{
 pub use types::runtime::{
     AppRuntimeDiagnosticsValue, ExternalHelperAvailabilityValue, ExternalHelperCapabilitiesValue,
     ExternalHelperPolicyValue, HelperStrategyValue, NetworkProxyDiagnosticsValue,
-    RuntimeSettingsValue,
+    ProviderCredentialDiagnosticsValue, RuntimeSettingsValue,
 };

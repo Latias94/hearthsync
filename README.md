@@ -62,6 +62,8 @@ Notes:
   should use `HEARTHSYNC_GITHUB_TOKEN` or `GITHUB_TOKEN`.
 - Standard `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and `NO_PROXY` variables are honored by the
   HTTP client stack.
+- `cargo run -- runtime` reports proxy and provider credential signals without printing secret
+  values.
 - Live provider search results are cached in-process for 300 seconds by default. Use
   `--addon-search-cache-ttl-secs 0` to disable that cache for debugging, or set another TTL globally
   or through `settings set`.
