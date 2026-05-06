@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use super::http::{HttpClient, HttpHeader, HttpRequest};
 use super::materialize::ResolvedDownloadArtifact;
@@ -474,17 +474,17 @@ struct WagoRelease {
     created_at: String,
     #[serde(default)]
     is_processed: bool,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     supported_retail_patches: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     supported_cata_patches: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     supported_wotlk_patches: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     supported_bc_patches: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     supported_classic_patches: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     supported_mop_patches: Vec<String>,
     #[serde(default)]
     download_link: Option<String>,
@@ -499,6 +499,14 @@ impl WagoRelease {
             || !self.supported_classic_patches.is_empty()
             || !self.supported_mop_patches.is_empty()
     }
+}
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[cfg(test)]
@@ -553,6 +561,29 @@ mod tests {
             page.data[0].download_link.as_deref(),
             Some("https://addons.wago.io/download/vdx1042w?x=1&y=2")
         );
+    }
+
+    #[test]
+    fn parse_wago_release_page_accepts_null_supported_patch_arrays() {
+        let release = r#"{"id":"retail1","size":1024,"label":"retail1","stability":"stable","created_at":"2026-05-01T00:00:00Z","is_processed":true,"supported_retail_patches":["12.0.5"],"supported_mop_patches":null,"supported_cata_patches":null,"supported_wotlk_patches":null,"supported_bc_patches":null,"supported_classic_patches":null,"download_link":"https://addons.wago.io/download/retail1"}"#.to_string();
+        let page = parse_wago_release_page_html(&wago_release_page_html(&[release]))
+            .expect("release page");
+
+        assert_eq!(page.data.len(), 1);
+        assert_eq!(page.data[0].supported_retail_patches, vec!["12.0.5"]);
+        assert!(page.data[0].supported_mop_patches.is_empty());
+        assert!(page.data[0].supported_cata_patches.is_empty());
+        assert!(page.data[0].supported_wotlk_patches.is_empty());
+        assert!(page.data[0].supported_bc_patches.is_empty());
+        assert!(page.data[0].supported_classic_patches.is_empty());
+        assert!(wago_release_matches_flavor(
+            &page.data[0],
+            Some(WowFlavor::Retail)
+        ));
+        assert!(!wago_release_matches_flavor(
+            &page.data[0],
+            Some(WowFlavor::Classic)
+        ));
     }
 
     #[test]

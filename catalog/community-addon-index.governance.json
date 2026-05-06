@@ -46,6 +46,17 @@
       "confidence": "high",
       "last_verified_at": "2026-05-06T00:00:00Z",
       "notes": "Separate from ElvUI while sharing the same upstream host."
+    },
+    {
+      "id": "weakauras",
+      "aliases": ["WA", "Weak Auras"],
+      "upstream_hosts": ["wago", "github"],
+      "source_attribution": "Wago project VBNBxKx5 / WeakAuras; upstream source is WeakAuras/WeakAuras2",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "The current live Wago release exposes null flavor arrays in several slots, so the provider now normalizes null to empty lists."
     }
   ]
 }

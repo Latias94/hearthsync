@@ -45,3 +45,14 @@ source_url = "https://api.tukui.org/v1/addon/tukui"
 website_url = "https://tukui.org/tukui"
 addon_directories = ["Tukui"]
 supported_flavors = ["retail", "classic", "classic-era"]
+
+[[packages]]
+id = "weakauras"
+name = "WeakAuras"
+version = "5.21.1"
+match_package_ids = ["wago-vbnbxkx5-a6ra53lw"]
+source = { kind = "wago_addon", project_id = "VBNBxKx5", release_id = "A6Ra53Lw" }
+source_url = "https://addons.wago.io/addons/VBNBxKx5"
+website_url = "https://www.weakauras.wtf"
+addon_directories = ["WeakAuras", "WeakAurasArchive", "WeakAurasModelPaths", "WeakAurasOptions", "WeakAurasTemplates"]
+supported_flavors = ["retail"]
