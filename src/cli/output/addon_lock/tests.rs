@@ -31,6 +31,7 @@ fn render_addon_lock_apply_includes_verification_summary() {
     let rendered = render_addon_lock_apply(&sample_addon_lock_apply());
 
     assert!(rendered.contains("Lock: addon.lock"));
+    assert!(rendered.contains("Backup: backup.zip"));
     assert!(
         rendered.contains("Applied: 1 install, 2 update, 3 remove, 4 metadata-only, 5 unchanged")
     );
@@ -59,6 +60,7 @@ fn render_bundle_addon_lock_apply_includes_embedded_lock() {
 
     assert!(rendered.contains("Bundle: ui.zip"));
     assert!(rendered.contains("Embedded lock: metadata/addons/lock.toml"));
+    assert!(rendered.contains("Backup: backup.zip"));
     assert!(rendered.contains("Verification: matches"));
 }
 

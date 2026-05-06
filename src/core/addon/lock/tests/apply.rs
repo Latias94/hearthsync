@@ -109,6 +109,12 @@ fn apply_addon_lock_sync_updates_installs_and_removes_packages() {
     .expect("apply lock sync");
 
     assert!(result.verification.matches);
+    assert!(
+        result
+            .backup_path
+            .as_deref()
+            .is_some_and(|path| path.starts_with(&apply_backup_dir))
+    );
     assert_eq!(result.install_count, 1);
     assert_eq!(result.update_count, 1);
     assert_eq!(result.remove_count, 1);

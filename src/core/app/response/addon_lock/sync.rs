@@ -126,6 +126,7 @@ impl AddonLockPlanResult {
 pub struct AddonLockApplyResult {
     pub lock_path: PathBuf,
     pub installation_root: PathBuf,
+    pub backup_path: Option<PathBuf>,
     pub install_count: usize,
     pub update_count: usize,
     pub remove_count: usize,
@@ -153,6 +154,7 @@ impl AddonLockApplyResult {
         Self {
             lock_path: value.lock_path,
             installation_root: value.installation_root,
+            backup_path: value.backup_path,
             install_count: value.install_count,
             update_count: value.update_count,
             remove_count: value.remove_count,

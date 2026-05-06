@@ -190,6 +190,7 @@ pub struct AddonLockSourceOverride {
 pub struct AddonLockApplyResult {
     pub lock_path: PathBuf,
     pub installation_root: PathBuf,
+    pub backup_path: Option<PathBuf>,
     pub install_count: usize,
     pub update_count: usize,
     pub remove_count: usize,

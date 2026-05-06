@@ -65,6 +65,7 @@ pub(super) fn sample_addon_lock_apply() -> AddonLockApplyResult {
     AddonLockApplyResult {
         lock_path: PathBuf::from("addon.lock"),
         installation_root: PathBuf::from("World of Warcraft/_retail_"),
+        backup_path: Some(PathBuf::from("backup.zip")),
         install_count: 1,
         update_count: 2,
         remove_count: 3,

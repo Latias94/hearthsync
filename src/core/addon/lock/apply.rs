@@ -153,6 +153,7 @@ where
     let result = AddonLockApplyResult {
         lock_path: plan.result.lock_path,
         installation_root: plan.result.installation_root,
+        backup_path,
         install_count: plan.result.install_count,
         update_count: plan.result.update_count,
         remove_count: plan.result.remove_count,

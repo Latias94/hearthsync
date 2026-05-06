@@ -7,6 +7,7 @@ pub(in crate::cli) fn render_addon_lock_apply(item: &AddonLockApplyResult) -> St
         vec![
             format!("Lock: {}", item.lock_path.display()),
             format!("Installation: {}", item.installation_root.display()),
+            format!("Backup: {}", format_backup_path(item.backup_path.as_ref())),
             format!(
                 "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
                 item.install_count,
@@ -26,6 +27,10 @@ pub(in crate::cli) fn render_bundle_addon_lock_apply(item: &BundleAddonLockApply
             format!("Bundle: {}", item.bundle_path.display()),
             format!("Embedded lock: {}", item.embedded_lock_entry),
             format!("Installation: {}", item.apply.installation_root.display()),
+            format!(
+                "Backup: {}",
+                format_backup_path(item.apply.backup_path.as_ref())
+            ),
             format!(
                 "Applied: {} install, {} update, {} remove, {} metadata-only, {} unchanged",
                 item.apply.install_count,
@@ -49,4 +54,9 @@ fn render_addon_lock_apply_summary(mut lines: Vec<String>, item: &AddonLockApply
 
     lines.push(format_addon_lock_verification_summary(&item.verification));
     lines.join("\n")
+}
+
+fn format_backup_path(path: Option<&std::path::PathBuf>) -> String {
+    path.map(|path| path.display().to_string())
+        .unwrap_or_else(|| "none".to_string())
 }
