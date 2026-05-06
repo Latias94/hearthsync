@@ -66,7 +66,7 @@ release packaging still need work.
 | --- | --- | --- |
 | First-run docs | Users need a safe path from install discovery to first addon/config operation. | Done for technical preview: README quick start covers runtime/inspect, catalog-backed addon install, and config package dry-run. |
 | Product command recipes | The CLI has many pieces, but users need opinionated workflows. | First scenario guide exists in `docs/user-workflows.md`; keep expanding it with screenshots or GUI equivalents later. |
-| Real author-package matrix | Synthetic tests are good but not enough for broad compatibility claims. | Maintain a public matrix of sanitized fixtures plus read-only real-package probes. |
+| Real author-package matrix | Synthetic tests are good but not enough for broad compatibility claims. | Done for technical preview: config package hardening tracks real-package rows, sanitized Lua reductions, and read-only probe flow. |
 | Network/proxy guidance | CN users may hit GitHub/Wago/CurseForge/Tukui connectivity or API quota issues. | Done for technical preview: README documents proxy variables, provider token variables, cache TTL, runtime credential/proxy signals, and common failure symptoms. |
 | Provider quota strategy | A local client cannot safely offer unlimited live global search without either local catalog metadata or provider tokens. | Keep default search catalog-backed; document when live provider calls happen and how to configure credentials. |
 | Release packaging | Building from source is acceptable for contributors but not consumers. | Publish signed or checksummed binaries for Windows and macOS. |
@@ -111,8 +111,8 @@ Before calling the project a consumer-facing beta:
 
 - [x] README includes a short end-to-end quick start.
 - [x] Product readiness doc links to all supported workflows.
-- [ ] Provider compatibility matrix has a recent read-only run.
-- [ ] Config package compatibility matrix lists real author-package shapes and sanitized Lua
+- [x] Provider compatibility matrix has a recent read-only run.
+- [x] Config package compatibility matrix lists real author-package shapes and sanitized Lua
       reductions.
 - [x] Community catalog validation script is documented and easy to run.
 - [x] Network/proxy/provider-token troubleshooting is documented.
@@ -124,10 +124,10 @@ Before calling the project a consumer-facing beta:
 
 ## Next Recommended Work
 
-1. Add a config package compatibility matrix that separates synthetic fixtures, sanitized real
-   reductions, and read-only live probes.
-2. Automate release artifact creation after the CI gate is stable.
-3. Add migration fixture tests before introducing the next persisted-state schema version.
-4. Add a product workflow doc for community catalog contribution and validation.
+1. Automate release artifact creation after the CI gate is stable.
+2. Add migration fixture tests before introducing the next persisted-state schema version.
+3. Add a product workflow doc for community catalog contribution and validation.
+4. Keep expanding real author-package and provider matrices as new public packages or failures are
+   found.
 5. Only after those docs are stable, start the first `egui` screen around runtime diagnostics and
    read-only inspect/search flows.
