@@ -6,6 +6,7 @@ It focuses on safe addon installation, portable UI bundles, backup/restore workf
 > Status: early alpha. The CLI and core models are actively evolving.
 > See [Product Readiness](docs/product-readiness.md) for the current technical-preview boundary and
 > public-release checklist.
+> See [User Workflows](docs/user-workflows.md) for scenario-based command recipes.
 
 ## Goals
 

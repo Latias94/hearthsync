@@ -37,6 +37,8 @@ release packaging still need work.
   [New Provider Research](workstreams/wow-addon-provider-ecosystem/provider-research.md)
 - Community catalog policy and validation:
   [HearthSync Catalog](../catalog/README.md)
+- Scenario-based CLI recipes:
+  [User Workflows](user-workflows.md)
 - Config package compatibility hardening:
   [Config Package Compatibility Hardening](workstreams/wow-addon-sync-core/config-package-compatibility-hardening.md)
 - Shareable config-package MVP audit:
@@ -59,7 +61,7 @@ release packaging still need work.
 | Gap | Why It Matters | Release Gate |
 | --- | --- | --- |
 | First-run docs | Users need a safe path from install discovery to first addon/config operation. | README quick-start with one tracked-addon flow, one catalog flow, and one config-package flow. |
-| Product command recipes | The CLI has many pieces, but users need opinionated workflows. | Add scenario docs for "adopt existing addons", "install from community catalog", "share my UI", and "apply an author package". |
+| Product command recipes | The CLI has many pieces, but users need opinionated workflows. | First scenario guide exists in `docs/user-workflows.md`; keep expanding it with screenshots or GUI equivalents later. |
 | Real author-package matrix | Synthetic tests are good but not enough for broad compatibility claims. | Maintain a public matrix of sanitized fixtures plus read-only real-package probes. |
 | Network/proxy guidance | CN users may hit GitHub/Wago/CurseForge/Tukui connectivity or API quota issues. | Document proxy environment variables, provider token variables, cache TTL, and failure diagnostics. |
 | Provider quota strategy | A local client cannot safely offer unlimited live global search without either local catalog metadata or provider tokens. | Keep default search catalog-backed; document when live provider calls happen and how to configure credentials. |
@@ -104,7 +106,7 @@ download URLs. Exact versions belong in addon locks or explicit user manifests.
 Before calling the project a consumer-facing beta:
 
 - [ ] README includes a short end-to-end quick start.
-- [ ] Product readiness doc links to all supported workflows.
+- [x] Product readiness doc links to all supported workflows.
 - [ ] Provider compatibility matrix has a recent read-only run.
 - [ ] Config package compatibility matrix lists real author-package shapes and sanitized Lua
       reductions.
