@@ -60,7 +60,7 @@ pub(super) fn load_addon_index(path: &Path) -> AppResult<AddonIndex> {
 }
 
 pub(super) fn parse_addon_index(content: &str) -> AppResult<AddonIndex> {
-    let index = toml::from_str::<AddonIndex>(&content)?;
+    let index = toml::from_str::<AddonIndex>(content)?;
     validate_addon_index(&index)?;
     Ok(index)
 }

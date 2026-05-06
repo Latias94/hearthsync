@@ -329,8 +329,8 @@ where
         let cache_key = AddonSearchCacheKey::from_request(request);
         let now = Instant::now();
         let cache_ttl = self.options.search_cache_ttl();
-        if let Some(ttl) = cache_ttl {
-            if let Some(cached_catalog) = self
+        if let Some(ttl) = cache_ttl
+            && let Some(cached_catalog) = self
                 .search_cache
                 .lock()
                 .map_err(|_| {
@@ -339,9 +339,8 @@ where
                     )
                 })?
                 .get(&cache_key, now, ttl)
-            {
-                return Ok(cached_catalog);
-            }
+        {
+            return Ok(cached_catalog);
         }
 
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
