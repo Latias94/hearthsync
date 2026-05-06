@@ -251,7 +251,8 @@ cargo run -- addon index search --file .\catalog\community-addon-index.toml --qu
 ```
 
 For repeatable read-only checks, use `scripts/catalog-readonly-validation.ps1`.
-It validates the governance overlay and alias search as well as the base index.
+It validates the governance overlay, alias search, and live provider dry-run probes as well as the
+base index.
 
 ## Addon Lock File
 

@@ -1,5 +1,6 @@
 param(
-    [string]$CatalogPath = ""
+    [string]$CatalogPath = "",
+    [switch]$KeepDownloads
 )
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -126,8 +127,135 @@ function Assert-GovernanceFile {
     }
 }
 
+function Get-WowFlavorFolder {
+    param([string]$Flavor)
+
+    switch ($Flavor.ToLowerInvariant()) {
+        'retail' { return '_retail_' }
+        'classic' { return '_classic_' }
+        'classic-era' { return '_classic_era_' }
+        'classic_era' { return '_classic_era_' }
+        'ptr' { return '_ptr_' }
+        'beta' { return '_beta_' }
+        'xptr' { return '_xptr_' }
+        default {
+            throw "unsupported synthetic flavor: $Flavor"
+        }
+    }
+}
+
+function New-SyntheticAddonInstallRoot {
+    param(
+        [string]$Root,
+        [string]$Flavor
+    )
+
+    $productRoot = Join-Path $Root 'World of Warcraft'
+    $flavorRoot = Join-Path $productRoot (Get-WowFlavorFolder -Flavor $Flavor)
+    $interfaceRoot = Join-Path $flavorRoot 'Interface'
+    $addonRoot = Join-Path $interfaceRoot 'AddOns'
+    $wtfRoot = Join-Path $flavorRoot 'WTF'
+    $fontsRoot = Join-Path $flavorRoot 'Fonts'
+
+    foreach ($dir in @($addonRoot, $wtfRoot, $fontsRoot)) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
+
+    return [pscustomobject]@{
+        product_root = $productRoot
+        flavor_root = $flavorRoot
+        addon_root = $addonRoot
+    }
+}
+
+function Select-ProbeFlavor {
+    param([object]$Package)
+
+    $supportedFlavors = @($Package.supported_flavors)
+    foreach ($preferred in @('retail', 'classic-era', 'classic', 'ptr', 'beta', 'xptr')) {
+        if ($supportedFlavors -contains $preferred) {
+            return $preferred
+        }
+    }
+
+    if ($supportedFlavors.Count -gt 0) {
+        return [string]$supportedFlavors[0]
+    }
+
+    return 'retail'
+}
+
+function New-AddonDryRunArguments {
+    param(
+        [string]$InstallRoot,
+        [string]$CacheRoot,
+        [string]$Flavor,
+        [string]$Source
+    )
+
+    return @(
+        '--json',
+        '--addon-state-storage', 'sidecar',
+        '--addon-cache-dir', $CacheRoot,
+        'addon',
+        'install',
+        '--install', $InstallRoot,
+        '--flavor', $Flavor,
+        '--source', $Source,
+        '--dry-run',
+        '--replace-existing'
+    )
+}
+
+function Invoke-HearthSyncJson {
+    param(
+        [string[]]$Arguments
+    )
+
+    $stderrPath = Join-Path $script:ValidationRoot '__last-stderr.txt'
+    if (Test-Path -LiteralPath $stderrPath) {
+        Remove-Item -LiteralPath $stderrPath -Force
+    }
+
+    $started = Get-Date
+    $stdout = & cargo run --quiet -- @Arguments 2> $stderrPath
+    $exitCode = $LASTEXITCODE
+    $elapsedMs = [int]((Get-Date) - $started).TotalMilliseconds
+    $stdoutText = ($stdout | Out-String).Trim()
+    $stderrText = ''
+    if (Test-Path -LiteralPath $stderrPath) {
+        $stderrRaw = Get-Content -LiteralPath $stderrPath -Raw
+        if ($null -ne $stderrRaw) {
+            $stderrText = $stderrRaw.Trim()
+        }
+    }
+
+    $result = $null
+    if ($exitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($stdoutText)) {
+        try {
+            $result = $stdoutText | ConvertFrom-Json
+        } catch {
+            $result = $null
+        }
+    }
+
+    return [pscustomobject]@{
+        exit_code = $exitCode
+        elapsed_ms = $elapsedMs
+        result = $result
+        stdout = $stdoutText
+        stderr = $stderrText
+    }
+}
+
 Push-Location $RepoRoot
+$validationSucceeded = $false
 try {
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $script:ValidationRoot = Join-Path $RepoRoot "target\research\catalog-readonly-validation-$timestamp"
+    New-Item -ItemType Directory -Force -Path $script:ValidationRoot | Out-Null
+    $cacheRoot = Join-Path $script:ValidationRoot 'download-cache'
+
     $inspectJson = cargo run --quiet -- --json addon index inspect --file $CatalogPath | Out-String
     $inspect = $inspectJson | ConvertFrom-Json
 
@@ -167,6 +295,41 @@ try {
     if (@($search.packages)[0].id -ne "elvui") {
         throw "Catalog search did not return ElvUI as the first match."
     }
+
+    foreach ($package in @($inspect.packages)) {
+        $probeFlavor = Select-ProbeFlavor -Package $package
+        $syntheticRoot = Join-Path $script:ValidationRoot "synthetic-install-$($package.id)"
+        $synthetic = New-SyntheticAddonInstallRoot -Root $syntheticRoot -Flavor $probeFlavor
+        $arguments = New-AddonDryRunArguments `
+            -InstallRoot $synthetic.product_root `
+            -CacheRoot $cacheRoot `
+            -Flavor $probeFlavor `
+            -Source $package.source_label
+
+        Write-Output "Read-only catalog provider dry-run $($package.id) ($probeFlavor) ..."
+        $run = Invoke-HearthSyncJson -Arguments $arguments
+
+        if ($run.exit_code -ne 0 -or $null -eq $run.result) {
+            $detail = if ([string]::IsNullOrWhiteSpace($run.stderr)) {
+                $run.stdout
+            } else {
+                $run.stderr
+            }
+            throw "Catalog live probe failed for package `"$($package.id)`" using source `"$($package.source_label)`": $detail"
+        }
+
+        if ($run.result.source_label -ne $package.source_label) {
+            throw "Catalog live probe source label mismatch for `"$($package.id)`": expected `"$($package.source_label)`", got `"$($run.result.source_label)`""
+        }
+    }
+
+    if (-not $KeepDownloads -and (Test-Path -LiteralPath $cacheRoot)) {
+        Remove-Item -LiteralPath $cacheRoot -Recurse -Force
+    }
+    $validationSucceeded = $true
 } finally {
     Pop-Location
+    if ($validationSucceeded -and -not $KeepDownloads -and (Test-Path -LiteralPath $script:ValidationRoot)) {
+        Remove-Item -LiteralPath $script:ValidationRoot -Recurse -Force
+    }
 }

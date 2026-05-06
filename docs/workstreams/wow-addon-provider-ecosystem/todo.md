@@ -179,7 +179,7 @@ searchable by provider API, especially GitHub Releases.
   fields through the catalog index plus governance overlay split.
 - [x] Add a read-only validation script that consumes the in-tree catalog and verifies schema/search
   wiring without mutating addon state.
-- [ ] Extend the validation script with live provider dry-run probes once the provider contracts
+- [x] Extend the validation script with live provider dry-run probes once the provider contracts
   expose enough read-only metadata.
 - [x] Add CLI support for catalog search over addon-index files; the in-tree catalog can be queried
   with `addon index search --file catalog/community-addon-index.toml`.

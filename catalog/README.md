@@ -77,12 +77,10 @@ cargo run -- addon index inspect --file .\catalog\community-addon-index.toml
 That checks schema validity, source reference validity, and addon-directory portability.
 
 For repeatable local validation, use [`scripts/catalog-readonly-validation.ps1`](../scripts/catalog-readonly-validation.ps1).
-It verifies schema health, governance overlay coverage, alias search, and search wiring without
-mutating addon state.
+It verifies schema health, governance overlay coverage, alias search, and live provider dry-run
+probes without mutating addon state.
 
-Future provider probes should verify source refs against live upstream endpoints without
-downloading archives. Those probes should fail fast on stale mappings and still avoid local addon
-state changes.
+Those probes verify source refs against live upstream endpoints without mutating local addon state.
 
 The catalog is also searchable through the local addon-index search entry:
 
