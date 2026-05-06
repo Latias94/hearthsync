@@ -743,3 +743,20 @@ fn preview_lua_bytes_rewrite_rejects_realistic_baganator_recent_character_cache(
 
     assert!(rewritten.is_none());
 }
+
+#[test]
+fn preview_lua_bytes_rewrite_rejects_reduced_baganator_recent_character_cache() {
+    let payload = load_text_fixture_bytes("baganator_recent_characters_reduced_utf8.lua");
+    let rewritten = preview_lua_bytes_rewrite(
+        Path::new("wtf/common/accounts/ACCOUNT/SavedVariables/Baganator.lua"),
+        &payload,
+        &[localized_profile_mapping()],
+        LuaRewriteOptions {
+            rewrite_profile_keys: true,
+            rewrite_identity_strings: true,
+        },
+    )
+    .expect("preview");
+
+    assert!(rewritten.is_none());
+}

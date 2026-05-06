@@ -11,6 +11,7 @@ small compatibility slices, not full addon databases.
 | `auctionator_invalid_utf8.lua.escape` | `Auctionator.lua` via `profileKeys` marker | invalid UTF-8 byte fixture | Rewrite profile keys through byte fallback; preserve non-UTF-8 bytes. |
 | `auraupdater_identity_container_utf8.lua` | `AuraUpdater.lua` exact identity rule | UTF-8 | Rewrite known `char` identity keys; preserve history/cache keys outside known containers. |
 | `baganator_recent_characters_utf8.lua` | `Baganator.lua` fail-closed cache sample | UTF-8 | Do not rewrite recent-character history that only looks like identities. |
+| `baganator_recent_characters_reduced_utf8.lua` | `Baganator.lua` controlled local shape reduction | UTF-8 | Do not rewrite reduced recent-character and search-history cache shape that still lacks allowlisted identity markers. |
 | `bagsync_realistic_utf8.lua` | `BagSync.lua` exact identity rule | UTF-8 | Rewrite realm/character account maps, `currentrealm`, `totals`, and identity fields. |
 | `bigwigs_profilekeys_utf8.lua` | `BigWigs.lua` via `profileKeys` marker | UTF-8 | Rewrite profile keys while preserving descriptive boss notes. |
 | `clique_realistic_utf8.lua` | `Clique.lua` exact identity rule plus profile keys | UTF-8 | Rewrite localized profile keys and `char` tables; preserve spell/notes text. |
@@ -67,6 +68,9 @@ small compatibility slices, not full addon databases.
 - The same aggregate marker scan found `MRT.lua` uses uppercase `ProfileKeys`/`Profiles` alongside
   lowercase `profiles`. The checked-in MRT fixture keeps only that container-shape signal with
   synthetic account, realm, character, and note values.
+- The Baganator fixtures keep only the recent-character and search-history cache shape with
+  synthetic character names and search text so the fail-closed behavior stays covered while the
+  sanitized reduction grows beyond a single minimal slice.
 - The local shape audit in `target/research/savedvariables-shape-audit-2026-05-05.json` records
   counts, encodings, ASCII global assignment names, and marker counts only. It intentionally omits
   paths, account names, character names, and string values.
