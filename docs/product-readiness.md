@@ -29,6 +29,19 @@ It is not yet strong enough to present as a polished consumer addon manager. The
 exist, but product onboarding, documentation, live compatibility evidence, network diagnostics, and
 release packaging still need work.
 
+## Evidence Map
+
+- Provider source compatibility:
+  [Addon Provider Compatibility Matrix](workstreams/wow-addon-provider-ecosystem/provider-compatibility-matrix.md)
+- Provider research and source-policy rationale:
+  [New Provider Research](workstreams/wow-addon-provider-ecosystem/provider-research.md)
+- Community catalog policy and validation:
+  [HearthSync Catalog](../catalog/README.md)
+- Config package compatibility hardening:
+  [Config Package Compatibility Hardening](workstreams/wow-addon-sync-core/config-package-compatibility-hardening.md)
+- Shareable config-package MVP audit:
+  [Completion Audit](workstreams/wow-addon-sync-core/completion-audit-2026-05-05.md)
+
 ## What Is Ready
 
 | Area | Readiness | Evidence |
