@@ -42,6 +42,12 @@ impl AddonIndexGovernance {
     }
 }
 
+pub(super) fn parse_addon_index_governance(content: &str) -> AppResult<AddonIndexGovernance> {
+    let governance = serde_json::from_str::<AddonIndexGovernance>(content)?;
+    validate_addon_index_governance(&governance)?;
+    Ok(governance)
+}
+
 impl AddonIndexGovernanceEntry {
     fn searchable_terms(&self) -> Vec<String> {
         let mut terms = self.aliases.clone();
@@ -67,9 +73,7 @@ pub(super) fn load_addon_index_governance(
     }
 
     let content = fs::read_to_string(&governance_path)?;
-    let governance = serde_json::from_str::<AddonIndexGovernance>(&content)?;
-    validate_addon_index_governance(&governance)?;
-    Ok(Some(governance))
+    Ok(Some(parse_addon_index_governance(&content)?))
 }
 
 fn addon_index_governance_path(index_path: &Path) -> PathBuf {

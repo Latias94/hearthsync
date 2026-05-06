@@ -56,6 +56,60 @@ supported_flavors = ["retail", "classic", "classic-era"]
     assert_eq!(result.packages[0].source_label, "tukui:elvui");
 }
 
+#[test]
+fn addon_index_service_searches_builtin_community_catalog() {
+    let temp = tempdir().expect("temp dir");
+    let installation = crate::core::app::ResolvedInstallationValue::from_domain(
+        crate::core::install::DetectedFlavorInstallation {
+            platform: crate::core::install::HostPlatform::Windows,
+            product_root: temp.path().join("World of Warcraft"),
+            flavor_root: temp.path().join("World of Warcraft").join("_retail_"),
+            flavor: crate::core::install::WowFlavor::Retail,
+            interface_dir: temp
+                .path()
+                .join("World of Warcraft")
+                .join("_retail_")
+                .join("Interface"),
+            addon_dir: temp
+                .path()
+                .join("World of Warcraft")
+                .join("_retail_")
+                .join("Interface")
+                .join("AddOns"),
+            wtf_dir: temp
+                .path()
+                .join("World of Warcraft")
+                .join("_retail_")
+                .join("WTF"),
+            fonts_dir: temp
+                .path()
+                .join("World of Warcraft")
+                .join("_retail_")
+                .join("Fonts"),
+        },
+    )
+    .into_domain()
+    .expect("domain installation");
+    let service = AddonIndexService::with_runtime(AppRuntime::with_addon_provider(
+        FakeIndexSearchAddonProvider,
+    ));
+
+    let result = service
+        .search_community("Big Wigs".to_string(), 10, installation)
+        .expect("search builtin community catalog");
+
+    assert_eq!(
+        result.index_path,
+        std::path::PathBuf::from("builtin:community-addon-index")
+    );
+    assert_eq!(result.returned_package_count, 1);
+    assert_eq!(result.packages[0].id, "bigwigs");
+    assert_eq!(
+        result.packages[0].source_label,
+        "github:BigWigsMods/BigWigs"
+    );
+}
+
 #[derive(Clone)]
 struct FakeIndexSearchAddonProvider;
 

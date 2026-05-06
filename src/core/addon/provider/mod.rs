@@ -25,7 +25,8 @@ pub use self::cache::{
     HttpNoValidatorCachePolicy,
 };
 pub use self::default_provider::{
-    AddonProviderOptions, AddonProviderRetryPolicy, DefaultAddonProvider,
+    AddonProviderOptions, AddonProviderRetryPolicy, DEFAULT_ADDON_SEARCH_CACHE_TTL_SECS,
+    DefaultAddonProvider,
 };
 pub use self::registry::{
     AddonProviderDescriptor, AddonProviderOperationCapabilities, AddonProviderPolicyCapabilities,

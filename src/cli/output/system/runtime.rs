@@ -237,7 +237,7 @@ fn format_network_proxy_diagnostics(value: &NetworkProxyDiagnosticsValue) -> Str
 fn format_addon_provider_mode(value: &AppRuntimeCapabilitiesValue) -> String {
     match &value.addon_provider {
         crate::core::app::AddonProviderModeValue::ConfiguredDefault { options } => format!(
-            "configured_default (cache: {}, max_attempts: {}, no_validator_http_cache: {}, cache_repair_remote: {})",
+            "configured_default (cache: {}, max_attempts: {}, no_validator_http_cache: {}, cache_repair_remote: {}, search_cache_ttl: {})",
             options
                 .download_cache_dir
                 .as_deref()
@@ -245,7 +245,8 @@ fn format_addon_provider_mode(value: &AppRuntimeCapabilitiesValue) -> String {
                 .unwrap_or_else(|| "none".to_string()),
             options.retry_policy.max_attempts,
             format_http_no_validator_cache_policy(&options.http_no_validator_cache_policy),
-            format_addon_cache_repair_remote_policy(options.cache_repair_remote_policy)
+            format_addon_cache_repair_remote_policy(options.cache_repair_remote_policy),
+            format_addon_search_cache_ttl_secs(options.search_cache_ttl_secs)
         ),
         crate::core::app::AddonProviderModeValue::InternalCustom => "internal_custom".to_string(),
     }
@@ -267,6 +268,14 @@ fn format_addon_cache_repair_remote_policy(
         AddonCacheRepairRemotePolicyValue::LocalOnly => "local_only",
         AddonCacheRepairRemotePolicyValue::ValidateRemote => "validate_remote",
         AddonCacheRepairRemotePolicyValue::RequireRemote => "require_remote",
+    }
+}
+
+fn format_addon_search_cache_ttl_secs(value: u64) -> String {
+    if value == 0 {
+        "disabled".to_string()
+    } else {
+        format!("{value}s")
     }
 }
 

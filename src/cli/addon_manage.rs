@@ -1,5 +1,6 @@
 use super::app_support::{
-    render_with_installation, render_with_installation_task_result, stable_services,
+    extended_services, render_with_fallible_installation, render_with_installation,
+    render_with_installation_task_result, stable_services,
 };
 use super::output::addon::{
     render_addon_adopt, render_addon_install, render_addon_inventory, render_addon_relink,
@@ -24,6 +25,18 @@ pub(super) fn handle_addon_search(
     limit: usize,
     provider: Option<String>,
 ) -> AppResult<()> {
+    if provider.is_none() {
+        let app = extended_services(runtime);
+        return render_with_fallible_installation(
+            json,
+            app.stable(),
+            install_target,
+            |installation| installation.into_domain(),
+            |installation| app.search_community_addon_index(query.clone(), limit, installation),
+            super::output::addon::render_addon_index_search,
+        );
+    }
+
     let app = stable_services(runtime);
 
     render_with_installation(

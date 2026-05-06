@@ -69,6 +69,8 @@ fn parses_global_addon_cache_runtime_options() {
         "120",
         "--addon-cache-repair-remote-policy",
         "local-only",
+        "--addon-search-cache-ttl-secs",
+        "0",
         "runtime",
     ]);
 
@@ -81,6 +83,7 @@ fn parses_global_addon_cache_runtime_options() {
         cli.runtime.addon_cache_repair_remote_policy,
         Some(AddonCacheRepairRemotePolicyArg::LocalOnly)
     );
+    assert_eq!(cli.runtime.addon_search_cache_ttl_secs, Some(0));
     assert!(!cli.runtime.addon_http_no_validator_always_refresh);
 }
 

@@ -74,6 +74,8 @@ pub struct RuntimeSettingsValue {
     pub http_no_validator_cache_policy: Option<HttpNoValidatorCachePolicyValue>,
     #[serde(default)]
     pub addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyValue>,
+    #[serde(default)]
+    pub addon_search_cache_ttl_secs: Option<u64>,
 }
 
 impl RuntimeSettingsValue {
@@ -82,5 +84,6 @@ impl RuntimeSettingsValue {
             && self.addon_cache_dir.is_none()
             && self.http_no_validator_cache_policy.is_none()
             && self.addon_cache_repair_remote_policy.is_none()
+            && self.addon_search_cache_ttl_secs.is_none()
     }
 }

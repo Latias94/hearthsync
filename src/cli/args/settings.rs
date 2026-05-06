@@ -40,6 +40,14 @@ pub enum SettingsCommands {
         addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyArg>,
         #[arg(long, conflicts_with = "addon_cache_repair_remote_policy")]
         clear_addon_cache_repair_remote_policy: bool,
+        #[arg(
+            long,
+            value_parser = clap::value_parser!(u64).range(0..),
+            conflicts_with = "clear_addon_search_cache_ttl_secs"
+        )]
+        addon_search_cache_ttl_secs: Option<u64>,
+        #[arg(long, conflicts_with = "addon_search_cache_ttl_secs")]
+        clear_addon_search_cache_ttl_secs: bool,
     },
     Reset,
 }

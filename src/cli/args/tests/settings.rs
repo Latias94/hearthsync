@@ -14,6 +14,8 @@ fn parses_settings_set_command() {
         "120",
         "--addon-cache-repair-remote-policy",
         "require-remote",
+        "--addon-search-cache-ttl-secs",
+        "45",
     ]);
 
     match cli.command {
@@ -24,6 +26,7 @@ fn parses_settings_set_command() {
                 addon_http_no_validator_always_refresh,
                 addon_http_no_validator_window_secs,
                 addon_cache_repair_remote_policy,
+                addon_search_cache_ttl_secs,
                 ..
             } => {
                 assert_eq!(addon_state_storage, Some(AddonStateStorageArg::Sidecar));
@@ -34,6 +37,7 @@ fn parses_settings_set_command() {
                     addon_cache_repair_remote_policy,
                     Some(AddonCacheRepairRemotePolicyArg::RequireRemote)
                 );
+                assert_eq!(addon_search_cache_ttl_secs, Some(45));
             }
             _ => panic!("expected settings set command"),
         },

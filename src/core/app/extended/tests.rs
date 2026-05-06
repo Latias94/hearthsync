@@ -117,6 +117,7 @@ fn extended_app_services_exposes_runtime_capabilities_as_app_owned_value() {
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                     cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
+                    search_cache_ttl_secs: 300,
                 },
             },
             addon_source_capabilities: AppRuntime::new().capabilities().addon_source_capabilities,

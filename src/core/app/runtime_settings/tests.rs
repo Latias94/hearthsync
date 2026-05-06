@@ -30,6 +30,8 @@ fn runtime_settings_service_roundtrips_settings_file() {
                 AddonCacheRepairRemotePolicyValue::RequireRemote,
             ),
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: Some(60),
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect("set settings");
     let inspection = service.inspect().expect("inspect settings");
@@ -44,6 +46,7 @@ fn runtime_settings_service_roundtrips_settings_file() {
         mutation.settings.addon_cache_repair_remote_policy,
         Some(AddonCacheRepairRemotePolicyValue::RequireRemote)
     );
+    assert_eq!(mutation.settings.addon_search_cache_ttl_secs, Some(60));
     assert!(settings_path.is_file());
     assert!(inspection.settings_file_exists);
     assert_eq!(inspection.settings, mutation.settings);
@@ -71,6 +74,8 @@ fn runtime_settings_service_resolves_relative_addon_cache_dir_against_runtime_ba
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: None,
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect("set relative cache dir");
     let inspection = service.inspect().expect("inspect settings");
@@ -99,6 +104,8 @@ fn runtime_settings_service_rejects_relative_addon_cache_dir_without_runtime_bas
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: None,
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect_err("relative cache dir should fail closed");
 
@@ -126,6 +133,8 @@ fn runtime_settings_service_reset_removes_settings_file() {
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: None,
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect("seed settings");
     let mutation = service.reset().expect("reset settings");
@@ -156,6 +165,8 @@ fn runtime_settings_service_rejects_empty_mutation() {
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: None,
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect_err("empty mutation should fail");
 
@@ -179,6 +190,8 @@ fn runtime_settings_service_rejects_set_and_clear_same_field() {
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: None,
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect_err("conflicting mutation should fail");
 
@@ -202,6 +215,8 @@ fn runtime_settings_service_rejects_set_and_clear_remote_repair_policy() {
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyValue::LocalOnly),
             clear_addon_cache_repair_remote_policy: true,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect_err("conflicting remote repair policy mutation should fail");
 
@@ -293,6 +308,8 @@ fn runtime_settings_service_rejects_invalid_http_cache_policy_mutation() {
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: None,
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: None,
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect_err("zero cache window should fail");
 

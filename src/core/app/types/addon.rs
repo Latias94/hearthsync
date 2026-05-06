@@ -15,6 +15,7 @@ use crate::core::addon::{
     AddonProviderSourceCapability as DomainAddonProviderSourceCapability,
     AddonSourceFamily as DomainAddonSourceFamily, AddonStatePaths as DomainAddonStatePaths,
     AddonStateStorageKind as DomainAddonStateStorageKind,
+    DEFAULT_ADDON_SEARCH_CACHE_TTL_SECS as DOMAIN_DEFAULT_ADDON_SEARCH_CACHE_TTL_SECS,
     HttpNoValidatorCachePolicy as DomainHttpNoValidatorCachePolicy,
 };
 use crate::core::error::{AppError, AppResult};
@@ -410,7 +411,7 @@ impl AddonCacheRepairRemotePolicyValue {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddonProviderOptionsValue {
     #[serde(default)]
     pub download_cache_dir: Option<PathBuf>,
@@ -420,6 +421,20 @@ pub struct AddonProviderOptionsValue {
     pub http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue,
     #[serde(default)]
     pub cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue,
+    #[serde(default = "default_addon_search_cache_ttl_secs")]
+    pub search_cache_ttl_secs: u64,
+}
+
+impl Default for AddonProviderOptionsValue {
+    fn default() -> Self {
+        Self {
+            download_cache_dir: None,
+            retry_policy: AddonProviderRetryPolicyValue::default(),
+            http_no_validator_cache_policy: HttpNoValidatorCachePolicyValue::default(),
+            cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::default(),
+            search_cache_ttl_secs: default_addon_search_cache_ttl_secs(),
+        }
+    }
 }
 
 impl AddonProviderOptionsValue {
@@ -434,6 +449,7 @@ impl AddonProviderOptionsValue {
             cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::from_domain(
                 value.cache_repair_remote_policy,
             ),
+            search_cache_ttl_secs: value.search_cache_ttl_secs,
         }
     }
 
@@ -443,6 +459,11 @@ impl AddonProviderOptionsValue {
             retry_policy: self.retry_policy.into_domain()?,
             http_no_validator_cache_policy: self.http_no_validator_cache_policy.into_domain()?,
             cache_repair_remote_policy: self.cache_repair_remote_policy.into_domain(),
+            search_cache_ttl_secs: self.search_cache_ttl_secs,
         })
     }
+}
+
+fn default_addon_search_cache_ttl_secs() -> u64 {
+    DOMAIN_DEFAULT_ADDON_SEARCH_CACHE_TTL_SECS
 }

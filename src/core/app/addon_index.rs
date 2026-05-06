@@ -1,8 +1,8 @@
 use crate::core::addon::index::{
     attach_addons_from_index_task_with_provider, inspect_addon_index,
     install_addon_from_index_task_with_provider, relink_addon_from_index_task_with_provider,
-    scaffold_addon_index, search_addon_index, suggest_addon_index_hints,
-    update_addons_from_index_task_with_provider,
+    scaffold_addon_index, search_addon_index, search_community_addon_index,
+    suggest_addon_index_hints, update_addons_from_index_task_with_provider,
     validate_addon_index_update_dependency_policy_support,
 };
 use crate::core::app::{
@@ -61,6 +61,19 @@ impl AddonIndexService {
         request: SearchAddonIndexRequest,
     ) -> AppResult<AddonIndexSearchResult> {
         let search = search_addon_index(request.into_domain(&self.runtime)?)?;
+        Ok(AddonIndexSearchResult::from_domain_with_provider(
+            search,
+            self.runtime.addon_provider(),
+        ))
+    }
+
+    pub(super) fn search_community(
+        &self,
+        query: String,
+        limit: usize,
+        installation: crate::core::install::DetectedFlavorInstallation,
+    ) -> AppResult<AddonIndexSearchResult> {
+        let search = search_community_addon_index(query, limit, installation.flavor)?;
         Ok(AddonIndexSearchResult::from_domain_with_provider(
             search,
             self.runtime.addon_provider(),

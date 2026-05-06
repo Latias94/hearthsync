@@ -52,6 +52,16 @@ impl ExtendedAppServices {
         self.addon_indexes().search(request)
     }
 
+    pub fn search_community_addon_index(
+        &self,
+        query: String,
+        limit: usize,
+        installation: crate::core::install::DetectedFlavorInstallation,
+    ) -> AppResult<super::AddonIndexSearchResult> {
+        self.addon_indexes()
+            .search_community(query, limit, installation)
+    }
+
     pub fn suggest_addon_index(
         &self,
         request: super::SuggestAddonIndexRequest,

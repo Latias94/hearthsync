@@ -144,6 +144,13 @@ pub struct CliRuntimeArgs {
         help = "Remote validation policy for addon cache repair"
     )]
     pub addon_cache_repair_remote_policy: Option<AddonCacheRepairRemotePolicyArg>,
+    #[arg(
+        long,
+        global = true,
+        value_parser = clap::value_parser!(u64).range(0..),
+        help = "Live addon search cache TTL in seconds; set to 0 to disable provider search caching"
+    )]
+    pub addon_search_cache_ttl_secs: Option<u64>,
 }
 
 impl From<PlatformArg> for HostPlatformValue {

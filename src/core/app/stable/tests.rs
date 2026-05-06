@@ -98,6 +98,7 @@ fn stable_app_services_expose_runtime_capabilities_as_app_owned_value() {
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                     cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
+                    search_cache_ttl_secs: 300,
                 },
             },
             addon_source_capabilities: AppRuntime::new().capabilities().addon_source_capabilities,
@@ -273,6 +274,8 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
             clear_http_no_validator_cache_policy: false,
             addon_cache_repair_remote_policy: Some(AddonCacheRepairRemotePolicyValue::LocalOnly),
             clear_addon_cache_repair_remote_policy: false,
+            addon_search_cache_ttl_secs: Some(60),
+            clear_addon_search_cache_ttl_secs: false,
         })
         .expect("set settings");
     assert!(mutation.settings_file_exists);
@@ -286,6 +289,7 @@ fn stable_app_services_expose_runtime_settings_entrypoints() {
         mutation.settings.addon_cache_repair_remote_policy,
         Some(AddonCacheRepairRemotePolicyValue::LocalOnly)
     );
+    assert_eq!(mutation.settings.addon_search_cache_ttl_secs, Some(60));
 
     let inspection = services
         .inspect_runtime_settings()

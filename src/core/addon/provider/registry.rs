@@ -673,14 +673,6 @@ impl AddonProviderRegistry {
             .apply_source_policy(request)
     }
 
-    pub(super) fn search_addons(
-        &self,
-        http_client: &impl HttpClient,
-        request: AddonSearchRequest<'_>,
-    ) -> AppResult<Vec<AddonSearchResult>> {
-        Ok(self.search_addon_catalog(http_client, request)?.results)
-    }
-
     pub(super) fn search_addon_catalog(
         &self,
         http_client: &impl HttpClient,

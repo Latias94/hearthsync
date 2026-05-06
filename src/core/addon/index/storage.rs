@@ -56,6 +56,10 @@ pub(super) fn write_addon_index(path: &Path, index: &AddonIndex, overwrite: bool
 
 pub(super) fn load_addon_index(path: &Path) -> AppResult<AddonIndex> {
     let content = fs::read_to_string(path)?;
+    parse_addon_index(&content)
+}
+
+pub(super) fn parse_addon_index(content: &str) -> AppResult<AddonIndex> {
     let index = toml::from_str::<AddonIndex>(&content)?;
     validate_addon_index(&index)?;
     Ok(index)
@@ -225,16 +229,19 @@ pub(super) fn find_index_package<'a>(
         .ok_or_else(|| AppError::NotFound(format!("addon index package `{name}` not found")))
 }
 
+pub(crate) fn package_supports_flavor(package: &AddonIndexPackage, flavor: &str) -> bool {
+    package.supported_flavors.is_empty()
+        || package
+            .supported_flavors
+            .iter()
+            .any(|item| flavor_aliases_match(item, flavor))
+}
+
 pub(super) fn ensure_package_supports_flavor(
     package: &AddonIndexPackage,
     flavor: &str,
 ) -> AppResult<()> {
-    if package.supported_flavors.is_empty()
-        || package
-            .supported_flavors
-            .iter()
-            .any(|item| item.eq_ignore_ascii_case(flavor))
-    {
+    if package_supports_flavor(package, flavor) {
         return Ok(());
     }
 
@@ -244,6 +251,14 @@ pub(super) fn ensure_package_supports_flavor(
         flavor,
         package.supported_flavors.join(", ")
     )))
+}
+
+fn flavor_aliases_match(left: &str, right: &str) -> bool {
+    normalize_flavor_alias(left) == normalize_flavor_alias(right)
+}
+
+fn normalize_flavor_alias(value: &str) -> String {
+    value.trim().replace('-', "_").to_ascii_lowercase()
 }
 
 fn inspect_identity_hint_coverage(index: &AddonIndex) -> AddonIndexIdentityHintCoverage {

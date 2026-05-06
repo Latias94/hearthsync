@@ -10,8 +10,8 @@ use super::matching::{
     explain_preflight_match_index_package_to_tracked_package, package_id_usage_key,
 };
 use super::storage::{
-    ensure_package_supports_flavor, load_addon_index, resolve_index_package_source,
-    write_addon_index,
+    ensure_package_supports_flavor, load_addon_index, package_supports_flavor,
+    resolve_index_package_source, write_addon_index,
 };
 use super::{
     AddonIndex, AddonIndexPackage, AddonIndexPackageSuggestion, AddonIndexPackageSuggestionStatus,
@@ -195,11 +195,7 @@ fn find_index_package_in_slice<'a>(
 }
 
 fn supports_flavor(package: &AddonIndexPackage, flavor: &str) -> bool {
-    package.supported_flavors.is_empty()
-        || package
-            .supported_flavors
-            .iter()
-            .any(|item| item.eq_ignore_ascii_case(flavor))
+    package_supports_flavor(package, flavor)
 }
 
 fn matched_package_suggestion(

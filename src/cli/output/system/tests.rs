@@ -122,6 +122,7 @@ fn render_runtime_diagnostics_reports_runtime_settings_and_capabilities() {
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
                     cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
+                    search_cache_ttl_secs: 30,
                 },
             },
             addon_source_capabilities: default_addon_source_capabilities(),
@@ -159,6 +160,7 @@ fn render_runtime_diagnostics_reports_runtime_settings_and_capabilities() {
     assert!(rendered.contains("max_attempts: 3"));
     assert!(rendered.contains("no_validator_http_cache: reuse_within_window(600s)"));
     assert!(rendered.contains("cache_repair_remote: require_remote"));
+    assert!(rendered.contains("search_cache_ttl: 30s"));
     assert!(rendered.contains("Addon source capabilities:"));
     assert!(rendered.contains("curseforge:curseforge_mod"));
     assert!(rendered.contains("github:github_release"));

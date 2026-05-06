@@ -83,6 +83,7 @@ fn addon_service_repair_cache_projects_provider_summary() {
                 max_age_secs: 900,
             },
             cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::LocalOnly,
+            search_cache_ttl_secs: 300,
         })
         .expect("runtime"),
     );

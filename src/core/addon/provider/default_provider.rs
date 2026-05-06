@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use super::cache::{
     AddonCacheRepairRemotePolicy, AddonDownloadCachePurgeResult, AddonDownloadCacheRepairResult,
@@ -18,6 +21,10 @@ use super::{
 };
 use crate::core::error::{AppError, AppResult};
 use crate::core::task::CancellationToken;
+
+pub const DEFAULT_ADDON_SEARCH_CACHE_TTL_SECS: u64 = 300;
+const ADDON_SEARCH_CACHE_MAX_ENTRIES: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddonProviderRetryPolicy {
     pub max_attempts: u32,
@@ -29,18 +36,42 @@ impl Default for AddonProviderRetryPolicy {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddonProviderOptions {
     pub download_cache_dir: Option<PathBuf>,
     pub retry_policy: AddonProviderRetryPolicy,
     pub http_no_validator_cache_policy: HttpNoValidatorCachePolicy,
     pub cache_repair_remote_policy: AddonCacheRepairRemotePolicy,
+    pub search_cache_ttl_secs: u64,
+}
+
+impl Default for AddonProviderOptions {
+    fn default() -> Self {
+        Self {
+            download_cache_dir: None,
+            retry_policy: AddonProviderRetryPolicy::default(),
+            http_no_validator_cache_policy: HttpNoValidatorCachePolicy::default(),
+            cache_repair_remote_policy: AddonCacheRepairRemotePolicy::default(),
+            search_cache_ttl_secs: DEFAULT_ADDON_SEARCH_CACHE_TTL_SECS,
+        }
+    }
+}
+
+impl AddonProviderOptions {
+    fn search_cache_ttl(&self) -> Option<Duration> {
+        if self.search_cache_ttl_secs == 0 {
+            None
+        } else {
+            Some(Duration::from_secs(self.search_cache_ttl_secs))
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct DefaultAddonProvider<H = ReqwestHttpClient> {
     http_client: H,
     options: AddonProviderOptions,
+    search_cache: Arc<Mutex<AddonSearchCache>>,
 }
 
 impl DefaultAddonProvider<ReqwestHttpClient> {
@@ -54,6 +85,7 @@ impl<H> DefaultAddonProvider<H> {
         Self {
             http_client,
             options: AddonProviderOptions::default(),
+            search_cache: Arc::new(Mutex::new(AddonSearchCache::default())),
         }
     }
 
@@ -88,12 +120,92 @@ impl<H> DefaultAddonProvider<H> {
         self
     }
 
+    pub fn with_search_cache_ttl_secs(mut self, search_cache_ttl_secs: u64) -> Self {
+        self.options.search_cache_ttl_secs = search_cache_ttl_secs;
+        self
+    }
+
     pub fn http_client(&self) -> &H {
         &self.http_client
     }
 
     pub fn options(&self) -> &AddonProviderOptions {
         &self.options
+    }
+}
+
+#[derive(Debug, Default)]
+struct AddonSearchCache {
+    entries: HashMap<AddonSearchCacheKey, AddonSearchCacheEntry>,
+}
+
+impl AddonSearchCache {
+    fn get(
+        &mut self,
+        key: &AddonSearchCacheKey,
+        now: Instant,
+        ttl: Duration,
+    ) -> Option<AddonSearchProviderCatalog> {
+        match self.entries.get(key) {
+            Some(entry) if entry.is_fresh(now, ttl) => Some(entry.catalog.clone()),
+            Some(_) => {
+                self.entries.remove(key);
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn insert(
+        &mut self,
+        key: AddonSearchCacheKey,
+        catalog: AddonSearchProviderCatalog,
+        now: Instant,
+        ttl: Duration,
+    ) {
+        self.entries.retain(|_, entry| entry.is_fresh(now, ttl));
+        if self.entries.len() >= ADDON_SEARCH_CACHE_MAX_ENTRIES {
+            return;
+        }
+
+        self.entries.insert(
+            key,
+            AddonSearchCacheEntry {
+                cached_at: now,
+                catalog,
+            },
+        );
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AddonSearchCacheEntry {
+    cached_at: Instant,
+    catalog: AddonSearchProviderCatalog,
+}
+
+impl AddonSearchCacheEntry {
+    fn is_fresh(&self, now: Instant, ttl: Duration) -> bool {
+        now.duration_since(self.cached_at) <= ttl
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct AddonSearchCacheKey {
+    provider_id: Option<String>,
+    query: String,
+    flavor: String,
+    limit: usize,
+}
+
+impl AddonSearchCacheKey {
+    fn from_request(request: AddonSearchRequest<'_>) -> Self {
+        Self {
+            provider_id: request.provider_id.map(str::to_string),
+            query: request.query.to_string(),
+            flavor: request.flavor.as_str().to_string(),
+            limit: request.limit,
+        }
     }
 }
 
@@ -214,13 +326,44 @@ where
         &self,
         request: AddonSearchRequest<'_>,
     ) -> AppResult<AddonSearchProviderCatalog> {
+        let cache_key = AddonSearchCacheKey::from_request(request);
+        let now = Instant::now();
+        let cache_ttl = self.options.search_cache_ttl();
+        if let Some(ttl) = cache_ttl {
+            if let Some(cached_catalog) = self
+                .search_cache
+                .lock()
+                .map_err(|_| {
+                    AppError::Validation(
+                        "addon provider search cache lock was poisoned".to_string(),
+                    )
+                })?
+                .get(&cache_key, now, ttl)
+            {
+                return Ok(cached_catalog);
+            }
+        }
+
         let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
-        AddonProviderRegistry::new().search_addon_catalog(&http_client, request)
+        let catalog = AddonProviderRegistry::new().search_addon_catalog(&http_client, request)?;
+        if catalog.failures.is_empty()
+            && let Some(ttl) = cache_ttl
+        {
+            self.search_cache
+                .lock()
+                .map_err(|_| {
+                    AppError::Validation(
+                        "addon provider search cache lock was poisoned".to_string(),
+                    )
+                })?
+                .insert(cache_key, catalog.clone(), now, ttl);
+        }
+
+        Ok(catalog)
     }
 
     fn search_addons(&self, request: AddonSearchRequest<'_>) -> AppResult<Vec<AddonSearchResult>> {
-        let http_client = RetryingHttpClient::new(&self.http_client, &self.options.retry_policy);
-        AddonProviderRegistry::new().search_addons(&http_client, request)
+        Ok(self.search_addon_catalog(request)?.results)
     }
 }
 
@@ -422,6 +565,159 @@ mod default_provider_tests {
                 .to_string()
                 .contains("does not support catalog search")
         );
+    }
+
+    #[test]
+    fn default_addon_provider_caches_successful_catalog_searches() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request);
+                Ok(HttpResponse {
+                    status_code: 200,
+                    body: format!("[{}]", tukui_catalog_addon_json("elvui", "ElvUI")),
+                })
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                panic!("download should not be called in this test")
+            }
+        }
+
+        let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default());
+        let request = AddonSearchRequest {
+            query: "elv",
+            flavor: WowFlavor::Retail,
+            limit: 10,
+            provider_id: Some("tukui"),
+        };
+
+        let first = provider
+            .search_addon_catalog(request)
+            .expect("first catalog search");
+        let second = provider
+            .search_addon_catalog(request)
+            .expect("second catalog search should hit cache");
+
+        assert_eq!(first.results.len(), 1);
+        assert_eq!(second.results.len(), 1);
+        assert_eq!(provider.http_client().requests.borrow().len(), 1);
+    }
+
+    #[test]
+    fn default_addon_provider_can_disable_catalog_search_cache() {
+        #[derive(Default)]
+        struct FakeHttpClient {
+            requests: RefCell<Vec<HttpRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request);
+                Ok(HttpResponse {
+                    status_code: 200,
+                    body: format!("[{}]", tukui_catalog_addon_json("elvui", "ElvUI")),
+                })
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                panic!("download should not be called in this test")
+            }
+        }
+
+        let provider = DefaultAddonProvider::with_http_client(FakeHttpClient::default())
+            .with_search_cache_ttl_secs(0);
+        let request = AddonSearchRequest {
+            query: "elv",
+            flavor: WowFlavor::Retail,
+            limit: 10,
+            provider_id: Some("tukui"),
+        };
+
+        provider
+            .search_addon_catalog(request)
+            .expect("first catalog search");
+        provider
+            .search_addon_catalog(request)
+            .expect("second catalog search should bypass cache");
+
+        assert_eq!(provider.http_client().requests.borrow().len(), 2);
+    }
+
+    #[test]
+    fn default_addon_provider_does_not_cache_failed_catalog_searches() {
+        struct FakeHttpClient {
+            responses: RefCell<Vec<AppResult<HttpResponse>>>,
+            requests: RefCell<Vec<HttpRequest>>,
+        }
+
+        impl HttpClient for FakeHttpClient {
+            fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+                self.requests.borrow_mut().push(request);
+                self.responses.borrow_mut().remove(0)
+            }
+
+            fn download_to_path(
+                &self,
+                _request: HttpDownloadRequest,
+                _cancellation: &dyn CancellationToken,
+                _observer: Option<&dyn HttpDownloadProgressObserver>,
+            ) -> AppResult<HttpDownloadResponse> {
+                panic!("download should not be called in this test")
+            }
+        }
+
+        let provider = DefaultAddonProvider::with_http_client(FakeHttpClient {
+            responses: RefCell::new(vec![
+                Ok(HttpResponse {
+                    status_code: 500,
+                    body: String::new(),
+                }),
+                Ok(HttpResponse {
+                    status_code: 200,
+                    body: format!("[{}]", tukui_catalog_addon_json("elvui", "ElvUI")),
+                }),
+            ]),
+            requests: RefCell::new(Vec::new()),
+        });
+        let request = AddonSearchRequest {
+            query: "elv",
+            flavor: WowFlavor::Retail,
+            limit: 10,
+            provider_id: Some("tukui"),
+        };
+
+        let error = provider
+            .search_addon_catalog(request)
+            .expect_err("first catalog search should fail");
+        assert!(error.to_string().contains("Tukui catalog request failed"));
+
+        let retry = provider
+            .search_addon_catalog(request)
+            .expect("failed search should not be cached");
+
+        assert_eq!(retry.results.len(), 1);
+        assert_eq!(provider.http_client().requests.borrow().len(), 2);
+    }
+
+    fn tukui_catalog_addon_json(slug: &str, name: &str) -> String {
+        format!(
+            r#"{{"slug":"{slug}","name":"{name}","url":"https://api.tukui.org/v1/download/{slug}/token","version":"1.0.0","patch":["12.0.1"],"web_url":"https://tukui.org/{slug}","small_desc":"A UI package"}}"#
+        )
     }
 
     fn assert_provider_descriptor_ids_are_unique(descriptors: &[AddonProviderDescriptor]) {

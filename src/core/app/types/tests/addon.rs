@@ -46,6 +46,7 @@ fn addon_provider_options_value_roundtrips_domain_shape() {
             max_age_secs: 120,
         },
         cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
+        search_cache_ttl_secs: 60,
     };
 
     let domain = value.clone().into_domain().expect("provider options");

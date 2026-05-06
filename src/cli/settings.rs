@@ -32,6 +32,8 @@ pub(super) fn handle_settings_command(
             clear_addon_http_no_validator_policy,
             addon_cache_repair_remote_policy,
             clear_addon_cache_repair_remote_policy,
+            addon_search_cache_ttl_secs,
+            clear_addon_search_cache_ttl_secs,
         } => render_with_value(
             json,
             || {
@@ -48,6 +50,8 @@ pub(super) fn handle_settings_command(
                     addon_cache_repair_remote_policy: addon_cache_repair_remote_policy
                         .map(addon_cache_repair_remote_policy_value),
                     clear_addon_cache_repair_remote_policy,
+                    addon_search_cache_ttl_secs,
+                    clear_addon_search_cache_ttl_secs,
                 })
             },
             render_runtime_settings_mutation,

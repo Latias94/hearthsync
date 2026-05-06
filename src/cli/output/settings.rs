@@ -4,7 +4,7 @@ pub(in crate::cli) fn render_runtime_settings_inspection(
     item: &RuntimeSettingsInspectionResult,
 ) -> String {
     format!(
-        "Settings file: {}\nSettings file exists: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}\nAddon cache repair remote policy: {}",
+        "Settings file: {}\nSettings file exists: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}\nAddon cache repair remote policy: {}\nAddon search cache TTL: {}",
         item.settings_path.display(),
         item.settings_file_exists,
         item.settings
@@ -25,6 +25,10 @@ pub(in crate::cli) fn render_runtime_settings_inspection(
             .addon_cache_repair_remote_policy
             .map(format_addon_cache_repair_remote_policy)
             .unwrap_or("none"),
+        item.settings
+            .addon_search_cache_ttl_secs
+            .map(format_addon_search_cache_ttl_secs)
+            .unwrap_or_else(|| "none".to_string()),
     )
 }
 
@@ -32,7 +36,7 @@ pub(in crate::cli) fn render_runtime_settings_mutation(
     item: &RuntimeSettingsMutationResult,
 ) -> String {
     format!(
-        "Settings file: {}\nSettings file exists: {}\nFile removed: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}\nAddon cache repair remote policy: {}",
+        "Settings file: {}\nSettings file exists: {}\nFile removed: {}\nAddon state storage: {}\nAddon cache dir: {}\nHTTP no-validator cache policy: {}\nAddon cache repair remote policy: {}\nAddon search cache TTL: {}",
         item.settings_path.display(),
         item.settings_file_exists,
         item.file_removed,
@@ -54,6 +58,10 @@ pub(in crate::cli) fn render_runtime_settings_mutation(
             .addon_cache_repair_remote_policy
             .map(format_addon_cache_repair_remote_policy)
             .unwrap_or("none"),
+        item.settings
+            .addon_search_cache_ttl_secs
+            .map(format_addon_search_cache_ttl_secs)
+            .unwrap_or_else(|| "none".to_string()),
     )
 }
 
@@ -87,6 +95,14 @@ fn format_addon_cache_repair_remote_policy(
     }
 }
 
+fn format_addon_search_cache_ttl_secs(value: u64) -> String {
+    if value == 0 {
+        "disabled".to_string()
+    } else {
+        format!("{value}s")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -111,6 +127,7 @@ mod tests {
                 addon_cache_repair_remote_policy: Some(
                     AddonCacheRepairRemotePolicyValue::RequireRemote,
                 ),
+                addon_search_cache_ttl_secs: Some(60),
             },
         });
 
@@ -120,6 +137,7 @@ mod tests {
         assert!(rendered.contains("Addon cache dir: E:\\Cache"));
         assert!(rendered.contains("HTTP no-validator cache policy: reuse_within_window(120s)"));
         assert!(rendered.contains("Addon cache repair remote policy: require_remote"));
+        assert!(rendered.contains("Addon search cache TTL: 60s"));
     }
 
     #[test]
@@ -135,5 +153,6 @@ mod tests {
         assert!(rendered.contains("File removed: true"));
         assert!(rendered.contains("Addon cache dir: none"));
         assert!(rendered.contains("Addon cache repair remote policy: none"));
+        assert!(rendered.contains("Addon search cache TTL: none"));
     }
 }

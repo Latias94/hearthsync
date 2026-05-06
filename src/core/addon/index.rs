@@ -26,7 +26,7 @@ pub(crate) use self::operations::{
     relink_addon_from_index_task_with_provider, update_addons_from_index_task_with_provider,
     validate_addon_index_update_dependency_policy_support,
 };
-pub use self::search::search_addon_index;
+pub use self::search::{search_addon_index, search_community_addon_index};
 pub use self::storage::inspect_addon_index;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

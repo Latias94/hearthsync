@@ -28,6 +28,10 @@ pub(in crate::cli) fn build_runtime(options: CliRuntimeArgs) -> AppResult<AppRun
             .cache_repair_remote_policy()
             .or(persisted_settings.addon_cache_repair_remote_policy)
             .unwrap_or_default(),
+        search_cache_ttl_secs: options
+            .addon_search_cache_ttl_secs
+            .or(persisted_settings.addon_search_cache_ttl_secs)
+            .unwrap_or_else(|| AddonProviderOptionsValue::default().search_cache_ttl_secs),
         ..AddonProviderOptionsValue::default()
     };
 

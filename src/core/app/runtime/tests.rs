@@ -139,6 +139,7 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
                 max_age_secs: 600,
             },
             cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
+            search_cache_ttl_secs: 45,
         })
         .with_external_helper_policy(ExternalHelperPolicyValue::NativeOnly)
         .build()
@@ -154,6 +155,7 @@ fn runtime_capabilities_report_configured_default_provider_and_external_helper_s
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 600 },
                     cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::RequireRemote,
+                    search_cache_ttl_secs: 45,
                 },
             },
             addon_source_capabilities: default_addon_source_capabilities(),
@@ -297,6 +299,7 @@ fn runtime_defaults_external_helper_to_native_rust_without_requesting_external_s
                     http_no_validator_cache_policy:
                         HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                     cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
+                    search_cache_ttl_secs: 300,
                 },
             },
             addon_source_capabilities: default_addon_source_capabilities(),
@@ -417,6 +420,7 @@ fn runtime_defaults_provider_options_to_default_configured_mode() {
                 http_no_validator_cache_policy:
                     HttpNoValidatorCachePolicyValue::ReuseWithinWindow { max_age_secs: 900 },
                 cache_repair_remote_policy: AddonCacheRepairRemotePolicyValue::ValidateRemote,
+                search_cache_ttl_secs: 300,
             },
         }
     );
