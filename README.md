@@ -40,7 +40,57 @@ Run the CLI during development:
 cargo run -- --help
 ```
 
+## Network And Provider Credentials
+
+HearthSync keeps shared discovery catalog-backed by default and only calls live provider search APIs
+when a provider-scoped search is requested. Installs and updates still contact the original provider
+when resolving the selected source.
+
+Useful environment variables:
+
+```powershell
+$env:HEARTHSYNC_CURSEFORGE_API_KEY = "<your official CurseForge REST API key>"
+$env:HEARTHSYNC_GITHUB_TOKEN = "<optional GitHub token>"
+$env:HTTPS_PROXY = "http://127.0.0.1:10809"
+```
+
+Notes:
+
+- CurseForge API access requires `HEARTHSYNC_CURSEFORGE_API_KEY`.
+- GitHub resolution works anonymously for light use, but heavier install/update/validation flows
+  should use `HEARTHSYNC_GITHUB_TOKEN` or `GITHUB_TOKEN`.
+- Standard `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and `NO_PROXY` variables are honored by the
+  HTTP client stack.
+- Live provider search results are cached in-process for 300 seconds by default. Use
+  `--addon-search-cache-ttl-secs 0` to disable that cache for debugging, or set another TTL globally
+  or through `settings set`.
+
 ## Basic Usage
+
+### Safe First Run
+
+Start with read-only commands. These commands inspect local state and runtime capability without
+writing to the WoW installation:
+
+```powershell
+cargo run -- runtime
+cargo run -- scan
+cargo run -- inspect --install "E:\Games\World of Warcraft" --flavor retail
+```
+
+Search the in-tree community addon catalog without calling live provider search APIs:
+
+```powershell
+cargo run -- addon index search --file .\catalog\community-addon-index.toml --query WeakAuras
+```
+
+Inspect a config package before applying it:
+
+```powershell
+cargo run -- config inspect --source .\AuthorUI
+```
+
+Use `plan` or `--dry-run` before any apply/install workflow that can mutate an installation.
 
 Scan known installation locations:
 
