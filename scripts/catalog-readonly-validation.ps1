@@ -10,6 +10,7 @@ if ([string]::IsNullOrWhiteSpace($CatalogPath)) {
 $CatalogDirectory = Split-Path -Parent $CatalogPath
 $CatalogBaseName = [System.IO.Path]::GetFileNameWithoutExtension($CatalogPath)
 $GovernancePath = Join-Path $CatalogDirectory "$CatalogBaseName.governance.json"
+$GitHubTokenEnvNames = @('HEARTHSYNC_GITHUB_TOKEN', 'GITHUB_TOKEN')
 
 function Assert-NonEmptyString {
     param(
@@ -250,12 +251,46 @@ function Invoke-HearthSyncJson {
 
 function Test-GitHubLiveProbeAvailability {
     try {
-        $headers = @{ 'User-Agent' = 'hearthsync-catalog-research' }
+        $headers = Get-GitHubApiHeaders
         $rate = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/rate_limit'
         return [int]$rate.rate.remaining -gt 0
     } catch {
         return $false
     }
+}
+
+function Get-GitHubApiHeaders {
+    $headers = @{
+        'Accept' = 'application/vnd.github+json'
+        'User-Agent' = 'hearthsync-catalog-research'
+        'X-GitHub-Api-Version' = '2022-11-28'
+    }
+
+    $token = Get-GitHubToken
+    if (-not [string]::IsNullOrWhiteSpace($token)) {
+        $headers['Authorization'] = "Bearer $token"
+    }
+
+    return $headers
+}
+
+function Get-GitHubToken {
+    foreach ($envName in $GitHubTokenEnvNames) {
+        $value = [System.Environment]::GetEnvironmentVariable($envName)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value.Trim()
+        }
+    }
+
+    return $null
+}
+
+function Get-GitHubQuotaModeLabel {
+    if ([string]::IsNullOrWhiteSpace((Get-GitHubToken))) {
+        return 'unauthenticated GitHub API quota'
+    }
+
+    return 'configured GitHub token quota'
 }
 
 function Assert-CatalogAliasSearch {
@@ -313,7 +348,7 @@ try {
     $cacheRoot = Join-Path $script:ValidationRoot 'download-cache'
     $githubLiveProbesAvailable = Test-GitHubLiveProbeAvailability
     if (-not $githubLiveProbesAvailable) {
-        Write-Output 'GitHub API rate limit is exhausted; GitHub live probes will be skipped for this run.'
+        Write-Output "GitHub API rate limit is exhausted for $(Get-GitHubQuotaModeLabel); GitHub live probes will be skipped for this run."
     }
 
     $inspectJson = cargo run --quiet -- --json addon index inspect --file $CatalogPath | Out-String
@@ -349,7 +384,7 @@ try {
     foreach ($package in @($inspect.packages)) {
         $sourceKind = [string]$package.source.kind
         if (($sourceKind -eq 'git_hub_release' -or $sourceKind -eq 'github_release') -and -not $githubLiveProbesAvailable) {
-            Write-Output "Skipping GitHub live probe for $($package.id) because the unauthenticated GitHub API quota is exhausted."
+            Write-Output "Skipping GitHub live probe for $($package.id) because $(Get-GitHubQuotaModeLabel) is exhausted."
             continue
         }
 

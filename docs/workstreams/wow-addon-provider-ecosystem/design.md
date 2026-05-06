@@ -295,6 +295,12 @@ the current upstream artifact from the provider identity at request time. Exact 
 ids, and artifact hashes belong in lockfiles, author package manifests, or other reproducible
 snapshot formats.
 
+Search must not depend on live GitHub or Wago API calls in the default path. Those providers are
+better represented by the local or future mirrored catalog, with provider API calls reserved for
+install, update, validation, and explicit refresh workflows. GitHub API calls may use
+`HEARTHSYNC_GITHUB_TOKEN` or `GITHUB_TOKEN` to avoid anonymous quota pressure; anonymous mode remains
+supported for small installs and CI-free local validation.
+
 ## Relationship to Sharing
 
 For cross-machine sharing, the recommended source-of-truth should be:

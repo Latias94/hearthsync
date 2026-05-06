@@ -68,6 +68,14 @@ pub(super) fn standard_curseforge_api_key_guard(value: &str) -> CurseForgeApiKey
     curseforge_api_key_env_guard(None, Some(value))
 }
 
+pub(super) fn github_token_guard(value: &str) -> GitHubTokenGuard {
+    github_token_env_guard(Some(value), None)
+}
+
+pub(super) fn standard_github_token_guard(value: &str) -> GitHubTokenGuard {
+    github_token_env_guard(None, Some(value))
+}
+
 fn curseforge_api_key_env_guard(
     hearthsync_value: Option<&str>,
     standard_value: Option<&str>,
@@ -92,6 +100,30 @@ fn curseforge_api_key_env_guard(
     }
 }
 
+fn github_token_env_guard(
+    hearthsync_value: Option<&str>,
+    standard_value: Option<&str>,
+) -> GitHubTokenGuard {
+    static GITHUB_TOKEN_ENV_MUTEX: Mutex<()> = Mutex::new(());
+    let lock = GITHUB_TOKEN_ENV_MUTEX
+        .lock()
+        .expect("github token env lock");
+    let hearthsync_key = "HEARTHSYNC_GITHUB_TOKEN";
+    let standard_key = "GITHUB_TOKEN";
+    let previous_hearthsync = std::env::var_os(hearthsync_key);
+    let previous_standard = std::env::var_os(standard_key);
+    set_optional_env_var(hearthsync_key, hearthsync_value);
+    set_optional_env_var(standard_key, standard_value);
+
+    GitHubTokenGuard {
+        hearthsync_key,
+        previous_hearthsync,
+        standard_key,
+        previous_standard,
+        _lock: lock,
+    }
+}
+
 pub(super) struct CurseForgeApiKeyGuard {
     hearthsync_key: &'static str,
     previous_hearthsync: Option<OsString>,
@@ -101,6 +133,21 @@ pub(super) struct CurseForgeApiKeyGuard {
 }
 
 impl Drop for CurseForgeApiKeyGuard {
+    fn drop(&mut self) {
+        restore_env_var(self.hearthsync_key, &self.previous_hearthsync);
+        restore_env_var(self.standard_key, &self.previous_standard);
+    }
+}
+
+pub(super) struct GitHubTokenGuard {
+    hearthsync_key: &'static str,
+    previous_hearthsync: Option<OsString>,
+    standard_key: &'static str,
+    previous_standard: Option<OsString>,
+    _lock: MutexGuard<'static, ()>,
+}
+
+impl Drop for GitHubTokenGuard {
     fn drop(&mut self) {
         restore_env_var(self.hearthsync_key, &self.previous_hearthsync);
         restore_env_var(self.standard_key, &self.previous_standard);

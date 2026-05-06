@@ -94,6 +94,17 @@ Alias-driven discovery also works when the governance overlay is present:
 cargo run -- addon index search --file .\catalog\community-addon-index.toml --query "Big Wigs"
 ```
 
+## Provider Quota Strategy
+
+The shared catalog should answer normal discovery queries without calling upstream provider search
+APIs. GitHub and Wago entries are curated because those hosts do not expose a robust addon-manager
+search catalog. Install and update still resolve the current artifact from the package's provider
+identity when the user chooses an entry.
+
+GitHub resolution works anonymously, but anonymous API quota is small and shared by IP. Users who
+install or validate many GitHub-backed packages should set `HEARTHSYNC_GITHUB_TOKEN` or
+`GITHUB_TOKEN`; the provider and validation scripts use the same precedence.
+
 ## Growth Strategy
 
 If the catalog grows beyond a small reviewable set, split the governance overlay by provider family

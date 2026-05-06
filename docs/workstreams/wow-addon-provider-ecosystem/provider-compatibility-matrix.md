@@ -13,6 +13,8 @@ Last refreshed: 2026-05-06.
   `target/research`, never against a user's live AddOns directory.
 - Provider downloads may use a temporary cache under the report directory; the cache is deleted by
   default after the probe unless `-KeepDownloads` is passed.
+- GitHub live validation uses `HEARTHSYNC_GITHUB_TOKEN` or `GITHUB_TOKEN` when present, and skips
+  GitHub rows when the available GitHub API quota is exhausted.
 - CurseForge live validation is skipped unless the caller explicitly opts in and has an API key in
   `HEARTHSYNC_CURSEFORGE_API_KEY` or `CURSEFORGE_API_KEY`.
 - Deterministic unit/app/CLI tests still own boundary behavior. Live probes are compatibility

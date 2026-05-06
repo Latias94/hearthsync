@@ -4,6 +4,7 @@ use super::super::http::{
     HttpDownloadProgressObserver, HttpDownloadRequest, HttpDownloadResponse, HttpResponse,
 };
 use super::*;
+use crate::core::addon::provider::test_support::{github_token_guard, standard_github_token_guard};
 use crate::core::task::CancellationToken;
 
 #[test]
@@ -58,6 +59,44 @@ fn fetch_github_release_with_client_percent_encodes_tag_path_segment() {
 }
 
 #[test]
+fn fetch_github_release_with_client_uses_namespaced_token_when_present() {
+    let _guard = github_token_guard("test-github-token");
+    let client = JsonResponseHttpClient::new(
+        r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#,
+    );
+
+    fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3")).expect("release");
+
+    let requests = client.requests.borrow();
+    assert!(
+        requests[0]
+            .headers
+            .iter()
+            .any(|header| header.name == "Authorization"
+                && header.value == "Bearer test-github-token")
+    );
+}
+
+#[test]
+fn fetch_github_release_with_client_accepts_standard_token_fallback() {
+    let _guard = standard_github_token_guard("standard-github-token");
+    let client = JsonResponseHttpClient::new(
+        r#"{"tag_name":"v1.2.3","assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}"#,
+    );
+
+    fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3")).expect("release");
+
+    let requests = client.requests.borrow();
+    assert!(
+        requests[0]
+            .headers
+            .iter()
+            .any(|header| header.name == "Authorization"
+                && header.value == "Bearer standard-github-token")
+    );
+}
+
+#[test]
 fn fetch_github_releases_with_client_uses_release_list_endpoint() {
     let client = JsonResponseHttpClient::new(
         r#"[{"tag_name":"v1.2.3","prerelease":true,"assets":[{"name":"addon.zip","browser_download_url":"https://example.com/addon.zip"}]}]"#,
@@ -71,6 +110,18 @@ fn fetch_github_releases_with_client_uses_release_list_endpoint() {
         requests[0].url,
         "https://api.github.com/repos/owner/repo/releases"
     );
+}
+
+#[test]
+fn fetch_github_release_with_client_explains_auth_or_quota_rejections() {
+    let client = StatusResponseHttpClient::new(403);
+
+    let error = fetch_github_release_with_client(&client, "owner", "repo", Some("v1.2.3"))
+        .expect_err("rejected GitHub response");
+
+    assert!(error.to_string().contains("GitHub request was rejected"));
+    assert!(error.to_string().contains("HEARTHSYNC_GITHUB_TOKEN"));
+    assert!(error.to_string().contains("GITHUB_TOKEN"));
 }
 
 #[test]
@@ -283,6 +334,39 @@ impl HttpClient for JsonResponseHttpClient<'_> {
         Ok(HttpResponse {
             status_code: 200,
             body: self.body.to_string(),
+        })
+    }
+
+    fn download_to_path(
+        &self,
+        _request: HttpDownloadRequest,
+        _cancellation: &dyn CancellationToken,
+        _observer: Option<&dyn HttpDownloadProgressObserver>,
+    ) -> AppResult<HttpDownloadResponse> {
+        panic!("download_to_path should not be called in this test")
+    }
+}
+
+struct StatusResponseHttpClient {
+    status_code: u16,
+    requests: RefCell<Vec<HttpRequest>>,
+}
+
+impl StatusResponseHttpClient {
+    fn new(status_code: u16) -> Self {
+        Self {
+            status_code,
+            requests: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl HttpClient for StatusResponseHttpClient {
+    fn get(&self, request: HttpRequest) -> AppResult<HttpResponse> {
+        self.requests.borrow_mut().push(request);
+        Ok(HttpResponse {
+            status_code: self.status_code,
+            body: "{}".to_string(),
         })
     }
 

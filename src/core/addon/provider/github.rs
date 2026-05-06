@@ -1,3 +1,5 @@
+use std::env;
+
 use serde::Deserialize;
 
 use crate::core::error::{AppError, AppResult};
@@ -18,6 +20,8 @@ use crate::core::addon::policy::AddonReleaseChannel;
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const GITHUB_API_VERSION: &str = "2022-11-28";
 const GITHUB_ACCEPT: &str = "application/vnd.github+json";
+const HEARTHSYNC_GITHUB_TOKEN_ENV: &str = "HEARTHSYNC_GITHUB_TOKEN";
+const STANDARD_GITHUB_TOKEN_ENV: &str = "GITHUB_TOKEN";
 const USER_AGENT_VALUE: &str = "hearthsync/0.1.0";
 
 pub(super) fn fetch_github_release_with_client(
@@ -32,10 +36,7 @@ pub(super) fn fetch_github_release_with_client(
     };
     let response = client.get(HttpRequest::new(url).with_headers(github_headers()))?;
     if !response.is_success() {
-        return Err(AppError::Validation(format!(
-            "GitHub request failed with HTTP status {}",
-            response.status_code
-        )));
+        return Err(github_request_error(response.status_code));
     }
     let release = serde_json::from_str(&response.body)?;
     validate_github_release(&release)?;
@@ -50,10 +51,7 @@ pub(super) fn fetch_github_releases_with_client(
     let url = github_api_url(&["repos", owner, repo, "releases"]);
     let response = client.get(HttpRequest::new(url).with_headers(github_headers()))?;
     if !response.is_success() {
-        return Err(AppError::Validation(format!(
-            "GitHub request failed with HTTP status {}",
-            response.status_code
-        )));
+        return Err(github_request_error(response.status_code));
     }
     let releases: Vec<GitHubRelease> = serde_json::from_str(&response.body)?;
     validate_github_releases(&releases)?;
@@ -170,7 +168,7 @@ fn github_api_url(path_segments: &[&str]) -> String {
 }
 
 pub(super) fn github_headers() -> Vec<HttpHeader> {
-    vec![
+    let mut headers = vec![
         HttpHeader {
             name: "Accept".to_string(),
             value: GITHUB_ACCEPT.to_string(),
@@ -183,7 +181,35 @@ pub(super) fn github_headers() -> Vec<HttpHeader> {
             name: "X-GitHub-Api-Version".to_string(),
             value: GITHUB_API_VERSION.to_string(),
         },
-    ]
+    ];
+
+    if let Some(token) = github_token() {
+        headers.push(HttpHeader {
+            name: "Authorization".to_string(),
+            value: format!("Bearer {token}"),
+        });
+    }
+
+    headers
+}
+
+fn github_token() -> Option<String> {
+    env::var(HEARTHSYNC_GITHUB_TOKEN_ENV)
+        .or_else(|_| env::var(STANDARD_GITHUB_TOKEN_ENV))
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn github_request_error(status_code: u16) -> AppError {
+    let message = match status_code {
+        401 | 403 => format!(
+            "GitHub request was rejected with {status_code}. For higher API quota or private repositories, set `{HEARTHSYNC_GITHUB_TOKEN_ENV}` or `{STANDARD_GITHUB_TOKEN_ENV}` to a GitHub token."
+        ),
+        _ => format!("GitHub request failed with HTTP status {status_code}"),
+    };
+
+    AppError::Validation(message)
 }
 
 #[derive(Debug, Clone, Deserialize)]
