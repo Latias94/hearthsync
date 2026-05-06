@@ -2592,11 +2592,12 @@ storing third-party addon archives or turning local managed registry state into 
 Specifically:
 
 - The catalog should reuse or closely mirror addon-index package records.
+- The installable index lives in `catalog/community-addon-index.toml`.
+- Editorial metadata lives in `catalog/community-addon-index.governance.json`.
 - Entries store source refs, addon directories, aliases, supported flavors, upstream host labels,
   website/source URLs, and attribution metadata.
 - The catalog must not store downloaded zip archives.
 - Validation should be read-only and should run provider dry-run probes against synthetic installs.
-- The first catalog should live under `catalog/community-addon-index.toml` in this repository.
 - If the catalog later outgrows the main repo, it can be mirrored to a separate repository without
   changing the schema or validation model.
 
@@ -2606,3 +2607,5 @@ Specifically:
 - Community PRs can improve source mappings while preserving original provider downloads.
 - The CLI and future egui can consume the catalog as an optional local addon index now and as a
   remote mirror later if that becomes operationally useful.
+- Alias search and source attribution can evolve in the governance overlay without widening the
+  install-time addon index schema.

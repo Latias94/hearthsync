@@ -270,11 +270,15 @@ GitHub Releases, Wago project ids, and Tukui slugs are usable source identities,
 and Tukui currently expose straightforward search catalogs. GitHub in particular needs a discovery
 layer if HearthSync wants good open-source addon search without scraping.
 
-The recommended product direction is an in-tree `catalog/` metadata layer, starting with
-`catalog/community-addon-index.toml`:
+The recommended product direction is an in-tree `catalog/` metadata layer, split into:
+
+- `catalog/community-addon-index.toml` for the installable/searchable index
+- `catalog/community-addon-index.governance.json` for aliases, upstream hosts, attribution, and
+  verification metadata
 
 - stores source metadata only, not archives
 - reuses the existing addon index package schema where possible
+- keeps editorial metadata outside the install schema
 - validates package source refs through read-only dry-run probes
 - accepts community PRs for GitHub/Wago/Tukui mappings
 - can be consumed as an optional local addon index now and mirrored remotely later if needed
@@ -282,7 +286,8 @@ The recommended product direction is an in-tree `catalog/` metadata layer, start
 This follows the stronger parts of Strongbox and instawow: a public source catalogue helps discovery,
 while provider adapters still download from original hosts and enforce host-specific rules. Keeping
 the first catalog in-tree also makes code review, validation, and release coordination simpler than
-splitting the metadata source of truth into another repository too early.
+splitting the metadata source of truth into another repository too early. The governance overlay is
+what lets alias search and source attribution evolve without widening the install schema.
 
 ## Relationship to Sharing
 

@@ -1,9 +1,11 @@
+use super::governance::load_addon_index_governance;
 use super::storage::inspect_addon_index;
 use super::{AddonIndexPackage, AddonIndexSearch, AddonIndexSearchRequest};
 use crate::core::error::AppResult;
 
 pub fn search_addon_index(request: AddonIndexSearchRequest) -> AppResult<AddonIndexSearch> {
     let inspection = inspect_addon_index(&request.index_path)?;
+    let governance = load_addon_index_governance(&request.index_path)?;
     let query = request.query.trim().to_string();
     let query_norm = normalize(&query);
     let query_tokens = tokenize_query(&query);
@@ -13,7 +15,7 @@ pub fn search_addon_index(request: AddonIndexSearchRequest) -> AppResult<AddonIn
         .into_iter()
         .enumerate()
         .filter_map(|(ordinal, package)| {
-            search_score(&package, &query_norm, &query_tokens)
+            search_score(&package, governance.as_ref(), &query_norm, &query_tokens)
                 .map(|score| (score, ordinal, package))
         })
         .collect::<Vec<_>>();
@@ -48,8 +50,13 @@ pub fn search_addon_index(request: AddonIndexSearchRequest) -> AppResult<AddonIn
     })
 }
 
-fn search_score(package: &AddonIndexPackage, query: &str, query_tokens: &[String]) -> Option<u8> {
-    let searchable_fields = searchable_fields(package);
+fn search_score(
+    package: &AddonIndexPackage,
+    governance: Option<&super::governance::AddonIndexGovernance>,
+    query: &str,
+    query_tokens: &[String],
+) -> Option<u8> {
+    let searchable_fields = searchable_fields(package, governance);
     if query.is_empty() {
         return Some(2);
     }
@@ -78,7 +85,10 @@ fn search_score(package: &AddonIndexPackage, query: &str, query_tokens: &[String
     None
 }
 
-fn searchable_fields(package: &AddonIndexPackage) -> Vec<String> {
+fn searchable_fields(
+    package: &AddonIndexPackage,
+    governance: Option<&super::governance::AddonIndexGovernance>,
+) -> Vec<String> {
     let mut fields = vec![
         package.id.clone(),
         package.name.clone(),
@@ -94,6 +104,9 @@ fn searchable_fields(package: &AddonIndexPackage) -> Vec<String> {
     fields.extend(package.match_package_ids.iter().cloned());
     fields.extend(package.addon_directories.iter().cloned());
     fields.extend(package.supported_flavors.iter().cloned());
+    if let Some(governance) = governance {
+        fields.extend(governance.searchable_terms_for_package(&package.id));
+    }
 
     fields.into_iter().map(|value| normalize(&value)).collect()
 }
@@ -172,6 +185,65 @@ supported_flavors = ["retail"]
                 version: None,
             }
         );
+    }
+
+    #[test]
+    fn search_addon_index_matches_governance_aliases() {
+        let temp = tempdir().expect("temp dir");
+        let index_path = temp.path().join("community-addon-index.toml");
+        fs::write(
+            &index_path,
+            r#"
+schema_version = 1
+name = "Community Catalog"
+
+[[packages]]
+id = "bigwigs"
+name = "BigWigs"
+version = "v414.9"
+source = { kind = "github_release", owner = "BigWigsMods", repo = "BigWigs", tag = "v414.9", asset_name = "BigWigs-v414.9.zip" }
+source_url = "https://github.com/BigWigsMods/BigWigs/releases/download/v414.9/BigWigs-v414.9.zip"
+website_url = "https://github.com/BigWigsMods/BigWigs"
+addon_directories = ["BigWigs"]
+supported_flavors = ["retail"]
+"#,
+        )
+        .expect("index file");
+        fs::write(
+            index_path.with_extension("governance.json"),
+            r#"
+{
+  "schema_version": 1,
+  "name": "Community Catalog Governance",
+  "updated_at": "2026-05-06T00:00:00Z",
+  "entries": [
+    {
+      "id": "bigwigs",
+      "aliases": ["Big Wigs"],
+      "upstream_hosts": ["github"],
+      "source_attribution": "BigWigsMods/BigWigs official GitHub releases",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "Alias-driven discovery"
+    }
+  ]
+}
+"#,
+        )
+        .expect("governance file");
+
+        let result = search_addon_index(AddonIndexSearchRequest {
+            index_path,
+            query: "Big Wigs".to_string(),
+            limit: 10,
+        })
+        .expect("search");
+
+        assert_eq!(result.matched_package_count, 1);
+        assert_eq!(result.returned_package_count, 1);
+        assert_eq!(result.packages[0].id, "bigwigs");
     }
 
     #[test]

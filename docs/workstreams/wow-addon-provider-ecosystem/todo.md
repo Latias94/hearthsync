@@ -175,13 +175,15 @@ Goal: decide and bootstrap a metadata-only catalog for sources that are installa
 searchable by provider API, especially GitHub Releases.
 
 - [x] Define a minimal catalog schema based on existing addon index package records.
-- [ ] Add source attribution, upstream host, aliases, addon directories, and supported-flavor fields.
+- [x] Add source attribution, upstream host, aliases, addon directories, and supported-flavor
+  fields through the catalog index plus governance overlay split.
 - [x] Add a read-only validation script that consumes the in-tree catalog and verifies schema/search
   wiring without mutating addon state.
 - [ ] Extend the validation script with live provider dry-run probes once the provider contracts
   expose enough read-only metadata.
 - [x] Add CLI support for catalog search over addon-index files; the in-tree catalog can be queried
   with `addon index search --file catalog/community-addon-index.toml`.
+- [x] Make alias-driven catalog search work through the governance overlay.
 
 Exit criteria:
 

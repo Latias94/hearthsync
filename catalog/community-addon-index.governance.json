@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "name": "HearthSync Community Addon Catalog Governance",
+  "updated_at": "2026-05-06T00:00:00Z",
+  "entries": [
+    {
+      "id": "bigwigs",
+      "aliases": ["Big Wigs"],
+      "upstream_hosts": ["github"],
+      "source_attribution": "BigWigsMods/BigWigs official GitHub releases",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "Alias-driven discovery keeps the GitHub mapping searchable without scraping."
+    },
+    {
+      "id": "details",
+      "aliases": ["Details! Damage Meter", "Details Meter"],
+      "upstream_hosts": ["wago"],
+      "source_attribution": "Wago project qv63A7Gb / Details! Damage Meter",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "The index keeps the installable source ref; the overlay carries discovery aliases."
+    },
+    {
+      "id": "elvui",
+      "aliases": ["Elv UI"],
+      "upstream_hosts": ["tukui"],
+      "source_attribution": "Tukui official addon API / ElvUI",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "Alias search should route to the official Tukui API mapping."
+    },
+    {
+      "id": "tukui",
+      "aliases": ["Tuk UI"],
+      "upstream_hosts": ["tukui"],
+      "source_attribution": "Tukui official addon API / Tukui",
+      "maintainer": "hearthsync",
+      "status": "active",
+      "confidence": "high",
+      "last_verified_at": "2026-05-06T00:00:00Z",
+      "notes": "Separate from ElvUI while sharing the same upstream host."
+    }
+  ]
+}

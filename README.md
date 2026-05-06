@@ -241,8 +241,9 @@ Supported `source.kind` values are the same source references used by the instal
 - `wago_addon`
 - `tukui_addon`
 
-The repository also ships a starter community catalog at `catalog/community-addon-index.toml`.
-It follows the same index schema, so you can inspect it directly:
+The repository also ships a starter community catalog at `catalog/community-addon-index.toml`
+plus a governance overlay at `catalog/community-addon-index.governance.json`.
+The TOML file follows the same index schema, so you can inspect it directly:
 
 ```powershell
 cargo run -- addon index inspect --file .\catalog\community-addon-index.toml
@@ -250,6 +251,7 @@ cargo run -- addon index search --file .\catalog\community-addon-index.toml --qu
 ```
 
 For repeatable read-only checks, use `scripts/catalog-readonly-validation.ps1`.
+It validates the governance overlay and alias search as well as the base index.
 
 ## Addon Lock File
 
@@ -308,6 +310,7 @@ Workstream docs live under:
 Repository-owned addon metadata lives in:
 
 - `catalog/community-addon-index.toml`
+- `catalog/community-addon-index.governance.json`
 - `catalog/README.md`
 
 ## Development

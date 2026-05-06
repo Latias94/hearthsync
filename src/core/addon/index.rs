@@ -1,4 +1,5 @@
 mod curation;
+mod governance;
 mod matching;
 mod operations;
 mod search;
