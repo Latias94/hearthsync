@@ -60,10 +60,10 @@ release packaging still need work.
 
 | Gap | Why It Matters | Release Gate |
 | --- | --- | --- |
-| First-run docs | Users need a safe path from install discovery to first addon/config operation. | README quick-start with one tracked-addon flow, one catalog flow, and one config-package flow. |
+| First-run docs | Users need a safe path from install discovery to first addon/config operation. | Done for technical preview: README quick start covers runtime/inspect, catalog-backed addon install, and config package dry-run. |
 | Product command recipes | The CLI has many pieces, but users need opinionated workflows. | First scenario guide exists in `docs/user-workflows.md`; keep expanding it with screenshots or GUI equivalents later. |
 | Real author-package matrix | Synthetic tests are good but not enough for broad compatibility claims. | Maintain a public matrix of sanitized fixtures plus read-only real-package probes. |
-| Network/proxy guidance | CN users may hit GitHub/Wago/CurseForge/Tukui connectivity or API quota issues. | Document proxy environment variables, provider token variables, cache TTL, and failure diagnostics. |
+| Network/proxy guidance | CN users may hit GitHub/Wago/CurseForge/Tukui connectivity or API quota issues. | Done for technical preview: README documents proxy variables, provider token variables, cache TTL, runtime credential/proxy signals, and common failure symptoms. |
 | Provider quota strategy | A local client cannot safely offer unlimited live global search without either local catalog metadata or provider tokens. | Keep default search catalog-backed; document when live provider calls happen and how to configure credentials. |
 | Release packaging | Building from source is acceptable for contributors but not consumers. | Publish signed or checksummed binaries for Windows and macOS. |
 | Upgrade/migration policy | Addon state, catalog schema, and config bundle schema will evolve. | Define pre-1.0 compatibility policy and migration tests for persisted state. |
@@ -105,13 +105,13 @@ download URLs. Exact versions belong in addon locks or explicit user manifests.
 
 Before calling the project a consumer-facing beta:
 
-- [ ] README includes a short end-to-end quick start.
+- [x] README includes a short end-to-end quick start.
 - [x] Product readiness doc links to all supported workflows.
 - [ ] Provider compatibility matrix has a recent read-only run.
 - [ ] Config package compatibility matrix lists real author-package shapes and sanitized Lua
       reductions.
-- [ ] Community catalog validation script is documented and easy to run.
-- [ ] Network/proxy/provider-token troubleshooting is documented.
+- [x] Community catalog validation script is documented and easy to run.
+- [x] Network/proxy/provider-token troubleshooting is documented.
 - [ ] `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo nextest run`
       are green on the release machine.
 - [ ] Windows and macOS binaries are published with checksums.
@@ -120,10 +120,10 @@ Before calling the project a consumer-facing beta:
 
 ## Next Recommended Work
 
-1. Add a README "Safe First Run" section with commands that do not mutate the live installation.
-2. Add a "Network and Provider Credentials" section to README.
-3. Add a config package compatibility matrix that separates synthetic fixtures, sanitized real
+1. Add a config package compatibility matrix that separates synthetic fixtures, sanitized real
    reductions, and read-only live probes.
+2. Define the pre-1.0 persisted state/schema compatibility policy and migration test expectations.
+3. Add release packaging documentation for Windows and macOS binaries plus checksums.
 4. Add a product workflow doc for community catalog contribution and validation.
 5. Only after those docs are stable, start the first `egui` screen around runtime diagnostics and
    read-only inspect/search flows.

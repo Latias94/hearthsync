@@ -41,6 +41,42 @@ Run the CLI during development:
 cargo run -- --help
 ```
 
+## Quick Start
+
+Set the installation path once in your shell examples:
+
+```powershell
+$Install = "E:\Games\World of Warcraft"
+$Flavor = "retail"
+```
+
+Start read-only and confirm HearthSync sees the expected runtime, install roots, provider
+credentials, and proxy signals:
+
+```powershell
+cargo run -- runtime --install $Install --flavor $Flavor
+cargo run -- inspect --install $Install --flavor $Flavor
+```
+
+Install one addon from the repository-owned community catalog. The search is local catalog-backed;
+the install resolves the selected upstream provider source:
+
+```powershell
+cargo run -- addon index search --file .\catalog\community-addon-index.toml --query WeakAuras
+cargo run -- addon index install --install $Install --flavor $Flavor --file .\catalog\community-addon-index.toml --name WeakAuras --dry-run
+cargo run -- addon index install --install $Install --flavor $Flavor --file .\catalog\community-addon-index.toml --name WeakAuras --backup-output .\backups
+```
+
+Inspect an author-style UI package before applying `WTF`, fonts, textures, or addon folders:
+
+```powershell
+cargo run -- config inspect --source .\AuthorUI
+cargo run -- config plan --source .\AuthorUI --source-flavor $Flavor --source-platform windows --install $Install --flavor $Flavor --target-account ACCOUNT --target-server Illidan --target-character Examplemage
+cargo run -- config apply --source .\AuthorUI --source-flavor $Flavor --source-platform windows --install $Install --flavor $Flavor --target-account ACCOUNT --target-server Illidan --target-character Examplemage --dry-run --backup-output .\backups
+```
+
+The broader scenario guide is in [User Workflows](docs/user-workflows.md).
+
 ## Network And Provider Credentials
 
 HearthSync keeps shared discovery catalog-backed by default and only calls live provider search APIs
@@ -67,6 +103,23 @@ Notes:
 - Live provider search results are cached in-process for 300 seconds by default. Use
   `--addon-search-cache-ttl-secs 0` to disable that cache for debugging, or set another TTL globally
   or through `settings set`.
+
+### Network Troubleshooting
+
+Use `cargo run -- runtime` first. It reports whether proxy variables and provider credential
+variables are visible to the process without printing secret values.
+
+Common symptoms:
+
+- CurseForge search or install fails early: set `HEARTHSYNC_CURSEFORGE_API_KEY`.
+- GitHub-backed install, update, or validation hits rate limits: set `HEARTHSYNC_GITHUB_TOKEN` or
+  `GITHUB_TOKEN`.
+- GitHub, Wago, CurseForge, or Tukui cannot be reached from the current network: set `HTTPS_PROXY`
+  or the standard proxy variables before retrying.
+- Repeated live provider search causes quota pressure: prefer `addon index search` over
+  provider-scoped live search, or keep a non-zero `--addon-search-cache-ttl-secs`.
+- Debugging provider behavior needs fresh live results: run once with
+  `--addon-search-cache-ttl-secs 0`.
 
 ## Basic Usage
 
