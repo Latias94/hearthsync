@@ -417,6 +417,7 @@ Workstream docs live under:
 - `docs/workstreams/wow-addon-sync-cli/milestones.md`
 - `docs/product-readiness.md`
 - `docs/persisted-state-compatibility.md`
+- `docs/release.md`
 - `docs/user-workflows.md`
 
 Repository-owned addon metadata lives in:

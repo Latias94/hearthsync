@@ -41,6 +41,8 @@ release packaging still need work.
   [User Workflows](user-workflows.md)
 - Persisted state and schema compatibility policy:
   [Persisted State Compatibility](persisted-state-compatibility.md)
+- Release verification and binary packaging process:
+  [Release Process](release.md)
 - Config package compatibility hardening:
   [Config Package Compatibility Hardening](workstreams/wow-addon-sync-core/config-package-compatibility-hardening.md)
 - Shareable config-package MVP audit:
@@ -124,7 +126,7 @@ Before calling the project a consumer-facing beta:
 
 1. Add a config package compatibility matrix that separates synthetic fixtures, sanitized real
    reductions, and read-only live probes.
-2. Add release packaging documentation for Windows and macOS binaries plus checksums.
+2. Automate release artifact creation after the CI gate is stable.
 3. Add migration fixture tests before introducing the next persisted-state schema version.
 4. Add a product workflow doc for community catalog contribution and validation.
 5. Only after those docs are stable, start the first `egui` screen around runtime diagnostics and
